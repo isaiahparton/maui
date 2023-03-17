@@ -81,12 +81,12 @@ define_panel :: proc(name: string, opts: Panel_Options) {
 		to_absolute(opts.size.y, f32(size.y)),
 	}
 }
-to_absolute :: proc(v: Value, f: f32 = 0) -> i32 {
+to_absolute :: proc(v: Value, f: f32 = 0) -> f32 {
 	switch t in v {
 		case Absolute:
-		return t
+		return f32(t)
 		case Relative:
-		return i32(t * f)
+		return t * f
 	}
 	return 0
 }

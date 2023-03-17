@@ -47,7 +47,7 @@ key_down :: proc(k: Key) -> bool {
 	return k in key_bits
 }
 
-set_mouse_position :: proc(x, y: i32) {
+set_mouse_position :: proc(x, y: f32) {
 	input.mouse_pos = {x, y}
 }
 set_mouse_bit :: proc(b: Mouse_Button, v: bool) {

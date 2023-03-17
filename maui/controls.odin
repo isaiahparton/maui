@@ -1,12 +1,14 @@
 package maui
 
 import "core:fmt"
+import "core:math"
 
 /*
 	Anything clickable/interactable
 */
 Control_Bit :: enum {
 	stayalive,
+	active,
 }
 Control_Bits :: bit_set[Control_Bit]
 
@@ -34,7 +36,7 @@ Control :: struct {
 	state: Control_State,
 
 	// animation
-	t_hover, t_press: f32,
+	t_hover, t_press, t_active: f32,
 }
 
 begin_control :: proc(id: Id, rect: Rect) -> (c: ^Control, ok: bool) {
@@ -130,14 +132,15 @@ update_control :: proc(c: ^Control) {
 //
 // 	| calendar			| color picker
 
-buddy :: proc(text: string) -> (s: Control_State) {
-	c, ok := begin_control(hash_id(text), next_control_rect())
-	if !ok {
+@(deferred_out=_scoped_end_widget)
+widget :: proc(loc := #caller_location) -> (ok: bool) {
+	c, k := begin_control(hash_id(loc), next_control_rect())
+	if !k {
 		return
 	}
 	update_control(c)
 
-	if .hovered in c.state {
+	if vec_vs_rect(input.mouse_pos, c.body) {
 		c.t_hover = min(1, c.t_hover + 7 * state.delta_time)
 	} else {
 		c.t_hover = max(0, c.t_hover - 7 * state.delta_time)
@@ -148,28 +151,161 @@ buddy :: proc(text: string) -> (s: Control_State) {
 		c.t_press = max(0, c.t_press - 9 * state.delta_time)
 	}
 
-	offset := i32(f32(-5) * max(c.t_hover - c.t_press * c.t_hover, 0))
+	offset := -7 * c.t_hover
 	if offset != 0 {
 		draw_rect(c.body, color(1, 1))
 	}
-	draw_rect(rect_translate(c.body, {offset, offset}), color(2, 1))
-	draw_aligned_text(text, {c.body.x + c.body.w / 2 + offset, c.body.y + c.body.h / 2 + offset}, color(1, 1), .middle, .middle)
+	c.body = rect_translate(c.body, {offset, offset})
+	draw_rect(c.body, color(0, 1))
+	draw_rect_lines(c.body, 2, color(1, 1))
 
 	end_control()
+	ok = true
+	push_layout(c.body)
+
 	return
 }
+_scoped_end_widget :: proc(ok: bool) {
+	if ok {
+		pop_layout()
+	}
+}
 
-button :: proc(text: string) -> (s: Control_State) {
-	c, ok := begin_control(hash_id(text), next_control_rect())
+button :: proc(text: string, alt: bool, loc := #caller_location) -> (s: Control_State) {
+	c, ok := begin_control(hash_id(loc), next_control_rect())
 	if !ok {
 		return
 	}
 	update_control(c)
 
 	if .hovered in c.state {
-		c.t_hover = min(1, c.t_hover + 5 * state.delta_time)
+		c.t_hover = min(1, c.t_hover + 6 * state.delta_time)
 	} else {
-		c.t_hover = max(0, c.t_hover - 5 * state.delta_time)
+		c.t_hover = max(0, c.t_hover - 6 * state.delta_time)
+	}
+	if .down in c.state {
+		c.t_press = min(1, c.t_press + 9 * state.delta_time)
+	} else {
+		c.t_press = max(0, c.t_press - 9 * state.delta_time)
+	}
+
+	//a := i32(c.t_hover * 5)
+	//c.body.x += a
+	//c.body.w -= a * 2
+	draw_rect(c.body, color(1 if alt else 0, 1))
+	if c.t_hover > 0 {
+		draw_rect_sweep(c.body, c.t_hover, color(3 if alt else 2, 1))
+		draw_rect(c.body, color(1, 0.15 * c.t_press))
+	}
+	if !alt {
+		draw_rect_lines(c.body, 2, color(1, 1))
+	}
+	draw_aligned_text(text, {c.body.x + c.body.w / 2, c.body.y + c.body.h / 2}, color(0 if alt else 1, 1), .middle, .middle)
+
+	end_control()
+	return
+}
+
+checkbox :: proc(value: ^bool, text: string, loc := #caller_location) -> (s: Control_State) {
+	c, ok := begin_control(hash_id(loc), child_rect(next_control_rect(), {30, 30}, .near, .middle))
+	if !ok {
+		return
+	}
+	update_control(c)
+
+	if .hovered in c.state {
+		c.t_hover = min(1, c.t_hover + 6 * state.delta_time)
+	} else {
+		c.t_hover = max(0, c.t_hover - 6 * state.delta_time)
+	}
+	if .down in c.state {
+		c.t_press = min(1, c.t_press + 9 * state.delta_time)
+	} else {
+		c.t_press = max(0, c.t_press - 9 * state.delta_time)
+	}
+	if value^ {
+		c.t_active = min(1, c.t_active + 9 * state.delta_time)
+	} else {
+		c.t_active = max(0, c.t_active - 9 * state.delta_time)
+	}
+
+	//draw_rect(c.body, color(0, 1))
+	if value^ {
+		draw_rect(c.body, color(2, 1))
+	}
+	if c.t_hover > 0 {
+		draw_rect(c.body, color(1, 0.15 * (c.t_hover + c.t_press)))
+	}
+	if c.t_active > 0 {
+		draw_icon_ex(.check, {c.body.x + 15, c.body.y + 15}, c.t_active if value^ else (1 + (1 - c.t_active)), .middle, .middle, color(1, 1 if value^ else c.t_active))
+	}
+	draw_rect_lines(c.body, 2, color(1, 1))
+	draw_aligned_text(text, {c.body.x + c.body.w + 5, c.body.y + c.body.h / 2}, color(1, 1), .near, .middle)
+
+	if .released in c.state {
+		value^ = !value^
+	}
+
+	end_control()
+	return
+}
+
+toggle :: proc(value: ^bool, loc := #caller_location) -> (s: Control_State) {
+	c, ok := begin_control(hash_id(loc), child_rect(next_control_rect(), {60, 30}, .near, .middle))
+	if !ok {
+		return
+	}
+	update_control(c)
+
+	if .hovered in c.state {
+		c.t_hover = min(1, c.t_hover + 6 * state.delta_time)
+	} else {
+		c.t_hover = max(0, c.t_hover - 6 * state.delta_time)
+	}
+	if .down in c.state {
+		c.t_press = min(1, c.t_press + 9 * state.delta_time)
+	} else {
+		c.t_press = max(0, c.t_press - 9 * state.delta_time)
+	}
+	if value^ {
+		c.t_active = min(1, c.t_active + 9 * state.delta_time)
+	} else {
+		c.t_active = max(0, c.t_active - 9 * state.delta_time)
+	}
+
+	baseline := c.body.y + 15
+	thumb_center := Vector{c.body.x + 15 + c.t_active * 30, baseline}
+
+	// body
+	draw_rect({c.body.x + 15, c.body.y, c.body.w - 30, c.body.h}, color(2, 1))
+	draw_circle_sector({c.body.x + 15, baseline}, 15, math.PI * 0.5, math.PI * 1.5, 6, color(2, 1))
+	draw_circle_sector({c.body.x + 45, baseline}, 15, math.PI * 1.5, math.PI * 2.5, 6, color(2, 1))
+
+	// thumb (switch part thingy)
+	draw_circle(thumb_center, 15, color(0, 1))
+	draw_ring(thumb_center, 13, 15, 12, color(1, 1))
+	draw_ring(thumb_center, 6, 8, 12, color(1, 1))
+
+	if .released in c.state {
+		value^ = !value^
+	}
+
+	end_control()
+	return
+}
+
+@(deferred_out=_scoped_end_menu)
+menu :: proc(text: string, loc := #caller_location) -> (active: bool) {
+	c, ok := begin_control(hash_id(loc), next_control_rect())
+	if !ok {
+		return
+	}
+	update_control(c)
+
+	if .hovered in c.state {
+		c.t_hover = min(1, c.t_hover + 6 * state.delta_time)
+	} else {
+		c.t_hover = max(0, c.t_hover - 6 * state.delta_time)
 	}
 	if .down in c.state {
 		c.t_press = min(1, c.t_press + 9 * state.delta_time)
@@ -178,24 +314,14 @@ button :: proc(text: string) -> (s: Control_State) {
 	}
 
 	draw_rect(c.body, color(0, 1))
+	if c.t_hover > 0 {
+		draw_rect_sweep(c.body, c.t_hover, color(2, 1))
+	}
 	draw_rect_lines(c.body, 2, color(1, 1))
-	a := i32(f32(c.body.w) * c.t_hover)
-	b := a + 20
-	draw_quad(
-		{clamp()}
-	)
-
-	//size := i32(c.t_hover * f32(c.body.h / 2))
-	//draw_triangle({c.body.x, c.body.y}, {c.body.x, c.body.y + size}, {c.body.x + size, c.body.y}, color(1, 1))
 	draw_aligned_text(text, {c.body.x + c.body.w / 2, c.body.y + c.body.h / 2}, color(1, 1), .middle, .middle)
 
 	end_control()
-	return
-}
-
-@(deferred_out=_scoped_end_menu)
-menu :: proc(text: string, loc := #caller_location) -> (active: bool) {
-	return
+	return .active in c.bits
 }
 _scoped_end_menu :: proc(active: bool) {
 	if active {

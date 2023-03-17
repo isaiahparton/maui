@@ -14,7 +14,7 @@ Value :: union {
 	Absolute,
 	Relative,
 }
-Vector :: [2]i32
+Vector :: [2]f32
 AnyVector :: [2]Value
 
 vec_vs_rect :: proc(v: Vector, r: Rect) -> bool {
@@ -50,7 +50,7 @@ color_brightness :: proc(c: Color, v: f32) -> Color {
 	Rectangles
 */
 Rect :: struct {
-	x, y, w, h: i32,
+	x, y, w, h: f32,
 }
 rect_translate :: proc(r: Rect, v: Vector) -> Rect {
 	return {r.x + v.x, r.y + v.y, r.w, r.h}
@@ -125,7 +125,7 @@ State :: struct {
 	
 	render, disabled: bool,
 	size: Vector,
-	colors: [4]Color,
+	colors: [5]Color,
 
 	// Retained control data
 	control_exists: [MAX_CONTROLS]bool,
@@ -145,7 +145,7 @@ State :: struct {
 	layout_count: i32,
 
 	// Next control options
-	next_size: i32,
+	next_size: f32,
 	next_rect: Rect,
 	set_next: bool,
 
@@ -162,10 +162,10 @@ State :: struct {
 
 
 
-control_size :: proc(size: i32) {
+control_size :: proc(size: f32) {
 	state.next_size = size
 }
-use_next_size :: proc() -> (size: i32, ok: bool) {
+use_next_size :: proc() -> (size: f32, ok: bool) {
 	size = state.next_size
 	ok = state.next_size != 0
 	return
@@ -188,9 +188,9 @@ fill :: proc() {
 	control_rect(get_layout().rect)
 }
 screen_point :: proc(h, v: f32) -> Vector {
-	return {i32(h * f32(state.size.x)), i32(v * f32(state.size.y))}
+	return {h * f32(state.size.x), v * f32(state.size.y)}
 }
-set_size :: proc(w, h: i32) {
+set_size :: proc(w, h: f32) {
 	state.size = {w, h}
 }
 
@@ -203,6 +203,7 @@ init :: proc() {
 		{10, 10, 10, 255},
 		{15, 235, 90, 255},
 		{255, 0, 180, 255},
+		{0, 255, 180, 255},
 	}
 }
 refresh :: proc() {
@@ -211,6 +212,7 @@ refresh :: proc() {
 	// sort commands
 
 	assert(layout_count == 0)
+
 	command_offset = 0
 
 	prev_hover_id = hover_id
