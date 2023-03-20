@@ -1,9 +1,331 @@
 package maui
-
 import "core:fmt"
 import "core:math"
+import "core:mem"
+import "core:os"
+import "core:strings"
+import "core:runtime"
+import "core:path/filepath"
+import "core:unicode/utf8"
+import rl "vendor:raylib"
 
-Icon_Index :: enum {
+/*
+	Font loading/usage
+	uses raylib to load fonts
+*/
+GLYPH_SPACING :: 1
+GlyphData :: struct {
+	source: Rect,
+	offset: Vector,
+	advance: f32,
+}
+FontData :: struct {
+	size: f32,
+	imageData: rawptr,
+	imageWidth, imageHeight: i32,
+	glyphs: []GlyphData,
+	glyphMap: map[rune]i32,
+}
+LoadFont :: proc(path: string, size, glyphCount: i32) -> (font: FontData, success: bool) {
+	extension := filepath.ext(path)
+    if extension == ".ttf" || extension == ".otf" {
+    	fileData, ok := os.read_entire_file(path)
+    	if !ok {
+    		return
+    	}
+
+        glyphCount := glyphCount if glyphCount > 0 else 95
+        glyphPadding := i32(1)
+        glyphInfo := rl.LoadFontData((transmute(runtime.Raw_Slice)fileData).data, i32(len(fileData)), size, nil, glyphCount, .DEFAULT)
+
+        if glyphInfo != nil {
+        	rects := make([^]rl.Rectangle, glyphCount)
+            atlas := rl.GenImageFontAtlas(glyphInfo, &rects, glyphCount, size, glyphPadding, 0);
+
+            font.glyphs = make([]GlyphData, glyphCount)
+            for index in 0..<glyphCount {
+            	font.glyphMap[glyphInfo[index].value] = index
+            	font.glyphs[index] = {
+            		source = transmute(Rect)rects[index],
+            		offset = {f32(glyphInfo[index].offsetX), f32(glyphInfo[index].offsetY)},
+            		advance = f32(glyphInfo[index].advanceX),
+            	}
+            }
+
+            font.size = f32(size)
+            font.imageData = atlas.data
+            font.imageWidth = atlas.width
+            font.imageHeight = atlas.height
+        }
+        rl.UnloadFontData(glyphInfo, glyphCount)
+        success = true
+    }
+    return
+}
+GetGlyphData :: proc(font: FontData, codepoint: rune) -> GlyphData {
+	index, ok := font.glyphMap[codepoint]
+	if !ok || i32(len(font.glyphs)) <= index {
+		return {}
+	}
+	return font.glyphs[index]
+}
+
+/*
+	Draw commands
+*/
+CommandTexture :: struct {
+	using command: Command,
+	texture: i32,
+	src, dst: Rect,
+	color: Color,
+}
+CommandTriangle :: struct {
+	using command: Command,
+	points: [3]Vector,
+	color: Color,
+}
+CommandJump :: struct {
+	using command: Command,
+	dst: rawptr,
+}
+CommandClip :: struct {
+	using command: Command,
+	rect: Rect,
+}
+CommandVariant :: union {
+	^CommandTexture,
+	^CommandTriangle,
+	^CommandClip,
+	^CommandJump,
+}
+Command :: struct {
+	variant: CommandVariant,
+	size: i32,
+}
+
+PushCommand :: proc($Type: typeid, extra_size := 0) -> ^Type {
+	size := i32(size_of(Type) + extra_size)
+	cmd := transmute(^Type)&ctx.commands[ctx.commandOffset]
+	assert(ctx.commandOffset + size < COMMAND_STACK_SIZE)
+	ctx.commandOffset += size
+	cmd.variant = cmd
+	cmd.size = size
+	return cmd
+}
+NextCommand :: proc(pcmd: ^^Command) -> bool {
+	using ctx
+
+	cmd := pcmd^
+	defer pcmd^ = cmd
+	if cmd != nil { 
+		cmd = (^Command)(uintptr(cmd) + uintptr(cmd.size)) 
+	} else {
+		cmd = (^Command)(&commands[0])
+	}
+	InvalidCommand :: #force_inline proc() -> ^Command {
+		using ctx
+		return (^Command)(&commands[commandOffset])
+	}
+	for cmd != InvalidCommand() {
+		if jmp, ok := cmd.variant.(^CommandJump); ok {
+			cmd = (^Command)(jmp.dst)
+			continue
+		}
+		return true
+	}
+	return false
+}
+NextCommandIterator :: proc(pcm: ^^Command) -> (CommandVariant, bool) {
+	if NextCommand(pcm) {
+		return pcm^.variant, true
+	}
+	return nil, false
+}
+
+/*
+	Drawing procedures
+*/
+BeginClip :: proc(rect: Rect) {
+	cmd := PushCommand(CommandClip)
+	cmd.rect = rect
+}
+EndClip :: proc() {
+	cmd := PushCommand(CommandClip)
+	cmd.rect = {0, 0, ctx.size.x, ctx.size.y}
+}
+DrawQuad :: proc(p1, p2, p3, p4: Vector, c: Color) {
+	DrawTriangle(p1, p2, p4, c)
+	DrawTriangle(p4, p2, p3, c)
+}
+DrawTriangle :: proc(p1, p2, p3: Vector, c: Color) {
+	cmd := PushCommand(CommandTriangle)
+	cmd.points = {p1, p2, p3}
+	cmd.color = c
+}
+DrawRect :: proc(rect: Rect, color: Color) {
+	DrawQuad(
+		{f32(rect.x), f32(rect.y)},
+		{f32(rect.x), f32(rect.y + rect.h)},
+		{f32(rect.x + rect.w), f32(rect.y + rect.h)},
+		{f32(rect.x + rect.w), f32(rect.y)},
+		color,
+	)
+}
+DrawTriangleStrip :: proc(points: []Vector, color: Color) {
+    if len(points) < 4 {
+    	return
+    }
+    for i in 2 ..< len(points) {
+        if i % 2 == 0 {
+            DrawTriangle(
+            	{points[i].x, points[i].y},
+            	{points[i - 2].x, points[i - 2].y},
+            	{points[i - 1].x, points[i - 1].y},
+            	color,
+            )
+        } else {
+        	DrawTriangle(
+           	 	{points[i].x, points[i].y},
+            	{points[i - 1].x, points[i - 1].y},
+            	{points[i - 2].x, points[i - 2].y},
+            	color,
+            )
+        }
+    }
+}
+DrawLine :: proc(start, end: Vector, thickness: f32, color: Color) {
+	delta := end - start
+    length := math.sqrt(f32(delta.x * delta.x + delta.y * delta.y))
+    if length > 0 && thickness > 0 {
+        scale := thickness / (2 * length)
+        radius := Vector{ -scale * delta.y, scale * delta.x }
+        DrawTriangleStrip({
+            { start.x - radius.x, start.y - radius.y },
+            { start.x + radius.x, start.y + radius.y },
+            { end.x - radius.x, end.y - radius.y },
+            { end.x + radius.x, end.y + radius.y },
+        }, color)
+    }
+}
+DrawRectLines :: proc(rect: Rect, thickness: f32, color: Color) {
+	DrawRect({rect.x, rect.y, rect.w, thickness}, color)
+	DrawRect({rect.x, rect.y + rect.h - thickness, rect.w, thickness}, color)
+	DrawRect({rect.x, rect.y, thickness, rect.h}, color)
+	DrawRect({rect.x + rect.w - thickness, rect.y, thickness, rect.h}, color)
+}
+DrawCircle :: proc(center: Vector, radius: f32, segments: i32, color: Color) {
+	DrawCircleSector(center, radius, 0, math.TAU, segments, color)
+}
+DrawCircleSector :: proc(center: Vector, radius, start, end: f32, segments: i32, color: Color) {
+	step := (end - start) / f32(segments)
+	angle := start
+	for i in 0..<segments {
+        DrawTriangle(
+        	center, 
+        	center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, 
+        	center + {math.cos(angle) * radius, math.sin(angle) * radius}, 
+        	color,
+        	)
+        angle += step;
+    }
+}
+DrawRing :: proc(center: Vector, inner, outer: f32, segments: i32, color: Color) {
+	DrawRingSector(center, inner, outer, 0, math.TAU, segments, color)
+}
+DrawRingSector :: proc(center: Vector, inner, outer, start, end: f32, segments: i32, color: Color) {
+	step := (end - start) / f32(segments)
+	angle := start
+	for i in 0..<segments {
+        DrawQuad(
+        	center + {math.cos(angle) * outer, math.sin(angle) * outer},
+        	center + {math.cos(angle) * inner, math.sin(angle) * inner},
+        	center + {math.cos(angle + step) * inner, math.sin(angle + step) * inner},
+        	center + {math.cos(angle + step) * outer, math.sin(angle + step) * outer},
+        	color,
+        	)
+        angle += step;
+    }
+}
+DrawRectSweep :: proc(r: Rect, t: f32, c: Color) {
+	if t >= 1 {
+		DrawRect(r, c)
+		return
+	}
+	a := (r.w + r.h) * t - r.h
+	DrawRect({r.x, r.y, a, r.h}, c)
+	DrawQuad(
+		{r.x + max(a, 0), r.y}, 
+		{r.x + max(a, 0), r.y + clamp(a + r.h, 0, r.h)}, 
+		{r.x + clamp(a + r.h, 0, r.w), r.y + max(0, a - r.w + r.h)}, 
+		{r.x + clamp(a + r.h, 0, r.w), r.y}, 
+		c,
+	)
+}
+TextureIndex :: enum {
+	font,
+	icons,
+}
+DrawTexture :: proc(texture: TextureIndex, src, dst: Rect, color: Color) {
+	cmd := PushCommand(CommandTexture)
+	cmd.texture = i32(texture)
+	cmd.color = color
+	cmd.src = src
+	cmd.dst = dst
+}
+
+/*
+	Text rendering
+*/
+Alignment :: enum {
+	near,
+	middle,
+	far,
+}
+MeasureString :: proc(font: FontData, text: string) -> Vector {
+	size := Vector{}
+	for codepoint in text {
+		glyph := GetGlyphData(font, codepoint)
+		size.x += glyph.advance
+	}
+	size.y = font.size
+	return size
+}
+DrawString :: proc(font: FontData, text: string, origin: Vector, color: Color) {
+	origin := origin
+	for codepoint in text {
+		glyph := GetGlyphData(ctx.font, codepoint)
+		DrawTexture(.font, glyph.source, {origin.x + glyph.offset.x, origin.y + glyph.offset.y, glyph.source.w, glyph.source.h}, color)
+		origin.x += glyph.advance
+	}
+}
+DrawAlignedString :: proc(font: FontData, text: string, origin: Vector, color: Color, alignX, alignY: Alignment) {
+	origin := origin
+	if alignX == .middle {
+		origin.x -= math.trunc(MeasureString(font, text).x / 2)
+	} else if alignX == .far {
+		origin.x -= MeasureString(font, text).x
+	}
+	if alignY == .middle {
+		origin.y -= MeasureString(font, text).y / 2
+	} else if alignY == .far {
+		origin.y -= MeasureString(font, text).y
+	}
+	DrawString(font, text, origin, color)
+}
+/*
+/*
+	Draw a clipped glyphs with math instead of GPU commands
+*/
+DrawClippedGlyph :: proc(glyph: GlyphData, origin: Vector, clipRect: Rect, color: Color) {
+	
+}
+*/
+
+/*
+	Icons in the order they appear on the atlas (left to right, descending)
+*/
+IconIndex :: enum {
+	none = -1,
 	plus,
 	archive,
 	down,
@@ -18,7 +340,7 @@ Icon_Index :: enum {
 	close,
 	delete,
 	download,
-	eye_line,
+	eyeWithLine,
 	eye,
 	file,
 	flder,
@@ -30,7 +352,7 @@ Icon_Index :: enum {
 	menu,
 	palette,
 	edit,
-	pie_chart,
+	pieChart,
 	pin,
 	search,
 	cog,
@@ -39,269 +361,24 @@ Icon_Index :: enum {
 	minus,
 	upload,
 }
-Glyph :: struct {
-	source: Rect,
-	offset: Vector,
-}
-
-Command_Glyph :: struct {
-	using command: Command,
-	src: Rect,
-	origin: Vector,
-	color: Color,
-}
-Command_Icon :: struct {
-	using command: Command,
-	src, dst: Rect,
-	color: Color,
-}
-Command_Rect_Lines :: struct {
-	using command: Command,
-	rect: Rect,
-	color: Color,
-	thickness: i32,
-}
-Command_Triangle :: struct {
-	using command: Command,
-	points: [3]Vector,
-	color: Color,
-}
-Command_Jump :: struct {
-	using command: Command,
-	dst: rawptr,
-}
-Command_Clip :: struct {
-	using command: Command,
-	rect: Rect,
-}
-
-Command_Variant :: union {
-	^Command_Clip,
-	^Command_Glyph,
-	^Command_Rect_Lines,
-	^Command_Triangle,
-	^Command_Jump,
-	^Command_Icon,
-}
-Command :: struct {
-	variant: Command_Variant,
-	size: i32,
-}
-
-push_command :: proc($Type: typeid, extra_size := 0) -> ^Type {
-	size := i32(size_of(Type) + extra_size)
-	cmd := transmute(^Type) &state.commands[state.command_offset]
-	assert(state.command_offset + size < COMMAND_STACK_SIZE)
-	state.command_offset += size
-	cmd.variant = cmd
-	cmd.size = size
-	return cmd
-}
-next_command :: proc(pcmd: ^^Command) -> bool {
-	using state
-
-	cmd := pcmd^
-	defer pcmd^ = cmd
-	if cmd != nil { 
-		cmd = (^Command)(uintptr(cmd) + uintptr(cmd.size)) 
-	} else {
-		cmd = (^Command)(&commands)
-	}
-	invalid_command :: #force_inline proc() -> ^Command {
-		using state
-		return (^Command)(&commands[command_offset])
-	}
-	for cmd != invalid_command() {
-		if jmp, ok := cmd.variant.(^Command_Jump); ok {
-			cmd = (^Command)(jmp.dst)
-			continue
-		}
-		return true
-	}
-	return false
-}
-next_command_iterator :: proc(pcm: ^^Command) -> (Command_Variant, bool) {
-	if next_command(pcm) {
-		return pcm^.variant, true
-	}
-	return nil, false
-}
-
-/*
-	Drawing procedures
-*/
-draw_quad :: proc(p1, p2, p3, p4: Vector, c: Color) {
-	draw_triangle(p1, p2, p4, c)
-	draw_triangle(p4, p2, p3, c)
-}
-draw_triangle :: proc(p1, p2, p3: Vector, c: Color) {
-	cmd := push_command(Command_Triangle)
-	cmd.points = {p1, p2, p3}
-	cmd.color = c
-}
-draw_rect :: proc(r: Rect, c: Color) {
-	draw_quad(
-		{f32(r.x), f32(r.y)},
-		{f32(r.x), f32(r.y + r.h)},
-		{f32(r.x + r.w), f32(r.y + r.h)},
-		{f32(r.x + r.w), f32(r.y)},
-		c,
-	)
-}
-draw_triangle_strip :: proc(p: []Vector, c: Color) {
-    if len(p) < 4 {
-    	return
-    }
-    for i in 0 ..< len(p) {
-        if i % 2 == 0 {
-            draw_triangle(
-            	{p[i].x, p[i].y},
-            	{p[i - 2].x, p[i - 2].y},
-            	{p[i - 1].x, p[i - 1].y},
-            	c,
-            )
-        } else {
-        	draw_triangle(
-           	 	{p[i].x, p[i].y},
-            	{p[i - 1].x, p[i - 1].y},
-            	{p[i - 2].x, p[i - 2].y},
-            	c,
-            )
-        }
-    }
-}
-draw_line :: proc(p1, p2: Vector, t: i32, c: Color) {
-	delta := p2 - p1
-    length := math.sqrt(f32(delta.x * delta.x + delta.y * delta.y))
-
-    if length > 0 && t > 0 {
-        scale := f32(t) / (2 * length)
-        radius := Vector{ -scale * delta.y, scale * delta.x }
-        draw_triangle_strip({
-            { p1.x - radius.x, p1.y - radius.y },
-            { p1.x + radius.x, p1.y + radius.y },
-            { p2.x - radius.x, p2.y - radius.y },
-            { p2.x + radius.x, p2.y + radius.y },
-        }, c)
-    }
-}
-draw_rect_lines :: proc(r: Rect, t: i32, c: Color) {
-	cmd := push_command(Command_Rect_Lines)
-	cmd.rect = r
-	cmd.color = c
-	cmd.thickness = t
-}
-draw_circle :: proc(v: Vector, r: f32, c: Color) {
-	step := f32(math.TAU / 30)
-	for a := f32(0); a < math.TAU; a += step {
-		draw_triangle(v, v + {math.cos(a + step) * r, math.sin(a + step) * r}, v + {math.cos(a) * r, math.sin(a) * r}, c)
-	}
-}
-draw_circle_sector :: proc(center: Vector, radius, start, end: f32, segments: i32, color: Color) {
-	step := (end - start) / f32(segments)
-	angle := start
-	for i in 0..<segments {
-        draw_triangle(
-        	center, 
-        	center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, 
-        	center + {math.cos(angle) * radius, math.sin(angle) * radius}, 
-        	color,
-        	)
-        angle += step;
-    }
-}
-draw_ring :: proc(center: Vector, inner, outer: f32, segments: i32, color: Color) {
-	segments := 60
-	step := math.TAU / f32(segments)
-	angle := f32(0)
-	for i in 0..<segments {
-        draw_quad(
-        	center + {math.cos(angle) * outer, math.sin(angle) * outer},
-        	center + {math.cos(angle) * inner, math.sin(angle) * inner},
-        	center + {math.cos(angle + step) * inner, math.sin(angle + step) * inner},
-        	center + {math.cos(angle + step) * outer, math.sin(angle + step) * outer},
-        	color,
-        	)
-        angle += step;
-    }
-}
-measure_text :: proc(str: string) -> Vector {
-	s := Vector{}
-	for r in str {
-		i := i32(r) - 32
-		s.x += state.glyphs[i].source.w + 1
-	}
-	s.y = 24
-	return s
-}
-draw_text :: proc(str: string, origin: Vector, color: Color) {
-	v := origin
-	v.y -= 1
-	for r in str {
-		i := i32(r) - 32
-		glyph := state.glyphs[i]
-		cmd := push_command(Command_Glyph)
-		cmd.src = glyph.source
-		cmd.origin = v + glyph.offset
-		cmd.color = color
-		v.x += glyph.source.w + 1
-	}
-}
-
 ICON_SIZE :: 24
-draw_icon :: proc(icon: Icon_Index, origin: Vector, color: Color) {
-	draw_icon_ex(icon, origin, 1, .near, .near, color)
+DrawIcon :: proc(icon: IconIndex, origin: Vector, color: Color) {
+	DrawIconEx(icon, origin, 1, .near, .near, color)
 }
-draw_icon_ex :: proc(icon: Icon_Index, origin: Vector, scale: f32, align_x, align_y: Alignment, color: Color) {
+DrawIconEx :: proc(icon: IconIndex, origin: Vector, scale: f32, alignX, alignY: Alignment, color: Color) {
 	offset := Vector{}
-	if align_x == .middle {
+	if alignX == .middle {
 		offset.x -= ICON_SIZE / 2
-	} else if align_x == .far {
+	} else if alignX == .far {
 		offset.x -= ICON_SIZE
 	}
-	if align_y == .middle {
+	if alignY == .middle {
 		offset.y -= ICON_SIZE / 2
-	} else if align_y == .far {
+	} else if alignY == .far {
 		offset.y -= ICON_SIZE
 	}
-	cmd := push_command(Command_Icon)
-	cmd.src = {(f32(i32(icon) % 10)) * ICON_SIZE, (f32(i32(icon) / 10)) * ICON_SIZE, ICON_SIZE, ICON_SIZE}
-	cmd.dst = {0, 0, f32(ICON_SIZE * scale), f32(ICON_SIZE * scale)}
-	cmd.dst.x = origin.x - cmd.dst.w / 2
-	cmd.dst.y = origin.y - cmd.dst.h / 2
-	cmd.color = color
-}
-Alignment :: enum {
-	near,
-	middle,
-	far,
-}
-draw_aligned_text :: proc(str: string, origin: Vector, color: Color, align_x, align_y: Alignment) {
-	origin := origin
-	if align_x == .middle {
-		origin.x -= measure_text(str).x / 2
-	}
-	if align_y == .middle {
-		origin.y -= measure_text(str).y / 2
-	}
-	draw_text(str, origin, color)
-}
-
-/*
-	Advanced stuff
-*/
-draw_rect_sweep :: proc(r: Rect, t: f32, c: Color) {
-	if t >= 1 {
-		draw_rect(r, c)
-		return
-	}
-	a := (r.w + r.h) * t - r.h
-	draw_rect({r.x, r.y, a, r.h}, c)
-	draw_quad(
-		{r.x + max(a, 0), r.y}, 
-		{r.x + max(a, 0), r.y + clamp(a + r.h, 0, r.h)}, 
-		{r.x + clamp(a + r.h, 0, r.w), r.y + max(0, a - r.w + r.h)}, 
-		{r.x + clamp(a + r.h, 0, r.w), r.y}, 
-		c,
-	)
+	dst := Rect{0, 0, f32(ICON_SIZE * scale), f32(ICON_SIZE * scale)}
+	dst.x = origin.x - dst.w / 2
+	dst.y = origin.y - dst.h / 2
+	DrawTexture(.icons, {(f32(i32(icon) % 10)) * ICON_SIZE, (f32(i32(icon) / 10)) * ICON_SIZE, ICON_SIZE, ICON_SIZE}, dst, color)
 }

@@ -1,11 +1,11 @@
 package maui
 
-Mouse_Button :: enum {
+MouseButton :: enum {
 	left,
 	right,
 	middle,
 }
-Mouse_Bits :: bit_set[Mouse_Button]
+MouseBits :: bit_set[MouseButton]
 Key :: enum {
 	alt,
 	control,
@@ -14,49 +14,49 @@ Key :: enum {
 	backspace,
 	enter,
 }
-Key_Bits :: bit_set[Key]
+KeyBits :: bit_set[Key]
 
 Input :: struct {
-	mouse_pos: Vector,
-	mouse_bits, prev_mouse_bits: Mouse_Bits,
-	key_bits, prev_key_bits: Key_Bits,
+	prevMousePos, mousePos: Vector,
+	mouseBits, prevMouseBits: MouseBits,
+	keyBits, prevKeyBits: KeyBits,
 }
 
-mouse_pressed :: proc(b: Mouse_Button) -> bool {
+
+@private MousePressed :: proc(b: MouseButton) -> bool {
 	using input
-	return (b in mouse_bits) && (b not_in prev_mouse_bits)
+	return (b in mouseBits) && (b not_in prevMouseBits)
 }
-mouse_released :: proc(b: Mouse_Button) -> bool {
+@private MouseReleased :: proc(b: MouseButton) -> bool {
 	using input
-	return (b not_in mouse_bits) && (b in prev_mouse_bits)
+	return (b not_in mouseBits) && (b in prevMouseBits)
 }
-mouse_down :: proc(b: Mouse_Button) -> bool {
+@private MouseDown :: proc(b: MouseButton) -> bool {
 	using input
-	return b in mouse_bits
+	return b in mouseBits
 }
-key_pressed :: proc(k: Key) -> bool {
+@private KeyPressed :: proc(k: Key) -> bool {
 	using input
-	return (k in key_bits) && (k not_in prev_key_bits)
+	return (k in keyBits) && (k not_in prevKeyBits)
 }
-key_released :: proc(k: Key) -> bool {
+@private KeyReleased :: proc(k: Key) -> bool {
 	using input
-	return (k not_in key_bits) && (k in prev_key_bits)
+	return (k not_in keyBits) && (k in prevKeyBits)
 }
-key_down :: proc(k: Key) -> bool {
+@private KeyDown :: proc(k: Key) -> bool {
 	using input
-	return k in key_bits
+	return k in keyBits
 }
 
-set_mouse_position :: proc(x, y: f32) {
-	input.mouse_pos = {x, y}
+SetMousePosition :: proc(x, y: f32) {
+	input.mousePos = {x, y}
 }
-set_mouse_bit :: proc(b: Mouse_Button, v: bool) {
-	if v {
-		input.mouse_bits += {b}
+SetMouseBit :: proc(button: MouseButton, value: bool) {
+	if value {
+		input.mouseBits += {button}
 	} else {
-		input.mouse_bits -= {b}
+		input.mouseBits -= {button}
 	}
 }
 
-@private
-input: Input
+@private input: Input

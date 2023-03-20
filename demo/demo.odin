@@ -5,107 +5,108 @@ import rl "vendor:raylib"
 
 import "core:runtime"
 import "core:fmt"
+import "core:math"
 import "core:slice"
 
-font: rl.Texture
+font, icons: rl.Texture
+cmd_count := 0
 
-render :: proc() {
+Render :: proc() {
 	using ui
-
-	rl.rlEnableScissorTest()
-
+	cmd_count = 0
 	cmd: ^Command
-	for next_command(&cmd) {
+	for NextCommand(&cmd) {
+		cmd_count += 1
 		#partial switch v in cmd.variant {
-			case ^Command_Glyph:
+			case ^CommandTexture:
 			rl.DrawTexturePro(
-				font, 
+				font if v.texture == 0 else icons, 
 				{f32(v.src.x), f32(v.src.y), f32(v.src.w), f32(v.src.h)}, 
-				{f32(v.origin.x), f32(v.origin.y), f32(v.src.w), f32(v.src.h)}, 
+				{f32(v.dst.x), f32(v.dst.y), f32(v.dst.w), f32(v.dst.h)}, 
 				{}, 
 				0, 
 				transmute(rl.Color)v.color,
 			)
 
-			case ^Command_Rect: 
-			rl.DrawRectangle(v.rect.x, v.rect.y, v.rect.w, v.rect.h, transmute(rl.Color)v.color)
-
-			case ^Command_Rect_Lines: 
-			rl.DrawRectangleLinesEx({f32(v.rect.x), f32(v.rect.y), f32(v.rect.w), f32(v.rect.h)}, 2, transmute(rl.Color)v.color)
-
-			case ^Command_Quad:
-			rl.rlBegin(rl.RL_QUADS)
-			rl.rlColor4ub(v.color.r, v.color.g, v.color.b, v.color.a)
-			for i in 0..<4 {
-				rl.rlVertex2i(v.points[i].x, v.points[i].y)
-			}
-			rl.rlEnd()
-
-			case ^Command_Triangle:
+			case ^CommandTriangle:
 			rl.rlBegin(rl.RL_TRIANGLES)
 			rl.rlColor4ub(v.color.r, v.color.g, v.color.b, v.color.a)
-			for i in 0..<3 {
-				rl.rlVertex2i(v.points[i].x, v.points[i].y)
+			for i in 0 ..< 3 {
+				rl.rlVertex2f(v.points[i].x, v.points[i].y)
 			}
 			rl.rlEnd()
 
-			case ^Command_Clip:
+			case ^CommandClip:
+			/*rl.rlDisableScissorTest()
 			rl.rlDrawRenderBatchActive()
-			rl.rlScissor(v.rect.x, v.rect.y, v.rect.w, v.rect.h)
+			rl.rlEnableScissorTest()
+			rl.rlScissor(i32(v.rect.x), i32(v.rect.y), i32(v.rect.w), i32(v.rect.h))*/
+			rl.BeginScissorMode(i32(v.rect.x), i32(v.rect.y), i32(v.rect.w), i32(v.rect.h))
 		}
 	}
 
-	rl.rlDisableScissorTest()
 	rl.rlDrawRenderBatchActive()
+	rl.EndScissorMode()
 }
 
 main :: proc() {
 
+	title1, title2 := true, false
+	resize1, resize2 := false, true
+
 	// set up raylib
-	rl.SetConfigFlags({.WINDOW_RESIZABLE})
+	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	rl.SetTraceLogLevel(.NONE)
 	rl.InitWindow(1000, 800, "Maui Demo")
 	rl.MaximizeWindow()
-	rl.SetTargetFPS(60)
+	rl.SetTargetFPS(120)
+	rl.rlEnableBackfaceCulling()
 
-	ui.init()
-	ui.set_size(rl.GetScreenWidth(), rl.GetScreenHeight())
+	ui.Init()
+	ui.SetScreenSize(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
 
-	temp_font := rl.LoadFontEx("fonts/Muli.ttf", 26, nil, 566)
-	font = temp_font.texture
-	ui.state.glyphs = make([]ui.Glyph, temp_font.charsCount)
-	for i in 0 ..< temp_font.charsCount {
-		r := temp_font.recs[i]
-		c := temp_font.chars[i]
-		ui.state.glyphs[i] = {
-			source = {i32(r.x), i32(r.y), i32(r.width), i32(r.height)},
-			offset = {c.offsetX, c.offsetY},
-		}
+	image := rl.Image{
+		data = ui.ctx.font.imageData,
+		width = ui.ctx.font.imageWidth,
+		height = ui.ctx.font.imageHeight,
+		format = .UNCOMPRESSED_GRAY_ALPHA,
+		mipmaps = 1,
 	}
-
-	// define the panel, otherwise it would appear at 0,0 and auto-resize to fit its content
-	ui.define_panel("showcase", {origin = {ui.Relative(0.5), ui.Relative(0.5)}, size = {200, 200}})
+	font = rl.LoadTextureFromImage(image)
+	rl.UnloadImage(image)
+	iconAtlas := rl.LoadImage("icons/atlas.png")
+	rl.ImageColorBrightness(&iconAtlas, 255)
+	icons = rl.LoadTextureFromImage(iconAtlas)
+	rl.UnloadImage(iconAtlas)
 
 	for true {
-		ui.set_size(rl.GetScreenWidth(), rl.GetScreenHeight())
-		ui.set_mouse_position(rl.GetMouseX(), rl.GetMouseY())
-		ui.set_mouse_bit(.left, rl.IsMouseButtonDown(.LEFT))
-		ui.state.delta_time = rl.GetFrameTime()
-		if ui.panel("showcase", false) {
-			ui.shrink(10)
-			ui.button("Sola fide")
-			ui.cut_side(.top)
-			ui.space(10)
-			ui.button("Sola gracia")
+		ui.Refresh()
+
+		ui.SetScreenSize(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
+		ui.SetMousePosition(f32(rl.GetMouseX()), f32(rl.GetMouseY()))
+		ui.SetMouseBit(.left, rl.IsMouseButtonDown(.LEFT))
+		ui.ctx.deltaTime = rl.GetFrameTime()
+
+		if ui.Panel(ui.Cut(.left, 300), "panel", {.autoFit}) {
+			ui.Shrink(30)
+			ui.CutSize(30)
+
+			
 		}
 
+		/*
+			Drawing happens here
+		*/
 		rl.BeginDrawing()
-		rl.ClearBackground(transmute(rl.Color)ui.color(0, 1))
-
-		render()
-		ui.refresh()
-
-		rl.DrawFPS(0, 0)
+		// must call Prepare() before rendering
+		ui.Prepare()
+		if ui.ShouldRender() {
+			rl.ClearBackground({150, 150, 150, 255})
+			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
+			rl.DrawText(rl.TextFormat("COMMANDS: %i", cmd_count), 0, 20, 20, rl.BLACK)
+			rl.DrawText(rl.TextFormat("COMMANDS SIZE: %i / %i", ui.ctx.commandOffset, ui.COMMAND_STACK_SIZE), 0, 40, 20, rl.BLACK)
+			Render()
+		}
 		rl.EndDrawing()
 
 		if rl.WindowShouldClose() {

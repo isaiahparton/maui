@@ -2,7 +2,7 @@
 	"folders":
 	[
 		{
-			"path": "."
+			"path": ".",
 		}
 	],
 	"settings":
@@ -11,8 +11,8 @@
 		{
 			"odin":
 			{
-				"enabled": true
-			}
-		}
-	}
+				"enabled": true,
+			},
+		},
+	},
 }
