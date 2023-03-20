@@ -47,8 +47,8 @@ BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 	using ctx
 
 	//id := UseNextId() or_else HashId(loc)
-	panel := GetCurrentPanel()
-	idx, found := panel.contents[id]
+	layer := GetCurrentLayer()
+	idx, found := layer.contents[id]
 	if !found {
 		idx = -1
 		for i in 0 ..< MAX_CONTROLS {
@@ -56,7 +56,7 @@ BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 				controlExists[i] = true
 				controls[i] = {}
 				idx = i32(i)
-				panel.contents[id] = idx
+				layer.contents[id] = idx
 				break
 			}
 		}
@@ -73,10 +73,10 @@ BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 	return
 }
 EndControl :: proc(control: ^Control) {
-	panel := GetCurrentPanel()
+	layer := GetCurrentLayer()
 
-	panel.contentSize.x = max(panel.contentSize.x, control.body.w + (control.body.x - panel.body.x))
-	panel.contentSize.y = max(panel.contentSize.y, control.body.h + (control.body.y - panel.body.y))
+	layer.contentSize.x = max(layer.contentSize.x, control.body.w + (control.body.x - layer.body.x))
+	layer.contentSize.y = max(layer.contentSize.y, control.body.h + (control.body.y - layer.body.y))
 }
 
 UpdateControl :: proc(using control: ^Control) {
@@ -85,7 +85,7 @@ UpdateControl :: proc(using control: ^Control) {
 	}
 
 	// request hover status
-	if VecVsRect(input.mousePos, body) && ctx.hoveredPanel == ctx.panelStack[ctx.panelDepth - 1] {
+	if VecVsRect(input.mousePos, body) && ctx.hoveredLayer == ctx.layerStack[ctx.layerDepth - 1] {
 		ctx.nextHoverId = id
 	}
 
@@ -166,7 +166,7 @@ TextInputEx :: proc(data: []u8, options: TextInputOptions, loc := #caller_locati
 }
 
 /*
-	Sub-panel for grouping stuff together
+	Sub-layer for grouping stuff together
 */
 @(deferred_out=_Widget)
 Widget :: proc(loc := #caller_location) -> (ok: bool) {
@@ -430,12 +430,12 @@ Menu :: proc(text: string, loc := #caller_location) -> (active: bool) {
 	EndControl(control)
 	active = (.active in bits)
 	if active {
-		BeginPanelEx(AttachRectBottom(body, 100), sharedId, {.autoFit})
+		BeginLayerEx(AttachRectBottom(body, 100), sharedId, {.autoFit})
 	}
 	return 
 }
 @private _Menu :: proc(active: bool) {
 	if active {
-		EndPanel()
+		EndLayer()
 	}
 }

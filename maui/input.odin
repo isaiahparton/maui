@@ -22,30 +22,29 @@ Input :: struct {
 	keyBits, prevKeyBits: KeyBits,
 }
 
-
-@private MousePressed :: proc(b: MouseButton) -> bool {
+@private MousePressed :: proc(button: MouseButton) -> bool {
 	using input
-	return (b in mouseBits) && (b not_in prevMouseBits)
+	return (button in mouseBits) && (button not_in prevMouseBits)
 }
-@private MouseReleased :: proc(b: MouseButton) -> bool {
+@private MouseReleased :: proc(button: MouseButton) -> bool {
 	using input
-	return (b not_in mouseBits) && (b in prevMouseBits)
+	return (button not_in mouseBits) && (button in prevMouseBits)
 }
-@private MouseDown :: proc(b: MouseButton) -> bool {
+@private MouseDown :: proc(button: MouseButton) -> bool {
 	using input
-	return b in mouseBits
+	return button in mouseBits
 }
-@private KeyPressed :: proc(k: Key) -> bool {
+@private KeyPressed :: proc(key: Key) -> bool {
 	using input
-	return (k in keyBits) && (k not_in prevKeyBits)
+	return (key in keyBits) && (key not_in prevKeyBits)
 }
-@private KeyReleased :: proc(k: Key) -> bool {
+@private KeyReleased :: proc(key: Key) -> bool {
 	using input
-	return (k not_in keyBits) && (k in prevKeyBits)
+	return (key not_in keyBits) && (key in prevKeyBits)
 }
-@private KeyDown :: proc(k: Key) -> bool {
+@private KeyDown :: proc(key: Key) -> bool {
 	using input
-	return k in keyBits
+	return key in keyBits
 }
 
 SetMousePosition :: proc(x, y: f32) {

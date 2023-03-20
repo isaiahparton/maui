@@ -17,7 +17,7 @@ Render :: proc() {
 	cmd: ^Command
 	for NextCommand(&cmd) {
 		cmd_count += 1
-		#partial switch v in cmd.variant {
+		switch v in cmd.variant {
 			case ^CommandTexture:
 			rl.DrawTexturePro(
 				font if v.texture == 0 else icons, 
@@ -37,10 +37,6 @@ Render :: proc() {
 			rl.rlEnd()
 
 			case ^CommandClip:
-			/*rl.rlDisableScissorTest()
-			rl.rlDrawRenderBatchActive()
-			rl.rlEnableScissorTest()
-			rl.rlScissor(i32(v.rect.x), i32(v.rect.y), i32(v.rect.w), i32(v.rect.h))*/
 			rl.BeginScissorMode(i32(v.rect.x), i32(v.rect.y), i32(v.rect.w), i32(v.rect.h))
 		}
 	}
@@ -73,6 +69,7 @@ main :: proc() {
 		mipmaps = 1,
 	}
 	font = rl.LoadTextureFromImage(image)
+	rl.SetTextureFilter(font, .BILINEAR)
 	rl.UnloadImage(image)
 	iconAtlas := rl.LoadImage("icons/atlas.png")
 	rl.ImageColorBrightness(&iconAtlas, 255)
@@ -87,11 +84,15 @@ main :: proc() {
 		ui.SetMouseBit(.left, rl.IsMouseButtonDown(.LEFT))
 		ui.ctx.deltaTime = rl.GetFrameTime()
 
-		if ui.Panel(ui.Cut(.left, 300), "panel", {.autoFit}) {
+		if layer, ok := ui.Window("window", {}); ok {
 			ui.Shrink(30)
 			ui.CutSize(30)
+			ui.ButtonEx("goodbye", false)
 
-			
+			if layer, ok := ui.Window("bruh", {}); ok {
+				ui.Shrink(30)
+				ui.ButtonEx("hello", true)
+			}
 		}
 
 		/*
@@ -102,10 +103,10 @@ main :: proc() {
 		ui.Prepare()
 		if ui.ShouldRender() {
 			rl.ClearBackground({150, 150, 150, 255})
-			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
-			rl.DrawText(rl.TextFormat("COMMANDS: %i", cmd_count), 0, 20, 20, rl.BLACK)
-			rl.DrawText(rl.TextFormat("COMMANDS SIZE: %i / %i", ui.ctx.commandOffset, ui.COMMAND_STACK_SIZE), 0, 40, 20, rl.BLACK)
 			Render()
+			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
+			rl.DrawText(rl.TextFormat("LAYER LIST: %v", ui.ctx.layerList), 0, 20, 20, rl.BLACK)
+			rl.DrawText(rl.TextFormat("LAYER MAP: %v", ui.ctx.layerMap), 0, 40, 20, rl.BLACK)
 		}
 		rl.EndDrawing()
 

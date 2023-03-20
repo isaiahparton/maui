@@ -84,10 +84,6 @@ CommandTriangle :: struct {
 	points: [3]Vector,
 	color: Color,
 }
-CommandJump :: struct {
-	using command: Command,
-	dst: rawptr,
-}
 CommandClip :: struct {
 	using command: Command,
 	rect: Rect,
@@ -96,24 +92,36 @@ CommandVariant :: union {
 	^CommandTexture,
 	^CommandTriangle,
 	^CommandClip,
-	^CommandJump,
 }
 Command :: struct {
 	variant: CommandVariant,
 	size: i32,
 }
 
+/*
+	Push a command to the current layer's buffer
+*/
 PushCommand :: proc($Type: typeid, extra_size := 0) -> ^Type {
+	assert(ctx.layerDepth > 0, "PushCommand() There is no layer on which to draw!")
+	layer := GetCurrentLayer()
+	
 	size := i32(size_of(Type) + extra_size)
-	cmd := transmute(^Type)&ctx.commands[ctx.commandOffset]
-	assert(ctx.commandOffset + size < COMMAND_STACK_SIZE)
-	ctx.commandOffset += size
+	cmd := transmute(^Type)&layer.commands[layer.commandOffset]
+	assert(layer.commandOffset + size < COMMAND_BUFFER_SIZE, "PushCommand() Insufficient space in command buffer!")
+	layer.commandOffset += size
 	cmd.variant = cmd
 	cmd.size = size
 	return cmd
 }
+/*
+	Get the next command in the current layer
+*/
 NextCommand :: proc(pcmd: ^^Command) -> bool {
 	using ctx
+	if hotLayer >= i32(len(layerList)) {
+		return false
+	}
+	using layer := &layers[layerList[hotLayer]]
 
 	cmd := pcmd^
 	defer pcmd^ = cmd
@@ -122,18 +130,16 @@ NextCommand :: proc(pcmd: ^^Command) -> bool {
 	} else {
 		cmd = (^Command)(&commands[0])
 	}
-	InvalidCommand :: #force_inline proc() -> ^Command {
-		using ctx
+	InvalidCommand :: #force_inline proc(using layer: ^LayerData) -> ^Command {
 		return (^Command)(&commands[commandOffset])
 	}
-	for cmd != InvalidCommand() {
-		if jmp, ok := cmd.variant.(^CommandJump); ok {
-			cmd = (^Command)(jmp.dst)
-			continue
-		}
-		return true
+	if cmd == InvalidCommand(layer) {
+		// At end of command buffer so reset `cmd` and go to next layer
+		hotLayer += 1
+		cmd = nil
+		return NextCommand(&cmd)
 	}
-	return false
+	return true
 }
 NextCommandIterator :: proc(pcm: ^^Command) -> (CommandVariant, bool) {
 	if NextCommand(pcm) {

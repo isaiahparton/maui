@@ -15,11 +15,6 @@ FrameData :: struct {
 GetCurrentFrame :: proc() -> ^FrameData {
 	return &ctx.frames[ctx.frameIndex]
 }
-PushJump :: proc(dst: rawptr) -> ^Command {
-	cmd := PushCommand(CommandJump)
-	cmd.dst = dst
-	return cmd
-}
 
 PushFrame :: proc(rect: Rect, options: FrameOptions, loc := #caller_location) -> bool {
 	id := HashId(loc)
