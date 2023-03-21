@@ -17,7 +17,7 @@ Key :: enum {
 KeyBits :: bit_set[Key]
 
 Input :: struct {
-	prevMousePos, mousePos: Vector,
+	prevMousePos, mousePos: Vec2,
 	mouseBits, prevMouseBits: MouseBits,
 	keyBits, prevKeyBits: KeyBits,
 }

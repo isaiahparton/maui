@@ -1,44 +1,46 @@
 package maui
 
-PanelOption :: enum {
+WindowOption :: enum {
 	title,
 	resizable,
 }
-PanelOptions :: bit_set[PanelOption]
-PanelStatus :: enum {
+WindowOptions :: bit_set[WindowOption]
+WindowStatus :: enum {
 	closed,
 	resizing,
 	moving,
 	fitToContent,
 	shouldClose,
 }
-PanelState :: bit_set[PanelStatus]
-PanelData :: struct {
-	options: PanelOptions,
-	state: PanelState,
+WindowState :: bit_set[WindowStatus]
+WindowData :: struct {
+	options: WindowOptions,
+	state: WindowState,
 	// Inherited stuff
 	layer: ^LayerData,
 	// Native stuff
 	id: Id,
 	body: Rect,
+	// Dividers
+	dividers: map[Id]f32,
 }
 
 /*
 	What the user uses
 */
-Panel :: proc(loc := #caller_location) -> (panel: ^PanelData, ok: bool) {
-	return BeginPanelEx(HashId(loc))
+Window :: proc(loc := #caller_location) -> (window: ^WindowData, ok: bool) {
+	return BeginWindowEx(HashId(loc))
 }
-@private _Panel :: proc(panel: ^PanelData, ok: bool) {
+@private _Window :: proc(window: ^WindowData, ok: bool) {
 	if ok {
-		EndPanel(panel)
+		EndWindow(window)
 	}
 }
 
-@private BeginPanelEx :: proc(id: Id) -> (^PanelData, bool) {
+@private BeginWindowEx :: proc(id: Id) -> (^WindowData, bool) {
 	using ctx
 
-	using panel, ok := CreateOrGetPanel(id)
+	using window, ok := CreateOrGetWindow(id)
 	if !ok {
 		return nil, false
 	}
@@ -67,7 +69,7 @@ Panel :: proc(loc := #caller_location) -> (panel: ^PanelData, ok: bool) {
 		if hoveredLayer == index && VecVsRect(input.mousePos, titleRect) {
 			if MousePressed(.left) {
 				state += {.moving}
-				dragAnchor = Vector{layer.body.x, layer.body.y} - input.mousePos
+				dragAnchor = Vec2{layer.body.x, layer.body.y} - input.mousePos
 			}
 		}
 	}
@@ -77,9 +79,9 @@ Panel :: proc(loc := #caller_location) -> (panel: ^PanelData, ok: bool) {
 	*/
 
 
-	return panel, true
+	return window, true
 }
-EndPanel :: proc(using panel: ^PanelData) {
+EndWindow :: proc(using window: ^WindowData) {
 	DrawRectLines(layer.body, ctx.style.outline, GetColor(1, 1))
 
 	if .resizing in state {
@@ -105,11 +107,15 @@ EndPanel :: proc(using panel: ^PanelData) {
 
 
 
-GetCurrentPanel :: proc() -> ^PanelData {
-	assert(ctx.panelDepth > 0)
-	return ctx.panelStack[ctx.panelDepth]
+GetCurrentWindow :: proc() -> ^WindowData {
+	assert(ctx.windowDepth > 0)
+	return ctx.windowStack[ctx.windowDepth]
 }
-CreateOrGetPanel :: proc(id: Id) -> (^PanelData, bool) {
-	unimplemented()
+CreateOrGetWindow :: proc(id: Id) -> (^WindowData, bool) {
+	index, ok := ctx.windowMap[id]
+	if !ok {
+		for i in 0 ..< MAX_PANELS 
+	}
+
 	return nil, false
 }

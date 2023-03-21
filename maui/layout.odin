@@ -1,7 +1,7 @@
 package maui
 
 // place a rect in a nother rect
-ChildRect :: proc(parent: Rect, size: Vector, alignX, alignY: Alignment) -> Rect {
+ChildRect :: proc(parent: Rect, size: Vec2, alignX, alignY: Alignment) -> Rect {
 	rect := Rect{0, 0, size.x, size.y}
 	if alignX == .near {
 		rect.x = parent.x
@@ -151,7 +151,7 @@ GetNextRect :: proc() -> Rect {
 	layout := GetCurrentLayout()
 	return UseNextRect() or_else CutRect(&layout.rect, layout.side, layout.size)
 }
-GetNextRectEx :: proc(size: Vector, alignX, alignY: Alignment) -> Rect {
+GetNextRectEx :: proc(size: Vec2, alignX, alignY: Alignment) -> Rect {
 	layout := GetCurrentLayout()
 	layout.size = max(layout.size, size.x)
 	return ChildRect(UseNextRect() or_else CutRect(&layout.rect, layout.side, layout.size), size, alignX, alignY)

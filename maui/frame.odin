@@ -8,7 +8,7 @@ FrameOption :: enum {
 FrameOptions :: bit_set[FrameOption]
 FrameData :: struct {
 	body: Rect,
-	scroll, space: Vector,
+	scroll, space: Vec2,
 	options: FrameOptions,
 }
 

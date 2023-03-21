@@ -293,7 +293,7 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 	Combo box or whatever you want it to be
 */
 @(deferred_out=_Menu)
-Menu :: proc(text: string, loc := #caller_location) -> (panel: ^PanelData, active: bool) {
+Menu :: proc(text: string, loc := #caller_location) -> (window: ^WindowData, active: bool) {
 	sharedId := HashId(loc)
 	using control, ok := BeginControl(sharedId, GetNextRect())
 	if !ok {
@@ -308,12 +308,12 @@ Menu :: proc(text: string, loc := #caller_location) -> (panel: ^PanelData, activ
 	EndControl(control)
 	active = (.active in bits)
 	if active {
-		//panel = BeginPanelEx(AttachRectBottom(body, 100), sharedId, {.fitToContent})
+		//window = BeginWindowEx(AttachRectBottom(body, 100), sharedId, {.fitToContent})
 	}
 	return 
 }
-@private _Menu :: proc(panel: ^PanelData, active: bool) {
+@private _Menu :: proc(window: ^WindowData, active: bool) {
 	if active {
-		//EndPanel(panel)
+		//EndWindow(window)
 	}
 }

@@ -85,10 +85,10 @@ Value :: union {
 	Absolute,
 	Relative,
 }
-Vector :: [2]f32
-AnyVector :: [2]Value
+Vec2 :: [2]f32
+AnyVec2 :: [2]Value
 
-VecVsRect :: proc(v: Vector, r: Rect) -> bool {
+VecVsRect :: proc(v: Vec2, r: Rect) -> bool {
 	return (v.x >= r.x) && (v.x <= r.x + r.w) && (v.y >= r.y) && (v.y <= r.y + r.h)
 }
 RectVsRect :: proc(a, b: Rect) -> bool {
@@ -101,7 +101,7 @@ RectContainsRect :: proc(a, b: Rect) -> bool {
 
 Color :: [4]u8
 ColorIndex :: enum {
-	panelBase,
+	windowBase,
 
 	// Clickable things
 	widgetBase,
@@ -153,7 +153,7 @@ ControlTimer :: proc(condition: bool, value, decrease, increase: f32) -> f32 {
 Rect :: struct {
 	x, y, w, h: f32,
 }
-TranslateRect :: proc(r: Rect, v: Vector) -> Rect {
+TranslateRect :: proc(r: Rect, v: Vec2) -> Rect {
 	return {r.x + v.x, r.y + v.y, r.w, r.h}
 }
 
@@ -231,7 +231,7 @@ Context :: struct {
 	deltaTime,
 	renderTime: f32,
 	disabled: bool,
-	size: Vector,
+	size: Vec2,
 
 	style: Style,
 
@@ -249,9 +249,9 @@ Context :: struct {
 	controlExists: [MAX_CONTROLS]bool,
 
 	// Retained window data
-	panels: [MAX_WINDOWS]PanelData,
-	panelStack: [MAX_WINDOWS]^PanelData,
-	panelDepth: i32,
+	windows: [MAX_WINDOWS]WindowData,
+	windowStack: [MAX_WINDOWS]^WindowData,
+	windowDepth: i32,
 
 	// Retained layer data
 	layers: [MAX_LAYERS]LayerData,
@@ -268,7 +268,7 @@ Context :: struct {
 	nextHoveredLayer, hoveredLayer, focusedLayer: i32,
 
 	// Used for dragging stuff
-	dragAnchor: Vector,
+	dragAnchor: Vec2,
 
 	// Retained frame data
 	frames: [MAX_FRAMES]FrameData,
@@ -313,7 +313,7 @@ UseNextId :: proc() -> (id: Id, ok: bool) {
 	return
 }
 
-GetScreenPoint :: proc(h, v: f32) -> Vector {
+GetScreenPoint :: proc(h, v: f32) -> Vec2 {
 	return {h * f32(ctx.size.x), v * f32(ctx.size.y)}
 }
 SetScreenSize :: proc(w, h: f32) {
@@ -339,7 +339,7 @@ Init :: proc() {
 	ctx = new(Context)
 
 	ctx.style.colors[.accent] = ParseColor("#3578F3")
-	ctx.style.colors[.panelBase] = ParseColor("#242424")
+	ctx.style.colors[.windowBase] = ParseColor("#242424")
 	ctx.style.colors[.iconBase] = ParseColor("#858585")
 	ctx.style.colors[.widgetBase] = ParseColor("#2F2F2F")
 	ctx.style.colors[.widgetHover] = ParseColor("#373639")

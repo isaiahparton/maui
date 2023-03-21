@@ -19,7 +19,7 @@ LayerData :: struct {
 	id: Id,
 	bits: LayerBits,
 	body: Rect,
-	layoutSize, contentSize: Vector,
+	layoutSize, contentSize: Vec2,
 	// draw order
 	order: LayerOrder,
 	// list index
@@ -32,7 +32,7 @@ LayerData :: struct {
 }
 
 LayerOptions :: struct {
-	origin, size: AnyVector,
+	origin, size: AnyVec2,
 }
 
 GetCurrentLayer :: proc() -> ^LayerData {

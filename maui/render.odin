@@ -9,6 +9,44 @@ import "core:path/filepath"
 import "core:unicode/utf8"
 import rl "vendor:raylib"
 
+/*
+	How this is going to work:
+
+	REBUILD_ATLAS :: ODIN_DEBUG
+	OnStart :: proc() {
+		when REBUILD_ATLAS {
+			RebuildAndExportAtlas()
+		} else {
+			LoadAtlasData()
+		}
+	}
+*/
+
+AtlasSource :: struct {
+	// offset of drawn texture (if it's a font glyph)
+	offset,
+	topLeft,
+	bottomRight: Vec2,
+}
+
+
+/*
+	NPatch dealings
+*/
+PatchIndex :: enum {
+	widgetFill,
+	widgetStroke,
+	widgetStrokeThin,
+	windowFill,
+}
+PatchData :: struct {
+	fragment: int,
+	amount: i32,
+}
+
+/*
+	Font dealings
+*/
 FontIndex :: enum {
 	default,
 	header,
@@ -34,64 +72,54 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	},
 }
 
-PatchIndex :: enum {
-	widgetFill,
-	widgetStroke,
-	widgetStrokeThin,
-	panelFill,
-}
-PatchData :: struct {
-	source: Rect,
-	amount: i32,
-}
-
-Painter :: struct {
-	patches: [PatchIndex]PatchData,
-	fonts: [FontIndex]FontData,
-}
-@static painter :: ^Painter
-
-/*
-	Font and patch loading/usage
-	uses raylib to load fonts
-*/
 GLYPH_SPACING :: 1
 GlyphData :: struct {
-	source: Rect,
-	offset: Vector,
+	fragment: int,
+	offset: Vec2,
 	advance: f32,
 }
-
 FontData :: struct {
 	size: f32,
 	imageData: rawptr,
 	imageWidth, imageHeight: i32,
 	glyphs: []GlyphData,
-	glyphMap: map[rune]i32,
+	firstGlyph: byte,
 }
 
-LoadPatch :: proc(index: PatchIndex, amount: i32) {
-
-}
-LoadResources :: proc(using painter: ^Painter) {
-	LoadPatch(.panelFill, 12)
-	LoadPatch(.widgetFill, 6)
-	LoadPatch(.widgetStroke, 6)
-	LoadPatch(.widgetStrokeThin, 6)
-
-	atlasHeight := i32(0)
-	for data, index in FONT_LOAD_DATA {
-		font, success := LoadFont(StringFormat("fonts/%s", data.file), data.size, 0)
-		if !success {
-			fmt.printf("Failed to load font %v\n", index)
-			continue
-		}
-		fonts[index] = font
-		atlasHeight = max(atlasHeight, font.imageHeight)
+LoadPatchAtlas :: proc(painter: ^Painter) -> rl.Image {
+	PATCH_AMOUNTS :: [PatchIndex]i32 {
+		.widgetFill = 5,
+		.widgetStroke = 5,
+		.widgetStrokeThin = 5,
+		.windowFill = 12,
 	}
-}
 
+	atlas := rl.GenImageColor(256, 256, {})
+
+	offset := f32(0)
+	maxWidth := f32(0)
+	for index in PatchIndex {
+		path := StringFormat("things/%v.png", index)
+		cPath := strings.clone_to_cstring(path)
+		image := rl.LoadImage(cPath)
+
+		rect := Rect{0, offset, f32(image.width), f32(image.height)}
+		painter.patches[index] = {
+			amount = PATCH_AMOUNTS[index],
+			source = rect,
+		}
+
+		rl.ImageDraw(&atlas, image, {0, 0, f32(image.width), f32(image.height)}, transmute(rl.Rectangle)rect, rl.WHITE)
+		maxWidth = max(maxWidth, rect.w)
+		offset += rect.h + 1
+	}
+	maxWidth += 1
+	return atlas
+}
 LoadFont :: proc(path: string, size, glyphCount: i32) -> (font: FontData, success: bool) {
+	/*
+		Pass each glyph to a packer	
+	*/
 	extension := filepath.ext(path)
     if extension == ".ttf" || extension == ".otf" {
     	fileData, ok := os.read_entire_file(path)
@@ -136,6 +164,54 @@ GetGlyphData :: proc(font: FontData, codepoint: rune) -> GlyphData {
 }
 
 /*
+	Exists for the lifetime of the program
+
+	Loads or creates the texture, keeps track of every AtlasSource to which icons, patches or font glyphs can refer
+
+	When the atlas is built, fonts, patches and icons will each pass their image and 
+	an ^AtlasSource to the packer which will arrange them on the atlas and set the 
+	^AtlasSource to their fragment index
+		
+		The atlas data along with every fragment will be compressed and saved to atlas/data.odin
+			
+			* Image will be trimmed and written as a slice of bytes
+			* Sources will be put into an array
+
+	when !REBUILD_ATLAS {
+		import "atlas"
+	}
+*/
+Painter :: struct {
+	patches: [PatchIndex]PatchData,
+	fonts: [FontIndex]FontData,
+}
+@static painter :: ^Painter
+
+
+LoadResources :: proc(using painter: ^Painter) {
+	iconAtlas := LoadIconAtlas(icon)
+	patchAtlas := LoadPatchAtlas(painter)
+
+	atlasHeight := i32(0)
+	for data, index in FONT_LOAD_DATA {
+		font, success := LoadFont(StringFormat("fonts/%s", data.file), data.size, 0)
+		if !success {
+			fmt.printf("Failed to load font %v\n", index)
+			continue
+		}
+		fonts[index] = font
+		atlasHeight = max(atlasHeight, font.imageHeight)
+	}
+
+	mainAtlas := rl.GenImageColor(2048, 256, {})
+	rl.ImageDraw(&mainAtlas, iconAtlas, {0, 0, 256, 256}, {0, 0, 256, 256}, rl.WHITE)
+	rl.ImageDraw(&mainAtlas, patchAtlas, {0, 0, 256, 256}, {256, 0, 256, 256}, rl.WHITE)
+	for fontIndex, index in FontIndex {
+		rl.ImageDraw()
+	}
+}
+
+/*
 	Draw commands
 */
 CommandTexture :: struct {
@@ -146,7 +222,7 @@ CommandTexture :: struct {
 }
 CommandTriangle :: struct {
 	using command: Command,
-	points: [3]Vector,
+	points: [3]Vec2,
 	color: Color,
 }
 CommandClip :: struct {
@@ -224,11 +300,11 @@ EndClip :: proc() {
 	cmd := PushCommand(CommandClip)
 	cmd.rect = {0, 0, ctx.size.x, ctx.size.y}
 }
-DrawQuad :: proc(p1, p2, p3, p4: Vector, c: Color) {
+DrawQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
 	DrawTriangle(p1, p2, p4, c)
 	DrawTriangle(p4, p2, p3, c)
 }
-DrawTriangle :: proc(p1, p2, p3: Vector, c: Color) {
+DrawTriangle :: proc(p1, p2, p3: Vec2, c: Color) {
 	cmd := PushCommand(CommandTriangle)
 	cmd.points = {p1, p2, p3}
 	cmd.color = c
@@ -242,7 +318,7 @@ DrawRect :: proc(rect: Rect, color: Color) {
 		color,
 	)
 }
-DrawTriangleStrip :: proc(points: []Vector, color: Color) {
+DrawTriangleStrip :: proc(points: []Vec2, color: Color) {
     if len(points) < 4 {
     	return
     }
@@ -264,12 +340,12 @@ DrawTriangleStrip :: proc(points: []Vector, color: Color) {
         }
     }
 }
-DrawLine :: proc(start, end: Vector, thickness: f32, color: Color) {
+DrawLine :: proc(start, end: Vec2, thickness: f32, color: Color) {
 	delta := end - start
     length := math.sqrt(f32(delta.x * delta.x + delta.y * delta.y))
     if length > 0 && thickness > 0 {
         scale := thickness / (2 * length)
-        radius := Vector{ -scale * delta.y, scale * delta.x }
+        radius := Vec2{ -scale * delta.y, scale * delta.x }
         DrawTriangleStrip({
             { start.x - radius.x, start.y - radius.y },
             { start.x + radius.x, start.y + radius.y },
@@ -284,10 +360,10 @@ DrawRectLines :: proc(rect: Rect, thickness: f32, color: Color) {
 	DrawRect({rect.x, rect.y, thickness, rect.h}, color)
 	DrawRect({rect.x + rect.w - thickness, rect.y, thickness, rect.h}, color)
 }
-DrawCircle :: proc(center: Vector, radius: f32, segments: i32, color: Color) {
+DrawCircle :: proc(center: Vec2, radius: f32, segments: i32, color: Color) {
 	DrawCircleSector(center, radius, 0, math.TAU, segments, color)
 }
-DrawCircleSector :: proc(center: Vector, radius, start, end: f32, segments: i32, color: Color) {
+DrawCircleSector :: proc(center: Vec2, radius, start, end: f32, segments: i32, color: Color) {
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
@@ -300,10 +376,10 @@ DrawCircleSector :: proc(center: Vector, radius, start, end: f32, segments: i32,
         angle += step;
     }
 }
-DrawRing :: proc(center: Vector, inner, outer: f32, segments: i32, color: Color) {
+DrawRing :: proc(center: Vec2, inner, outer: f32, segments: i32, color: Color) {
 	DrawRingSector(center, inner, outer, 0, math.TAU, segments, color)
 }
-DrawRingSector :: proc(center: Vector, inner, outer, start, end: f32, segments: i32, color: Color) {
+DrawRingSector :: proc(center: Vec2, inner, outer, start, end: f32, segments: i32, color: Color) {
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
@@ -352,8 +428,8 @@ Alignment :: enum {
 	middle,
 	far,
 }
-MeasureString :: proc(font: FontData, text: string) -> Vector {
-	size := Vector{}
+MeasureString :: proc(font: FontData, text: string) -> Vec2 {
+	size := Vec2{}
 	for codepoint in text {
 		glyph := GetGlyphData(font, codepoint)
 		size.x += glyph.advance
@@ -361,7 +437,7 @@ MeasureString :: proc(font: FontData, text: string) -> Vector {
 	size.y = font.size
 	return size
 }
-DrawString :: proc(font: FontData, text: string, origin: Vector, color: Color) {
+DrawString :: proc(font: FontData, text: string, origin: Vec2, color: Color) {
 	origin := origin
 	for codepoint in text {
 		glyph := GetGlyphData(ctx.font, codepoint)
@@ -369,7 +445,7 @@ DrawString :: proc(font: FontData, text: string, origin: Vector, color: Color) {
 		origin.x += glyph.advance
 	}
 }
-DrawAlignedString :: proc(font: FontData, text: string, origin: Vector, color: Color, alignX, alignY: Alignment) {
+DrawAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) {
 	origin := origin
 	if alignX == .middle {
 		origin.x -= math.trunc(MeasureString(font, text).x / 2)
@@ -387,7 +463,7 @@ DrawAlignedString :: proc(font: FontData, text: string, origin: Vector, color: C
 /*
 	Draw a clipped glyphs with math instead of GPU commands
 */
-DrawClippedGlyph :: proc(glyph: GlyphData, origin: Vector, clipRect: Rect, color: Color) {
+DrawClippedGlyph :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {
 	
 }
 */
@@ -433,11 +509,11 @@ IconIndex :: enum {
 	upload,
 }
 ICON_SIZE :: 24
-DrawIcon :: proc(icon: IconIndex, origin: Vector, color: Color) {
+DrawIcon :: proc(icon: IconIndex, origin: Vec2, color: Color) {
 	DrawIconEx(icon, origin, 1, .near, .near, color)
 }
-DrawIconEx :: proc(icon: IconIndex, origin: Vector, scale: f32, alignX, alignY: Alignment, color: Color) {
-	offset := Vector{}
+DrawIconEx :: proc(icon: IconIndex, origin: Vec2, scale: f32, alignX, alignY: Alignment, color: Color) {
+	offset := Vec2{}
 	if alignX == .middle {
 		offset.x -= ICON_SIZE / 2
 	} else if alignX == .far {
