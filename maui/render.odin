@@ -9,8 +9,50 @@ import "core:path/filepath"
 import "core:unicode/utf8"
 import rl "vendor:raylib"
 
+FontIndex :: enum {
+	default,
+	header,
+	monospace,
+}
+FontLoadData :: struct {
+	size: i32,
+	file: string,
+}
+
+FONT_LOAD_DATA :: [FontIndex]FontLoadData {
+	.default = {
+		size = 24,
+		file = "IBMPlexSans-Regular.ttf",
+	},
+	.header = {
+		size = 36,
+		file = "IBMPlexSans-Regular.ttf",
+	},
+	.monospace = {
+		size = 24,
+		file = "Inconsolata_Condensed-SemiBold.ttf",
+	},
+}
+
+PatchIndex :: enum {
+	widgetFill,
+	widgetStroke,
+	widgetStrokeThin,
+	panelFill,
+}
+PatchData :: struct {
+	source: Rect,
+	amount: i32,
+}
+
+Painter :: struct {
+	patches: [PatchIndex]PatchData,
+	fonts: [FontIndex]FontData,
+}
+@static painter :: ^Painter
+
 /*
-	Font loading/usage
+	Font and patch loading/usage
 	uses raylib to load fonts
 */
 GLYPH_SPACING :: 1
@@ -19,6 +61,7 @@ GlyphData :: struct {
 	offset: Vector,
 	advance: f32,
 }
+
 FontData :: struct {
 	size: f32,
 	imageData: rawptr,
@@ -26,6 +69,28 @@ FontData :: struct {
 	glyphs: []GlyphData,
 	glyphMap: map[rune]i32,
 }
+
+LoadPatch :: proc(index: PatchIndex, amount: i32) {
+
+}
+LoadResources :: proc(using painter: ^Painter) {
+	LoadPatch(.panelFill, 12)
+	LoadPatch(.widgetFill, 6)
+	LoadPatch(.widgetStroke, 6)
+	LoadPatch(.widgetStrokeThin, 6)
+
+	atlasHeight := i32(0)
+	for data, index in FONT_LOAD_DATA {
+		font, success := LoadFont(StringFormat("fonts/%s", data.file), data.size, 0)
+		if !success {
+			fmt.printf("Failed to load font %v\n", index)
+			continue
+		}
+		fonts[index] = font
+		atlasHeight = max(atlasHeight, font.imageHeight)
+	}
+}
+
 LoadFont :: proc(path: string, size, glyphCount: i32) -> (font: FontData, success: bool) {
 	extension := filepath.ext(path)
     if extension == ".ttf" || extension == ".otf" {

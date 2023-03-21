@@ -84,15 +84,12 @@ main :: proc() {
 		ui.SetMouseBit(.left, rl.IsMouseButtonDown(.LEFT))
 		ui.ctx.deltaTime = rl.GetFrameTime()
 
-		if layer, ok := ui.Window("window", {}); ok {
+		if layer, ok := ui.Layer({0, 0, 100, 100}); ok {
+			//ui.SetUpWindow({400, 400})
+
 			ui.Shrink(30)
 			ui.CutSize(30)
-			ui.ButtonEx("goodbye", false)
-
-			if layer, ok := ui.Window("bruh", {}); ok {
-				ui.Shrink(30)
-				ui.ButtonEx("hello", true)
-			}
+			ui.ButtonEx("goodbye")
 		}
 
 		/*

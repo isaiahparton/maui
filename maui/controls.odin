@@ -35,9 +35,6 @@ Control :: struct {
 	bits: ControlBits,
 	opts: ControlOptions,
 	state: ControlState,
-
-	// animation
-	hoverTime, pressTime, activeTime: f32,
 }
 
 /*BeginControlEx :: proc(loc: runtime.Source_Code_Location) -> (control: ^Control, ok: bool) {
@@ -175,16 +172,9 @@ Widget :: proc(loc := #caller_location) -> (ok: bool) {
 		return
 	}
 	UpdateControl(control)
-	hoverTime = ControlTimer(.hovered in state, hoverTime, 7, 7)
-	pressTime = ControlTimer(.down in state, pressTime, 9, 9)
 
-	offset := -7 * hoverTime
-	if offset != 0 {
-		DrawRect(body, GetColor(1, 1))
-	}
-	body = TranslateRect(body, {offset, offset})
-	DrawRect(body, GetColor(0, 1))
-	DrawRectLines(body, ctx.style.outline, GetColor(1, 1))
+	DrawRect(body, GetColor(.widgetBase, 1))
+	DrawRectLines(body, ctx.style.outline, GetColor(.outlineBase, 1))
 
 	EndControl(control)
 
@@ -201,66 +191,15 @@ Widget :: proc(loc := #caller_location) -> (ok: bool) {
 /*
 	Clicky widgets
 */
-ButtonEx :: proc(text: string, alt: bool, loc := #caller_location) -> bool {
+ButtonEx :: proc(text: string, loc := #caller_location) -> bool {
 	using control, ok := BeginControl(HashId(loc), GetNextRect())
 	if !ok {
 		return false
 	}
 	UpdateControl(control)
-	hoverTime = ControlTimer(.hovered in state, hoverTime, 6, 6)
-	pressTime = ControlTimer(.down in state, pressTime, 6, 6)
 
-	DrawRect(body, GetColor(1 if alt else 0, 1))
-	if hoverTime > 0 {
-		DrawRectSweep(body, hoverTime, GetColor(3 if alt else 2, 1))
-		DrawRect(body, GetColor(1, 0.15 * pressTime))
-	}
-	if !alt {
-		DrawRectLines(body, ctx.style.outline, GetColor(1, 1))
-	}
-	DrawAlignedString(ctx.font, text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(0 if alt else 1, 1), .middle, .middle)
-
-	EndControl(control)
-	return .released in state
-}
-IconButtonEx :: proc(icon: IconIndex, loc := #caller_location) -> bool {
-	using control, ok := BeginControl(UseNextId() or_else HashId(loc), ChildRect(GetNextRect(), {30, 30}, .middle, .middle))
-	if !ok {
-		return false
-	}
-	UpdateControl(control)
-	hoverTime = ControlTimer(.hovered in state, hoverTime, 6, 6)
-	pressTime = ControlTimer(.down in state, pressTime, 6, 6)
-
-	DrawRect(body, GetColor(0, 1))
-	if hoverTime > 0 {
-		DrawRect(body, GetColor(2, hoverTime))
-		DrawRect(body, GetColor(1, 0.1 * pressTime))
-	}
-	DrawRectLines(body, ctx.style.outline, GetColor(1, 1))
-	DrawIconEx(icon, {body.x + 15, body.y + 15}, 1, .middle, .middle, GetColor(1, 1))
-
-	EndControl(control)
-	return .released in state
-}
-FloatingButtonEx :: proc(icon: IconIndex, loc := #caller_location) -> bool {
-	using control, ok := BeginControl(UseNextId() or_else HashId(loc), GetNextRectEx({40, 40}, .near, .near))
-	if !ok {
-		return false
-	}
-	UpdateControl(control)
-	hoverTime = ControlTimer(.hovered in state, hoverTime, 6, 6)
-	pressTime = ControlTimer(.down in state, pressTime, 6, 6)
-
-	center := Vector{body.x + body.w / 2, body.y + body.h / 2}
-	face := center + {0, 3 * pressTime}
-	DrawCircle(center + {0, 3}, 20, 16, GetColor(1, 1))
-	DrawCircle(face, 20, 16, GetColor(0, 1))
-	if hoverTime > 0 {
-		DrawCircle(face, 20, 16, GetColor(1, 0.1 * (pressTime + hoverTime)))
-	}
-	DrawRing(face, 20 - ctx.style.outline, 20, 18, GetColor(1, 1))
-	DrawIconEx(icon, face, 1, .middle, .middle, GetColor(1, 1))
+	DrawRect(body, GetColor(.widgetPress if .down in state else (.widgetHover if .hovered in state else .widgetBase), 1))
+	DrawAlignedString(ctx.font, text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
 
 	EndControl(control)
 	return .released in state
@@ -283,22 +222,14 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		*/
 		active := (status == .on || status == .unknown)
 		UpdateControl(control)
-		hoverTime = ControlTimer(.hovered in state, hoverTime, 6, 6)
-		pressTime = ControlTimer(.down in state, pressTime, 9, 9)
-		activeTime = ControlTimer(active, activeTime, 7, 7)
 
 		//DrawRect(body, GetColor(0, 1))
 		if active {
-			DrawRect(body, GetColor(2, 1))
+			DrawRect(body, GetColor(.widgetBase, 1))
 		}
-		if hoverTime > 0 {
-			DrawRect(body, GetColor(1, 0.1 * (hoverTime + pressTime)))
-		}
-		if activeTime > 0 {
-			DrawIconEx(.minus if status == .unknown else .check, {body.x + 15, body.y + 15}, activeTime if active else (1 + (1 - activeTime)), .middle, .middle, GetColor(1, 1 if active else activeTime))
-		}
-		DrawRectLines(body, ctx.style.outline, GetColor(1, 1))
-		DrawAlignedString(ctx.font, text, {body.x + body.w + 5, body.y + body.h / 2}, GetColor(1, 1), .near, .middle)
+		DrawIconEx(.minus if status == .unknown else .check, {body.x + 15, body.y + 15}, 1, .middle, .middle, GetColor(.textBright, 1))
+		DrawRectLines(body, ctx.style.outline, GetColor(.outlineBase, 1))
+		DrawAlignedString(ctx.font, text, {body.x + body.w + 5, body.y + body.h / 2}, GetColor(.textBright, 1), .near, .middle)
 
 		if .released in state {
 			if status != .on {
@@ -358,50 +289,11 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 	}
 	return false
 }
-
-ToggleSwitch :: proc(value: ^bool, loc := #caller_location) -> (s: ControlState) {
-	using control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {50, 30}, .far, .middle))
-	if !ok {
-		return
-	}
-	UpdateControl(control)
-
-	hoverTime = ControlTimer(.hovered in state, hoverTime, 6, 6)
-	pressTime = ControlTimer(.down in state, pressTime, 9, 9)
-	activeTime = ControlTimer(value^, activeTime, 9, 9)
-
-	baseline := body.y + 15
-	thumbCenter := Vector{body.x + 15 + activeTime * (body.w - 30), baseline}
-
-	// body
-	bodyColor := GetColor(2 if value^ else 5, 1)
-	DrawRect({body.x + 15, body.y, body.w - 30, body.h}, bodyColor)
-	DrawRect({body.x + 15, body.y, body.w - 30, ctx.style.outline}, GetColor(1, 1))
-	DrawRect({body.x + 15, body.y + body.h - ctx.style.outline, body.w - 30, ctx.style.outline}, GetColor(1, 1))
-	DrawCircleSector({body.x + 15, baseline}, 15, math.PI * 0.5, math.PI * 1.5, 4, bodyColor)
-	DrawRingSector({body.x + 15, baseline}, 15 - ctx.style.outline, 15, math.PI * 0.5, math.PI * 1.5, 8, GetColor(1, 1))
-	DrawCircleSector({body.x + body.w - 15, baseline}, 15, math.PI * 1.5, math.PI * 2.5, 4, bodyColor)
-	DrawRingSector({body.x + body.w - 15, baseline}, 15 - ctx.style.outline, 15, math.PI * 1.5, math.PI * 2.5, 8, GetColor(1, 1))
-
-	// thumb (switch part thingy)
-	DrawCircle(thumbCenter, 15, 8, GetColor(0, 1))
-	DrawRing(thumbCenter, 15 - ctx.style.outline, 15, 16, GetColor(1, 1))
-	r := 6 - 2 * pressTime
-	DrawRing(thumbCenter, r, r + ctx.style.outline, 12, GetColor(1, 1))
-
-	if .released in state {
-		value^ = !value^
-	}
-
-	EndControl(control)
-	return
-}
-
 /*
 	Combo box or whatever you want it to be
 */
 @(deferred_out=_Menu)
-Menu :: proc(text: string, loc := #caller_location) -> (active: bool) {
+Menu :: proc(text: string, loc := #caller_location) -> (panel: ^PanelData, active: bool) {
 	sharedId := HashId(loc)
 	using control, ok := BeginControl(sharedId, GetNextRect())
 	if !ok {
@@ -409,33 +301,19 @@ Menu :: proc(text: string, loc := #caller_location) -> (active: bool) {
 	}
 	UpdateControl(control)
 
-	if .hovered in state {
-		hoverTime = min(1, hoverTime + 6 * ctx.deltaTime)
-	} else {
-		hoverTime = max(0, hoverTime - 6 * ctx.deltaTime)
-	}
-	if .down in state {
-		pressTime = min(1, pressTime + 9 * ctx.deltaTime)
-	} else {
-		pressTime = max(0, pressTime - 9 * ctx.deltaTime)
-	}
-
-	DrawRect(body, GetColor(0, 1))
-	if hoverTime > 0 {
-		DrawRectSweep(body, hoverTime, GetColor(2, 1))
-	}
-	DrawRectLines(body, ctx.style.outline, GetColor(1, 1))
-	DrawAlignedString(ctx.font, text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(1, 1), .middle, .middle)
+	DrawRect(body, GetColor(.widgetBase, 1))
+	DrawRectLines(body, ctx.style.outline, GetColor(.widgetBase, 1))
+	DrawAlignedString(ctx.font, text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
 
 	EndControl(control)
 	active = (.active in bits)
 	if active {
-		BeginLayerEx(AttachRectBottom(body, 100), sharedId, {.autoFit})
+		//panel = BeginPanelEx(AttachRectBottom(body, 100), sharedId, {.fitToContent})
 	}
 	return 
 }
-@private _Menu :: proc(active: bool) {
+@private _Menu :: proc(panel: ^PanelData, active: bool) {
 	if active {
-		EndLayer()
+		//EndPanel(panel)
 	}
 }

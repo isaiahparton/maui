@@ -66,13 +66,17 @@ package maui
 import "core:fmt"
 import "core:runtime"
 import "core:sort"
+import "core:strconv"
 
 MAX_CONTROLS :: #config(MAUI_MAX_CONTROLS, 128)
-MAX_LAYERS :: #config(MAUI_MAX_LAYERS, 8)
+MAX_LAYERS :: #config(MAUI_MAX_LAYERS, 16)
+MAX_WINDOWS :: #config(MAUI_MAX_WINDOWS, 32)
 MAX_FRAMES :: #config(MAUI_MAX_FRAMES, 32)
+// Maximum layout depth (times you can call PushLayout())
 MAX_LAYOUTS :: #config(MAUI_MAX_LAYOUTS, 32)
+// Size of each layer's command buffer
 COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 32 * 1024)
-MAIN_COMMAND_BUFFER_SIZE :: COMMAND_BUFFER_SIZE * MAX_LAYERS
+// Size of id stack (times you can call PushId())
 ID_STACK_SIZE :: 8
 
 Absolute :: i32
@@ -97,16 +101,26 @@ RectContainsRect :: proc(a, b: Rect) -> bool {
 
 Color :: [4]u8
 ColorIndex :: enum {
-	panelDark,
-	panelLight,
-	baseDark,
-	baseLight,
-	baseAccent,
-	baseOutline,
+	panelBase,
+
+	// Clickable things
+	widgetBase,
+	widgetHover,
+	widgetPress,
+
+	// Outline
+	outlineBase,
+	outlineHover,
+	outlinePress,
+
+	// Some bright accent color that stands out
+	accent,
+
+	iconBase,
 	text,
-	textSubtle,
+	textBright,
 }
-GetColor :: proc(index: int, alpha: f32) -> Color {
+GetColor :: proc(index: ColorIndex, alpha: f32) -> Color {
 	color := ctx.style.colors[index]
 	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
 }
@@ -207,7 +221,7 @@ PopId :: proc() {
 	TODO(isaiah): Add manual state swapping
 */
 Style :: struct {
-	colors: [6]Color,
+	colors: [ColorIndex]Color,
 	outline: f32,
 }
 Context :: struct {
@@ -226,10 +240,18 @@ Context :: struct {
 
 	// fonts
 	font: FontData,
+	texturePixels: rawptr,
+	textureWidth,
+	textureHeight: i32,
 
 	// Retained control data
 	controls: [MAX_CONTROLS]Control,
 	controlExists: [MAX_CONTROLS]bool,
+
+	// Retained window data
+	panels: [MAX_WINDOWS]PanelData,
+	panelStack: [MAX_WINDOWS]^PanelData,
+	panelDepth: i32,
 
 	// Retained layer data
 	layers: [MAX_LAYERS]LayerData,
@@ -244,8 +266,8 @@ Context :: struct {
 	layerStack: [MAX_LAYERS]i32,
 	// Current layer state
 	nextHoveredLayer, hoveredLayer, focusedLayer: i32,
-	hoverIndex: i32,
-	movingLayer, sizingLayer: bool,
+
+	// Used for dragging stuff
 	dragAnchor: Vector,
 
 	// Retained frame data
@@ -298,17 +320,32 @@ SetScreenSize :: proc(w, h: f32) {
 	ctx.size = {w, h}
 }
 
+ParseColor :: proc(text: string) -> (color: Color) {
+	if text[0] != '#' || (len(text) != 9 && len(text) != 7) {
+		return
+	}
+	color.a = 255
+	for i in 0 ..< (len(text) - 1) / 2 {
+		j := i * 2 + 1
+		value, yes := strconv.parse_u64_of_base(text[j:j + 2], 16)
+		if yes {
+			color[i] = u8(value)
+		}
+	}
+	return
+}
+
 Init :: proc() {
 	ctx = new(Context)
 
-	ctx.style.colors = {
-		{255, 255, 255, 255},
-		{10, 10, 10, 255},
-		{15, 235, 90, 255},
-		{255, 0, 180, 255},
-		{0, 255, 180, 255},
-		{231, 232, 252, 255},
-	}
+	ctx.style.colors[.accent] = ParseColor("#3578F3")
+	ctx.style.colors[.panelBase] = ParseColor("#242424")
+	ctx.style.colors[.iconBase] = ParseColor("#858585")
+	ctx.style.colors[.widgetBase] = ParseColor("#2F2F2F")
+	ctx.style.colors[.widgetHover] = ParseColor("#373639")
+	ctx.style.colors[.widgetPress] = ParseColor("#575659")
+	ctx.style.colors[.textBright] = {255, 255, 255, 255}
+
 	ctx.style.outline = 1
 
 	success := false
@@ -319,6 +356,7 @@ Prepare :: proc() {
 	using ctx
 
 	PopLayout()
+
 	/*
 		This decides if the frame should be drawn
 	*/
@@ -330,7 +368,7 @@ Prepare :: proc() {
 			control := &controls[i]
 			if .stayAlive in control.bits {
 
-				if (control.state & {.hovered, .down} != {}) || (control.hoverTime > 0) || (control.pressTime > 0) {
+				if control.state & {.hovered, .down} != {} {
 					renderTime = 1
 				}
 
@@ -354,17 +392,15 @@ Prepare :: proc() {
 		layer := &layers[layerIndex]
 		layer.index = i32(index)
 		if VecVsRect(input.mousePos, layer.body) {
-			if MousePressed(.left) && (.floating in layer.bits) {
+			if MousePressed(.left) {
 				top = index
 			}
 			hoveredLayer = i32(layerIndex)
 		}
 	}
-	/*sort.quick_sort_proc(layerList[:], proc(a, b: i32) -> int {
-		aA := int(.floating in layers[a].bits)
-		bB := int(.floating in layers[b].bits)
-		return aA - bB
-		})*/
+	sort.quick_sort_proc(layerList[:], proc(a, b: i32) -> int {
+		return int(layers[a].order) - int(layers[b].order)
+		})
 	if top != prevTop {
 		index := layerList[top]
 		copy(layerList[top:], layerList[top + 1:])
