@@ -86,7 +86,7 @@ main :: proc() {
 		if layer, ok := ui.Layer({200, 500, 100, 100}); ok {
 			ui.CutSize(30)
 			ui.ButtonEx("bruh")
-			ui.PaintCircle({250, 550}, 5 + math.sin(ui.ctx.time * 10) * 4, rl.RED)
+			ui.PaintRoundedRect({200, 540, 80, 30}, 5, rl.BLACK)
 		}
 
 		/*
