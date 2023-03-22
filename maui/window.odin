@@ -3,13 +3,12 @@ package maui
 WindowOption :: enum {
 	title,
 	resizable,
+	fitToContent,
 }
 WindowOptions :: bit_set[WindowOption]
 WindowStatus :: enum {
-	closed,
 	resizing,
 	moving,
-	fitToContent,
 	shouldClose,
 }
 WindowState :: bit_set[WindowStatus]
@@ -56,17 +55,9 @@ Window :: proc(loc := #caller_location) -> (window: ^WindowData, ok: bool) {
 		Handle title bar
 	*/
 	if .title in options {
-		titleRect := Rect{layer.body.x, layer.body.y, layer.body.w, PANEL_TITLE_SIZE}
+		titleRect := Rect{layer.body.x, layer.body.y, layer.body.w, 30}
 
-		if Layout(titleRect) {
-			CutSide(.right)
-			CutSize(titleRect.h)
-			if IconButtonEx(.close) {
-				state += {.shouldClose}
-			}
-		}
-
-		if hoveredLayer == index && VecVsRect(input.mousePos, titleRect) {
+		if hoveredLayer == layer.id && VecVsRect(input.mousePos, titleRect) {
 			if MousePressed(.left) {
 				state += {.moving}
 				dragAnchor = Vec2{layer.body.x, layer.body.y} - input.mousePos
@@ -82,7 +73,7 @@ Window :: proc(loc := #caller_location) -> (window: ^WindowData, ok: bool) {
 	return window, true
 }
 EndWindow :: proc(using window: ^WindowData) {
-	DrawRectLines(layer.body, ctx.style.outline, GetColor(1, 1))
+	DrawRectLines(layer.body, ctx.style.outline, GetColor(.outlineBase, 1))
 
 	if .resizing in state {
 		layer.body.w = max(input.mousePos.x - layer.body.x, 240)
@@ -111,11 +102,19 @@ GetCurrentWindow :: proc() -> ^WindowData {
 	assert(ctx.windowDepth > 0)
 	return ctx.windowStack[ctx.windowDepth]
 }
-CreateOrGetWindow :: proc(id: Id) -> (^WindowData, bool) {
-	index, ok := ctx.windowMap[id]
+CreateOrGetWindow :: proc(id: Id) -> (window: ^WindowData, ok: bool) {
+	window, ok = ctx.windowMap[id]
 	if !ok {
-		for i in 0 ..< MAX_PANELS 
+		for i in 0 ..< MAX_WINDOWS {
+			if !ctx.windowExists[i] {
+				ctx.windowExists[i] = true
+				window = &ctx.windows[i]
+				ctx.windowMap[id] = window
+				ok = true
+				break
+			}
+		}
 	}
 
-	return nil, false
+	return
 }

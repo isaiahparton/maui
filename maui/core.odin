@@ -250,6 +250,8 @@ Context :: struct {
 
 	// Retained window data
 	windows: [MAX_WINDOWS]WindowData,
+	windowExists: [MAX_WINDOWS]bool,
+	windowMap: map[Id]^WindowData,
 	windowStack: [MAX_WINDOWS]^WindowData,
 	windowDepth: i32,
 
@@ -265,7 +267,7 @@ Context :: struct {
 	layerDepth: i32,
 	layerStack: [MAX_LAYERS]i32,
 	// Current layer state
-	nextHoveredLayer, hoveredLayer, focusedLayer: i32,
+	nextHoveredLayer, hoveredLayer, focusedLayer: Id,
 
 	// Used for dragging stuff
 	dragAnchor: Vec2,
@@ -337,6 +339,8 @@ ParseColor :: proc(text: string) -> (color: Color) {
 
 Init :: proc() {
 	ctx = new(Context)
+	painter = new(Painter)
+	LoadResources(painter)
 
 	ctx.style.colors[.accent] = ParseColor("#3578F3")
 	ctx.style.colors[.windowBase] = ParseColor("#242424")
@@ -348,9 +352,9 @@ Init :: proc() {
 
 	ctx.style.outline = 1
 
-	success := false
-	ctx.font, success = LoadFont("fonts/IBMPlexSans-Regular.ttf", 24, 100)
-	assert(success, "Failed to load default font")
+	//success := false
+	//ctx.font, success = LoadFont("fonts/IBMPlexSans-Regular.ttf", 24, 100)
+	//assert(success, "Failed to load default font")
 }
 Prepare :: proc() {
 	using ctx
@@ -395,7 +399,7 @@ Prepare :: proc() {
 			if MousePressed(.left) {
 				top = index
 			}
-			hoveredLayer = i32(layerIndex)
+			hoveredLayer = layer.id
 		}
 	}
 	sort.quick_sort_proc(layerList[:], proc(a, b: i32) -> int {
@@ -417,7 +421,7 @@ Prepare :: proc() {
 		if layerExists[layerIndex] {
 			layer := &layers[layerIndex]
 			if VecVsRect(input.mousePos, layer.body) {
-				hoveredLayer = layerMap[layer.id]
+				hoveredLayer = layer.id
 			}
 			if .stayAlive in layer.bits {
 				layer.bits -= {.stayAlive}

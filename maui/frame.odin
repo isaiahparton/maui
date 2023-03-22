@@ -37,7 +37,7 @@ PushFrame :: proc(rect: Rect, options: FrameOptions, loc := #caller_location) ->
 	frame.options += options
 	frame.body = rect
 
-	PushLayout(rect)
+	PushLayout({rect.x - frame.scroll.x, rect.y - frame.scroll.y, rect.w, rect.h})
 
 	return true
 }

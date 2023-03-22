@@ -59,22 +59,12 @@ main :: proc() {
 	rl.rlEnableBackfaceCulling()
 
 	ui.Init()
-	ui.SetScreenSize(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
 
-	image := rl.Image{
-		data = ui.ctx.font.imageData,
-		width = ui.ctx.font.imageWidth,
-		height = ui.ctx.font.imageHeight,
-		format = .UNCOMPRESSED_GRAY_ALPHA,
-		mipmaps = 1,
-	}
-	font = rl.LoadTextureFromImage(image)
-	rl.SetTextureFilter(font, .BILINEAR)
-	rl.UnloadImage(image)
-	iconAtlas := rl.LoadImage("icons/atlas.png")
-	rl.ImageColorBrightness(&iconAtlas, 255)
-	icons = rl.LoadTextureFromImage(iconAtlas)
-	rl.UnloadImage(iconAtlas)
+	image := transmute(rl.Image)ui.painter.image
+	texture := rl.LoadTextureFromImage(image)
+	ui.DoneWithAtlasImage()
+
+	ui.SetScreenSize(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
 
 	for true {
 		ui.Refresh()
@@ -84,13 +74,7 @@ main :: proc() {
 		ui.SetMouseBit(.left, rl.IsMouseButtonDown(.LEFT))
 		ui.ctx.deltaTime = rl.GetFrameTime()
 
-		if layer, ok := ui.Layer({0, 0, 100, 100}); ok {
-			//ui.SetUpWindow({400, 400})
-
-			ui.Shrink(30)
-			ui.CutSize(30)
-			ui.ButtonEx("goodbye")
-		}
+		
 
 		/*
 			Drawing happens here
@@ -100,10 +84,22 @@ main :: proc() {
 		ui.Prepare()
 		if ui.ShouldRender() {
 			rl.ClearBackground({150, 150, 150, 255})
+			rl.DrawTexture(texture, 0, 0, rl.WHITE)
+			for circle in ui.painter.circles {
+				rl.DrawRectangleRec(transmute(rl.Rectangle)circle.source, {255, 0, 255, 100})
+			}
+			for font in ui.painter.fonts {
+				for glyph in font.glyphs {
+					rl.DrawRectangleRec(transmute(rl.Rectangle)glyph.source, {255, 0, 255, 100})
+				}
+			}
+			for icon in ui.painter.icons {
+				rl.DrawRectangleRec(transmute(rl.Rectangle)icon, {255, 0, 255, 100})
+			}
 			Render()
-			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
-			rl.DrawText(rl.TextFormat("LAYER LIST: %v", ui.ctx.layerList), 0, 20, 20, rl.BLACK)
-			rl.DrawText(rl.TextFormat("LAYER MAP: %v", ui.ctx.layerMap), 0, 40, 20, rl.BLACK)
+			//rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
+			//rl.DrawText(rl.TextFormat("LAYER LIST: %v", ui.ctx.layerList), 0, 20, 20, rl.BLACK)
+			//rl.DrawText(rl.TextFormat("LAYER MAP: %v", ui.ctx.layerMap), 0, 40, 20, rl.BLACK)
 		}
 		rl.EndDrawing()
 

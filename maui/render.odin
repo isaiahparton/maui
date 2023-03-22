@@ -9,6 +9,19 @@ import "core:path/filepath"
 import "core:unicode/utf8"
 import rl "vendor:raylib"
 
+// up to how small/big should circles be pre-rendered?
+MIN_CIRCLE_SIZE :: 2
+MAX_CIRCLE_SIZE :: 29
+CIRCLE_SIZES :: MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE
+
+MAX_CIRCLE_STROKE_SIZE :: 2
+CIRCLE_ROWS :: MAX_CIRCLE_STROKE_SIZE + 1
+
+CIRCLE_SMOOTHING :: 1.1
+
+PixelFormat :: rl.PixelFormat
+Image :: rl.Image
+
 /*
 	How this is going to work:
 
@@ -22,13 +35,6 @@ import rl "vendor:raylib"
 	}
 */
 
-AtlasSource :: struct {
-	// offset of drawn texture (if it's a font glyph)
-	offset,
-	topLeft,
-	bottomRight: Vec2,
-}
-
 
 /*
 	NPatch dealings
@@ -40,7 +46,7 @@ PatchIndex :: enum {
 	windowFill,
 }
 PatchData :: struct {
-	fragment: int,
+	source: Rect,
 	amount: i32,
 }
 
@@ -74,49 +80,130 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 
 GLYPH_SPACING :: 1
 GlyphData :: struct {
-	fragment: int,
+	source: Rect,
 	offset: Vec2,
 	advance: f32,
 }
 FontData :: struct {
 	size: f32,
-	imageData: rawptr,
-	imageWidth, imageHeight: i32,
+	image: rl.Image,
 	glyphs: []GlyphData,
-	firstGlyph: byte,
+	firstGlyph: rune,
 }
 
-LoadPatchAtlas :: proc(painter: ^Painter) -> rl.Image {
-	PATCH_AMOUNTS :: [PatchIndex]i32 {
-		.widgetFill = 5,
-		.widgetStroke = 5,
-		.widgetStrokeThin = 5,
-		.windowFill = 12,
+GenSmoothCircle :: proc(image: ^rl.Image, center: Vec2, radius, smooth: f32) {
+	size := radius * 2 + math.ceil(smooth) + 1
+	topLeft := center - size / 2
+
+	for x in i32(topLeft.x) ..< i32(topLeft.x + size) {
+		for y in i32(topLeft.y) ..< i32(topLeft.y + size) {
+			point := Vec2{f32(x), f32(y)}
+			diff := point - center
+			dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
+			if dist > radius + smooth {
+				continue
+			}
+			alpha := 1 - max(0, dist - radius) / smooth
+			rl.ImageDrawPixel(image, x, y, rl.Fade(rl.WHITE, alpha)) 
+		}
 	}
+}
+GenSmoothRing :: proc(image: ^rl.Image, center: Vec2, inner, outer, smooth: f32) {
+	size := outer * 2 + math.ceil(smooth) + 1
+	topLeft := center - size / 2
 
-	atlas := rl.GenImageColor(256, 256, {})
+	for x in i32(topLeft.x) ..< i32(topLeft.x + size) {
+		for y in i32(topLeft.y) ..< i32(topLeft.y + size) {
+			point := Vec2{f32(x), f32(y)}
+			diff := point - center
+			dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
+			if dist < inner - smooth || dist > outer + smooth {
+				continue
+			}
+			alpha := min(1, dist - inner) / smooth - max(0, dist - outer) / smooth
+			rl.ImageDrawPixel(image, x, y, rl.Fade(rl.WHITE, alpha)) 
+		}
+	}
+}
+GenCircles :: proc(painter: ^Painter, origin: Vec2) -> Vec2 {
 
-	offset := f32(0)
-	maxWidth := f32(0)
-	for index in PatchIndex {
-		path := StringFormat("things/%v.png", index)
-		cPath := strings.clone_to_cstring(path)
-		image := rl.LoadImage(cPath)
+	// Spacing is needed to prevent artifacts with texture filtering
+	SPACING :: 1
 
-		rect := Rect{0, offset, f32(image.width), f32(image.height)}
-		painter.patches[index] = {
-			amount = PATCH_AMOUNTS[index],
-			source = rect,
+	// The number of stroke sizes plus one for filled
+	rows := MAX_CIRCLE_STROKE_SIZE + 1
+
+	// Starting offset
+	offset :Vec2= {SPACING, SPACING}
+
+	// Keep track of the total row size
+	maxSize :f32= 0
+	for rowIndex in 0 ..< rows {
+		offset.x = 0
+		for sizeIndex in 0 ..< CIRCLE_SIZES {
+			size := f32(MIN_CIRCLE_SIZE + sizeIndex)
+			radius := size / 2
+			
+			totalSize := size + CIRCLE_SMOOTHING * 2
+			rect :Rect= {origin.x + offset.x, origin.y + offset.y, totalSize, totalSize}
+
+			painter.circles[sizeIndex + rowIndex * CIRCLE_SIZES] = {
+				source = rect,
+				amount = i32(radius),
+			}
+
+			if rowIndex == 0 {
+				// First row is filled
+				GenSmoothCircle(&painter.image, {rect.x + rect.w / 2, rect.y + rect.h / 2}, radius, CIRCLE_SMOOTHING)
+			} else {
+				GenSmoothRing(&painter.image, {rect.x + rect.w / 2, rect.y + rect.h / 2}, radius - f32(rowIndex), radius, CIRCLE_SMOOTHING)
+			}
+
+			// Space taken by this circle
+			space := totalSize + SPACING
+			offset.x += space
+			maxSize = max(maxSize, space)
+		}
+		offset.y += maxSize
+	}
+	return offset
+}
+GenIcons :: proc(painter: ^Painter, rect: Rect) {
+	offset :Vec2= {}
+	maxHeight :f32= 0
+	for index in IconIndex {
+		if index == .none {
+			continue
 		}
 
-		rl.ImageDraw(&atlas, image, {0, 0, f32(image.width), f32(image.height)}, transmute(rl.Rectangle)rect, rl.WHITE)
-		maxWidth = max(maxWidth, rect.w)
-		offset += rect.h + 1
+		path := fmt.caprintf("icons/%v.png", index)
+		defer delete(path)
+
+		iconImage := rl.LoadImage(path)
+		rl.ImageColorBrightness(&iconImage, 255)
+		if iconImage.data == nil {
+			fmt.println("failed to load", path)
+			continue
+		}
+		size :Vec2= {f32(iconImage.width), f32(iconImage.height)}
+
+		if offset.x + size.x > rect.w {
+			offset.x = 0
+			offset.y += maxHeight
+			if offset.y + maxHeight > rect.h {
+				break
+			}
+		}
+
+		source := Rect{rect.x + offset.x, rect.y + offset.y, size.x, size.y}
+		rl.ImageDraw(&painter.image, iconImage, {0, 0, f32(size.x), f32(size.y)}, transmute(rl.Rectangle)source, rl.WHITE)
+		painter.icons[index] = source
+
+		offset.x += size.x
+		maxHeight = max(maxHeight, size.y)
 	}
-	maxWidth += 1
-	return atlas
 }
-LoadFont :: proc(path: string, size, glyphCount: i32) -> (font: FontData, success: bool) {
+GenFont :: proc(origin: Vec2, path: string, size, glyphCount: i32) -> (font: FontData, success: bool) {
 	/*
 		Pass each glyph to a packer	
 	*/
@@ -133,22 +220,21 @@ LoadFont :: proc(path: string, size, glyphCount: i32) -> (font: FontData, succes
 
         if glyphInfo != nil {
         	rects := make([^]rl.Rectangle, glyphCount)
-            atlas := rl.GenImageFontAtlas(glyphInfo, &rects, glyphCount, size, glyphPadding, 0);
+            font.image = rl.GenImageFontAtlas(glyphInfo, &rects, glyphCount, size, glyphPadding, 0);
 
             font.glyphs = make([]GlyphData, glyphCount)
+            font.firstGlyph = 0xffff
             for index in 0..<glyphCount {
-            	font.glyphMap[glyphInfo[index].value] = index
+            	font.firstGlyph = rune(min(int(font.firstGlyph), int(glyphInfo[index].value)))
+            	rect := rects[index]
             	font.glyphs[index] = {
-            		source = transmute(Rect)rects[index],
+            		source = {origin.x + rect.x, origin.y + rect.y, rect.width, rect.height},
             		offset = {f32(glyphInfo[index].offsetX), f32(glyphInfo[index].offsetY)},
             		advance = f32(glyphInfo[index].advanceX),
             	}
             }
 
             font.size = f32(size)
-            font.imageData = atlas.data
-            font.imageWidth = atlas.width
-            font.imageHeight = atlas.height
         }
         rl.UnloadFontData(glyphInfo, glyphCount)
         success = true
@@ -156,8 +242,8 @@ LoadFont :: proc(path: string, size, glyphCount: i32) -> (font: FontData, succes
     return
 }
 GetGlyphData :: proc(font: FontData, codepoint: rune) -> GlyphData {
-	index, ok := font.glyphMap[codepoint]
-	if !ok || i32(len(font.glyphs)) <= index {
+	index := int(codepoint) - int(font.firstGlyph)
+	if len(font.glyphs) <= index {
 		return {}
 	}
 	return font.glyphs[index]
@@ -182,32 +268,39 @@ GetGlyphData :: proc(font: FontData, codepoint: rune) -> GlyphData {
 	}
 */
 Painter :: struct {
-	patches: [PatchIndex]PatchData,
+	circles: [CIRCLE_SIZES * CIRCLE_ROWS]PatchData,
 	fonts: [FontIndex]FontData,
-}
-@static painter :: ^Painter
+	icons: [IconIndex]Rect,
 
+	// atlas
+	image: Image,
+}
+painter: ^Painter
+
+DoneWithAtlasImage :: proc() {
+	rl.UnloadImage(painter.image)
+}
 
 LoadResources :: proc(using painter: ^Painter) {
-	iconAtlas := LoadIconAtlas(icon)
-	patchAtlas := LoadPatchAtlas(painter)
+	image = rl.GenImageColor(2048, 256, {})
+	image.format = .UNCOMPRESSED_GRAY_ALPHA
 
+	circleSpace := GenCircles(painter, {})
+	GenIcons(painter, {0, circleSpace.y, 512, 512 - circleSpace.y})
 	atlasHeight := i32(0)
 	for data, index in FONT_LOAD_DATA {
-		font, success := LoadFont(StringFormat("fonts/%s", data.file), data.size, 0)
+		font, success := GenFont({512 + f32(index) * 256, 0}, StringFormat("fonts/%s", data.file), data.size, 0)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
 			continue
 		}
 		fonts[index] = font
-		atlasHeight = max(atlasHeight, font.imageHeight)
+		atlasHeight = max(atlasHeight, font.image.height)
 	}
 
-	mainAtlas := rl.GenImageColor(2048, 256, {})
-	rl.ImageDraw(&mainAtlas, iconAtlas, {0, 0, 256, 256}, {0, 0, 256, 256}, rl.WHITE)
-	rl.ImageDraw(&mainAtlas, patchAtlas, {0, 0, 256, 256}, {256, 0, 256, 256}, rl.WHITE)
 	for fontIndex, index in FontIndex {
-		rl.ImageDraw()
+		rl.ImageDraw(&image, fonts[fontIndex].image, {0, 0, 256, 256}, {512 + f32(index) * 256, 0, 256, 256}, rl.WHITE)
+		rl.UnloadImage(fonts[fontIndex].image)
 	}
 }
 
@@ -475,22 +568,22 @@ IconIndex :: enum {
 	none = -1,
 	plus,
 	archive,
-	down,
+	arrowUp,
+	arrowDown,
+	arrowLeft,
+	arrowRight,
 	undo,
 	redo,
-	left,
-	right,
-	up,
-	chart,
+	lineChart,
 	calendar,
 	check,
 	close,
 	delete,
 	download,
-	eyeWithLine,
+	eyeOff,
 	eye,
 	file,
-	flder,
+	folder,
 	heart,
 	history,
 	home,
@@ -498,12 +591,12 @@ IconIndex :: enum {
 	list,
 	menu,
 	palette,
-	edit,
+	pencil,
 	pieChart,
-	pin,
+	pushPin,
 	search,
 	cog,
-	basket,
+	shoppingBasket,
 	star,
 	minus,
 	upload,

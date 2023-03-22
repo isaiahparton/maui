@@ -82,7 +82,7 @@ UpdateControl :: proc(using control: ^Control) {
 	}
 
 	// request hover status
-	if VecVsRect(input.mousePos, body) && ctx.hoveredLayer == ctx.layerStack[ctx.layerDepth - 1] {
+	if VecVsRect(input.mousePos, body) && ctx.hoveredLayer == GetCurrentLayer().id {
 		ctx.nextHoverId = id
 	}
 
