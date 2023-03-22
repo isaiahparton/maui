@@ -238,12 +238,6 @@ Context :: struct {
 	idStack: [ID_STACK_SIZE]Id,
 	idCount: i32,
 
-	// fonts
-	font: FontData,
-	texturePixels: rawptr,
-	textureWidth,
-	textureHeight: i32,
-
 	// Retained control data
 	controls: [MAX_CONTROLS]Control,
 	controlExists: [MAX_CONTROLS]bool,
@@ -258,14 +252,14 @@ Context :: struct {
 	// Retained layer data
 	layers: [MAX_LAYERS]LayerData,
 	layerExists: [MAX_LAYERS]bool,
-	layerMap: map[Id]i32,
 	// Ordered list for sorting
+	layerMap: map[Id]^LayerData,
 	layerList: [dynamic]i32,
+	layerStack: [MAX_LAYERS]^LayerData,
 	// Current layer being drawn
 	hotLayer: i32,
 	// Index stack for layers within layers
 	layerDepth: i32,
-	layerStack: [MAX_LAYERS]i32,
 	// Current layer state
 	nextHoveredLayer, hoveredLayer, focusedLayer: Id,
 
@@ -338,10 +332,12 @@ ParseColor :: proc(text: string) -> (color: Color) {
 }
 
 Init :: proc() {
+	/*
+		Set up default context and set style
+	*/
 	ctx = new(Context)
-	painter = new(Painter)
-	LoadResources(painter)
 
+	//TODO(isaiah): do something with this!
 	ctx.style.colors[.accent] = ParseColor("#3578F3")
 	ctx.style.colors[.windowBase] = ParseColor("#242424")
 	ctx.style.colors[.iconBase] = ParseColor("#858585")
@@ -350,11 +346,11 @@ Init :: proc() {
 	ctx.style.colors[.widgetPress] = ParseColor("#575659")
 	ctx.style.colors[.textBright] = {255, 255, 255, 255}
 
-	ctx.style.outline = 1
-
-	//success := false
-	//ctx.font, success = LoadFont("fonts/IBMPlexSans-Regular.ttf", 24, 100)
-	//assert(success, "Failed to load default font")
+	/*
+		Set up painter and load atlas
+	*/
+	painter = new(Painter)
+	GenAtlas(painter)
 }
 Prepare :: proc() {
 	using ctx
@@ -452,6 +448,7 @@ Refresh :: proc() {
 	input.prevMousePos = input.mousePos
 
 	renderTime = max(0, renderTime - deltaTime)
+	time += deltaTime
 
 	free_all(allocator)
 

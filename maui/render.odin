@@ -9,6 +9,9 @@ import "core:path/filepath"
 import "core:unicode/utf8"
 import rl "vendor:raylib"
 
+TEXTURE_WIDTH :: 2048
+TEXTURE_HEIGHT :: 256
+
 // up to how small/big should circles be pre-rendered?
 MIN_CIRCLE_SIZE :: 2
 MAX_CIRCLE_SIZE :: 29
@@ -66,14 +69,14 @@ FontLoadData :: struct {
 FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	.default = {
 		size = 24,
-		file = "IBMPlexSans-Regular.ttf",
+		file = "Muli-Semibold.ttf",
 	},
 	.header = {
 		size = 36,
-		file = "IBMPlexSans-Regular.ttf",
+		file = "Muli-Semibold.ttf",
 	},
 	.monospace = {
-		size = 24,
+		size = 20,
 		file = "Inconsolata_Condensed-SemiBold.ttf",
 	},
 }
@@ -92,7 +95,7 @@ FontData :: struct {
 }
 
 GenSmoothCircle :: proc(image: ^rl.Image, center: Vec2, radius, smooth: f32) {
-	size := radius * 2 + math.ceil(smooth) + 1
+	size := radius * 2 + math.ceil(smooth) * 2
 	topLeft := center - size / 2
 
 	for x in i32(topLeft.x) ..< i32(topLeft.x + size) {
@@ -109,7 +112,7 @@ GenSmoothCircle :: proc(image: ^rl.Image, center: Vec2, radius, smooth: f32) {
 	}
 }
 GenSmoothRing :: proc(image: ^rl.Image, center: Vec2, inner, outer, smooth: f32) {
-	size := outer * 2 + math.ceil(smooth) + 1
+	size := outer * 2 + math.ceil(smooth) * 2
 	topLeft := center - size / 2
 
 	for x in i32(topLeft.x) ..< i32(topLeft.x + size) {
@@ -156,7 +159,7 @@ GenCircles :: proc(painter: ^Painter, origin: Vec2) -> Vec2 {
 				// First row is filled
 				GenSmoothCircle(&painter.image, {rect.x + rect.w / 2, rect.y + rect.h / 2}, radius, CIRCLE_SMOOTHING)
 			} else {
-				GenSmoothRing(&painter.image, {rect.x + rect.w / 2, rect.y + rect.h / 2}, radius - f32(rowIndex), radius, CIRCLE_SMOOTHING)
+				GenSmoothRing(&painter.image, {rect.x + rect.w / 2, rect.y + rect.h / 2}, radius - f32(rowIndex) - 0.5, radius, CIRCLE_SMOOTHING)
 			}
 
 			// Space taken by this circle
@@ -223,9 +226,8 @@ GenFont :: proc(origin: Vec2, path: string, size, glyphCount: i32) -> (font: Fon
             font.image = rl.GenImageFontAtlas(glyphInfo, &rects, glyphCount, size, glyphPadding, 0);
 
             font.glyphs = make([]GlyphData, glyphCount)
-            font.firstGlyph = 0xffff
+            font.firstGlyph = glyphInfo[0].value
             for index in 0..<glyphCount {
-            	font.firstGlyph = rune(min(int(font.firstGlyph), int(glyphInfo[index].value)))
             	rect := rects[index]
             	font.glyphs[index] = {
             		source = {origin.x + rect.x, origin.y + rect.y, rect.width, rect.height},
@@ -247,6 +249,9 @@ GetGlyphData :: proc(font: FontData, codepoint: rune) -> GlyphData {
 		return {}
 	}
 	return font.glyphs[index]
+}
+GetFontData :: proc(index: FontIndex) -> FontData {
+	return painter.fonts[index]
 }
 
 /*
@@ -281,26 +286,30 @@ DoneWithAtlasImage :: proc() {
 	rl.UnloadImage(painter.image)
 }
 
-LoadResources :: proc(using painter: ^Painter) {
-	image = rl.GenImageColor(2048, 256, {})
+GenAtlas :: proc(using painter: ^Painter) {
+	image = rl.GenImageColor(TEXTURE_WIDTH, TEXTURE_HEIGHT, {})
 	image.format = .UNCOMPRESSED_GRAY_ALPHA
 
-	circleSpace := GenCircles(painter, {})
+	rl.ImageDrawPixel(&image, 0, 0, rl.WHITE)
+	circleSpace := GenCircles(painter, {1, 0})
 	GenIcons(painter, {0, circleSpace.y, 512, 512 - circleSpace.y})
-	atlasHeight := i32(0)
+
+	offset :f32= 0
 	for data, index in FONT_LOAD_DATA {
-		font, success := GenFont({512 + f32(index) * 256, 0}, StringFormat("fonts/%s", data.file), data.size, 0)
+		font, success := GenFont({512 + offset, 0}, StringFormat("fonts/%s", data.file), data.size, 0)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
 			continue
 		}
 		fonts[index] = font
-		atlasHeight = max(atlasHeight, font.image.height)
+		offset += f32(font.image.width)
 	}
 
-	for fontIndex, index in FontIndex {
-		rl.ImageDraw(&image, fonts[fontIndex].image, {0, 0, 256, 256}, {512 + f32(index) * 256, 0, 256, 256}, rl.WHITE)
-		rl.UnloadImage(fonts[fontIndex].image)
+	offset = 0
+	for font in fonts {
+		rl.ImageDraw(&image, font.image, {0, 0, f32(font.image.width), f32(font.image.height)}, {512 + offset, 0, f32(font.image.width), f32(font.image.height)}, rl.WHITE)
+		offset += f32(font.image.width)
+		rl.UnloadImage(font.image)
 	}
 }
 
@@ -309,13 +318,15 @@ LoadResources :: proc(using painter: ^Painter) {
 */
 CommandTexture :: struct {
 	using command: Command,
-	texture: i32,
-	src, dst: Rect,
+	uvMin, 
+	uvMax,
+	min, 
+	max: Vec2,
 	color: Color,
 }
 CommandTriangle :: struct {
 	using command: Command,
-	points: [3]Vec2,
+	vertices: [3]Vec2,
 	color: Color,
 }
 CommandClip :: struct {
@@ -397,10 +408,10 @@ DrawQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
 	DrawTriangle(p1, p2, p4, c)
 	DrawTriangle(p4, p2, p3, c)
 }
-DrawTriangle :: proc(p1, p2, p3: Vec2, c: Color) {
+DrawTriangle :: proc(p1, p2, p3: Vec2, color: Color) {
 	cmd := PushCommand(CommandTriangle)
-	cmd.points = {p1, p2, p3}
-	cmd.color = c
+	cmd.color = color
+	cmd.vertices = {p1, p2, p3}
 }
 DrawRect :: proc(rect: Rect, color: Color) {
 	DrawQuad(
@@ -501,16 +512,21 @@ DrawRectSweep :: proc(r: Rect, t: f32, c: Color) {
 		c,
 	)
 }
-TextureIndex :: enum {
-	font,
-	icons,
-}
-DrawTexture :: proc(texture: TextureIndex, src, dst: Rect, color: Color) {
+PaintTexture :: proc(src, dst: Rect, color: Color) {
 	cmd := PushCommand(CommandTexture)
-	cmd.texture = i32(texture)
+	cmd.uvMin = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
+	cmd.uvMax = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}
+	cmd.min = {dst.x, dst.y}
+	cmd.max = {dst.x + dst.w, dst.y + dst.h}
 	cmd.color = color
-	cmd.src = src
-	cmd.dst = dst
+}
+PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
+	index := int(radius * 2)
+	if index < MIN_CIRCLE_SIZE || index >= MAX_CIRCLE_SIZE {
+		return
+	}
+	source := painter.circles[index].source
+	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
 }
 
 /*
@@ -533,8 +549,8 @@ MeasureString :: proc(font: FontData, text: string) -> Vec2 {
 DrawString :: proc(font: FontData, text: string, origin: Vec2, color: Color) {
 	origin := origin
 	for codepoint in text {
-		glyph := GetGlyphData(ctx.font, codepoint)
-		DrawTexture(.font, glyph.source, {origin.x + glyph.offset.x, origin.y + glyph.offset.y, glyph.source.w, glyph.source.h}, color)
+		glyph := GetGlyphData(font, codepoint)
+		PaintTexture(glyph.source, {math.trunc(origin.x + glyph.offset.x), origin.y + glyph.offset.y, glyph.source.w, glyph.source.h}, color)
 		origin.x += glyph.advance
 	}
 }
@@ -574,7 +590,7 @@ IconIndex :: enum {
 	arrowRight,
 	undo,
 	redo,
-	lineChart,
+	barChart,
 	calendar,
 	check,
 	close,
@@ -620,5 +636,5 @@ DrawIconEx :: proc(icon: IconIndex, origin: Vec2, scale: f32, alignX, alignY: Al
 	dst := Rect{0, 0, f32(ICON_SIZE * scale), f32(ICON_SIZE * scale)}
 	dst.x = origin.x - dst.w / 2
 	dst.y = origin.y - dst.h / 2
-	DrawTexture(.icons, {(f32(i32(icon) % 10)) * ICON_SIZE, (f32(i32(icon) / 10)) * ICON_SIZE, ICON_SIZE, ICON_SIZE}, dst, color)
+	PaintTexture({(f32(i32(icon) % 10)) * ICON_SIZE, (f32(i32(icon) / 10)) * ICON_SIZE, ICON_SIZE, ICON_SIZE}, dst, color)
 }

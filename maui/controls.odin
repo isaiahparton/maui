@@ -156,7 +156,7 @@ TextInputEx :: proc(data: []u8, options: TextInputOptions, loc := #caller_locati
 		if index < len(data) {
 			codepoint, bytes = utf8.decode_rune_in_bytes(data[index:])
 		}
-		glyph := GetGlyphData(ctx.font, codepoint)
+		glyph := GetGlyphData(GetFontData(.monospace), codepoint)
 	}
 
 	return
@@ -199,7 +199,7 @@ ButtonEx :: proc(text: string, loc := #caller_location) -> bool {
 	UpdateControl(control)
 
 	DrawRect(body, GetColor(.widgetPress if .down in state else (.widgetHover if .hovered in state else .widgetBase), 1))
-	DrawAlignedString(ctx.font, text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
+	DrawAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
 
 	EndControl(control)
 	return .released in state
@@ -229,7 +229,7 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		}
 		DrawIconEx(.minus if status == .unknown else .check, {body.x + 15, body.y + 15}, 1, .middle, .middle, GetColor(.textBright, 1))
 		DrawRectLines(body, ctx.style.outline, GetColor(.outlineBase, 1))
-		DrawAlignedString(ctx.font, text, {body.x + body.w + 5, body.y + body.h / 2}, GetColor(.textBright, 1), .near, .middle)
+		DrawAlignedString(GetFontData(.default), text, {body.x + body.w + 5, body.y + body.h / 2}, GetColor(.textBright, 1), .near, .middle)
 
 		if .released in state {
 			if status != .on {
@@ -303,7 +303,7 @@ Menu :: proc(text: string, loc := #caller_location) -> (window: ^WindowData, act
 
 	DrawRect(body, GetColor(.widgetBase, 1))
 	DrawRectLines(body, ctx.style.outline, GetColor(.widgetBase, 1))
-	DrawAlignedString(ctx.font, text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
+	DrawAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
 
 	EndControl(control)
 	active = (.active in bits)

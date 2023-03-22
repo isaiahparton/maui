@@ -37,59 +37,59 @@ LayerOptions :: struct {
 
 GetCurrentLayer :: proc() -> ^LayerData {
 	using ctx
-	return &layers[layerStack[layerDepth - 1]]
+	return layerStack[layerDepth - 1]
 }
 GetLayer :: proc(name: string) -> ^LayerData {
 	using ctx
-	idx, ok := layerMap[HashId(name)]
+	layer, ok := layerMap[HashId(name)]
 	if ok {
-		return &layers[idx]
+		return layer
 	}
 	return nil
 }
-CreateOrGetLayer :: proc(id: Id) -> (^LayerData, i32) {
+CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	using ctx
-	index, ok := layerMap[id]
+	layer, ok = layerMap[id]
 	if !ok {
-		index = -1
 		for i in 0..<MAX_LAYERS {
 			if !layerExists[i] {
 				layerExists[i] = true
 				layers[i] = {}
-				index = i32(i)
-				layerMap[id] = index
-				append(&layerList, index)
+
+				layer = &layers[i]
+				ok = true
+
+				layerMap[id] = layer
+				append(&layerList, i32(i))
+
 				break
 			}
 		}
 	}
-	if index >= 0 {
-		return &layers[index], index
-	}
-	return nil, index
+	return
 }
 
-@private BeginLayer :: proc(rect: Rect, id: Id, options: LayerBits) -> (^LayerData, bool) {
+@private BeginLayer :: proc(rect: Rect, id: Id, options: LayerBits) -> (layer: ^LayerData, ok: bool) {
 	using ctx
 
 	/*
 		Find or create the layer
 	*/
-	layer, index := CreateOrGetLayer(id)
-	if layer == nil {
-		return nil, false
+	layer, ok = CreateOrGetLayer(id)
+	if !ok {
+		return
 	}
 
 	/*
 		Update layer stack
 	*/
-	layerStack[layerDepth] = index
+	layerStack[layerDepth] = layer
 	layerDepth += 1
 
 	/*
 		Update layer values
 	*/
-	//layer.options += options + {.stayAlive}
+	layer.bits += {.stayAlive}
 	layer.id = id
 	layer.commandOffset = 0
 	if rect != {} {
@@ -102,7 +102,7 @@ CreateOrGetLayer :: proc(id: Id) -> (^LayerData, i32) {
 
 	layer.contentSize = {}
 
-	return layer, true
+	return
 }
 @private EndLayer :: proc(layer: ^LayerData) {
 	using ctx
