@@ -85,7 +85,9 @@ main :: proc() {
 
 		if window, ok := ui.Window(); ok {
 			window.options += {.title}
-			window.body = {100, 100, 500, 400}
+			if window.body == {} {
+				window.body = {100, 100, 500, 400}
+			}
 
 			ui.Shrink(10)
 			ui.CutSize(30)

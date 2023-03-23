@@ -61,7 +61,7 @@ Window :: proc(loc := #caller_location) -> (window: ^WindowData, ok: bool) {
 	if .title in options {
 		titleRect := GetRectTop(body, 40)
 
-		PaintRoundedRect(titleRect, 10, GetColor(.widgetBase, 1))
+		PaintRoundedRectEx(titleRect, 10, {.topLeft, .topRight}, GetColor(.widgetBase, 1))
 
 		if hoveredLayer == layer.id && VecVsRect(input.mousePos, titleRect) {
 			if MousePressed(.left) {
@@ -79,30 +79,30 @@ Window :: proc(loc := #caller_location) -> (window: ^WindowData, ok: bool) {
 	return
 }
 EndWindow :: proc(using window: ^WindowData) {
-	PaintRoundedRectOutline(window.body, 10, {255, 255, 255, 255})
+	//PaintRoundedRectOutline(window.body, 10, {255, 255, 255, 255})
 
 	PopId()
 	PopLayout()
 	EndLayer(window.layer)
 
 	if .resizing in state {
-		layer.body.w = max(input.mousePos.x - layer.body.x, 240)
-		layer.body.h = max(input.mousePos.y - layer.body.y, 120)
+		body.w = max(input.mousePos.x - body.x, 240)
+		body.h = max(input.mousePos.y - body.y, 120)
 		if MouseReleased(.left) {
 			state -= {.resizing}
 		}
 	}
 	if .moving in state {
 		newPos := input.mousePos + ctx.dragAnchor
-		layer.body.x = clamp(newPos.x, 0, ctx.size.x - layer.body.w)
-		layer.body.y = clamp(newPos.y, 0, ctx.size.y - layer.body.h)
+		body.x = clamp(newPos.x, 0, ctx.size.x - body.w)
+		body.y = clamp(newPos.y, 0, ctx.size.y - body.h)
 		if MouseReleased(.left) {
 			state -= {.moving}
 		}
 	}
 	if .fitToContent in options {
-		layer.body.w = layer.contentSize.x
-		layer.body.h = layer.contentSize.y
+		body.w = layer.contentSize.x
+		body.h = layer.contentSize.y
 	}
 }
 

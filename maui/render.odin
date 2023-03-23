@@ -528,6 +528,55 @@ PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
 	source := painter.circles[index].source
 	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
 }
+
+Corner :: enum {
+	topLeft,
+	topRight,
+	bottomRight,
+	bottomLeft,
+}
+Corners :: bit_set[Corner;u8]
+PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Color) {
+	if corners == {} {
+		DrawRect(rect, color)
+	}
+
+	index := int(radius * 2) - MIN_CIRCLE_SIZE
+	if index < 0 || index >= CIRCLE_SIZES {
+		return
+	}
+	source := painter.circles[index].source
+	halfSize :Vec2= {math.trunc(source.w / 2), math.trunc(source.h / 2)}
+
+	if .topLeft in corners {
+		sourceTopLeft :Rect= {source.x, source.y, halfSize.x, halfSize.y}
+		PaintTexture(sourceTopLeft, {rect.x + radius - halfSize.x, rect.y + radius - halfSize.y, halfSize.x, halfSize.y}, color)
+	}
+	if .topRight in corners {
+		sourceTopRight :Rect= {source.x + source.w / 2, source.y, halfSize.x, halfSize.y}
+		PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize.x, halfSize.y}, color)
+	}
+	if .bottomRight in corners {
+		sourceBottomRight :Rect= {source.x + source.w / 2, source.y + source.h / 2, halfSize.x, halfSize.y}
+		PaintTexture(sourceBottomRight, {rect.x + rect.w - radius, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
+	}
+	if .bottomLeft in corners {
+		sourceBottomLeft :Rect= {source.x, source.y + source.h / 2, halfSize.x, halfSize.y}
+		PaintTexture(sourceBottomLeft, {rect.x + radius - halfSize.x, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
+	}
+
+	if rect.w > radius * 2 {
+		DrawRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
+	}
+	if rect.h > radius * 2 {
+		topLeft := radius if .topLeft in corners else 0
+		topRight := radius if .topRight in corners else 0
+		bottomRight := radius if .bottomRight in corners else 0
+		bottomLeft := radius if .bottomLeft in corners else 0
+		DrawRect({rect.x, rect.y + topLeft, radius, rect.h - (topLeft + bottomLeft)}, color)
+		DrawRect({rect.x + rect.w - topRight, rect.y + radius, radius, rect.h - (topRight + bottomRight)}, color)
+	}
+}
 PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
 	if index < 0 || index >= CIRCLE_SIZES {
