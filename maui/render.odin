@@ -69,11 +69,11 @@ FontLoadData :: struct {
 FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	.default = {
 		size = 24,
-		file = "Muli-Semibold.ttf",
+		file = "Muli-SemiBold.ttf",
 	},
 	.header = {
 		size = 36,
-		file = "Muli-Semibold.ttf",
+		file = "Muli-SemiBold.ttf",
 	},
 	.monospace = {
 		size = 20,
@@ -98,8 +98,8 @@ GenSmoothCircle :: proc(image: ^rl.Image, center: Vec2, radius, smooth: f32) {
 	size := radius * 2
 	topLeft := center - radius
 
-	for x in i32(topLeft.x) ..< i32(topLeft.x + size) {
-		for y in i32(topLeft.y) ..< i32(topLeft.y + size) {
+	for x in i32(topLeft.x) ..= i32(topLeft.x + size) {
+		for y in i32(topLeft.y) ..= i32(topLeft.y + size) {
 			point := Vec2{f32(x), f32(y)}
 			diff := point - center
 			dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
@@ -115,8 +115,8 @@ GenSmoothRing :: proc(image: ^rl.Image, center: Vec2, inner, outer, smooth: f32)
 	size := outer * 2
 	topLeft := center - outer
 
-	for x in i32(topLeft.x) ..< i32(topLeft.x + size) {
-		for y in i32(topLeft.y) ..< i32(topLeft.y + size) {
+	for x in i32(topLeft.x) ..= i32(topLeft.x + size) {
+		for y in i32(topLeft.y) ..= i32(topLeft.y + size) {
 			point := Vec2{f32(x), f32(y)}
 			diff := point - center
 			dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
@@ -148,7 +148,7 @@ GenCircles :: proc(painter: ^Painter, origin: Vec2) -> Vec2 {
 			radius := size / 2
 			
 			totalSize := size + CIRCLE_SMOOTHING * 2
-			rect :Rect= {origin.x + offset.x, origin.y + offset.y, size, size}
+			rect :Rect= {origin.x + offset.x, origin.y + offset.y, size + 1, size + 1}
 
 			painter.circles[sizeIndex + rowIndex * CIRCLE_SIZES] = {
 				source = rect,
@@ -159,7 +159,7 @@ GenCircles :: proc(painter: ^Painter, origin: Vec2) -> Vec2 {
 				// First row is filled
 				GenSmoothCircle(&painter.image, {rect.x + radius, rect.y + radius}, radius, CIRCLE_SMOOTHING)
 			} else {
-				GenSmoothRing(&painter.image, {rect.x + radius, rect.y + radius}, radius - f32(rowIndex) - 0.5, radius, CIRCLE_SMOOTHING)
+				GenSmoothRing(&painter.image, {rect.x + radius, rect.y + radius}, radius - f32(rowIndex) - 0.2, radius, CIRCLE_SMOOTHING)
 			}
 
 			// Space taken by this circle
@@ -534,12 +534,12 @@ PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 		return
 	}
 	source := painter.circles[index].source
-	halfSize :Vec2= {source.w / 2, source.h / 2}
+	halfSize :Vec2= {math.trunc(source.w / 2), math.trunc(source.h / 2)}
 
 	sourceTopLeft :Rect= {source.x, source.y, halfSize.x, halfSize.y}
-	sourceTopRight :Rect= {source.x + halfSize.x, source.y, halfSize.x, halfSize.y}
-	sourceBottomLeft :Rect= {source.x, source.y + halfSize.y, halfSize.x, halfSize.y}
-	sourceBottomRight :Rect= {source.x + halfSize.x, source.y + halfSize.x, halfSize.x, halfSize.y}
+	sourceTopRight :Rect= {source.x + source.w / 2, source.y, halfSize.x, halfSize.y}
+	sourceBottomLeft :Rect= {source.x, source.y + source.h / 2, halfSize.x, halfSize.y}
+	sourceBottomRight :Rect= {source.x + source.w / 2, source.y + source.h / 2, halfSize.x, halfSize.y}
 
 	PaintTexture(sourceTopLeft, {rect.x + radius - halfSize.x, rect.y + radius - halfSize.y, halfSize.x, halfSize.y}, color)
 	PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize.x, halfSize.y}, color)
@@ -547,11 +547,38 @@ PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 	PaintTexture(sourceBottomRight, {rect.x + rect.w - radius, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
 
 	if rect.w > radius * 2 {
-		//DrawRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
+		DrawRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
 	}
 	if rect.h > radius * 2 {
-		//DrawRect({rect.x, rect.y + radius, radius, rect.h - radius * 2}, color)
-		//DrawRect({rect.x + rect.w - radius, rect.y + radius, radius, rect.h - radius * 2}, color)
+		DrawRect({rect.x, rect.y + radius, radius, rect.h - radius * 2}, color)
+		DrawRect({rect.x + rect.w - radius, rect.y + radius, radius, rect.h - radius * 2}, color)
+	}
+}
+PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, color: Color) {
+	index := int(radius * 2) - MIN_CIRCLE_SIZE
+	if index < 0 || index >= CIRCLE_SIZES {
+		return
+	}
+	source := painter.circles[index + CIRCLE_SIZES * 2].source
+	halfSize :Vec2= {math.trunc(source.w / 2), math.trunc(source.h / 2)}
+
+	sourceTopLeft :Rect= {source.x, source.y, halfSize.x, halfSize.y}
+	sourceTopRight :Rect= {source.x + source.w / 2, source.y, halfSize.x, halfSize.y}
+	sourceBottomLeft :Rect= {source.x, source.y + source.h / 2, halfSize.x, halfSize.y}
+	sourceBottomRight :Rect= {source.x + source.w / 2, source.y + source.h / 2, halfSize.x, halfSize.y}
+
+	PaintTexture(sourceTopLeft, {rect.x + radius - halfSize.x, rect.y + radius - halfSize.y, halfSize.x, halfSize.y}, color)
+	PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize.x, halfSize.y}, color)
+	PaintTexture(sourceBottomLeft, {rect.x + radius - halfSize.x, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
+	PaintTexture(sourceBottomRight, {rect.x + rect.w - radius, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
+
+	if rect.w > radius * 2 {
+		DrawRect({rect.x + radius, rect.y, rect.w - radius * 2, 2}, color)
+		DrawRect({rect.x + radius, rect.y + rect.h - 2, rect.w - radius * 2, 2}, color)
+	}
+	if rect.h > radius * 2 {
+		DrawRect({rect.x, rect.y + radius, 2, rect.h - radius * 2}, color)
+		DrawRect({rect.x + rect.w - 2, rect.y + radius, 2, rect.h - radius * 2}, color)
 	}
 }
 

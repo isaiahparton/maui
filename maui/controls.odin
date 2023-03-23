@@ -174,7 +174,7 @@ Widget :: proc(loc := #caller_location) -> (ok: bool) {
 	UpdateControl(control)
 
 	DrawRect(body, GetColor(.widgetBase, 1))
-	DrawRectLines(body, ctx.style.outline, GetColor(.outlineBase, 1))
+	DrawRectLines(body, 1, GetColor(.outlineBase, 1))
 
 	EndControl(control)
 
@@ -198,7 +198,11 @@ ButtonEx :: proc(text: string, loc := #caller_location) -> bool {
 	}
 	UpdateControl(control)
 
-	DrawRect(body, GetColor(.widgetPress if .down in state else (.widgetHover if .hovered in state else .widgetBase), 1))
+	PaintRoundedRect(body, 5, GetColor(.widgetPress if .down in state else .widgetBase, 1))
+	if .hovered in state {
+		PaintRoundedRectOutline(body, 5, GetColor(.widgetPress, 1))
+	}
+	//DrawRect(body, GetColor(.widgetPress if .down in state else (.widgetHover if .hovered in state else .widgetBase), 1))
 	DrawAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
 
 	EndControl(control)
@@ -228,7 +232,7 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 			DrawRect(body, GetColor(.widgetBase, 1))
 		}
 		DrawIconEx(.minus if status == .unknown else .check, {body.x + 15, body.y + 15}, 1, .middle, .middle, GetColor(.textBright, 1))
-		DrawRectLines(body, ctx.style.outline, GetColor(.outlineBase, 1))
+		DrawRectLines(body, 1, GetColor(.outlineBase, 1))
 		DrawAlignedString(GetFontData(.default), text, {body.x + body.w + 5, body.y + body.h / 2}, GetColor(.textBright, 1), .near, .middle)
 
 		if .released in state {
@@ -302,7 +306,7 @@ Menu :: proc(text: string, loc := #caller_location) -> (window: ^WindowData, act
 	UpdateControl(control)
 
 	DrawRect(body, GetColor(.widgetBase, 1))
-	DrawRectLines(body, ctx.style.outline, GetColor(.widgetBase, 1))
+	DrawRectLines(body, 1, GetColor(.widgetBase, 1))
 	DrawAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
 
 	EndControl(control)

@@ -222,7 +222,6 @@ PopId :: proc() {
 */
 Style :: struct {
 	colors: [ColorIndex]Color,
-	outline: f32,
 }
 Context :: struct {
 	allocator: runtime.Allocator,
@@ -339,13 +338,12 @@ Init :: proc() {
 
 	//TODO(isaiah): do something with this!
 	ctx.style.colors[.accent] = ParseColor("#3578F3")
-	ctx.style.colors[.windowBase] = ParseColor("#242424")
+	ctx.style.colors[.windowBase] = {28, 28, 28, 255}
 	ctx.style.colors[.iconBase] = ParseColor("#858585")
 	ctx.style.colors[.widgetBase] = ParseColor("#2F2F2F")
 	ctx.style.colors[.widgetHover] = ParseColor("#373639")
 	ctx.style.colors[.widgetPress] = ParseColor("#575659")
 	ctx.style.colors[.textBright] = {255, 255, 255, 255}
-
 	/*
 		Set up painter and load atlas
 	*/

@@ -97,7 +97,6 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	}
 
 	PushId(id)
-	PushFrame(layer.body, {})
 	BeginClip(layer.body)
 
 	layer.contentSize = {}
@@ -108,7 +107,6 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	using ctx
 	EndClip()
 	PopId()
-	PopFrame()
 
 	layerDepth -= 1
 }

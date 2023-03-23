@@ -1,4 +1,5 @@
 package maui
+import "core:fmt"
 
 WindowOption :: enum {
 	title,
@@ -27,6 +28,7 @@ WindowData :: struct {
 /*
 	What the user uses
 */
+@(deferred_out=_Window)
 Window :: proc(loc := #caller_location) -> (window: ^WindowData, ok: bool) {
 	return BeginWindowEx(HashId(loc))
 }
@@ -36,26 +38,30 @@ Window :: proc(loc := #caller_location) -> (window: ^WindowData, ok: bool) {
 	}
 }
 
-@private BeginWindowEx :: proc(id: Id) -> (^WindowData, bool) {
+@private BeginWindowEx :: proc(id: Id) -> (window: ^WindowData, ok: bool) {
 	using ctx
 
-	using window, ok := CreateOrGetWindow(id)
+	window, ok = CreateOrGetWindow(id)
+	using window
 	if !ok {
-		return nil, false
+		return
 	}
 
 	/*
 		Draw the layer body and title bar if needed
 	*/
-	DrawRect(layer.body, GetColor(.widgetBase, 1))
-
+	layer, ok = BeginLayer(body, id, {})
 	PushId(id)
+
+	PaintRoundedRect(body, 10, GetColor(.windowBase, 1))
 
 	/*
 		Handle title bar
 	*/
 	if .title in options {
-		titleRect := Rect{layer.body.x, layer.body.y, layer.body.w, 30}
+		titleRect := GetRectTop(body, 40)
+
+		PaintRoundedRect(titleRect, 10, GetColor(.widgetBase, 1))
 
 		if hoveredLayer == layer.id && VecVsRect(input.mousePos, titleRect) {
 			if MousePressed(.left) {
@@ -68,12 +74,16 @@ Window :: proc(loc := #caller_location) -> (window: ^WindowData, ok: bool) {
 	/*
 		Handle resizing
 	*/
+	PushLayout({body.x, body.y + 40, body.w, body.h - 40})
 
-
-	return window, true
+	return
 }
 EndWindow :: proc(using window: ^WindowData) {
-	DrawRectLines(layer.body, ctx.style.outline, GetColor(.outlineBase, 1))
+	PaintRoundedRectOutline(window.body, 10, {255, 255, 255, 255})
+
+	PopId()
+	PopLayout()
+	EndLayer(window.layer)
 
 	if .resizing in state {
 		layer.body.w = max(input.mousePos.x - layer.body.x, 240)

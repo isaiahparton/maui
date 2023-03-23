@@ -83,24 +83,33 @@ main :: proc() {
 		ui.SetMouseBit(.left, rl.IsMouseButtonDown(.LEFT))
 		ui.ctx.deltaTime = rl.GetFrameTime()
 
-		if layer, ok := ui.Layer({200, 500, 100, 100}); ok {
+		if window, ok := ui.Window(); ok {
+			window.options += {.title}
+			window.body = {100, 100, 500, 400}
+
+			ui.Shrink(10)
 			ui.CutSize(30)
-			ui.ButtonEx("bruh")
-			ui.PaintRoundedRect({200, 540, 80, 30}, 5, rl.BLACK)
+			ui.ButtonEx("click me!")
 		}
 
 		/*
 			Drawing happens here
 		*/
 		ui.Prepare()
-		if ui.ShouldRender() {
-			rl.ClearBackground({150, 150, 150, 255})
+		rl.ClearBackground({0, 0, 0, 255})
 
-			Render()
+		Render()
 
-			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
-			rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.BLACK)
-			rl.DrawText(rl.TextFormat("LAYER LIST: %v", ui.ctx.layerList), 0, 60, 20, rl.BLACK)
+		rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.WHITE)
+		rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.WHITE)
+		rl.DrawText(rl.TextFormat("LAYER LIST: %v", ui.ctx.layerList), 0, 60, 20, rl.WHITE)
+
+		if rl.IsKeyDown(.F) {
+			rl.DrawRectangle(0, 0, texture.width, texture.height, rl.BLACK)
+			rl.DrawTexture(texture, 0, 0, rl.WHITE)
+			for circle in ui.painter.circles {
+				rl.DrawRectangleRec(transmute(rl.Rectangle)circle.source, {0, 255, 0, 100})
+			}
 		}
 		rl.EndDrawing()
 
