@@ -1,4 +1,5 @@
 package maui
+import "core:fmt"
 
 // place a rect in a nother rect
 ChildRect :: proc(parent: Rect, size: Vec2, alignX, alignY: Alignment) -> Rect {
@@ -85,6 +86,15 @@ AttachRectRight :: proc(b: Rect, a: f32) -> Rect {
 AttachRectBottom :: proc(b: Rect, a: f32) -> Rect {
 	return {b.x, b.y + b.h, b.w, a}
 }
+AttachRect :: proc(rect: Rect, side: Side, size: f32) -> Rect {
+	switch side {
+		case .bottom: 	return AttachRectBottom(rect, size)
+		case .top: 		return AttachRectTop(rect, size)
+		case .left: 	return AttachRectLeft(rect, size)
+		case .right: 	return AttachRectRight(rect, size)
+	}
+	return {}
+}
 
 
 Cut :: proc(side: Side, amount: f32) -> Rect {
@@ -97,6 +107,10 @@ Cut :: proc(side: Side, amount: f32) -> Rect {
 /*
 	Layout
 */
+LayoutMode :: enum {
+	cut,
+	attach,
+}
 Side :: enum {
 	top,
 	bottom,
@@ -104,14 +118,17 @@ Side :: enum {
 	right,
 }
 LayoutData :: struct {
+	mode: LayoutMode,
 	rect: Rect,
 	side: Side,
 	size: f32,
 }
-PushLayout :: proc(r: Rect) {
+PushLayout :: proc(rect: Rect, mode: LayoutMode = .cut) {
 	using ctx
 	layouts[layoutDepth] = {
-		rect = r,
+		rect = rect,
+		size = WIDGET_HEIGHT,
+		mode = mode,
 	}
 	layoutDepth += 1
 }
@@ -147,14 +164,22 @@ Shrink :: proc(a: f32) {
 	l := GetCurrentLayout()
 	l.rect = ShrinkRect(l.rect, a)
 }
+GetNextLayoutRect :: proc(layout: ^LayoutData) -> Rect {
+	if layout.mode == .attach {
+		rect := AttachRect(layout.rect, layout.side, layout.size)
+		layout.rect = rect
+		return rect
+	}
+	return CutRect(&layout.rect, layout.side, layout.size)
+}
 GetNextRect :: proc() -> Rect {
 	layout := GetCurrentLayout()
-	return UseNextRect() or_else CutRect(&layout.rect, layout.side, layout.size)
+	return UseNextRect() or_else GetNextLayoutRect(layout)
 }
 GetNextRectEx :: proc(size: Vec2, alignX, alignY: Alignment) -> Rect {
 	layout := GetCurrentLayout()
 	layout.size = max(layout.size, size.x)
-	return ChildRect(UseNextRect() or_else CutRect(&layout.rect, layout.side, layout.size), size, alignX, alignY)
+	return ChildRect(UseNextRect() or_else GetNextLayoutRect(layout), size, alignX, alignY)
 }
 
 @(deferred_out=_Layout)

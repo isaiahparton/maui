@@ -71,7 +71,7 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 
 @private BeginLayer :: proc(rect: Rect, id: Id, options: LayerBits) -> (layer: ^LayerData, ok: bool) {
 	using ctx
-
+	
 	/*
 		Find or create the layer
 	*/

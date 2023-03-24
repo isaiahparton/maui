@@ -15,7 +15,6 @@ Render :: proc() {
 	using ui
 	commandCount = 0
 	cmd: ^Command
-
 	
 	for NextCommand(&cmd) {
 		commandCount += 1
@@ -65,7 +64,7 @@ main :: proc() {
 	rl.SetTraceLogLevel(.NONE)
 	rl.InitWindow(1000, 800, "Maui Demo")
 	rl.MaximizeWindow()
-	rl.SetTargetFPS(60)
+	rl.SetTargetFPS(300)
 
 	ui.Init()
 
@@ -81,17 +80,36 @@ main :: proc() {
 		ui.SetScreenSize(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
 		ui.SetMousePosition(f32(rl.GetMouseX()), f32(rl.GetMouseY()))
 		ui.SetMouseBit(.left, rl.IsMouseButtonDown(.LEFT))
+		ui.SetMouseBit(.right, rl.IsMouseButtonDown(.RIGHT))
 		ui.ctx.deltaTime = rl.GetFrameTime()
 
 		if window, ok := ui.Window(); ok {
-			window.options += {.title}
 			if window.body == {} {
+				window.name = "Widget gallery"
+				window.options += {.title}
 				window.body = {100, 100, 500, 400}
 			}
 
 			ui.Shrink(10)
 			ui.CutSize(30)
-			ui.ButtonEx("click me!")
+			ui.ButtonEx("button 1")
+			ui.Space(10)
+			ui.CheckBoxBitSet(&window.options, ui.WindowOption.resizable, "Fit window to content")
+
+			if window, ok := ui.Window(); ok {
+				window.options += {.title}
+				if window.body == {} {
+					window.body = {800, 200, 200, 400}
+				}
+
+				ui.Shrink(10)
+				ui.CutSize(30)
+				if window, ok := ui.Menu("file"); ok {
+					ui.ButtonEx("new")
+					ui.ButtonEx("open")
+					ui.ButtonEx("save")
+				}
+			}
 		}
 
 		/*
@@ -105,6 +123,14 @@ main :: proc() {
 		rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.WHITE)
 		rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.WHITE)
 		rl.DrawText(rl.TextFormat("LAYER LIST: %v", ui.ctx.layerList), 0, 60, 20, rl.WHITE)
+		rl.DrawText("LAYER MAP:", 0, 80, 20, rl.WHITE)
+		{
+			offset := i32(0)
+			for id, value in ui.ctx.layerMap {
+				rl.DrawText(rl.TextFormat("%v: %v", id, value.body), 40, 100 + offset, 20, rl.WHITE)
+				offset += 20
+			}
+		}
 
 		if rl.IsKeyDown(.F) {
 			rl.DrawRectangle(0, 0, texture.width, texture.height, rl.BLACK)

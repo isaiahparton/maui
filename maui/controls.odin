@@ -198,12 +198,16 @@ ButtonEx :: proc(text: string, loc := #caller_location) -> bool {
 	}
 	UpdateControl(control)
 
-	PaintRoundedRect(body, 5, GetColor(.widgetPress if .down in state else .widgetBase, 1))
-	if .hovered in state {
-		PaintRoundedRectOutline(body, 5, GetColor(.widgetPress, 1))
+	PushId(id) 
+		hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+		pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+	PopId()
+
+	PaintRoundedRect(body, 5, BlendColors(GetColor(.widgetBase, 1), GetColor(.widgetPress, 1), pressTime))
+	if hoverTime > 0 {
+		PaintRoundedRectOutline(body, 5, GetColor(.widgetPress, hoverTime))
 	}
-	//DrawRect(body, GetColor(.widgetPress if .down in state else (.widgetHover if .hovered in state else .widgetBase), 1))
-	DrawAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
+	DrawAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text, 1), .middle, .middle)
 
 	EndControl(control)
 	return .released in state
@@ -218,7 +222,7 @@ CheckBoxStatus :: enum u8 {
 	unknown,
 }
 CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location) -> (change, newValue: bool) {
-	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {30, 30}, .near, .middle)); ok {
+	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {24, 24}, .near, .middle)); ok {
 		using control
 
 		/*
@@ -227,13 +231,26 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		active := (status == .on || status == .unknown)
 		UpdateControl(control)
 
-		//DrawRect(body, GetColor(0, 1))
-		if active {
-			DrawRect(body, GetColor(.widgetBase, 1))
+		/*
+			Animation
+		*/
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+			stateTime := AnimateBool(HashIdFromInt(2), active, 0.075)
+		PopId()
+
+		PaintRoundedRect(body, WIDGET_ROUNDNESS, BlendColors(GetColor(.widgetBase, 1), GetColor(.accent, 1), stateTime))
+		if pressTime > 0 {
+			PaintRoundedRect(body, WIDGET_ROUNDNESS, GetColor(.textBright, pressTime * 0.2))
 		}
-		DrawIconEx(.minus if status == .unknown else .check, {body.x + 15, body.y + 15}, 1, .middle, .middle, GetColor(.textBright, 1))
-		DrawRectLines(body, 1, GetColor(.outlineBase, 1))
-		DrawAlignedString(GetFontData(.default), text, {body.x + body.w + 5, body.y + body.h / 2}, GetColor(.textBright, 1), .near, .middle)
+		if hoverTime > 0 && stateTime < 1 {
+			PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, GetColor(.accent, hoverTime))
+		}
+		if stateTime > 0 {
+			DrawIconEx(.minus if status == .unknown else .check, {body.x + 12, body.y + 12}, stateTime, .middle, .middle, GetColor(.textBright, 1))
+		}
+		DrawAlignedString(GetFontData(.default), text, {body.x + body.w + 5, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
 
 		if .released in state {
 			if status != .on {
@@ -305,19 +322,36 @@ Menu :: proc(text: string, loc := #caller_location) -> (window: ^WindowData, act
 	}
 	UpdateControl(control)
 
-	DrawRect(body, GetColor(.widgetBase, 1))
-	DrawRectLines(body, 1, GetColor(.widgetBase, 1))
-	DrawAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright, 1), .middle, .middle)
+	PushId(id) 
+		hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+		pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+	PopId()
+
+	PaintRoundedRect(body, 5, BlendColors(GetColor(.widgetBase, 1), GetColor(.widgetPress, 1), pressTime))
+	if hoverTime > 0 {
+		PaintRoundedRectOutline(body, 5, GetColor(.widgetPress, hoverTime))
+	}
+	DrawAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text, 1), .middle, .middle)
 
 	EndControl(control)
-	active = (.active in bits)
+	if .released in state {
+		if .active in bits {
+			bits -= {.active}
+		} else {
+			bits += {.active}
+		}
+	}
+
+	active = .active in bits
 	if active {
-		//window = BeginWindowEx(AttachRectBottom(body, 100), sharedId, {.fitToContent})
+		window, ok = BeginWindowEx(sharedId, AttachRectBottom(body, 100), {})
+		window.body.x = body.x
+		window.body.y = body.y + body.h
 	}
 	return 
 }
 @private _Menu :: proc(window: ^WindowData, active: bool) {
 	if active {
-		//EndWindow(window)
+		EndWindow(window)
 	}
 }

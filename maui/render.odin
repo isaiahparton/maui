@@ -12,6 +12,8 @@ import rl "vendor:raylib"
 TEXTURE_WIDTH :: 2048
 TEXTURE_HEIGHT :: 256
 
+TRIANGLE_STEP :: math.TAU / 3
+
 // up to how small/big should circles be pre-rendered?
 MIN_CIRCLE_SIZE :: 2
 MAX_CIRCLE_SIZE :: 29
@@ -72,7 +74,7 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 		file = "Muli-SemiBold.ttf",
 	},
 	.header = {
-		size = 36,
+		size = 28,
 		file = "Muli-SemiBold.ttf",
 	},
 	.monospace = {
@@ -405,10 +407,10 @@ EndClip :: proc() {
 	cmd.rect = {0, 0, ctx.size.x, ctx.size.y}
 }
 DrawQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
-	DrawTriangle(p1, p2, p4, c)
-	DrawTriangle(p4, p2, p3, c)
+	PaintTriangle(p1, p2, p4, c)
+	PaintTriangle(p4, p2, p3, c)
 }
-DrawTriangle :: proc(p1, p2, p3: Vec2, color: Color) {
+PaintTriangle :: proc(p1, p2, p3: Vec2, color: Color) {
 	cmd := PushCommand(CommandTriangle)
 	cmd.color = color
 	cmd.vertices = {p1, p2, p3}
@@ -422,20 +424,20 @@ DrawRect :: proc(rect: Rect, color: Color) {
 		color,
 	)
 }
-DrawTriangleStrip :: proc(points: []Vec2, color: Color) {
+PaintTriangleStrip :: proc(points: []Vec2, color: Color) {
     if len(points) < 4 {
     	return
     }
     for i in 2 ..< len(points) {
         if i % 2 == 0 {
-            DrawTriangle(
+            PaintTriangle(
             	{points[i].x, points[i].y},
             	{points[i - 2].x, points[i - 2].y},
             	{points[i - 1].x, points[i - 1].y},
             	color,
             )
         } else {
-        	DrawTriangle(
+        	PaintTriangle(
            	 	{points[i].x, points[i].y},
             	{points[i - 1].x, points[i - 1].y},
             	{points[i - 2].x, points[i - 2].y},
@@ -450,7 +452,7 @@ DrawLine :: proc(start, end: Vec2, thickness: f32, color: Color) {
     if length > 0 && thickness > 0 {
         scale := thickness / (2 * length)
         radius := Vec2{ -scale * delta.y, scale * delta.x }
-        DrawTriangleStrip({
+        PaintTriangleStrip({
             { start.x - radius.x, start.y - radius.y },
             { start.x + radius.x, start.y + radius.y },
             { end.x - radius.x, end.y - radius.y },
@@ -471,7 +473,7 @@ DrawCircleSector :: proc(center: Vec2, radius, start, end: f32, segments: i32, c
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
-        DrawTriangle(
+        PaintTriangle(
         	center, 
         	center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, 
         	center + {math.cos(angle) * radius, math.sin(angle) * radius}, 
@@ -520,6 +522,14 @@ PaintTexture :: proc(src, dst: Rect, color: Color) {
 	cmd.max = {dst.x + dst.w, dst.y + dst.h}
 	cmd.color = color
 }
+PaintTextureEx :: proc(src, dst: Rect, angle: f32, color: Color) {
+	cmd := PushCommand(CommandTexture)
+	cmd.uvMin = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
+	cmd.uvMax = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}
+	cmd.min = {dst.x, dst.y}
+	cmd.max = {dst.x + dst.w, dst.y + dst.h}
+	cmd.color = color
+}
 PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
 	if index < 0 || index >= CIRCLE_SIZES {
@@ -539,6 +549,10 @@ Corners :: bit_set[Corner;u8]
 PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Color) {
 	if corners == {} {
 		DrawRect(rect, color)
+		return
+	}
+	if rect.h == 0 || rect.w == 0 {
+		return
 	}
 
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
@@ -546,23 +560,23 @@ PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Col
 		return
 	}
 	source := painter.circles[index].source
-	halfSize :Vec2= {math.trunc(source.w / 2), math.trunc(source.h / 2)}
+	halfSize := math.trunc(source.w / 2)
 
 	if .topLeft in corners {
-		sourceTopLeft :Rect= {source.x, source.y, halfSize.x, halfSize.y}
-		PaintTexture(sourceTopLeft, {rect.x + radius - halfSize.x, rect.y + radius - halfSize.y, halfSize.x, halfSize.y}, color)
+		sourceTopLeft: Rect = {source.x, source.y, halfSize, halfSize}
+		PaintTexture(sourceTopLeft, {rect.x, rect.y, halfSize, halfSize}, color)
 	}
 	if .topRight in corners {
-		sourceTopRight :Rect= {source.x + source.w / 2, source.y, halfSize.x, halfSize.y}
-		PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize.x, halfSize.y}, color)
+		sourceTopRight: Rect = {source.x + source.w - halfSize, source.y, halfSize, halfSize}
+		PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize, halfSize}, color)
 	}
 	if .bottomRight in corners {
-		sourceBottomRight :Rect= {source.x + source.w / 2, source.y + source.h / 2, halfSize.x, halfSize.y}
-		PaintTexture(sourceBottomRight, {rect.x + rect.w - radius, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
+		sourceBottomRight: Rect = {source.x + source.w - halfSize, source.y + source.h - halfSize, halfSize, halfSize}
+		PaintTexture(sourceBottomRight, {rect.x + rect.w - halfSize, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
 	}
 	if .bottomLeft in corners {
-		sourceBottomLeft :Rect= {source.x, source.y + source.h / 2, halfSize.x, halfSize.y}
-		PaintTexture(sourceBottomLeft, {rect.x + radius - halfSize.x, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
+		sourceBottomLeft: Rect = {source.x, source.y + source.h - halfSize, halfSize, halfSize}
+		PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
 	}
 
 	if rect.w > radius * 2 {
@@ -574,7 +588,7 @@ PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Col
 		bottomRight := radius if .bottomRight in corners else 0
 		bottomLeft := radius if .bottomLeft in corners else 0
 		DrawRect({rect.x, rect.y + topLeft, radius, rect.h - (topLeft + bottomLeft)}, color)
-		DrawRect({rect.x + rect.w - topRight, rect.y + radius, radius, rect.h - (topRight + bottomRight)}, color)
+		DrawRect({rect.x + rect.w - radius, rect.y + topRight, radius, rect.h - (topRight + bottomRight)}, color)
 	}
 }
 PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
@@ -583,17 +597,17 @@ PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 		return
 	}
 	source := painter.circles[index].source
-	halfSize :Vec2= {math.trunc(source.w / 2), math.trunc(source.h / 2)}
+	halfSize := math.trunc(source.w / 2)
 
-	sourceTopLeft :Rect= {source.x, source.y, halfSize.x, halfSize.y}
-	sourceTopRight :Rect= {source.x + source.w / 2, source.y, halfSize.x, halfSize.y}
-	sourceBottomLeft :Rect= {source.x, source.y + source.h / 2, halfSize.x, halfSize.y}
-	sourceBottomRight :Rect= {source.x + source.w / 2, source.y + source.h / 2, halfSize.x, halfSize.y}
+	sourceTopLeft: Rect = {source.x, source.y, halfSize, halfSize}
+	sourceTopRight: Rect = {source.x + source.w - halfSize, source.y, halfSize, halfSize}
+	sourceBottomRight: Rect = {source.x + source.w - halfSize, source.y + source.h - halfSize, halfSize, halfSize}
+	sourceBottomLeft: Rect = {source.x, source.y + source.h - halfSize, halfSize, halfSize}
 
-	PaintTexture(sourceTopLeft, {rect.x + radius - halfSize.x, rect.y + radius - halfSize.y, halfSize.x, halfSize.y}, color)
-	PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize.x, halfSize.y}, color)
-	PaintTexture(sourceBottomLeft, {rect.x + radius - halfSize.x, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
-	PaintTexture(sourceBottomRight, {rect.x + rect.w - radius, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
+	PaintTexture(sourceTopLeft, {rect.x, rect.y, halfSize, halfSize}, color)
+	PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize, halfSize}, color)
+	PaintTexture(sourceBottomRight, {rect.x + rect.w - halfSize, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
+	PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
 
 	if rect.w > radius * 2 {
 		DrawRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
@@ -609,17 +623,17 @@ PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, color: Color) {
 		return
 	}
 	source := painter.circles[index + CIRCLE_SIZES * 2].source
-	halfSize :Vec2= {math.trunc(source.w / 2), math.trunc(source.h / 2)}
+	halfSize := math.trunc(source.w / 2)
 
-	sourceTopLeft :Rect= {source.x, source.y, halfSize.x, halfSize.y}
-	sourceTopRight :Rect= {source.x + source.w / 2, source.y, halfSize.x, halfSize.y}
-	sourceBottomLeft :Rect= {source.x, source.y + source.h / 2, halfSize.x, halfSize.y}
-	sourceBottomRight :Rect= {source.x + source.w / 2, source.y + source.h / 2, halfSize.x, halfSize.y}
+	sourceTopLeft: Rect = {source.x, source.y, halfSize, halfSize}
+	sourceTopRight: Rect = {source.x + source.w - halfSize, source.y, halfSize, halfSize}
+	sourceBottomRight: Rect = {source.x + source.w - halfSize, source.y + source.h - halfSize, halfSize, halfSize}
+	sourceBottomLeft: Rect = {source.x, source.y + source.h - halfSize, halfSize, halfSize}
 
-	PaintTexture(sourceTopLeft, {rect.x + radius - halfSize.x, rect.y + radius - halfSize.y, halfSize.x, halfSize.y}, color)
-	PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize.x, halfSize.y}, color)
-	PaintTexture(sourceBottomLeft, {rect.x + radius - halfSize.x, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
-	PaintTexture(sourceBottomRight, {rect.x + rect.w - radius, rect.y + rect.h - radius, halfSize.x, halfSize.y}, color)
+	PaintTexture(sourceTopLeft, {rect.x, rect.y, halfSize, halfSize}, color)
+	PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize, halfSize}, color)
+	PaintTexture(sourceBottomRight, {rect.x + rect.w - halfSize, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
+	PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
 
 	if rect.w > radius * 2 {
 		DrawRect({rect.x + radius, rect.y, rect.w - radius * 2, 2}, color)
@@ -629,6 +643,16 @@ PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, color: Color) {
 		DrawRect({rect.x, rect.y + radius, 2, rect.h - radius * 2}, color)
 		DrawRect({rect.x + rect.w - 2, rect.y + radius, 2, rect.h - radius * 2}, color)
 	}
+}
+PaintCollapseArrow :: proc(center: Vec2, size, time: f32, color: Color) {
+	angle := (1 - time) * math.PI * 0.5
+	norm: Vec2 = {math.cos(angle), math.sin(angle)}
+	PaintTriangle(
+		center + {math.cos(angle - TRIANGLE_STEP), math.sin(angle - TRIANGLE_STEP)} * size,
+		center + {math.cos(angle + TRIANGLE_STEP), math.sin(angle + TRIANGLE_STEP)} * size,
+		center + {math.cos(angle), math.sin(angle)} * size, 
+		color,
+		)
 }
 
 /*
@@ -738,5 +762,5 @@ DrawIconEx :: proc(icon: IconIndex, origin: Vec2, scale: f32, alignX, alignY: Al
 	dst := Rect{0, 0, f32(ICON_SIZE * scale), f32(ICON_SIZE * scale)}
 	dst.x = origin.x - dst.w / 2
 	dst.y = origin.y - dst.h / 2
-	PaintTexture({(f32(i32(icon) % 10)) * ICON_SIZE, (f32(i32(icon) / 10)) * ICON_SIZE, ICON_SIZE, ICON_SIZE}, dst, color)
+	PaintTexture(painter.icons[icon], dst, color)
 }

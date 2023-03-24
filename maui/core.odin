@@ -68,6 +68,17 @@ import "core:runtime"
 import "core:sort"
 import "core:strconv"
 
+/*
+	Window style settings
+*/
+WINDOW_ROUNDNESS :: 10
+WINDOW_TITLE_SIZE :: 40
+/*
+	Widget style settings
+*/
+WIDGET_HEIGHT :: 30
+WIDGET_ROUNDNESS :: 5
+
 MAX_CONTROLS :: #config(MAUI_MAX_CONTROLS, 128)
 MAX_LAYERS :: #config(MAUI_MAX_LAYERS, 16)
 MAX_WINDOWS :: #config(MAUI_MAX_WINDOWS, 32)
@@ -102,6 +113,9 @@ RectContainsRect :: proc(a, b: Rect) -> bool {
 Color :: [4]u8
 ColorIndex :: enum {
 	windowBase,
+
+	// Background of text inputs and toggle switches
+	backing,
 
 	// Clickable things
 	widgetBase,
@@ -215,6 +229,24 @@ PopId :: proc() {
 	ctx.idCount -= 1
 }
 
+AnimateBool :: proc(id: Id, condition: bool, duration: f32) -> f32 {
+	if id not_in ctx.animations {
+		ctx.animations[id] = {}
+	}
+	animation := &ctx.animations[id]
+	animation.keepAlive = true
+	if condition {
+		animation.value = min(1, animation.value + ctx.deltaTime / duration)
+	} else {
+		animation.value = max(0, animation.value - ctx.deltaTime / duration)
+	}
+	return animation.value
+}
+
+Animation :: struct {
+	keepAlive: bool,
+	value: f32,
+}
 /*
 	The global state
 
@@ -236,6 +268,8 @@ Context :: struct {
 
 	idStack: [ID_STACK_SIZE]Id,
 	idCount: i32,
+
+	animations: map[Id]Animation,
 
 	// Retained control data
 	controls: [MAX_CONTROLS]Control,
@@ -344,6 +378,7 @@ Init :: proc() {
 	ctx.style.colors[.widgetHover] = ParseColor("#373639")
 	ctx.style.colors[.widgetPress] = ParseColor("#575659")
 	ctx.style.colors[.textBright] = {255, 255, 255, 255}
+	ctx.style.colors[.text] = {200, 200, 200, 255}
 	/*
 		Set up painter and load atlas
 	*/
@@ -377,10 +412,6 @@ Prepare :: proc() {
 		}
 	}
 
-	if !ShouldRender() {
-		return
-	}
-
 	/*
 		Reorder the layer list if needed
 	*/
@@ -396,9 +427,9 @@ Prepare :: proc() {
 			hoveredLayer = layer.id
 		}
 	}
-	sort.quick_sort_proc(layerList[:], proc(a, b: i32) -> int {
+	/*sort.quick_sort_proc(layerList[:], proc(a, b: i32) -> int {
 		return int(layers[a].order) - int(layers[b].order)
-		})
+		})*/
 	if top != prevTop {
 		index := layerList[top]
 		copy(layerList[top:], layerList[top + 1:])
@@ -435,6 +466,14 @@ Refresh :: proc() {
 	assert(layoutDepth == 0, "You forgot to PopLayout()")
 	assert(layerDepth == 0, "You forgot to PopLayer()")
 	assert(idCount == 0, "You forgot to PopId()")
+
+	for id, animation in &animations {
+		if animation.keepAlive {
+			animation.keepAlive = false
+		} else {
+			delete_key(&animations, id)
+		}
+	}
 
 	prevHoverId = hoverId
 	prevPressId = pressId
@@ -483,6 +522,23 @@ Join :: proc(args: ..string) -> string {
 	str := string(buffer[:size])
 	scribe.index = (scribe.index + 1) % SCRIBE_BUFFER_COUNT
 	return str
+}
+
+BlendColors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
+	if amount == 0 {
+		result = bg
+	} else if amount == 1 {
+		result = fg
+	} else {
+		diff := fg - bg
+		result = bg + {
+			u8(f32(diff.r) * amount),
+			u8(f32(diff.g) * amount),
+			u8(f32(diff.b) * amount),
+			u8(f32(diff.a) * amount),
+		}
+	}
+	return
 }
 
 //@private
