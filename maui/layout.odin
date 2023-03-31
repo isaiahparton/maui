@@ -172,7 +172,6 @@ Space :: proc(a: f32) {
 Shrink :: proc(a: f32) {
 	l := GetCurrentLayout()
 	l.rect = ShrinkRect(l.rect, a)
-	ctx.shrinkAmount += a
 }
 GetNextRect :: proc() -> Rect {
 	layout := GetCurrentLayout()

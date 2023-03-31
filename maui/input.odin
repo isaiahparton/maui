@@ -1,5 +1,7 @@
 package maui
 
+MAX_INPUT_RUNES :: 32
+
 MouseButton :: enum {
 	left,
 	right,
@@ -20,6 +22,9 @@ Input :: struct {
 	prevMousePos, mousePos: Vec2,
 	mouseBits, prevMouseBits: MouseBits,
 	keyBits, prevKeyBits: KeyBits,
+
+	runes: [MAX_INPUT_RUNES]rune,
+	runeCount: int,
 }
 
 @private MousePressed :: proc(button: MouseButton) -> bool {
@@ -50,11 +55,22 @@ Input :: struct {
 SetMousePosition :: proc(x, y: f32) {
 	input.mousePos = {x, y}
 }
+InputAddCharPress :: proc(char: rune) {
+	input.runes[input.runeCount] = char
+	input.runeCount += 1
+}
 SetMouseBit :: proc(button: MouseButton, value: bool) {
 	if value {
 		input.mouseBits += {button}
 	} else {
 		input.mouseBits -= {button}
+	}
+}
+SetKeyBit :: proc(key: Key, value: bool) {
+	if value {
+		input.keyBits += {key}
+	} else {
+		input.keyBits -= {key}
 	}
 }
 

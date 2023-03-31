@@ -61,8 +61,12 @@ Render :: proc() {
 
 main :: proc() {
 	close := false
+	boolean := false
+	text := "Sämple Téxt"
+	buffer := make([dynamic]u8)
+	append_elem_string(&buffer, text)
 	// set up raylib
-	rl.SetConfigFlags({.WINDOW_RESIZABLE})
+	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	rl.SetTraceLogLevel(.NONE)
 	rl.InitWindow(1000, 800, "Maui Demo")
 	rl.MaximizeWindow()
@@ -83,38 +87,30 @@ main :: proc() {
 		ui.SetMousePosition(f32(rl.GetMouseX()), f32(rl.GetMouseY()))
 		ui.SetMouseBit(.left, rl.IsMouseButtonDown(.LEFT))
 		ui.SetMouseBit(.right, rl.IsMouseButtonDown(.RIGHT))
+		key := rl.GetCharPressed()
+		for key != 0 {
+			ui.InputAddCharPress(key)
+			key = rl.GetCharPressed()
+		}
+		ui.SetKeyBit(.control, rl.IsKeyDown(.LEFT_CONTROL) || rl.IsKeyDown(.RIGHT_CONTROL))
+		ui.SetKeyBit(.backspace, rl.IsKeyDown(.BACKSPACE))
 		ui.ctx.deltaTime = rl.GetFrameTime()
 
-		if window, ok := ui.Window(); ok {
-			ui.WithName(window, "Widgets")
-			ui.WithPlacement(window, {300, 400, 300, 400})
-			ui.WithDefaultOptions(window, {.title})
-
-			ui.Shrink(10)
-			ui.CutSide(.left)
-			ui.CutSize(0.5, true)
-
-			if ui.Layout(ui.GetNextRect()) {
-				ui.CheckBoxBitSetHeader(&window.options, "")
-				for option, index in ui.WindowOption {
-					ui.PushId(ui.HashIdFromInt(index))
-						ui.CheckBoxBitSet(&window.options, option, ui.Format(option))
-					ui.PopId()
+		rect := ui.Cut(.right, 400)
+		if layer, ok := ui.Layer(rect); ok {
+			ui.PaintRect(layer.body, ui.GetColor(.windowBase, 1))
+			ui.PushLayout(rect)
+				ui.Shrink(20)
+				ui.CutSize(30)
+				ui.CheckBox(&boolean, "close window")
+				ui.Space(10)
+				ui.ButtonEx("sola fide")
+				ui.Space(10)
+				if change, newData := ui.TextInputBytes(buffer[:], "", "", {}); change {
+					resize(&buffer, len(newData))
+					copy(buffer[:], newData[:])
 				}
-			}
-			ui.CutSize(1, true)
-			if ui.Layout(ui.GetNextRect()) {
-				ui.CheckBoxBitSetHeader(&window.state, "")
-				for status, index in ui.WindowStatus {
-					ui.PushId(ui.HashIdFromInt(index))
-						ui.CheckBoxBitSet(&window.state, status, ui.Format(status))
-					ui.PopId()
-				}
-			}
-
-			if .shouldClose in window.state {
-				close = true
-			}
+			ui.PopLayout()
 		}
 
 		/*
@@ -127,7 +123,6 @@ main :: proc() {
 
 		rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.WHITE)
 		rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.WHITE)
-		rl.DrawText(rl.TextFormat("LAYER LIST: %v", ui.ctx.layerList), 0, 60, 20, rl.WHITE)
 		rl.DrawText("LAYER MAP:", 0, 100, 20, rl.WHITE)
 		{
 			offset := i32(0)

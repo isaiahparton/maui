@@ -45,11 +45,6 @@ LayerOptions :: struct {
 	origin, size: AnyVec2,
 }
 
-ControlBoundingBox :: proc(rect: Rect) {
-	layer := GetCurrentLayer()
-	ctx.contentSize.x = max(ctx.contentSize.x, (rect.x + rect.w) - layer.body.x)
-	ctx.contentSize.y = max(ctx.contentSize.y, (rect.y + rect.h) - layer.body.y)
-}
 GetCurrentLayer :: proc() -> ^LayerData {
 	using ctx
 	return layerStack[layerDepth - 1]
@@ -114,17 +109,10 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	PushId(id)
 	BeginClip(layer.body)
 
-	contentSize = {}
-	shrinkAmount = {}
-
 	return
 }
 @private EndLayer :: proc(layer: ^LayerData) {
 	using ctx
-
-	text := StringFormat("%f x %f", contentSize.x, contentSize.y)
-	PaintAlignedString(GetFontData(.monospace), text, {layer.body.x + layer.body.w / 2 + 8, layer.body.y + 8}, {0, 0, 0, 255}, .middle, .near)
-	PaintAlignedString(GetFontData(.monospace), text, {layer.body.x + layer.body.w / 2 + 5, layer.body.y + 5}, {255, 255, 255, 255}, .middle, .near)
 
 	EndClip()
 	PopId()

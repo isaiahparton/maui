@@ -247,8 +247,8 @@ GenFont :: proc(origin: Vec2, path: string, size, glyphCount: i32) -> (font: Fon
 }
 GetGlyphData :: proc(font: FontData, codepoint: rune) -> GlyphData {
 	index := int(codepoint) - int(font.firstGlyph)
-	if len(font.glyphs) <= index {
-		return {}
+	if len(font.glyphs) <= index || index < 0 {
+		return font.glyphs[int('?') - int(font.firstGlyph)]
 	}
 	return font.glyphs[index]
 }
@@ -260,19 +260,6 @@ GetFontData :: proc(index: FontIndex) -> FontData {
 	Exists for the lifetime of the program
 
 	Loads or creates the texture, keeps track of every AtlasSource to which icons, patches or font glyphs can refer
-
-	When the atlas is built, fonts, patches and icons will each pass their image and 
-	an ^AtlasSource to the packer which will arrange them on the atlas and set the 
-	^AtlasSource to their fragment index
-		
-		The atlas data along with every fragment will be compressed and saved to atlas/data.odin
-			
-			* Image will be trimmed and written as a slice of bytes
-			* Sources will be put into an array
-
-	when !REBUILD_ATLAS {
-		import "atlas"
-	}
 */
 Painter :: struct {
 	circles: [CIRCLE_SIZES * CIRCLE_ROWS]PatchData,
@@ -298,7 +285,7 @@ GenAtlas :: proc(using painter: ^Painter) {
 
 	offset :f32= 0
 	for data, index in FONT_LOAD_DATA {
-		font, success := GenFont({512 + offset, 0}, StringFormat("fonts/%s", data.file), data.size, 0)
+		font, success := GenFont({512 + offset, 0}, StringFormat("fonts/%s", data.file), data.size, 256)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
 			continue
@@ -547,11 +534,11 @@ Corner :: enum {
 }
 Corners :: bit_set[Corner;u8]
 PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Color) {
-	if corners == {} {
-		PaintRect(rect, color)
+	if rect.h == 0 || rect.w == 0 {
 		return
 	}
-	if rect.h == 0 || rect.w == 0 {
+	if corners == {} {
+		PaintRect(rect, color)
 		return
 	}
 
@@ -562,21 +549,24 @@ PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Col
 	source := painter.circles[index].source
 	halfSize := math.trunc(source.w / 2)
 
+	halfWidth := min(halfSize, rect.w / 2)
+	halfHeight := min(halfSize, rect.h / 2)
+
 	if .topLeft in corners {
-		sourceTopLeft: Rect = {source.x, source.y, halfSize, halfSize}
+		sourceTopLeft: Rect = {source.x, source.y, halfWidth, halfHeight}
 		PaintTexture(sourceTopLeft, {rect.x, rect.y, halfSize, halfSize}, color)
 	}
 	if .topRight in corners {
-		sourceTopRight: Rect = {source.x + source.w - halfSize, source.y, halfSize, halfSize}
-		PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize, halfSize}, color)
+		sourceTopRight: Rect = {source.x + source.w - halfWidth, source.y, halfWidth, halfHeight}
+		PaintTexture(sourceTopRight, {rect.x + rect.w - halfWidth, rect.y, halfSize, halfSize}, color)
 	}
 	if .bottomRight in corners {
-		sourceBottomRight: Rect = {source.x + source.w - halfSize, source.y + source.h - halfSize, halfSize, halfSize}
+		sourceBottomRight: Rect = {source.x + source.w - halfWidth, source.y + source.h - halfHeight, halfWidth, halfHeight}
 		PaintTexture(sourceBottomRight, {rect.x + rect.w - halfSize, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
 	}
 	if .bottomLeft in corners {
-		sourceBottomLeft: Rect = {source.x, source.y + source.h - halfSize, halfSize, halfSize}
-		PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
+		sourceBottomLeft: Rect = {source.x, source.y + source.h - halfHeight, halfWidth, halfHeight}
+		PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfHeight, halfSize, halfSize}, color)
 	}
 
 	if rect.w > radius * 2 {
@@ -592,6 +582,9 @@ PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Col
 	}
 }
 PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
+	if rect.w == 0 || rect.h == 0 {
+		return
+	}
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
 	if index < 0 || index >= CIRCLE_SIZES {
 		return
@@ -599,15 +592,18 @@ PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 	source := painter.circles[index].source
 	halfSize := math.trunc(source.w / 2)
 
-	sourceTopLeft: Rect = {source.x, source.y, halfSize, halfSize}
-	sourceTopRight: Rect = {source.x + source.w - halfSize, source.y, halfSize, halfSize}
-	sourceBottomRight: Rect = {source.x + source.w - halfSize, source.y + source.h - halfSize, halfSize, halfSize}
-	sourceBottomLeft: Rect = {source.x, source.y + source.h - halfSize, halfSize, halfSize}
+	halfWidth := min(halfSize, rect.w / 2)
+	halfHeight := min(halfSize, rect.h / 2)
 
-	PaintTexture(sourceTopLeft, {rect.x, rect.y, halfSize, halfSize}, color)
-	PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize, halfSize}, color)
-	PaintTexture(sourceBottomRight, {rect.x + rect.w - halfSize, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
-	PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
+	sourceTopLeft: Rect = {source.x, source.y, halfWidth, halfHeight}
+	sourceTopRight: Rect = {source.x + source.w - halfWidth, source.y, halfWidth, halfHeight}
+	sourceBottomRight: Rect = {source.x + source.w - halfWidth, source.y + source.h - halfHeight, halfWidth, halfHeight}
+	sourceBottomLeft: Rect = {source.x, source.y + source.h - halfHeight, halfWidth, halfHeight}
+
+	PaintTexture(sourceTopLeft, {rect.x, rect.y, halfWidth, halfHeight}, color)
+	PaintTexture(sourceTopRight, {rect.x + rect.w - halfWidth, rect.y, halfWidth, halfHeight}, color)
+	PaintTexture(sourceBottomRight, {rect.x + rect.w - halfWidth, rect.y + rect.h - halfHeight, halfWidth, halfHeight}, color)
+	PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfHeight, halfWidth, halfHeight}, color)
 
 	if rect.w > radius * 2 {
 		PaintRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
@@ -626,15 +622,18 @@ PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, thin: bool, color: Colo
 	source := painter.circles[index + (CIRCLE_SIZES if thin else (CIRCLE_SIZES * 2))].source
 	halfSize := math.trunc(source.w / 2)
 
-	sourceTopLeft: Rect = {source.x, source.y, halfSize, halfSize}
-	sourceTopRight: Rect = {source.x + source.w - halfSize, source.y, halfSize, halfSize}
-	sourceBottomRight: Rect = {source.x + source.w - halfSize, source.y + source.h - halfSize, halfSize, halfSize}
-	sourceBottomLeft: Rect = {source.x, source.y + source.h - halfSize, halfSize, halfSize}
+	halfWidth := min(halfSize, rect.w / 2)
+	halfHeight := min(halfSize, rect.h / 2)
 
-	PaintTexture(sourceTopLeft, {rect.x, rect.y, halfSize, halfSize}, color)
-	PaintTexture(sourceTopRight, {rect.x + rect.w - radius, rect.y, halfSize, halfSize}, color)
-	PaintTexture(sourceBottomRight, {rect.x + rect.w - halfSize, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
-	PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
+	sourceTopLeft: Rect = {source.x, source.y, halfWidth, halfHeight}
+	sourceTopRight: Rect = {source.x + source.w - halfWidth, source.y, halfWidth, halfHeight}
+	sourceBottomRight: Rect = {source.x + source.w - halfWidth, source.y + source.h - halfHeight, halfWidth, halfHeight}
+	sourceBottomLeft: Rect = {source.x, source.y + source.h - halfHeight, halfWidth, halfHeight}
+
+	PaintTexture(sourceTopLeft, {rect.x, rect.y, sourceTopLeft.w, sourceTopLeft.h}, color)
+	PaintTexture(sourceTopRight, {rect.x + rect.w - halfWidth, rect.y, sourceTopRight.w, sourceTopRight.h}, color)
+	PaintTexture(sourceBottomRight, {rect.x + rect.w - halfWidth, rect.y + rect.h - halfHeight, sourceBottomRight.w, sourceBottomRight.h}, color)
+	PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfHeight, sourceBottomLeft.w, sourceBottomLeft.h}, color)
 
 	if rect.w > radius * 2 {
 		PaintRect({rect.x + radius, rect.y, rect.w - radius * 2, thickness}, color)
@@ -698,6 +697,40 @@ PaintAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Co
 		origin.y -= MeasureString(font, text).y
 	}
 	return PaintString(font, text, origin, color)
+}
+// Draw a glyph, mathematically clipped to 'clipRect'
+PaintClippedGlyph :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {
+    src := glyph.source
+    dst := Rect{ 
+        f32(i32(origin.x + glyph.offset.x)), 
+        f32(i32(origin.y + glyph.offset.y)), 
+        src.w, 
+        src.h,
+    }
+    if src.w > clipRect.w {
+        src.w = clipRect.w
+        dst.w = clipRect.w
+    }
+    if src.h > clipRect.h {
+        src.h = clipRect.h
+        dst.h = clipRect.h
+    }
+    if dst.x < clipRect.x {
+        src.w += dst.x - clipRect.x
+        dst.w += dst.x - clipRect.x
+        src.x += clipRect.x - dst.x
+        dst.x = clipRect.x
+    }
+    if dst.y < clipRect.y {
+        src.h -= clipRect.y - src.y
+        dst.h -= clipRect.y - dst.y
+        src.x = clipRect.y
+        dst.x = clipRect.y
+    }
+    if src.w == 0 || src.h == 0 {
+    	return
+    }
+    PaintTexture(src, dst, color)
 }
 /*
 /*

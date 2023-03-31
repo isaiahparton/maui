@@ -67,6 +67,7 @@ import "core:fmt"
 import "core:runtime"
 import "core:sort"
 import "core:strconv"
+import "core:unicode/utf8"
 import "core:slice"
 import rl "vendor:raylib"
 
@@ -112,6 +113,7 @@ Value :: union {
 	Relative,
 }
 Vec2 :: [2]f32
+
 AnyVec2 :: [2]Value
 
 VecVsRect :: proc(v: Vec2, r: Rect) -> bool {
@@ -279,6 +281,8 @@ Context :: struct {
 	disabled: bool,
 	size: Vec2,
 
+	// Each text input being edited
+	scribe: Scribe,
 	cursor: CursorType,
 	style: Style,
 
@@ -305,7 +309,6 @@ Context :: struct {
 	layerMap: map[Id]^LayerData,
 	layerList: [dynamic]i32,
 	layerStack: [MAX_LAYERS]^LayerData,
-	contentSize, shrinkAmount: Vec2,
 	// Current layer on top of list
 	topLayer, prevTopLayer: i32,
 	// Current layer being drawn
@@ -339,7 +342,8 @@ Context :: struct {
 	hoverId, 
 	prevPressId, 
 	pressId, 
-	focusId: Id,
+	focusId,
+	prevFocusId: Id,
 }
 
 SetNextRect :: proc(rect: Rect) {
@@ -492,6 +496,8 @@ Refresh :: proc() {
 
 	cursor = .default
 
+	input.runeCount = 0
+
 	assert(layoutDepth == 0, "You forgot to PopLayout()")
 	assert(layerDepth == 0, "You forgot to PopLayer()")
 	assert(idCount == 0, "You forgot to PopId()")
@@ -506,8 +512,16 @@ Refresh :: proc() {
 
 	prevHoverId = hoverId
 	prevPressId = pressId
+	prevFocusId = focusId
 	hoverId = nextHoverId
 	nextHoverId = 0
+
+	/*
+		Update focused widget
+	*/
+	if MousePressed(.left) {
+		focusId = pressId
+	}
 
 	input.prevKeyBits = input.keyBits
 	input.prevMouseBits = input.mouseBits
@@ -524,35 +538,75 @@ ShouldRender :: proc() -> bool {
 	return ctx.renderTime > 0
 }
 
-SCRIBE_BUFFER_COUNT :: 16
-SCRIBE_BUFFER_SIZE :: 128
+/*
+	Text input
+*/
 Scribe :: struct {
-	buffers: [SCRIBE_BUFFER_COUNT][SCRIBE_BUFFER_SIZE]u8,
-	index: u8,
+	index, length, anchor: int,
+	buffer: [dynamic]u8,
 }
-@private scribe := Scribe{}
+ScribeInsertString :: proc(str: string) {
+	using ctx.scribe
+	if length > 0 {
+		remove_range(&buffer, index, index + length)
+		length = 0
+	}
+	inject_at_elem_string(&buffer, index, str)
+	index += len(str)
+}
+ScribeInsertRunes :: proc(runes: []rune) {
+	str := utf8.runes_to_string(runes)
+	ScribeInsertString(str)
+	delete(str)
+}
+ScribeBackspace :: proc(){
+	using ctx.scribe
+	fmt.println(buffer)
+	if length == 0 {
+		if index > 0 {
+			end := index
+			_, size := utf8.decode_last_rune_in_bytes(buffer[:index])
+			index -= size
+			remove_range(&buffer, index, end)
+		}
+	} else {
+		remove_range(&buffer, index, index + length)
+		length = 0
+	}
+}
+
+/*
+	Safe text formatting for short-term usage
+*/
+FMT_BUFFER_COUNT :: 16
+FMT_BUFFER_SIZE :: 128
+@private fmtBuffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
+@private fmtBufferIndex: u8
 StringFormat :: proc(text: string, args: ..any) -> string {
-	str := fmt.bprintf(scribe.buffers[scribe.index][:], text, ..args)
-	scribe.index = (scribe.index + 1) % SCRIBE_BUFFER_COUNT
+	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
 }
 Format :: proc(args: ..any) -> string {
-	str := fmt.bprint(scribe.buffers[scribe.index][:], ..args)
-	scribe.index = (scribe.index + 1) % SCRIBE_BUFFER_COUNT
+	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
 }
 Join :: proc(args: ..string) -> string {
 	size := 0
-	buffer := &scribe.buffers[scribe.index]
+	buffer := &fmtBuffers[fmtBufferIndex]
 	for arg in args {
 		copy(buffer[size:size + len(arg)], arg[:])
 		size += len(arg)
 	}
 	str := string(buffer[:size])
-	scribe.index = (scribe.index + 1) % SCRIBE_BUFFER_COUNT
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
 }
 
+/*
+	Color manipulation
+*/
 BlendColors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
 	if amount == 0 {
 		result = bg
