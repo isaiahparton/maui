@@ -305,7 +305,7 @@ Context :: struct {
 	layerMap: map[Id]^LayerData,
 	layerList: [dynamic]i32,
 	layerStack: [MAX_LAYERS]^LayerData,
-	contentSize: Vec2,
+	contentSize, shrinkAmount: Vec2,
 	// Current layer on top of list
 	topLayer, prevTopLayer: i32,
 	// Current layer being drawn

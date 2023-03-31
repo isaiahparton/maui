@@ -223,7 +223,7 @@ WithName :: proc(window: ^WindowData, name: string) {
 
 	// Drop window context
 	if .collapsed not_in state {
-		minLayoutSize = ctx.contentSize
+		minLayoutSize = ctx.contentSize + ctx.shrinkAmount
 		PopLayout()
 	}
 	PopId()

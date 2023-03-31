@@ -131,6 +131,8 @@ LayoutData :: struct {
 	side: Side,
 	size: f32,
 	relative: bool,
+	// control alignment
+	alignX, alignY: Alignment,
 }
 PushLayout :: proc(rect: Rect) {
 	using ctx
@@ -143,6 +145,12 @@ PushLayout :: proc(rect: Rect) {
 PopLayout :: proc() {
 	using ctx
 	layoutDepth -= 1
+}
+AlignX :: proc(align: Alignment) {
+	GetCurrentLayout().alignX = align
+}
+AlignY :: proc(align: Alignment) {
+	GetCurrentLayout().alignY = align
 }
 GetCurrentLayout :: proc() -> ^LayoutData {
 	using ctx
@@ -164,6 +172,7 @@ Space :: proc(a: f32) {
 Shrink :: proc(a: f32) {
 	l := GetCurrentLayout()
 	l.rect = ShrinkRect(l.rect, a)
+	ctx.shrinkAmount += a
 }
 GetNextRect :: proc() -> Rect {
 	layout := GetCurrentLayout()

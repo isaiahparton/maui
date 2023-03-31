@@ -115,6 +115,7 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	BeginClip(layer.body)
 
 	contentSize = {}
+	shrinkAmount = {}
 
 	return
 }
