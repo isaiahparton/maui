@@ -67,7 +67,22 @@ import "core:fmt"
 import "core:runtime"
 import "core:sort"
 import "core:strconv"
+import "core:slice"
+import rl "vendor:raylib"
 
+CursorType :: enum {
+	default,
+	arrow,
+	beam,
+	crosshair,
+	hand,
+	resizeEW,
+	resizeNS,
+	resizeNWSE,
+	resizeNESW,
+	resizeAll,
+	disabled,
+}
 /*
 	Window style settings
 */
@@ -264,6 +279,7 @@ Context :: struct {
 	disabled: bool,
 	size: Vec2,
 
+	cursor: CursorType,
 	style: Style,
 
 	idStack: [ID_STACK_SIZE]Id,
@@ -289,6 +305,9 @@ Context :: struct {
 	layerMap: map[Id]^LayerData,
 	layerList: [dynamic]i32,
 	layerStack: [MAX_LAYERS]^LayerData,
+	contentSize: Vec2,
+	// Current layer on top of list
+	topLayer, prevTopLayer: i32,
 	// Current layer being drawn
 	hotLayer: i32,
 	// Index stack for layers within layers
@@ -330,6 +349,7 @@ SetNextRect :: proc(rect: Rect) {
 UseNextRect :: proc() -> (rect: Rect, ok: bool) {
 	rect = ctx.nextRect
 	ok = ctx.setNextRect
+	ctx.setNextRect = false
 	return
 }
 
@@ -373,6 +393,7 @@ Init :: proc() {
 	//TODO(isaiah): do something with this!
 	ctx.style.colors[.accent] = ParseColor("#3578F3")
 	ctx.style.colors[.windowBase] = {28, 28, 28, 255}
+	ctx.style.colors[.backing] = {18, 18, 18, 255}
 	ctx.style.colors[.iconBase] = ParseColor("#858585")
 	ctx.style.colors[.widgetBase] = ParseColor("#2F2F2F")
 	ctx.style.colors[.widgetHover] = ParseColor("#373639")
@@ -413,28 +434,31 @@ Prepare :: proc() {
 	}
 
 	/*
-		Reorder the layer list if needed
+		Delete unused window data
 	*/
-	top := len(layerList) - 1
-	prevTop := top
-	for layerIndex, index in layerList {
-		layer := &layers[layerIndex]
-		layer.index = i32(index)
-		if VecVsRect(input.mousePos, layer.body) {
-			if MousePressed(.left) {
-				top = index
+	for i in 0 ..< MAX_WINDOWS {
+		if windowExists[i] {
+			window := &windows[i]
+			if .stayAlive in window.bits {
+				window.bits -= {.stayAlive}
+			} else {
+				windowExists[i] = false
+				delete_key(&windowMap, window.id)
 			}
-			hoveredLayer = layer.id
 		}
 	}
-	/*sort.quick_sort_proc(layerList[:], proc(a, b: i32) -> int {
-		return int(layers[a].order) - int(layers[b].order)
-		})*/
-	if top != prevTop {
-		index := layerList[top]
-		copy(layerList[top:], layerList[top + 1:])
-		layerList[prevTop] = index
+
+	if topLayer != prevTopLayer {
+		index := layerList[topLayer]
+		copy(layerList[topLayer:], layerList[topLayer + 1:])
+		layerList[prevTopLayer] = index
+
+		slice.sort_by(layerList[:], proc(a, b: i32) -> bool {
+			return int(layers[a].order) < int(layers[b].order)
+		})
 	}
+	topLayer = i32(len(layerList) - 1)
+	prevTopLayer = topLayer
 
 	/*
 		Sort the draw order of layers
@@ -447,6 +471,9 @@ Prepare :: proc() {
 			layer := &layers[layerIndex]
 			if VecVsRect(input.mousePos, layer.body) {
 				hoveredLayer = layer.id
+				if MousePressed(.left) {
+					topLayer = i32(index)
+				}
 			}
 			if .stayAlive in layer.bits {
 				layer.bits -= {.stayAlive}
@@ -462,6 +489,8 @@ Prepare :: proc() {
 }
 Refresh :: proc() {
 	using ctx
+
+	cursor = .default
 
 	assert(layoutDepth == 0, "You forgot to PopLayout()")
 	assert(layerDepth == 0, "You forgot to PopLayer()")

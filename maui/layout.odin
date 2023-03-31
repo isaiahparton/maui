@@ -60,6 +60,19 @@ CutRect :: proc(r: ^Rect, s: Side, a: f32) -> Rect {
 	}
 	return {}
 }
+CutLayout :: proc(using layout: ^LayoutData) -> (result: Rect) {
+	switch side {
+		case .bottom:
+		result = CutRectBottom(&rect, rect.h * size if relative else size)
+		case .top:
+		result = CutRectTop(&rect, rect.h * size if relative else size)
+		case .left:
+		result = CutRectLeft(&rect, rect.w * size if relative else size)
+		case .right:
+		result = CutRectRight(&rect, rect.w * size if relative else size)
+	}
+	return
+}
 // get a cut piece of a rect
 GetRectLeft :: proc(b: Rect, a: f32) -> Rect {
 	return {b.x, b.y, a, b.h}
@@ -88,10 +101,10 @@ AttachRectBottom :: proc(b: Rect, a: f32) -> Rect {
 }
 AttachRect :: proc(rect: Rect, side: Side, size: f32) -> Rect {
 	switch side {
-		case .bottom: 	return AttachRectBottom(rect, size)
-		case .top: 		return AttachRectTop(rect, size)
-		case .left: 	return AttachRectLeft(rect, size)
-		case .right: 	return AttachRectRight(rect, size)
+		case .bottom: 	return AttachRectTop(rect, size)
+		case .top: 		return AttachRectBottom(rect, size)
+		case .left: 	return AttachRectRight(rect, size)
+		case .right: 	return AttachRectLeft(rect, size)
 	}
 	return {}
 }
@@ -107,10 +120,6 @@ Cut :: proc(side: Side, amount: f32) -> Rect {
 /*
 	Layout
 */
-LayoutMode :: enum {
-	cut,
-	attach,
-}
 Side :: enum {
 	top,
 	bottom,
@@ -118,17 +127,16 @@ Side :: enum {
 	right,
 }
 LayoutData :: struct {
-	mode: LayoutMode,
 	rect: Rect,
 	side: Side,
 	size: f32,
+	relative: bool,
 }
-PushLayout :: proc(rect: Rect, mode: LayoutMode = .cut) {
+PushLayout :: proc(rect: Rect) {
 	using ctx
 	layouts[layoutDepth] = {
 		rect = rect,
 		size = WIDGET_HEIGHT,
-		mode = mode,
 	}
 	layoutDepth += 1
 }
@@ -141,16 +149,9 @@ GetCurrentLayout :: proc() -> ^LayoutData {
 	return &layouts[layoutDepth - 1]
 }
 CutSize :: proc(size: f32, relative := false) {
-	l := GetCurrentLayout()
-	if relative {
-		if l.side == .top || l.side == .bottom {
-			l.size = size * l.rect.h
-		} else {
-			l.size = size * l.rect.w
-		}
-		return
-	}
-	l.size = size
+	layout := GetCurrentLayout()
+	layout.relative = relative
+	layout.size = size
 }
 CutSide :: proc(side: Side) {
 	GetCurrentLayout().side = side
@@ -164,22 +165,14 @@ Shrink :: proc(a: f32) {
 	l := GetCurrentLayout()
 	l.rect = ShrinkRect(l.rect, a)
 }
-GetNextLayoutRect :: proc(layout: ^LayoutData) -> Rect {
-	if layout.mode == .attach {
-		rect := AttachRect(layout.rect, layout.side, layout.size)
-		layout.rect = rect
-		return rect
-	}
-	return CutRect(&layout.rect, layout.side, layout.size)
-}
 GetNextRect :: proc() -> Rect {
 	layout := GetCurrentLayout()
-	return UseNextRect() or_else GetNextLayoutRect(layout)
+	return UseNextRect() or_else CutLayout(layout)
 }
 GetNextRectEx :: proc(size: Vec2, alignX, alignY: Alignment) -> Rect {
 	layout := GetCurrentLayout()
 	layout.size = max(layout.size, size.x)
-	return ChildRect(UseNextRect() or_else GetNextLayoutRect(layout), size, alignX, alignY)
+	return ChildRect(UseNextRect() or_else CutLayout(layout), size, alignX, alignY)
 }
 
 @(deferred_out=_Layout)

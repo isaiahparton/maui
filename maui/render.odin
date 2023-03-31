@@ -74,7 +74,7 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 		file = "Muli-SemiBold.ttf",
 	},
 	.header = {
-		size = 28,
+		size = 32,
 		file = "Muli-SemiBold.ttf",
 	},
 	.monospace = {
@@ -406,7 +406,7 @@ EndClip :: proc() {
 	cmd := PushCommand(CommandClip)
 	cmd.rect = {0, 0, ctx.size.x, ctx.size.y}
 }
-DrawQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
+PaintQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
 	PaintTriangle(p1, p2, p4, c)
 	PaintTriangle(p4, p2, p3, c)
 }
@@ -415,8 +415,8 @@ PaintTriangle :: proc(p1, p2, p3: Vec2, color: Color) {
 	cmd.color = color
 	cmd.vertices = {p1, p2, p3}
 }
-DrawRect :: proc(rect: Rect, color: Color) {
-	DrawQuad(
+PaintRect :: proc(rect: Rect, color: Color) {
+	PaintQuad(
 		{f32(rect.x), f32(rect.y)},
 		{f32(rect.x), f32(rect.y + rect.h)},
 		{f32(rect.x + rect.w), f32(rect.y + rect.h)},
@@ -446,7 +446,7 @@ PaintTriangleStrip :: proc(points: []Vec2, color: Color) {
         }
     }
 }
-DrawLine :: proc(start, end: Vec2, thickness: f32, color: Color) {
+PaintLine :: proc(start, end: Vec2, thickness: f32, color: Color) {
 	delta := end - start
     length := math.sqrt(f32(delta.x * delta.x + delta.y * delta.y))
     if length > 0 && thickness > 0 {
@@ -460,16 +460,16 @@ DrawLine :: proc(start, end: Vec2, thickness: f32, color: Color) {
         }, color)
     }
 }
-DrawRectLines :: proc(rect: Rect, thickness: f32, color: Color) {
-	DrawRect({rect.x, rect.y, rect.w, thickness}, color)
-	DrawRect({rect.x, rect.y + rect.h - thickness, rect.w, thickness}, color)
-	DrawRect({rect.x, rect.y, thickness, rect.h}, color)
-	DrawRect({rect.x + rect.w - thickness, rect.y, thickness, rect.h}, color)
+PaintRectLines :: proc(rect: Rect, thickness: f32, color: Color) {
+	PaintRect({rect.x, rect.y, rect.w, thickness}, color)
+	PaintRect({rect.x, rect.y + rect.h - thickness, rect.w, thickness}, color)
+	PaintRect({rect.x, rect.y, thickness, rect.h}, color)
+	PaintRect({rect.x + rect.w - thickness, rect.y, thickness, rect.h}, color)
 }
-DrawCircle :: proc(center: Vec2, radius: f32, segments: i32, color: Color) {
-	DrawCircleSector(center, radius, 0, math.TAU, segments, color)
+PaintCircleUh :: proc(center: Vec2, radius: f32, segments: i32, color: Color) {
+	PaintCircleSector(center, radius, 0, math.TAU, segments, color)
 }
-DrawCircleSector :: proc(center: Vec2, radius, start, end: f32, segments: i32, color: Color) {
+PaintCircleSector :: proc(center: Vec2, radius, start, end: f32, segments: i32, color: Color) {
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
@@ -482,14 +482,14 @@ DrawCircleSector :: proc(center: Vec2, radius, start, end: f32, segments: i32, c
         angle += step;
     }
 }
-DrawRing :: proc(center: Vec2, inner, outer: f32, segments: i32, color: Color) {
-	DrawRingSector(center, inner, outer, 0, math.TAU, segments, color)
+PaintRing :: proc(center: Vec2, inner, outer: f32, segments: i32, color: Color) {
+	PaintRingSector(center, inner, outer, 0, math.TAU, segments, color)
 }
-DrawRingSector :: proc(center: Vec2, inner, outer, start, end: f32, segments: i32, color: Color) {
+PaintRingSector :: proc(center: Vec2, inner, outer, start, end: f32, segments: i32, color: Color) {
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
-        DrawQuad(
+        PaintQuad(
         	center + {math.cos(angle) * outer, math.sin(angle) * outer},
         	center + {math.cos(angle) * inner, math.sin(angle) * inner},
         	center + {math.cos(angle + step) * inner, math.sin(angle + step) * inner},
@@ -499,14 +499,14 @@ DrawRingSector :: proc(center: Vec2, inner, outer, start, end: f32, segments: i3
         angle += step;
     }
 }
-DrawRectSweep :: proc(r: Rect, t: f32, c: Color) {
+PaintRectSweep :: proc(r: Rect, t: f32, c: Color) {
 	if t >= 1 {
-		DrawRect(r, c)
+		PaintRect(r, c)
 		return
 	}
 	a := (r.w + r.h) * t - r.h
-	DrawRect({r.x, r.y, a, r.h}, c)
-	DrawQuad(
+	PaintRect({r.x, r.y, a, r.h}, c)
+	PaintQuad(
 		{r.x + max(a, 0), r.y}, 
 		{r.x + max(a, 0), r.y + clamp(a + r.h, 0, r.h)}, 
 		{r.x + clamp(a + r.h, 0, r.w), r.y + max(0, a - r.w + r.h)}, 
@@ -548,7 +548,7 @@ Corner :: enum {
 Corners :: bit_set[Corner;u8]
 PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Color) {
 	if corners == {} {
-		DrawRect(rect, color)
+		PaintRect(rect, color)
 		return
 	}
 	if rect.h == 0 || rect.w == 0 {
@@ -580,15 +580,15 @@ PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Col
 	}
 
 	if rect.w > radius * 2 {
-		DrawRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
+		PaintRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
 	}
 	if rect.h > radius * 2 {
 		topLeft := radius if .topLeft in corners else 0
 		topRight := radius if .topRight in corners else 0
 		bottomRight := radius if .bottomRight in corners else 0
 		bottomLeft := radius if .bottomLeft in corners else 0
-		DrawRect({rect.x, rect.y + topLeft, radius, rect.h - (topLeft + bottomLeft)}, color)
-		DrawRect({rect.x + rect.w - radius, rect.y + topRight, radius, rect.h - (topRight + bottomRight)}, color)
+		PaintRect({rect.x, rect.y + topLeft, radius, rect.h - (topLeft + bottomLeft)}, color)
+		PaintRect({rect.x + rect.w - radius, rect.y + topRight, radius, rect.h - (topRight + bottomRight)}, color)
 	}
 }
 PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
@@ -610,19 +610,20 @@ PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 	PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
 
 	if rect.w > radius * 2 {
-		DrawRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
+		PaintRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
 	}
 	if rect.h > radius * 2 {
-		DrawRect({rect.x, rect.y + radius, radius, rect.h - radius * 2}, color)
-		DrawRect({rect.x + rect.w - radius, rect.y + radius, radius, rect.h - radius * 2}, color)
+		PaintRect({rect.x, rect.y + radius, radius, rect.h - radius * 2}, color)
+		PaintRect({rect.x + rect.w - radius, rect.y + radius, radius, rect.h - radius * 2}, color)
 	}
 }
-PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, color: Color) {
+PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, thin: bool, color: Color) {
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
 	if index < 0 || index >= CIRCLE_SIZES {
 		return
 	}
-	source := painter.circles[index + CIRCLE_SIZES * 2].source
+	thickness: f32 = 1 if thin else 2
+	source := painter.circles[index + (CIRCLE_SIZES if thin else (CIRCLE_SIZES * 2))].source
 	halfSize := math.trunc(source.w / 2)
 
 	sourceTopLeft: Rect = {source.x, source.y, halfSize, halfSize}
@@ -636,12 +637,12 @@ PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, color: Color) {
 	PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
 
 	if rect.w > radius * 2 {
-		DrawRect({rect.x + radius, rect.y, rect.w - radius * 2, 2}, color)
-		DrawRect({rect.x + radius, rect.y + rect.h - 2, rect.w - radius * 2, 2}, color)
+		PaintRect({rect.x + radius, rect.y, rect.w - radius * 2, thickness}, color)
+		PaintRect({rect.x + radius, rect.y + rect.h - thickness, rect.w - radius * 2, thickness}, color)
 	}
 	if rect.h > radius * 2 {
-		DrawRect({rect.x, rect.y + radius, 2, rect.h - radius * 2}, color)
-		DrawRect({rect.x + rect.w - 2, rect.y + radius, 2, rect.h - radius * 2}, color)
+		PaintRect({rect.x, rect.y + radius, thickness, rect.h - radius * 2}, color)
+		PaintRect({rect.x + rect.w - thickness, rect.y + radius, thickness, rect.h - radius * 2}, color)
 	}
 }
 PaintCollapseArrow :: proc(center: Vec2, size, time: f32, color: Color) {
@@ -672,15 +673,19 @@ MeasureString :: proc(font: FontData, text: string) -> Vec2 {
 	size.y = font.size
 	return size
 }
-DrawString :: proc(font: FontData, text: string, origin: Vec2, color: Color) {
+PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) -> Vec2 {
 	origin := origin
+	size := Vec2{}
 	for codepoint in text {
 		glyph := GetGlyphData(font, codepoint)
 		PaintTexture(glyph.source, {math.trunc(origin.x + glyph.offset.x), origin.y + glyph.offset.y, glyph.source.w, glyph.source.h}, color)
 		origin.x += glyph.advance
+		size.x += glyph.advance
 	}
+	size.y = font.size
+	return size
 }
-DrawAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) {
+PaintAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
 	origin := origin
 	if alignX == .middle {
 		origin.x -= math.trunc(MeasureString(font, text).x / 2)
@@ -692,7 +697,7 @@ DrawAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Col
 	} else if alignY == .far {
 		origin.y -= MeasureString(font, text).y
 	}
-	DrawString(font, text, origin, color)
+	return PaintString(font, text, origin, color)
 }
 /*
 /*

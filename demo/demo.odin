@@ -13,6 +13,8 @@ commandCount := 0
 
 Render :: proc() {
 	using ui
+	rl.SetMouseCursor(rl.MouseCursor(int(ui.ctx.cursor)))
+
 	commandCount = 0
 	cmd: ^Command
 	
@@ -58,7 +60,7 @@ Render :: proc() {
 }
 
 main :: proc() {
-
+	close := false
 	// set up raylib
 	rl.SetConfigFlags({.WINDOW_RESIZABLE})
 	rl.SetTraceLogLevel(.NONE)
@@ -84,31 +86,34 @@ main :: proc() {
 		ui.ctx.deltaTime = rl.GetFrameTime()
 
 		if window, ok := ui.Window(); ok {
-			if window.body == {} {
-				window.name = "Widget gallery"
-				window.options += {.title}
-				window.body = {100, 100, 500, 400}
-			}
+			ui.WithName(window, "Widgets")
+			ui.WithPlacement(window, {300, 400, 300, 400})
+			ui.WithDefaultOptions(window, {.title})
 
 			ui.Shrink(10)
-			ui.CutSize(30)
-			ui.ButtonEx("button 1")
-			ui.Space(10)
-			ui.CheckBoxBitSet(&window.options, ui.WindowOption.resizable, "Fit window to content")
+			ui.CutSide(.left)
+			ui.CutSize(0.5, true)
 
-			if window, ok := ui.Window(); ok {
-				window.options += {.title}
-				if window.body == {} {
-					window.body = {800, 200, 200, 400}
+			if ui.Layout(ui.GetNextRect()) {
+				ui.CheckBoxBitSetHeader(&window.options, "")
+				for option, index in ui.WindowOption {
+					ui.PushId(ui.HashIdFromInt(index))
+						ui.CheckBoxBitSet(&window.options, option, ui.Format(option))
+					ui.PopId()
 				}
+			}
+			ui.CutSize(1, true)
+			if ui.Layout(ui.GetNextRect()) {
+				ui.CheckBoxBitSetHeader(&window.state, "")
+				for status, index in ui.WindowStatus {
+					ui.PushId(ui.HashIdFromInt(index))
+						ui.CheckBoxBitSet(&window.state, status, ui.Format(status))
+					ui.PopId()
+				}
+			}
 
-				ui.Shrink(10)
-				ui.CutSize(30)
-				if window, ok := ui.Menu("file"); ok {
-					ui.ButtonEx("new")
-					ui.ButtonEx("open")
-					ui.ButtonEx("save")
-				}
+			if .shouldClose in window.state {
+				close = true
 			}
 		}
 
@@ -123,25 +128,29 @@ main :: proc() {
 		rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.WHITE)
 		rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.WHITE)
 		rl.DrawText(rl.TextFormat("LAYER LIST: %v", ui.ctx.layerList), 0, 60, 20, rl.WHITE)
-		rl.DrawText("LAYER MAP:", 0, 80, 20, rl.WHITE)
+		rl.DrawText("LAYER MAP:", 0, 100, 20, rl.WHITE)
 		{
 			offset := i32(0)
 			for id, value in ui.ctx.layerMap {
-				rl.DrawText(rl.TextFormat("%v: %v", id, value.body), 40, 100 + offset, 20, rl.WHITE)
+				rl.DrawText(rl.TextFormat("%v: %v", id, value.body), 40, 120 + offset, 20, rl.WHITE)
 				offset += 20
 			}
 		}
 
+		if rl.IsKeyDown(.V) {
+			for i in 0 ..< ui.MAX_CONTROLS {
+				if ui.ctx.controlExists[i] {
+					rl.DrawRectangleLinesEx(transmute(rl.Rectangle)ui.ctx.controls[i].body, 1, {255, 255, 0, 255})
+				}
+			}
+		}
 		if rl.IsKeyDown(.F) {
 			rl.DrawRectangle(0, 0, texture.width, texture.height, rl.BLACK)
 			rl.DrawTexture(texture, 0, 0, rl.WHITE)
-			for circle in ui.painter.circles {
-				rl.DrawRectangleRec(transmute(rl.Rectangle)circle.source, {0, 255, 0, 100})
-			}
 		}
 		rl.EndDrawing()
 
-		if rl.WindowShouldClose() {
+		if rl.WindowShouldClose() || close {
 			break
 		}
 	}
