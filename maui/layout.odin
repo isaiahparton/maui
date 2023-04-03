@@ -141,6 +141,11 @@ PushLayout :: proc(rect: Rect) {
 		size = WIDGET_HEIGHT,
 	}
 	layoutDepth += 1
+	when ODIN_DEBUG {
+		if .showLayouts in ctx.options && layerDepth > 0 {
+			PaintRectLines(rect, 1, {255, 255, 0, 255})
+		}
+	}
 }
 PopLayout :: proc() {
 	using ctx
@@ -175,7 +180,8 @@ Shrink :: proc(a: f32) {
 }
 GetNextRect :: proc() -> Rect {
 	layout := GetCurrentLayout()
-	return UseNextRect() or_else CutLayout(layout)
+	ctx.lastRect = UseNextRect() or_else CutLayout(layout)
+	return ctx.lastRect
 }
 GetNextRectEx :: proc(size: Vec2, alignX, alignY: Alignment) -> Rect {
 	layout := GetCurrentLayout()

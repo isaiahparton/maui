@@ -61,6 +61,7 @@ Render :: proc() {
 
 main :: proc() {
 	close := false
+	value: f32 = 10.0
 	boolean := false
 	text := "Sämple Téxt"
 	buffer := make([dynamic]u8)
@@ -92,8 +93,16 @@ main :: proc() {
 			ui.InputAddCharPress(key)
 			key = rl.GetCharPressed()
 		}
+
 		ui.SetKeyBit(.control, rl.IsKeyDown(.LEFT_CONTROL) || rl.IsKeyDown(.RIGHT_CONTROL))
+		ui.SetKeyBit(.shift, rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT))
 		ui.SetKeyBit(.backspace, rl.IsKeyDown(.BACKSPACE))
+		ui.SetKeyBit(.left, rl.IsKeyDown(.LEFT))
+		ui.SetKeyBit(.right, rl.IsKeyDown(.RIGHT))
+		ui.SetKeyBit(.up, rl.IsKeyDown(.UP))
+		ui.SetKeyBit(.down, rl.IsKeyDown(.DOWN))
+		ui.SetKeyBit(.a, rl.IsKeyDown(.A))
+
 		ui.ctx.deltaTime = rl.GetFrameTime()
 
 		rect := ui.Cut(.right, 400)
@@ -101,15 +110,23 @@ main :: proc() {
 			ui.PaintRect(layer.body, ui.GetColor(.windowBase, 1))
 			ui.PushLayout(rect)
 				ui.Shrink(20)
-				ui.CutSize(30)
+				//ui.CutSize(30)
 				ui.CheckBox(&boolean, "close window")
+				ui.Space(10)
+				boolean = ui.ToggleSwitch(boolean)
 				ui.Space(10)
 				ui.ButtonEx("sola fide")
 				ui.Space(10)
-				if change, newData := ui.TextInputBytes(buffer[:], "", "", {}); change {
+				if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
 					resize(&buffer, len(newData))
 					copy(buffer[:], newData[:])
 				}
+				ui.Space(10)
+				if change, newValue := ui.SliderEx(value, 0, 20, "slider value"); change {
+					value = newValue
+				}
+				ui.Space(10)
+				value = ui.NumberInputFloat32(value, "Enter a value")
 			ui.PopLayout()
 		}
 
@@ -132,16 +149,12 @@ main :: proc() {
 			}
 		}
 
-		if rl.IsKeyDown(.V) {
+		if rl.IsKeyDown(.F2) {
 			for i in 0 ..< ui.MAX_CONTROLS {
 				if ui.ctx.controlExists[i] {
 					rl.DrawRectangleLinesEx(transmute(rl.Rectangle)ui.ctx.controls[i].body, 1, {255, 255, 0, 255})
 				}
 			}
-		}
-		if rl.IsKeyDown(.F) {
-			rl.DrawRectangle(0, 0, texture.width, texture.height, rl.BLACK)
-			rl.DrawTexture(texture, 0, 0, rl.WHITE)
 		}
 		rl.EndDrawing()
 

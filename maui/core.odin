@@ -92,8 +92,9 @@ WINDOW_TITLE_SIZE :: 40
 /*
 	Widget style settings
 */
-WIDGET_HEIGHT :: 30
+WIDGET_HEIGHT :: 36
 WIDGET_ROUNDNESS :: 5
+WIDGET_TEXT_OFFSET :: WIDGET_ROUNDNESS + 3
 
 MAX_CONTROLS :: #config(MAUI_MAX_CONTROLS, 128)
 MAX_LAYERS :: #config(MAUI_MAX_LAYERS, 16)
@@ -105,6 +106,9 @@ MAX_LAYOUTS :: #config(MAUI_MAX_LAYOUTS, 32)
 COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 32 * 1024)
 // Size of id stack (times you can call PushId())
 ID_STACK_SIZE :: 8
+// Repeating key press
+KEY_REPEAT_DELAY :: 0.5
+KEY_REPEAT_RATE :: 24
 
 Absolute :: i32
 Relative :: f32
@@ -272,17 +276,26 @@ Animation :: struct {
 Style :: struct {
 	colors: [ColorIndex]Color,
 }
+ContextOption :: enum {
+	showLayouts,
+	showLayers,
+	showDebugWindow,
+}
+ContextOptions :: bit_set[ContextOption]
 Context :: struct {
 	allocator: runtime.Allocator,
+	options: ContextOptions,
 
 	time,
 	deltaTime,
 	renderTime: f32,
-	disabled: bool,
+	disabled, dragging: bool,
 	size: Vec2,
+	lastRect: Rect,
 
 	// Each text input being edited
 	scribe: Scribe,
+	numberText: []u8,
 	cursor: CursorType,
 	style: Style,
 
@@ -510,22 +523,49 @@ Refresh :: proc() {
 		}
 	}
 
+	newKeys := input.keyBits - input.prevKeyBits
+	oldKey := input.lastKey
+	for key in Key {
+		if key in newKeys && key != input.lastKey {
+			input.lastKey = key
+			break
+		}
+	}
+	if input.lastKey != oldKey {
+		input.keyHoldTimer = 0
+	}
+
+	input.keyPulse = false
+	if input.lastKey in input.keyBits {
+		input.keyHoldTimer += deltaTime
+	} else {
+		input.keyHoldTimer = 0
+	}
+	if input.keyHoldTimer >= KEY_REPEAT_DELAY {
+		if input.keyPulseTimer > 0 {
+			input.keyPulseTimer -= deltaTime
+		} else {
+			input.keyPulseTimer = 1.0 / KEY_REPEAT_RATE
+			input.keyPulse = true
+		}
+	}
+
 	prevHoverId = hoverId
 	prevPressId = pressId
 	prevFocusId = focusId
 	hoverId = nextHoverId
+	if dragging && pressId != 0 {
+		hoverId = pressId
+	}
 	nextHoverId = 0
 
 	/*
 		Update focused widget
 	*/
 	if MousePressed(.left) {
+		pressId = hoverId
 		focusId = pressId
 	}
-
-	input.prevKeyBits = input.keyBits
-	input.prevMouseBits = input.mouseBits
-	input.prevMousePos = input.mousePos
 
 	renderTime = max(0, renderTime - deltaTime)
 	time += deltaTime
@@ -533,6 +573,39 @@ Refresh :: proc() {
 	free_all(allocator)
 
 	PushLayout({0, 0, size.x, size.y})
+
+	/*
+		Built-in debug menus
+	*/
+	when ODIN_DEBUG {
+		if KeyDown(.control) && KeyPressed(.backspace) {
+			if .showDebugWindow in options {
+				options -= {.showDebugWindow}
+			} else {
+				options += {.showDebugWindow}
+			}
+		}
+		if .showDebugWindow in options {
+			if window, ok := Window(); ok {
+				WithPlacement(window, {0, 0, 300, 400})
+				WithDefaultOptions(window, {.collapsable, .closable})
+				WithTitle(window, "Debug options")
+
+				Shrink(10)
+				CheckBoxBitSetHeader(&options, "")
+				for option in ContextOption {
+					PushId(HashIdFromInt(int(option)))
+						CheckBoxBitSet(&options, option, Format(option))
+					PopId()
+				}
+			}
+		}
+	}
+
+	// Reset input bits
+	input.prevKeyBits = input.keyBits
+	input.prevMouseBits = input.mouseBits
+	input.prevMousePos = input.mousePos
 }
 ShouldRender :: proc() -> bool {
 	return ctx.renderTime > 0
@@ -561,7 +634,6 @@ ScribeInsertRunes :: proc(runes: []rune) {
 }
 ScribeBackspace :: proc(){
 	using ctx.scribe
-	fmt.println(buffer)
 	if length == 0 {
 		if index > 0 {
 			end := index
@@ -573,6 +645,25 @@ ScribeBackspace :: proc(){
 		remove_range(&buffer, index, index + length)
 		length = 0
 	}
+}
+IsSeperator :: proc(glyph: u8) -> bool {
+	return glyph == ' ' || glyph == '\n' || glyph == '\t' || glyph == '\\' || glyph == '/'
+}
+FindNextSeperator :: proc(slice: []u8) -> int {
+	for i in 1 ..< len(slice) {
+		if IsSeperator(slice[i]) {
+			return i
+		}
+	}
+	return len(slice) - 1
+}
+FindLastSeperator :: proc(slice: []u8) -> int {
+	for i in len(slice) - 1 ..= 1 {
+		if IsSeperator(slice[i]) {
+			return i
+		}
+	}
+	return 0
 }
 
 /*
@@ -586,6 +677,12 @@ StringFormat :: proc(text: string, args: ..any) -> string {
 	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
+}
+SPrintF :: proc(text: string, args: ..any) -> []u8 {
+	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
+	slice := fmtBuffers[fmtBufferIndex][:len(str)]
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return slice
 }
 Format :: proc(args: ..any) -> string {
 	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
@@ -608,17 +705,16 @@ Join :: proc(args: ..string) -> string {
 	Color manipulation
 */
 BlendColors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
-	if amount == 0 {
+	if amount <= 0 {
 		result = bg
-	} else if amount == 1 {
+	} else if amount >= 1 {
 		result = fg
 	} else {
-		diff := fg - bg
 		result = bg + {
-			u8(f32(diff.r) * amount),
-			u8(f32(diff.g) * amount),
-			u8(f32(diff.b) * amount),
-			u8(f32(diff.a) * amount),
+			u8((f32(fg.r) - f32(bg.r)) * amount),
+			u8((f32(fg.g) - f32(bg.g)) * amount),
+			u8((f32(fg.b) - f32(bg.b)) * amount),
+			u8((f32(fg.a) - f32(bg.a)) * amount),
 		}
 	}
 	return

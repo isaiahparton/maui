@@ -62,6 +62,7 @@ FontIndex :: enum {
 	default,
 	header,
 	monospace,
+	label,
 }
 FontLoadData :: struct {
 	size: i32,
@@ -78,8 +79,12 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 		file = "Muli-SemiBold.ttf",
 	},
 	.monospace = {
-		size = 20,
+		size = 24,
 		file = "Inconsolata_Condensed-SemiBold.ttf",
+	},
+	.label = {
+		size = 18,
+		file = "Muli-SemiBold.ttf",
 	},
 }
 
@@ -518,12 +523,23 @@ PaintTextureEx :: proc(src, dst: Rect, angle: f32, color: Color) {
 	cmd.color = color
 }
 PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
-	index := int(radius * 2) - MIN_CIRCLE_SIZE
+	index := int(radius) - MIN_CIRCLE_SIZE
 	if index < 0 || index >= CIRCLE_SIZES {
 		return
 	}
 	source := painter.circles[index].source
 	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
+}
+PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) {
+	index := CIRCLE_SIZES + int(radius) - MIN_CIRCLE_SIZE
+	if !thin {
+		index += CIRCLE_SIZES
+	}
+	if index < 0 {
+		return
+	}
+	source := painter.circles[index].source
+	PaintTexture(source, {math.round(center.x - source.w / 2), math.round(center.y - source.h / 2), source.w, source.h}, color)
 }
 
 Corner :: enum {
@@ -609,8 +625,9 @@ PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 		PaintRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
 	}
 	if rect.h > radius * 2 {
-		PaintRect({rect.x, rect.y + radius, radius, rect.h - radius * 2}, color)
-		PaintRect({rect.x + rect.w - radius, rect.y + radius, radius, rect.h - radius * 2}, color)
+		halfWidth := min(radius, rect.w / 2)
+		PaintRect({rect.x, rect.y + radius, halfWidth, rect.h - radius * 2}, color)
+		PaintRect({rect.x + rect.w - halfWidth, rect.y + radius, halfWidth, rect.h - radius * 2}, color)
 	}
 }
 PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, thin: bool, color: Color) {
@@ -667,7 +684,7 @@ MeasureString :: proc(font: FontData, text: string) -> Vec2 {
 	size := Vec2{}
 	for codepoint in text {
 		glyph := GetGlyphData(font, codepoint)
-		size.x += glyph.advance
+		size.x += glyph.advance + GLYPH_SPACING
 	}
 	size.y = font.size
 	return size
@@ -678,8 +695,8 @@ PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) ->
 	for codepoint in text {
 		glyph := GetGlyphData(font, codepoint)
 		PaintTexture(glyph.source, {math.trunc(origin.x + glyph.offset.x), origin.y + glyph.offset.y, glyph.source.w, glyph.source.h}, color)
-		origin.x += glyph.advance
-		size.x += glyph.advance
+		origin.x += glyph.advance + GLYPH_SPACING
+		size.x += glyph.advance + GLYPH_SPACING
 	}
 	size.y = font.size
 	return size
@@ -707,27 +724,27 @@ PaintClippedGlyph :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color:
         src.w, 
         src.h,
     }
-    if src.w > clipRect.w {
-        src.w = clipRect.w
-        dst.w = clipRect.w
-    }
-    if src.h > clipRect.h {
-        src.h = clipRect.h
-        dst.h = clipRect.h
-    }
     if dst.x < clipRect.x {
-        src.w += dst.x - clipRect.x
-        dst.w += dst.x - clipRect.x
-        src.x += clipRect.x - dst.x
-        dst.x = clipRect.x
+    	delta := clipRect.x - dst.x
+    	dst.w -= delta
+    	dst.x += delta
+    	src.x += delta
     }
     if dst.y < clipRect.y {
-        src.h -= clipRect.y - src.y
-        dst.h -= clipRect.y - dst.y
-        src.x = clipRect.y
-        dst.x = clipRect.y
+    	delta := clipRect.y - dst.y
+    	dst.h -= delta
+    	dst.y += delta
+    	src.y += delta
     }
-    if src.w == 0 || src.h == 0 {
+    if dst.x + dst.w > clipRect.x + clipRect.w {
+    	dst.w = (clipRect.x + clipRect.w) - dst.x
+    }
+    if dst.y + dst.h > clipRect.y + clipRect.h {
+    	dst.h = (clipRect.y + clipRect.h) - dst.y
+    }
+    src.w = dst.w
+    src.h = dst.h
+    if src.w <= 0 || src.h <= 0 {
     	return
     }
     PaintTexture(src, dst, color)

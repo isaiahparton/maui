@@ -114,6 +114,12 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 @private EndLayer :: proc(layer: ^LayerData) {
 	using ctx
 
+	when ODIN_DEBUG {
+		if .showLayers in options {
+			PaintRectLines(layer.body, 1, {255, 0, 255, 255})
+		}
+	}
+
 	EndClip()
 	PopId()
 

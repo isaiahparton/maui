@@ -64,9 +64,10 @@ WithDefaultOptions :: proc(window: ^WindowData, options: WindowOptions) {
 		window.options = options
 	}
 }
-WithName :: proc(window: ^WindowData, name: string) {
+WithTitle :: proc(window: ^WindowData, name: string) {
 	if .initialized not_in window.state {
 		window.name = name
+		window.options += {.title}
 	}
 }
 

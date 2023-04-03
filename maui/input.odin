@@ -15,6 +15,13 @@ Key :: enum {
 	tab,
 	backspace,
 	enter,
+	left,
+	right,
+	up,
+	down,
+	a,
+	c,
+	v,
 }
 KeyBits :: bit_set[Key]
 
@@ -22,9 +29,14 @@ Input :: struct {
 	prevMousePos, mousePos: Vec2,
 	mouseBits, prevMouseBits: MouseBits,
 	keyBits, prevKeyBits: KeyBits,
+	lastKey: Key,
 
 	runes: [MAX_INPUT_RUNES]rune,
 	runeCount: int,
+
+	keyHoldTimer,
+	keyPulseTimer: f32,
+	keyPulse: bool,
 }
 
 @private MousePressed :: proc(button: MouseButton) -> bool {
@@ -41,7 +53,7 @@ Input :: struct {
 }
 @private KeyPressed :: proc(key: Key) -> bool {
 	using input
-	return (key in keyBits) && (key not_in prevKeyBits)
+	return (key in keyBits) && ((key not_in prevKeyBits) || (lastKey == key && keyPulse))
 }
 @private KeyReleased :: proc(key: Key) -> bool {
 	using input
