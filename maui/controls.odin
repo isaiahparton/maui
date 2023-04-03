@@ -9,6 +9,8 @@ import "core:strconv"
 import "core:strings"
 import "core:slice"
 
+import rl "vendor:raylib"
+
 // General purpose booleans
 ControlBit :: enum {
 	stayAlive,
@@ -150,13 +152,26 @@ TextInputOption :: enum {
 	integer,
 }
 TextInputOptions :: bit_set[TextInputOption]
+TextInputFormat :: struct {
+	options: TextInputOptions,
+	align: Alignment,
+	capacity: int,
+}
 
-MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, options: TextInputOptions, state: ControlState) -> (change: bool, newData: []u8) {
+MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: TextInputFormat, state: ControlState) -> (change: bool, newData: []u8) {
 
 	hoverIndex := 0
 	minDist: f32 = 9999
 
 	origin: Vec2 = {rect.x + WIDGET_ROUNDNESS + 2, rect.y + rect.h / 2 - font.size / 2}
+	if format.align != .near {
+		textSize := MeasureString(font, string(data))
+		if format.align == .middle {
+			origin.x = rect.x + rect.w / 2 - textSize.x / 2
+		} else if format.align == .far {
+			origin.x = rect.x + rect.w - WIDGET_ROUNDNESS - 2 - textSize.x
+		}
+	}
 	point := origin
 
 	// Iterate over the bytes
@@ -175,7 +190,7 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, options: Te
 		// Draw cursors
 		highlight := false
 		if .focused in state && .justFocused not_in state {
-			if ctx.scribe.length == 0 && .readOnly not_in options {
+			if ctx.scribe.length == 0 && .readOnly not_in format.options {
 				if ctx.scribe.index == index {
 					PaintRect({point.x - 1, point.y, 2, font.size}, GetColor(.text, 1))
 				}
@@ -238,7 +253,7 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, options: Te
 				// copy to clipboard
 			}
 		}
-		if .readOnly not_in options {
+		if .readOnly not_in format.options {
 			if KeyDown(.control) {
 				if KeyPressed(.a) {
 					index = 0
@@ -337,14 +352,22 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, options: Te
 
 	// When the text input is clicked, resize the
 	// scribe buffer and copy the data to it
-	if .readOnly not_in options && .justFocused in state {
-		resize(&ctx.scribe.buffer, len(data))
-		copy(ctx.scribe.buffer[:], data[:])
+	if .readOnly not_in format.options && .justFocused in state {
+		length := len(data) 
+		if format.capacity > 0 {
+			length = min(length, format.capacity)
+		}
+		resize(&ctx.scribe.buffer, length)
+		copy(ctx.scribe.buffer[:], data[:length])
 	}
 
 	// Create new data slice
 	if change {
-		newData = ctx.scribe.buffer[:]
+		length := len(ctx.scribe.buffer) 
+		if format.capacity > 0 {
+			length = min(length, format.capacity)
+		}
+		newData = ctx.scribe.buffer[:length]
 	}
 
 	return
@@ -370,8 +393,8 @@ TextInputBytes :: proc(data: []u8, label, placeholder: string, options: TextInpu
 	}
 
 	font := GetFontData(.default)
-	PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, false, GetColor(.accent, 1) if .focused in state else GetColor(.widgetHover, hoverTime))
-	change, newData = MutableTextFromBytes(font, data, control.body, options, control.state)
+	PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, false, GetColor(.accent, 1) if .focused in state else GetColor(.outlineBase, hoverTime))
+	change, newData = MutableTextFromBytes(font, data, control.body, {options = options, capacity = 18}, control.state)
 
 	// Draw placeholder
 	if len(label) > 0 {
@@ -390,7 +413,7 @@ TextInputBytes :: proc(data: []u8, label, placeholder: string, options: TextInpu
 	}
 	if len(placeholder) != 0 {
 		if len(data) == 0 {
-			PaintAlignedString(font, placeholder, {body.x + WIDGET_ROUNDNESS + 2, body.y + body.h / 2}, GetColor(.widgetBase, 1), .near, .middle)
+			PaintAlignedString(font, placeholder, {body.x + WIDGET_ROUNDNESS + 2, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
 		}
 	}
 
@@ -423,14 +446,14 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 	}
 
 	font := GetFontData(.monospace)
-	change, newData := MutableTextFromBytes(font, ctx.numberText if .focused in state else data, control.body, {.numeric}, control.state)
+	change, newData := MutableTextFromBytes(font, ctx.numberText if .focused in state else data, control.body, {options = {.numeric}}, control.state)
 	if change {
 		newValue, ok = strconv.parse_f32(string(newData))
 		delete(ctx.numberText)
 		ctx.numberText = slice.clone(newData)
 	}
 
-	PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, false, GetColor(.accent, 1) if .focused in state else GetColor(.widgetHover, hoverTime))
+	PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, false, GetColor(.accent, 1) if .focused in state else GetColor(.outlineBase, hoverTime))
 	// Draw placeholder
 	if len(label) > 0 {
 		labelFont := GetFontData(.label)
@@ -467,7 +490,7 @@ ButtonEx :: proc(text: string, loc := #caller_location) -> bool {
 
 	PaintRoundedRect(body, 5, BlendColors(GetColor(.widgetBase, 1), GetColor(.widgetPress, 1), pressTime))
 	if hoverTime > 0 {
-		PaintRoundedRectOutline(body, 5, false, GetColor(.widgetPress, hoverTime))
+		PaintRoundedRectOutline(body, 5, false, GetColor(.outlineBase, hoverTime))
 	}
 	PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text, 1), .middle, .middle)
 
@@ -494,6 +517,125 @@ IconButtonEx :: proc(icon: IconIndex, loc := #caller_location) -> bool {
 
 	EndControl(control)
 	return .released in state
+}
+MenuOption :: proc(text: string, loc := #caller_location) -> bool {
+	using control, ok := BeginControl(HashId(loc), GetNextRect())
+	if !ok {
+		return false
+	}
+	UpdateControl(control)
+
+	PushId(id) 
+		hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+		pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+	PopId()
+
+	PaintRect(body, GetColor(.widgetBase, (hoverTime + pressTime) * 0.5))
+	PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text, 1), .middle, .middle)
+
+	EndControl(control)
+	return .released in state
+}
+
+Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: int) {
+	rect := GetNextRect()
+	leftButtonRect := CutRectLeft(&rect, 30)
+	rightButtonRect := CutRectRight(&rect, 30)
+	newValue = value
+	loc := loc
+	/*
+		Number input first
+	*/
+	if control, ok := BeginControl(HashId(loc), rect); ok {
+		using control
+		newValue = value
+		control.opts += {.draggable}
+		UpdateControl(control)
+
+		// Animation values
+		hoverTime := AnimateBool(id, .hovered in state, 0.1)
+
+		// Painting
+		PaintRect(body, GetColor(.backing, 1))
+
+		if .hovered in state || .down in state {
+			ctx.cursor = .beam
+		}
+
+		data := SPrintF("%i", value)
+		if .justFocused in state {
+			delete(ctx.numberText)
+			ctx.numberText = slice.clone(data)
+		}
+
+		font := GetFontData(.monospace)
+		change, newData := MutableTextFromBytes(
+			font, 
+			ctx.numberText if .focused in state else data, 
+			control.body, 
+			{
+				options = {.numeric},
+				align = .middle,
+			},
+			control.state,
+			)
+		if change {
+			newValue, ok = strconv.parse_int(string(newData))
+			newValue = clamp(newValue, low, high)
+			delete(ctx.numberText)
+			ctx.numberText = slice.clone(newData)
+		}
+		PaintRectLines(body, 2, GetColor(.accent, 1) if .focused in state else GetColor(.outlineBase, hoverTime))
+	}
+
+	/*
+		Buttons
+	*/
+	loc.column += 1
+	if control, ok := BeginControl(HashId(loc), leftButtonRect); ok {
+		using control
+		UpdateControl(control)
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+		PopId()
+
+		corners: Corners = {.topLeft, .bottomLeft}
+		PaintRoundedRectEx(body, 5, corners, BlendColors(GetColor(.widgetBase, 1), GetColor(.widgetPress, 1), pressTime))
+		if hoverTime > 0 {
+			PaintRoundedRectOutlineEx(body, 5, false, corners, GetColor(.widgetPress, hoverTime))
+		}
+		DrawIcon(.minus, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.iconBase, 1))
+
+		if .released in state {
+			newValue = max(value - 1, low)
+		}
+		EndControl(control)
+	}
+	loc.column += 1
+	if control, ok := BeginControl(HashId(loc), rightButtonRect); ok {
+		using control
+		UpdateControl(control)
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+		PopId()
+
+		corners: Corners = {.topRight, .bottomRight}
+		PaintRoundedRectEx(body, 5, corners, BlendColors(GetColor(.widgetBase, 1), GetColor(.widgetPress, 1), pressTime))
+		if hoverTime > 0 {
+			PaintRoundedRectOutlineEx(body, 5, false, corners, GetColor(.widgetPress, hoverTime))
+		}
+		DrawIcon(.plus, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.iconBase, 1))
+
+		if .released in state {
+			newValue = min(value + 1, high)
+		}
+		EndControl(control)
+	}
+	return
 }
 
 /*
@@ -538,18 +680,20 @@ CheckBoxStatus :: enum u8 {
 	unknown,
 }
 CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location) -> (change, newValue: bool) {
-	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {26, 26}, .near, .middle)); ok {
+	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {22, 22}, .near, .middle)); ok {
 		using control
 
 		/*
 			Control logic
 		*/
 		active := (status == .on || status == .unknown)
+		body.w += MeasureString(GetFontData(.default), text).x + WIDGET_TEXT_OFFSET
 		UpdateControl(control)
 
 		/*
 			Animation
 		*/
+		body.w = 22
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
 			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
@@ -558,17 +702,17 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 
 		PaintRoundedRect(
 			body, 
-			WIDGET_ROUNDNESS, 
+			3, 
 			BlendColors(GetColor(.accent, stateTime), {255, 255, 255, 255}, pressTime * 0.25),
 			)
 
 		if stateTime < 1 {
-			PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, false, BlendColors(GetColor(.widgetBase, 1), GetColor(.accent, 1), hoverTime))
+			PaintRoundedRectOutline(body, 3, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime))
 		}
 		if stateTime > 0 {
-			DrawIconEx(.minus if status == .unknown else .check, {body.x + 13, body.y + 13}, stateTime, .middle, .middle, GetColor(.textBright, 1))
+			DrawIconEx(.minus if status == .unknown else .check, {body.x + 11, body.y + 11}, stateTime, .middle, .middle, GetColor(.textBright, 1))
 		}
-		PaintAlignedString(GetFontData(.default), text, {body.x + body.w + 5, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
+		PaintAlignedString(GetFontData(.default), text, {body.x + body.w + WIDGET_TEXT_OFFSET, body.y + 11}, GetColor(.text, 1), .near, .middle)
 		if .released in state {
 			if status != .on {
 				newValue = true
@@ -630,7 +774,7 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 
 ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 	newValue = value
-	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {48, 28}, .near, .middle)); ok {
+	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {32, 24}, .near, .middle)); ok {
 		using control
 
 		/*
@@ -644,20 +788,23 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
 			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
-			howOn := AnimateBool(HashIdFromInt(2), value, 0.075)
+			howOn := AnimateBool(HashIdFromInt(2), value, 0.2)
 		PopId()
 
-		strokeColor := BlendColors(GetColor(.widgetBase, 1), GetColor(.accent, 1), pressTime + howOn)
-
-		baseRect := ShrinkRect(body, 3)
+		baseRect: Rect = {body.x, body.y + 4, body.w, body.h - 8}
 		baseRadius := baseRect.h / 2
 		start: Vec2 = {baseRect.x + baseRadius, baseRect.y + baseRect.h / 2}
 		move := baseRect.w - baseRect.h
-		thumbCenter := start + {move * howOn, 0}
-		PaintRoundedRect(baseRect, baseRadius, BlendColors(GetColor(.backing, 1), GetColor(.accent, 1), howOn))
-		PaintRoundedRectOutline(baseRect, baseRadius, true, strokeColor)
-		PaintCircle(thumbCenter, 21, BlendColors(GetColor(.backing, 1), GetColor(.widgetBase, 1), hoverTime))
-		PaintCircleOutline(thumbCenter, 23, true, strokeColor)
+		thumbCenter := start + {move * (rl.EaseBackOut(howOn, 0, 1, 1) if value else rl.EaseBackIn(howOn, 0, 1, 1)), 0}
+
+		if howOn < 1 {
+			PaintRoundedRectOutline(baseRect, baseRadius, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), howOn))
+		}
+		if howOn > 0 {
+			PaintRoundedRect({baseRect.x, baseRect.y, thumbCenter.x - baseRect.x, baseRect.h}, baseRadius, GetColor(.accent, 1))
+		}
+		PaintCircle(thumbCenter, 17, BlendColors(GetColor(.windowBase, 1), 255, (hoverTime + pressTime) * 0.1))
+		PaintCircleOutline(thumbCenter, 19, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), pressTime + howOn))
 		
 		if .released in state {
 			newValue = !value
@@ -668,6 +815,54 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 	return
 }
 
+
+RadioButton :: proc(value: bool, name: string, loc := #caller_location) -> (selected: bool) {
+	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {24, 24}, .near, .middle)); ok {
+		using control
+
+		/*
+			Control logic
+		*/
+		body.w += WIDGET_TEXT_OFFSET + MeasureString(GetFontData(.default), name).x
+		UpdateControl(control)
+		body.w = 24
+
+		/*
+			Animation
+		*/
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state && !value, 0.1)
+			stateTime := AnimateBool(HashIdFromInt(2), value, 0.2)
+		PopId()
+
+		center: Vec2 = {body.x + 12, body.y + 12}
+
+		PaintCircleOutline(center, 22 - 4 * pressTime, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime + stateTime))
+		if stateTime > 0 {
+			PaintCircle(center, rl.EaseCircOut(stateTime, 0, 14, 1), GetColor(.accent, 1))
+		}
+		PaintAlignedString(GetFontData(.default), name, {body.x + body.w + 5, center.y}, GetColor(.text, 1), .near, .middle)
+		if .released in state {
+			selected = true
+		}
+
+		EndControl(control)
+	}
+	return
+}
+// Value must be an enum
+RadioButtons :: proc(value: $T, loc := #caller_location) -> (newValue: T) {
+	newValue = value
+	for member in T {
+		PushId(HashIdFromInt(int(member)))
+			if RadioButton(member == value, strings.to_upper_camel_case(Format(member), ctx.allocator)) {
+				newValue = member
+			}
+		PopId()
+	}
+	return
+}
 
 /*
 	Combo box or whatever you want it to be
@@ -703,17 +898,19 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 
 	active = .active in bits
 	if active {
-		layer, ok = BeginLayer(AttachRectBottom(body, menuSize), sharedId, {})
+		layer, ok = BeginLayer(AttachRectBottom(body, menuSize + WINDOW_ROUNDNESS), sharedId, {})
 		layer.order = .popup
 
-		PaintRoundedRect(layer.body, WINDOW_ROUNDNESS, GetColor(.backing, 1))
+		PaintRoundedRectEx(layer.body, WINDOW_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.backing, 1))
+
 		PushLayout(layer.body)
+		CutSize(28)
 	}
 	return 
 }
 @private _Menu :: proc(layer: ^LayerData, active: bool) {
 	if active {
-		PaintRoundedRectOutline(layer.body, WINDOW_ROUNDNESS, true, GetColor(.text, 1))
+		PaintRoundedRectOutlineEx(layer.body, WINDOW_ROUNDNESS, true, {.bottomLeft, .bottomRight}, GetColor(.outlineBase, 1))
 		EndLayer(layer)
 		PopLayout()
 	}

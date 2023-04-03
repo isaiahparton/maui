@@ -94,7 +94,7 @@ WINDOW_TITLE_SIZE :: 40
 */
 WIDGET_HEIGHT :: 36
 WIDGET_ROUNDNESS :: 5
-WIDGET_TEXT_OFFSET :: WIDGET_ROUNDNESS + 3
+WIDGET_TEXT_OFFSET :: 5
 
 MAX_CONTROLS :: #config(MAUI_MAX_CONTROLS, 128)
 MAX_LAYERS :: #config(MAUI_MAX_LAYERS, 16)
@@ -140,11 +140,13 @@ ColorIndex :: enum {
 
 	// Clickable things
 	widgetBase,
+	widgetShade,
 	widgetHover,
 	widgetPress,
 
 	// Outline
 	outlineBase,
+	outlineShade,
 	outlineHover,
 	outlinePress,
 
@@ -268,14 +270,20 @@ Animation :: struct {
 	keepAlive: bool,
 	value: f32,
 }
+
+// Style
+Style :: struct {
+	colors: [ColorIndex]Color,
+}
+StyleGetWidgetColor :: proc(hover, press: f32) -> Color {
+	return BlendColors(ctx.style.colors[.widgetBase], ctx.style.colors[.widgetShade], (hover + press) * 0.2)
+}
+
 /*
 	The global state
 
 	TODO(isaiah): Add manual state swapping
 */
-Style :: struct {
-	colors: [ColorIndex]Color,
-}
 ContextOption :: enum {
 	showLayouts,
 	showLayers,
@@ -386,21 +394,6 @@ SetScreenSize :: proc(w, h: f32) {
 	ctx.size = {w, h}
 }
 
-ParseColor :: proc(text: string) -> (color: Color) {
-	if text[0] != '#' || (len(text) != 9 && len(text) != 7) {
-		return
-	}
-	color.a = 255
-	for i in 0 ..< (len(text) - 1) / 2 {
-		j := i * 2 + 1
-		value, yes := strconv.parse_u64_of_base(text[j:j + 2], 16)
-		if yes {
-			color[i] = u8(value)
-		}
-	}
-	return
-}
-
 Init :: proc() {
 	/*
 		Set up default context and set style
@@ -408,15 +401,22 @@ Init :: proc() {
 	ctx = new(Context)
 
 	//TODO(isaiah): do something with this!
-	ctx.style.colors[.accent] = ParseColor("#3578F3")
-	ctx.style.colors[.windowBase] = {28, 28, 28, 255}
-	ctx.style.colors[.backing] = {18, 18, 18, 255}
-	ctx.style.colors[.iconBase] = ParseColor("#858585")
-	ctx.style.colors[.widgetBase] = ParseColor("#2F2F2F")
-	ctx.style.colors[.widgetHover] = ParseColor("#373639")
-	ctx.style.colors[.widgetPress] = ParseColor("#575659")
-	ctx.style.colors[.textBright] = {255, 255, 255, 255}
-	ctx.style.colors[.text] = {200, 200, 200, 255}
+	{
+		using ctx.style
+		colors[.accent] = {53, 120, 243, 255}
+		colors[.windowBase] = {28, 28, 28, 255}
+		colors[.backing] = {18, 18, 18, 255}
+		colors[.iconBase] = {192, 192, 192, 255}
+		colors[.widgetBase] = {50, 50, 50, 255}
+		colors[.widgetHover] = {55, 54, 57, 255}
+		colors[.widgetPress] = {87, 86, 89, 255}
+		colors[.widgetShade] = {255, 255, 255, 255}
+
+		colors[.outlineBase] = {80, 80, 80, 255}
+
+		colors[.textBright] = {255, 255, 255, 255}
+		colors[.text] = {200, 200, 200, 255}
+	}
 	/*
 		Set up painter and load atlas
 	*/

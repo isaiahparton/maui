@@ -9,7 +9,7 @@ import "core:path/filepath"
 import "core:unicode/utf8"
 import rl "vendor:raylib"
 
-TEXTURE_WIDTH :: 2048
+TEXTURE_WIDTH :: 4096
 TEXTURE_HEIGHT :: 256
 
 TRIANGLE_STEP :: math.TAU / 3
@@ -166,7 +166,7 @@ GenCircles :: proc(painter: ^Painter, origin: Vec2) -> Vec2 {
 				// First row is filled
 				GenSmoothCircle(&painter.image, {rect.x + radius, rect.y + radius}, radius, CIRCLE_SMOOTHING)
 			} else {
-				GenSmoothRing(&painter.image, {rect.x + radius, rect.y + radius}, radius - f32(rowIndex) - 0.2, radius, CIRCLE_SMOOTHING)
+				GenSmoothRing(&painter.image, {rect.x + radius, rect.y + radius}, radius - f32(rowIndex) - 0.3, radius, CIRCLE_SMOOTHING)
 			}
 
 			// Space taken by this circle
@@ -539,7 +539,7 @@ PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) 
 		return
 	}
 	source := painter.circles[index].source
-	PaintTexture(source, {math.round(center.x - source.w / 2), math.round(center.y - source.h / 2), source.w, source.h}, color)
+	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
 }
 
 Corner :: enum {
@@ -630,9 +630,10 @@ PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 		PaintRect({rect.x + rect.w - halfWidth, rect.y + radius, halfWidth, rect.h - radius * 2}, color)
 	}
 }
+
 PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, thin: bool, color: Color) {
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
-	if index < 0 || index >= CIRCLE_SIZES {
+	if color.a == 0 || index < 0 || index >= CIRCLE_SIZES {
 		return
 	}
 	thickness: f32 = 1 if thin else 2
@@ -659,6 +660,52 @@ PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, thin: bool, color: Colo
 	if rect.h > radius * 2 {
 		PaintRect({rect.x, rect.y + radius, thickness, rect.h - radius * 2}, color)
 		PaintRect({rect.x + rect.w - thickness, rect.y + radius, thickness, rect.h - radius * 2}, color)
+	}
+}
+PaintRoundedRectOutlineEx :: proc(rect: Rect, radius: f32, thin: bool, corners: Corners, color: Color) {
+	index := int(radius * 2) - MIN_CIRCLE_SIZE
+	if color.a == 0 || index < 0 || index >= CIRCLE_SIZES {
+		return
+	}
+	thickness: f32 = 1 if thin else 2
+	source := painter.circles[index + (CIRCLE_SIZES if thin else (CIRCLE_SIZES * 2))].source
+	halfSize := math.trunc(source.w / 2)
+
+	halfWidth := min(halfSize, rect.w / 2)
+	halfHeight := min(halfSize, rect.h / 2)
+
+	if .topLeft in corners {
+		sourceTopLeft: Rect = {source.x, source.y, halfWidth, halfHeight}
+		PaintTexture(sourceTopLeft, {rect.x, rect.y, halfSize, halfSize}, color)
+	}
+	if .topRight in corners {
+		sourceTopRight: Rect = {source.x + source.w - halfWidth, source.y, halfWidth, halfHeight}
+		PaintTexture(sourceTopRight, {rect.x + rect.w - halfWidth, rect.y, halfSize, halfSize}, color)
+	}
+	if .bottomRight in corners {
+		sourceBottomRight: Rect = {source.x + source.w - halfWidth, source.y + source.h - halfHeight, halfWidth, halfHeight}
+		PaintTexture(sourceBottomRight, {rect.x + rect.w - halfSize, rect.y + rect.h - halfSize, halfSize, halfSize}, color)
+	}
+	if .bottomLeft in corners {
+		sourceBottomLeft: Rect = {source.x, source.y + source.h - halfHeight, halfWidth, halfHeight}
+		PaintTexture(sourceBottomLeft, {rect.x, rect.y + rect.h - halfHeight, halfSize, halfSize}, color)
+	}
+
+	if rect.w > radius * 2 {
+		topLeft := radius if .topLeft in corners else 0
+		topRight := radius if .topRight in corners else 0
+		bottomRight := radius if .bottomRight in corners else 0
+		bottomLeft := radius if .bottomLeft in corners else 0
+		PaintRect({rect.x + topLeft, rect.y, rect.w - (topLeft + topRight), thickness}, color)
+		PaintRect({rect.x + bottomLeft, rect.y + rect.h - thickness, rect.w - (bottomLeft + bottomRight), thickness}, color)
+	}
+	if rect.h > radius * 2 {
+		topLeft := radius if .topLeft in corners else 0
+		topRight := radius if .topRight in corners else 0
+		bottomRight := radius if .bottomRight in corners else 0
+		bottomLeft := radius if .bottomLeft in corners else 0
+		PaintRect({rect.x, rect.y + topLeft, thickness, rect.h - (topLeft + bottomLeft)}, color)
+		PaintRect({rect.x + rect.w - thickness, rect.y + topRight, thickness, rect.h - (topRight + bottomRight)}, color)
 	}
 }
 PaintCollapseArrow :: proc(center: Vec2, size, time: f32, color: Color) {

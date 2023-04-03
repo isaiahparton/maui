@@ -59,24 +59,34 @@ Render :: proc() {
 	rl.EndScissorMode()
 }
 
+Choices :: enum {
+	first,
+	second,
+	third,
+}
+
 main :: proc() {
+
+	// Demo values
+	choice: Choices = .first
 	close := false
 	value: f32 = 10.0
+	integer := 0
 	boolean := false
-	text := "Sämple Téxt"
 	buffer := make([dynamic]u8)
-	append_elem_string(&buffer, text)
+
 	// set up raylib
-	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
+	rl.SetConfigFlags({.WINDOW_RESIZABLE})
 	rl.SetTraceLogLevel(.NONE)
 	rl.InitWindow(1000, 800, "Maui Demo")
 	rl.MaximizeWindow()
-	rl.SetTargetFPS(300)
+	rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
 
 	ui.Init()
 
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
+	rl.SetTextureFilter(texture, .BILINEAR)
 	ui.DoneWithAtlasImage()
 
 	ui.SetScreenSize(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
@@ -111,10 +121,16 @@ main :: proc() {
 			ui.PushLayout(rect)
 				ui.Shrink(20)
 				//ui.CutSize(30)
-				ui.CheckBox(&boolean, "close window")
+				ui.CheckBox(&boolean, "Check Box")
 				ui.Space(10)
 				boolean = ui.ToggleSwitch(boolean)
 				ui.Space(10)
+				if ui.Layout(ui.Cut(.top, 30)) {
+					ui.CutSide(.left)
+					ui.CutSize(0.333, true)
+					choice = ui.RadioButtons(choice)
+				}
+				ui.Space(30)
 				ui.ButtonEx("sola fide")
 				ui.Space(10)
 				if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
@@ -122,11 +138,21 @@ main :: proc() {
 					copy(buffer[:], newData[:])
 				}
 				ui.Space(10)
-				if change, newValue := ui.SliderEx(value, 0, 20, "slider value"); change {
+				if change, newValue := ui.SliderEx(value, 0, 20, "Slider Value"); change {
 					value = newValue
 				}
 				ui.Space(10)
 				value = ui.NumberInputFloat32(value, "Enter a value")
+				ui.Space(10)
+				if layer, ok := ui.Menu("hi", 120); ok {
+					ui.MenuOption("hello")
+				}
+				ui.Space(10)
+				if ui.Layout(ui.Cut(.top, 30)) {
+					ui.CutSide(.left)
+					ui.CutSize(120)
+					integer = ui.Spinner(integer, -3, 3)
+				}
 			ui.PopLayout()
 		}
 
@@ -134,27 +160,13 @@ main :: proc() {
 			Drawing happens here
 		*/
 		ui.Prepare()
-		rl.ClearBackground({0, 0, 0, 255})
 
-		Render()
-
-		rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.WHITE)
-		rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.WHITE)
-		rl.DrawText("LAYER MAP:", 0, 100, 20, rl.WHITE)
-		{
-			offset := i32(0)
-			for id, value in ui.ctx.layerMap {
-				rl.DrawText(rl.TextFormat("%v: %v", id, value.body), 40, 120 + offset, 20, rl.WHITE)
-				offset += 20
-			}
-		}
-
-		if rl.IsKeyDown(.F2) {
-			for i in 0 ..< ui.MAX_CONTROLS {
-				if ui.ctx.controlExists[i] {
-					rl.DrawRectangleLinesEx(transmute(rl.Rectangle)ui.ctx.controls[i].body, 1, {255, 255, 0, 255})
-				}
-			}
+		rl.BeginDrawing()
+		if ui.ShouldRender() {
+			rl.ClearBackground({0, 0, 0, 255})
+			Render()
+			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.WHITE)
+			rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.WHITE)
 		}
 		rl.EndDrawing()
 

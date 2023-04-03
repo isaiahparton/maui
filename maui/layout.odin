@@ -63,13 +63,13 @@ CutRect :: proc(r: ^Rect, s: Side, a: f32) -> Rect {
 CutLayout :: proc(using layout: ^LayoutData) -> (result: Rect) {
 	switch side {
 		case .bottom:
-		result = CutRectBottom(&rect, rect.h * size if relative else size)
+		result = CutRectBottom(&rect, size)
 		case .top:
-		result = CutRectTop(&rect, rect.h * size if relative else size)
+		result = CutRectTop(&rect, size)
 		case .left:
-		result = CutRectLeft(&rect, rect.w * size if relative else size)
+		result = CutRectLeft(&rect, size)
 		case .right:
-		result = CutRectRight(&rect, rect.w * size if relative else size)
+		result = CutRectRight(&rect, size)
 	}
 	return
 }
@@ -130,7 +130,6 @@ LayoutData :: struct {
 	rect: Rect,
 	side: Side,
 	size: f32,
-	relative: bool,
 	// control alignment
 	alignX, alignY: Alignment,
 }
@@ -163,7 +162,14 @@ GetCurrentLayout :: proc() -> ^LayoutData {
 }
 CutSize :: proc(size: f32, relative := false) {
 	layout := GetCurrentLayout()
-	layout.relative = relative
+	if relative {
+		if layout.side == .top || layout.side == .bottom {
+			layout.size = layout.rect.h * size
+		} else {
+			layout.size = layout.rect.w * size
+		}
+		return
+	}
 	layout.size = size
 }
 CutSide :: proc(side: Side) {
