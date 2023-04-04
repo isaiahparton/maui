@@ -1,2 +1,2 @@
 @echo off
-odin run demo
+odin run demo -debug

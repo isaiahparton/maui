@@ -68,8 +68,12 @@ import "core:runtime"
 import "core:sort"
 import "core:strconv"
 import "core:unicode/utf8"
+import "core:math"
 import "core:slice"
 import rl "vendor:raylib"
+
+
+
 
 CursorType :: enum {
 	default,
@@ -84,17 +88,6 @@ CursorType :: enum {
 	resizeAll,
 	disabled,
 }
-/*
-	Window style settings
-*/
-WINDOW_ROUNDNESS :: 10
-WINDOW_TITLE_SIZE :: 40
-/*
-	Widget style settings
-*/
-WIDGET_HEIGHT :: 36
-WIDGET_ROUNDNESS :: 5
-WIDGET_TEXT_OFFSET :: 7
 
 MAX_CONTROLS :: #config(MAUI_MAX_CONTROLS, 128)
 MAX_LAYERS :: #config(MAUI_MAX_LAYERS, 16)
@@ -117,6 +110,7 @@ Value :: union {
 	Relative,
 }
 Vec2 :: [2]f32
+Vec3 :: [3]f32
 
 AnyVec2 :: [2]Value
 
@@ -130,38 +124,51 @@ RectVsRect :: proc(a, b: Rect) -> bool {
 RectContainsRect :: proc(a, b: Rect) -> bool {
 	return (b.x >= a.x) && (b.x + b.w <= a.x + a.w) && (b.y >= a.y) && (b.y + b.h <= a.y + a.h)
 }
+ExpandRect :: proc(rect: Rect, amount: f32) -> Rect {
+	return {rect.x - amount, rect.y - amount, rect.w + amount * 2, rect.h + amount * 2}
+}
 
+
+/*
+	Rectangle sides and corners
+*/
+Side :: enum {
+	top,
+	bottom,
+	left,
+	right,
+}
+Sides :: bit_set[Side;u8]
+
+Corner :: enum {
+	topLeft,
+	topRight,
+	bottomRight,
+	bottomLeft,
+}
+Corners :: bit_set[Corner;u8]
+ALL_CORNERS: Corners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
+SideCorners :: proc(sides: Sides) -> Corners {
+	corners: Corners = ALL_CORNERS
+	if .top in sides {
+		corners -= {.topLeft, .topRight}
+	}
+	if .bottom in sides {
+		corners -= {.bottomLeft, .bottomRight}
+	}
+	if .left in sides {
+		corners -= {.topLeft, .bottomLeft}
+	}
+	if .right in sides {
+		corners -= {.topRight, .bottomRight}
+	}
+	return corners
+}
+
+/*
+	Style and color scheme
+*/
 Color :: [4]u8
-ColorIndex :: enum {
-	windowBase,
-
-	// Background of text inputs and toggle switches
-	backing,
-
-	// Clickable things
-	widgetBase,
-	widgetShade,
-	widgetHover,
-	widgetPress,
-
-	// Outline
-	outlineBase,
-	outlineShade,
-	outlineHover,
-	outlinePress,
-
-	// Some bright accent color that stands out
-	accent,
-
-	shade,
-	iconBase,
-	text,
-	textBright,
-}
-GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
-	color := ctx.style.colors[index]
-	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
-}
 NormalizeColor :: proc(color: Color) -> [4]f32 {
     return {f32(color.r) / 255, f32(color.g) / 255, f32(color.b) / 255, f32(color.a) / 255}
 }
@@ -173,6 +180,84 @@ SetColorBrightness :: proc(color: Color, value: f32) -> Color {
 		cast(u8)clamp(i32(color.b) + delta, 0, 255),
 		color.a,
 	}
+}
+ColorToHSV :: proc(color: Color) -> Vec3 {
+	hsv: Vec3 = {}
+    rgb: Vec3 = { f32(color.r) / 255.0, f32(color.g) / 255.0, f32(color.b) / 255.0 };
+    min, max, delta: f32
+
+    min = rgb.x < rgb.y? rgb.x : rgb.y
+    min = min  < rgb.z? min  : rgb.z
+
+    max = rgb.x > rgb.y? rgb.x : rgb.y
+    max = max  > rgb.z? max  : rgb.z
+
+    hsv.z = max
+    delta = max - min
+
+    if delta < 0.00001 {
+        hsv.y = 0.0
+        hsv.x = 0.0
+        return hsv
+    }
+
+    if max > 0.0 {
+        hsv.y = (delta/max)
+    } else {
+        hsv.y = 0.0
+        hsv.x = 0.0
+        return hsv
+    }
+
+    if rgb.x >= max {
+    	hsv.x = (rgb.y - rgb.z)/delta
+    } else {
+        if rgb.y >= max { 
+        	hsv.x = 2.0 + (rgb.z - rgb.x) / delta
+        } else {
+        	hsv.x = 4.0 + (rgb.x - rgb.y) / delta
+        }
+    }
+
+    hsv.x *= 60.0
+
+    if hsv.x < 0.0 {
+    	hsv.x += 360.0
+    }
+
+    return hsv;
+}
+ColorFromHSV :: proc(hue, saturation, value: f32) -> Color {
+    color: Color = { 0, 0, 0, 255 }
+
+    // Red channel
+    k := math.mod((5.0 + hue / 60.0), 6)
+    t := 4.0 - k
+    k = (t < k)? t : k
+    k = (k < 1)? k : 1
+    k = (k > 0)? k : 0
+    color.r = u8((value - value * saturation * k) * 255.0)
+
+    // Green channel
+    k = math.mod((3.0 + hue / 60.0), 6)
+    t = 4.0 - k
+    k = (t < k)? t : k
+    k = (k < 1)? k : 1
+    k = (k > 0)? k : 0
+    color.g = u8((value - value * saturation * k) * 255.0)
+
+    // Blue channel
+    k = math.mod((1.0 + hue / 60.0), 6)
+    t = 4.0 - k
+    k = (t < k)? t : k
+    k = (k < 1)? k : 1
+    k = (k > 0)? k : 0
+    color.b = u8((value - value * saturation * k) * 255.0)
+
+    return color
+}
+Fade :: proc(color: Color, alpha: f32) -> Color {
+	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
 }
 
 /*
@@ -270,18 +355,6 @@ AnimateBool :: proc(id: Id, condition: bool, duration: f32) -> f32 {
 Animation :: struct {
 	keepAlive: bool,
 	value: f32,
-}
-
-// Style
-Style :: struct {
-	colors: [ColorIndex]Color,
-}
-StyleGetWidgetColor :: proc(hover, press: f32) -> Color {
-	return BlendThreeColors(ctx.style.colors[.widgetBase], ctx.style.colors[.widgetHover], ctx.style.colors[.widgetPress], hover + press)
-}
-StyleGetShadeColor :: proc(alpha: f32 = 1) -> Color {
-	color := ctx.style.colors[.shade]
-	return {color.r, color.g, color.b, u8(f32(color.a) * alpha * 0.1)}
 }
 
 /*
@@ -399,6 +472,8 @@ SetScreenSize :: proc(w, h: f32) {
 	ctx.size = {w, h}
 }
 
+
+
 Init :: proc() {
 	/*
 		Set up default context and set style
@@ -406,23 +481,7 @@ Init :: proc() {
 	ctx = new(Context)
 
 	//TODO(isaiah): do something with this!
-	{
-		using ctx.style
-		colors[.accent] = {53, 120, 243, 255}
-		colors[.windowBase] = {28, 28, 28, 255}
-		colors[.backing] = {18, 18, 18, 255}
-		colors[.iconBase] = {192, 192, 192, 255}
-		colors[.widgetBase] = {50, 50, 50, 255}
-		colors[.widgetHover] = {61, 60, 63, 255}
-		colors[.widgetPress] = {77, 76, 79, 255}
-		colors[.widgetShade] = {255, 255, 255, 255}
-
-		colors[.outlineBase] = {80, 80, 80, 255}
-
-		colors[.textBright] = {255, 255, 255, 255}
-		colors[.text] = {200, 200, 200, 255}
-		colors[.shade] = 255
-	}
+	ctx.style.colors = COLOR_SCHEME_LIGHT
 	/*
 		Set up painter and load atlas
 	*/

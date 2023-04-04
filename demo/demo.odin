@@ -73,6 +73,10 @@ main :: proc() {
 	value: f32 = 10.0
 	integer := 0
 	boolean := false
+
+	wifi := true
+	bluetooth := false
+
 	buffer := make([dynamic]u8)
 
 	// set up raylib
@@ -117,14 +121,36 @@ main :: proc() {
 
 		rect := ui.Cut(.right, 400)
 		if layer, ok := ui.Layer(rect); ok {
-			ui.PaintRect(layer.body, ui.GetColor(.windowBase, 1))
+			ui.PaintRect(layer.body, ui.GetColor(.foreground, 1))
 			ui.PushLayout(rect)
 				ui.Shrink(20)
 
 				ui.CheckBox(&boolean, "Check Box")
 
 				ui.Space(10)
-				boolean = ui.ToggleSwitch(boolean)
+				ui.CutSize(46)
+				if clicked, ok := ui.Widget("WiFi", {.bottom}); ok {
+					ui.CutSide(.right)
+					ui.CutSize(60)
+					ui.Align(.middle)
+					wifi = ui.ToggleSwitch(wifi)
+					ui.WidgetDivider()
+
+					if clicked {
+						wifi = !wifi
+					}
+				}
+				if clicked, ok := ui.Widget("Bluetooth", {.top}); ok {
+					ui.CutSide(.right)
+					ui.CutSize(60)
+					ui.Align(.middle)
+					bluetooth = ui.ToggleSwitch(bluetooth)
+					ui.WidgetDivider()
+
+					if clicked {
+						bluetooth = !bluetooth
+					}
+				}
 
 				ui.Space(10)
 				if ui.Layout(ui.Cut(.top, 30)) {
@@ -134,6 +160,7 @@ main :: proc() {
 				}
 
 				ui.Space(30)
+				ui.CutSize(32)
 				ui.Button("sola fide")
 
 				ui.Space(10)
@@ -159,7 +186,7 @@ main :: proc() {
 				if ui.Layout(ui.Cut(.top, 30)) {
 					ui.CutSide(.left)
 					ui.CutSize(120)
-					integer = ui.Spinner(integer, -3, 3)
+					integer = ui.Spinner(integer, -10, 10)
 				}
 			ui.PopLayout()
 		}
@@ -171,7 +198,7 @@ main :: proc() {
 
 		rl.BeginDrawing()
 		if ui.ShouldRender() {
-			rl.ClearBackground({0, 0, 0, 255})
+			rl.ClearBackground(ui.GetColor(.backing))
 			Render()
 			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.WHITE)
 			rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.WHITE)

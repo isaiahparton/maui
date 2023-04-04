@@ -106,7 +106,7 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 		Draw body
 	*/
 	if .collapsed not_in state {
-		PaintRoundedRect(drawRect, WINDOW_ROUNDNESS, GetColor(.windowBase, 1))
+		PaintRoundedRect(drawRect, WINDOW_ROUNDNESS, GetColor(.foreground, 1))
 	}
 
 	/*

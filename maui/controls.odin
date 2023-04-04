@@ -362,6 +362,7 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 
 	// Create new data slice
 	if change {
+		ctx.renderTime = 1
 		length := len(ctx.scribe.buffer) 
 		if format.capacity > 0 {
 			length = min(length, format.capacity)
@@ -475,7 +476,11 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 /*
 	Regular Button
 */
-ButtonEx :: proc(text: string, corners: Corners, loc := #caller_location) -> (result: bool) {
+ButtonStyle :: enum {
+	outlined,
+	contained,
+}
+ButtonPro :: proc(text: string, style: ButtonStyle, color: Color, corners: Corners, loc := #caller_location) -> (result: bool) {
 	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
 		using control
 
@@ -486,9 +491,10 @@ ButtonEx :: proc(text: string, corners: Corners, loc := #caller_location) -> (re
 			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.25)
 		PopId()
 
-		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
-		if .down not_in state && pressTime > 0 {
-			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, false, corners, GetColor(.outlineBase, pressTime))
+		if style == .outlined {
+			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, StyleApplyShade(color, hoverTime + pressTime))
+		} else {
+			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, StyleApplyShade(color, hoverTime + pressTime))
 		}
 		PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime), .middle, .middle)
 
@@ -497,8 +503,11 @@ ButtonEx :: proc(text: string, corners: Corners, loc := #caller_location) -> (re
 	}
 	return
 }
+ButtonEx :: proc(text: string, style: ButtonStyle, corners: Corners, loc := #caller_location) -> bool {
+	return ButtonPro(text, style, GetColor(.widgetBase), ALL_CORNERS, loc)
+}
 Button :: proc(text: string, loc := #caller_location) -> bool {
-	return ButtonEx(text, {.topLeft, .topRight, .bottomLeft, .bottomRight}, loc)
+	return ButtonEx(text, .contained, {.topLeft, .topRight, .bottomLeft, .bottomRight}, loc)
 }
 
 /*
@@ -693,7 +702,7 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		}
 
 		if stateTime < 1 {
-			PaintRoundedRect(body, 3, GetColor(.windowBase, 1))
+			PaintRoundedRect(body, 3, GetColor(.foreground, 1))
 			PaintRoundedRectOutline(body, 3, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime))
 		}
 		if stateTime > 0 {
@@ -765,7 +774,7 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 */
 ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 	newValue = value
-	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {32, 26}, .near, .middle)); ok {
+	if control, ok := BeginControl(HashId(loc), GetNextRectEx({34, 26})); ok {
 		using control
 
 		/*
@@ -809,7 +818,7 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 				PaintCircle(thumbCenter, 30, StyleGetShadeColor(pressTime))
 			}
 		}
-		PaintCircle(thumbCenter, 17, GetColor(.widgetBase, 1))
+		PaintCircle(thumbCenter, 17, GetColor(.foreground, 1))
 		PaintCircleOutline(thumbCenter, 19, true, strokeColor)
 		
 		if .released in state {
@@ -845,12 +854,16 @@ RadioButton :: proc(value: bool, name: string, loc := #caller_location) -> (sele
 		PopId()
 
 		center: Vec2 = {body.x + 12, body.y + 12}
-
-		PaintCircleOutline(center, 22 - 4 * pressTime, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime + stateTime))
+		outerRadius := 23 - 4 * pressTime
+		if hoverTime > 0 {
+			PaintCircle(center, 30, StyleGetShadeColor(hoverTime))
+			PaintCircle(center, outerRadius, GetColor(.foreground))
+		}
+		PaintCircleOutline(center, outerRadius, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime + stateTime))
 		if stateTime > 0 {
 			PaintCircle(center, rl.EaseCircOut(stateTime, 0, 14, 1), GetColor(.accent, 1))
 		}
-		PaintAlignedString(GetFontData(.default), name, {body.x + body.w + 5, center.y}, GetColor(.text, 1), .near, .middle)
+		PaintAlignedString(GetFontData(.default), name, {body.x + body.w + WIDGET_TEXT_OFFSET, center.y}, GetColor(.text, 1), .near, .middle)
 		if .released in state {
 			selected = true
 		}
@@ -922,5 +935,52 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 		PaintRoundedRectOutlineEx(layer.body, WINDOW_ROUNDNESS, true, {.bottomLeft, .bottomRight}, GetColor(.outlineBase, 1))
 		EndLayer(layer)
 		PopLayout()
+	}
+}
+
+/*
+	Widgets are buttons that contain other controls
+*/
+@(deferred_out=_Widget)
+Widget :: proc(label: string, sides: Sides, loc := #caller_location) -> (clicked, yes: bool) {
+	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
+		using control
+
+		UpdateControl(control)
+
+		PushId(id)
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
+		PopId()
+
+		corners := SideCorners(sides)
+		if hoverTime > 0 {
+			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, StyleGetShadeColor((hoverTime + pressTime) * 0.75))
+		}
+		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase))
+		PaintAlignedString(GetFontData(.default), label, {body.x + body.h * 0.25, body.y + body.h / 2}, GetColor(.text), .near, .middle)
+
+		EndControl(control)
+		PushLayout(body)
+
+		clicked = .released in state
+		yes = true
+	}
+	return
+}
+@private _Widget :: proc(clicked, yes: bool) {
+	if yes {
+		PopLayout()
+	}
+}
+
+/*
+	Widget divider
+*/
+WidgetDivider :: proc() {
+	using layout := GetCurrentLayout()
+	#partial switch side {
+		case .left: PaintRect({rect.x, rect.y + 10, 1, rect.h - 20}, GetColor(.outlineBase))
+		case .right: PaintRect({rect.x + rect.w, rect.y + 10, 1, rect.h - 20}, GetColor(.outlineBase))
 	}
 }

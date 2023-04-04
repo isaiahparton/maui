@@ -79,7 +79,7 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 		file = "IBMPlexSans-Regular.ttf",
 	},
 	.monospace = {
-		size = 24,
+		size = 22,
 		file = "Inconsolata_Condensed-SemiBold.ttf",
 	},
 	.label = {
@@ -527,7 +527,7 @@ PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
 	if index < 0 || index >= CIRCLE_SIZES {
 		return
 	}
-	source := painter.circles[index].source
+	source := ExpandRect(painter.circles[index].source, 1)
 	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
 }
 PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) {
@@ -538,17 +538,10 @@ PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) 
 	if index < 0 {
 		return
 	}
-	source := painter.circles[index].source
+	source := ExpandRect(painter.circles[index].source, 1)
 	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
 }
 
-Corner :: enum {
-	topLeft,
-	topRight,
-	bottomRight,
-	bottomLeft,
-}
-Corners :: bit_set[Corner;u8]
 PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Color) {
 	if rect.h == 0 || rect.w == 0 {
 		return

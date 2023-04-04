@@ -120,12 +120,6 @@ Cut :: proc(side: Side, amount: f32) -> Rect {
 /*
 	Layout
 */
-Side :: enum {
-	top,
-	bottom,
-	left,
-	right,
-}
 LayoutData :: struct {
 	rect: Rect,
 	side: Side,
@@ -150,15 +144,20 @@ PopLayout :: proc() {
 	using ctx
 	layoutDepth -= 1
 }
+
+/*
+	Current layout control
+*/
+Align :: proc(align: Alignment) {
+	layout := GetCurrentLayout()
+	layout.alignX = align
+	layout.alignY = align
+}
 AlignX :: proc(align: Alignment) {
 	GetCurrentLayout().alignX = align
 }
 AlignY :: proc(align: Alignment) {
 	GetCurrentLayout().alignY = align
-}
-GetCurrentLayout :: proc() -> ^LayoutData {
-	using ctx
-	return &layouts[layoutDepth - 1]
 }
 CutSize :: proc(size: f32, relative := false) {
 	layout := GetCurrentLayout()
@@ -179,22 +178,29 @@ Space :: proc(a: f32) {
 	l := GetCurrentLayout()
 	CutRect(&l.rect, l.side, a)
 }
-
 Shrink :: proc(a: f32) {
 	l := GetCurrentLayout()
 	l.rect = ShrinkRect(l.rect, a)
+}
+
+GetCurrentLayout :: proc() -> ^LayoutData {
+	using ctx
+	return &layouts[layoutDepth - 1]
 }
 GetNextRect :: proc() -> Rect {
 	layout := GetCurrentLayout()
 	ctx.lastRect = UseNextRect() or_else CutLayout(layout)
 	return ctx.lastRect
 }
-GetNextRectEx :: proc(size: Vec2, alignX, alignY: Alignment) -> Rect {
+GetNextRectEx :: proc(size: Vec2) -> Rect {
 	layout := GetCurrentLayout()
 	layout.size = max(layout.size, size.x)
-	return ChildRect(UseNextRect() or_else CutLayout(layout), size, alignX, alignY)
+	return ChildRect(UseNextRect() or_else CutLayout(layout), size, layout.alignX, layout.alignY)
 }
 
+/*
+	Manual layouts
+*/
 @(deferred_out=_Layout)
 Layout :: proc(r: Rect) -> (ok: bool) {
 	PushLayout(r)
