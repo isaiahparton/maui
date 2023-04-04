@@ -94,7 +94,7 @@ WINDOW_TITLE_SIZE :: 40
 */
 WIDGET_HEIGHT :: 36
 WIDGET_ROUNDNESS :: 5
-WIDGET_TEXT_OFFSET :: 5
+WIDGET_TEXT_OFFSET :: 7
 
 MAX_CONTROLS :: #config(MAUI_MAX_CONTROLS, 128)
 MAX_LAYERS :: #config(MAUI_MAX_LAYERS, 16)
@@ -153,11 +153,12 @@ ColorIndex :: enum {
 	// Some bright accent color that stands out
 	accent,
 
+	shade,
 	iconBase,
 	text,
 	textBright,
 }
-GetColor :: proc(index: ColorIndex, alpha: f32) -> Color {
+GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
 	color := ctx.style.colors[index]
 	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
 }
@@ -277,6 +278,10 @@ Style :: struct {
 }
 StyleGetWidgetColor :: proc(hover, press: f32) -> Color {
 	return BlendThreeColors(ctx.style.colors[.widgetBase], ctx.style.colors[.widgetHover], ctx.style.colors[.widgetPress], hover + press)
+}
+StyleGetShadeColor :: proc(alpha: f32 = 1) -> Color {
+	color := ctx.style.colors[.shade]
+	return {color.r, color.g, color.b, u8(f32(color.a) * alpha * 0.1)}
 }
 
 /*
@@ -408,7 +413,7 @@ Init :: proc() {
 		colors[.backing] = {18, 18, 18, 255}
 		colors[.iconBase] = {192, 192, 192, 255}
 		colors[.widgetBase] = {50, 50, 50, 255}
-		colors[.widgetHover] = {65, 64, 67, 255}
+		colors[.widgetHover] = {61, 60, 63, 255}
 		colors[.widgetPress] = {77, 76, 79, 255}
 		colors[.widgetShade] = {255, 255, 255, 255}
 
@@ -416,6 +421,7 @@ Init :: proc() {
 
 		colors[.textBright] = {255, 255, 255, 255}
 		colors[.text] = {200, 200, 200, 255}
+		colors[.shade] = 255
 	}
 	/*
 		Set up painter and load atlas

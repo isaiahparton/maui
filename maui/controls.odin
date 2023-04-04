@@ -475,23 +475,27 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 /*
 	Regular Button
 */
-ButtonEx :: proc(text: string, corners: Corners, loc := #caller_location) -> bool {
-	using control, ok := BeginControl(HashId(loc), GetNextRect())
-	if !ok {
-		return false
+ButtonEx :: proc(text: string, corners: Corners, loc := #caller_location) -> (result: bool) {
+	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
+		using control
+
+		UpdateControl(control)
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.25)
+		PopId()
+
+		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
+		if .down not_in state && pressTime > 0 {
+			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, false, corners, GetColor(.outlineBase, pressTime))
+		}
+		PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime), .middle, .middle)
+
+		EndControl(control)
+		result = .released in state
 	}
-	UpdateControl(control)
-
-	PushId(id) 
-		hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-		pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
-	PopId()
-
-	PaintRoundedRectEx(body, 5, corners, StyleGetWidgetColor(hoverTime, pressTime))
-	PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text, 1), .middle, .middle)
-
-	EndControl(control)
-	return .released in state
+	return
 }
 Button :: proc(text: string, loc := #caller_location) -> bool {
 	return ButtonEx(text, {.topLeft, .topRight, .bottomLeft, .bottomRight}, loc)
@@ -618,9 +622,7 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 	Rectangle Slider
 */
 SliderEx :: proc(value, low, high: f32, name: string, loc := #caller_location) -> (change: bool, newValue: f32) {
-	rect := GetNextRect()
-	rect = ChildRect(rect, {rect.w, 10}, .near, .middle)
-	if control, ok := BeginControl(HashId(loc), rect); ok {
+	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
 		using control
 
 		control.opts += {.draggable}
@@ -631,18 +633,16 @@ SliderEx :: proc(value, low, high: f32, name: string, loc := #caller_location) -
 			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
 		PopId()
 
-		/*PaintRoundedRect(body, WIDGET_ROUNDNESS, GetColor(.widgetBase, 1))
+		PaintRoundedRect(body, WIDGET_ROUNDNESS, GetColor(.widgetBase, 1))
 		PaintRoundedRect({body.x, body.y, body.w * clamp((value - low) / high, 0, 1), body.h}, WIDGET_ROUNDNESS, BlendColors(GetColor(.widgetPress, 1), GetColor(.accent, 1), hoverTime))
-		PaintAlignedString(GetFontData(.default), StringFormat("%s: %.2f", name, value), {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.text, 1), GetColor(.textBright, 1), hoverTime), .middle, .middle)*/
-		PaintRoundedRect(body, body.h / 2, GetColor(.backing, 1))
-
-		thumbCenter: Vec2 = {body.x + body.w * ((value - low) / (high - low)), body.y + 5}
-		PaintCircle(thumbCenter, 20, StyleGetWidgetColor(hoverTime, pressTime))
-		PaintCircle(thumbCenter, 12 + 2 * hoverTime - 4 * pressTime, GetColor(.accent, 1))
+		PaintAlignedString(GetFontData(.default), StringFormat("%s: %.2f", name, value), {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.text, 1), GetColor(.textBright, 1), hoverTime), .middle, .middle)
 
 		if .down in state {
 			change = true
 			newValue = clamp(low + ((input.mousePos.x - body.x) / body.w) * (high - low), low, high)
+		}
+		if .hovered in state {
+			ctx.cursor = .resizeEW
 		}
 
 		EndControl(control)
@@ -676,23 +676,31 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		body.w = 22
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
 			stateTime := AnimateBool(HashIdFromInt(2), active, 0.075)
 		PopId()
 
-		PaintRoundedRect(
-			body, 
-			3, 
-			BlendColors(GetColor(.accent, stateTime), {255, 255, 255, 255}, pressTime * 0.25),
-			)
+		center: Vec2 = {body.x + 11, body.y + 11}
+		if hoverTime > 0 {
+			PaintCircle(center, 34, StyleGetShadeColor(hoverTime))
+		}
+		if pressTime > 0 {
+			if .down in state {
+				PaintCircle(center, 26 + pressTime * 8, StyleGetShadeColor(1))
+			} else {
+				PaintCircle(center, 34, StyleGetShadeColor(pressTime))
+			}
+		}
 
 		if stateTime < 1 {
+			PaintRoundedRect(body, 3, GetColor(.windowBase, 1))
 			PaintRoundedRectOutline(body, 3, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime))
 		}
 		if stateTime > 0 {
-			DrawIconEx(.minus if status == .unknown else .check, {body.x + 11, body.y + 11}, stateTime, .middle, .middle, GetColor(.textBright, 1))
+			PaintRoundedRect(body, 3, GetColor(.accent, stateTime))
+			DrawIconEx(.minus if status == .unknown else .check, center, stateTime, .middle, .middle, GetColor(.textBright, 1))
 		}
-		PaintString(GetFontData(.default), text, {body.x + body.w + WIDGET_TEXT_OFFSET, body.y + 10 - textSize.y / 2}, GetColor(.text, 1))
+		PaintString(GetFontData(.default), text, {body.x + body.w + WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
 		if .released in state {
 			if status != .on {
 				newValue = true
@@ -757,7 +765,7 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 */
 ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 	newValue = value
-	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {32, 24}, .near, .middle)); ok {
+	if control, ok := BeginControl(HashId(loc), ChildRect(GetNextRect(), {32, 26}, .near, .middle)); ok {
 		using control
 
 		/*
@@ -769,8 +777,8 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 			Animation
 		*/
 		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
 			howOn := AnimateBool(HashIdFromInt(2), value, 0.2)
 		PopId()
 
@@ -780,14 +788,29 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 		move := baseRect.w - baseRect.h
 		thumbCenter := start + {move * (rl.EaseBackOut(howOn, 0, 1, 1) if value else rl.EaseBackIn(howOn, 0, 1, 1)), 0}
 
+		strokeColor := BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), howOn)
 		if howOn < 1 {
-			PaintRoundedRectOutline(baseRect, baseRadius, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), howOn))
+			PaintRoundedRectOutline(baseRect, baseRadius, true, strokeColor)
 		}
 		if howOn > 0 {
-			PaintRoundedRect({baseRect.x, baseRect.y, thumbCenter.x - baseRect.x, baseRect.h}, baseRadius, GetColor(.accent, 1))
+			if howOn < 1 {
+				PaintRoundedRect({baseRect.x, baseRect.y, thumbCenter.x - baseRect.x, baseRect.h}, baseRadius, GetColor(.accent, 1))
+			} else {
+				PaintRoundedRect(baseRect, baseRadius, GetColor(.accent, 1))
+			}
 		}
-		PaintCircle(thumbCenter, 17, StyleGetWidgetColor(hoverTime, pressTime))
-		PaintCircleOutline(thumbCenter, 19, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime + howOn))
+		if hoverTime > 0 {
+			PaintCircle(thumbCenter, 30, StyleGetShadeColor(hoverTime))
+		}
+		if pressTime > 0 {
+			if .down in state {
+				PaintCircle(thumbCenter, 19 + 11 * pressTime, StyleGetShadeColor())
+			} else {
+				PaintCircle(thumbCenter, 30, StyleGetShadeColor(pressTime))
+			}
+		}
+		PaintCircle(thumbCenter, 17, GetColor(.widgetBase, 1))
+		PaintCircleOutline(thumbCenter, 19, true, strokeColor)
 		
 		if .released in state {
 			newValue = !value

@@ -16,7 +16,7 @@ TRIANGLE_STEP :: math.TAU / 3
 
 // up to how small/big should circles be pre-rendered?
 MIN_CIRCLE_SIZE :: 2
-MAX_CIRCLE_SIZE :: 29
+MAX_CIRCLE_SIZE :: 40
 CIRCLE_SIZES :: MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE
 
 MAX_CIRCLE_STROKE_SIZE :: 2
@@ -290,7 +290,7 @@ GenAtlas :: proc(using painter: ^Painter) {
 
 	offset :f32= 0
 	for data, index in FONT_LOAD_DATA {
-		font, success := GenFont({512 + offset, 0}, StringFormat("fonts/%s", data.file), data.size, 256)
+		font, success := GenFont({1024 + offset, 0}, StringFormat("fonts/%s", data.file), data.size, 256)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
 			continue
@@ -301,7 +301,7 @@ GenAtlas :: proc(using painter: ^Painter) {
 
 	offset = 0
 	for font in fonts {
-		rl.ImageDraw(&image, font.image, {0, 0, f32(font.image.width), f32(font.image.height)}, {512 + offset, 0, f32(font.image.width), f32(font.image.height)}, rl.WHITE)
+		rl.ImageDraw(&image, font.image, {0, 0, f32(font.image.width), f32(font.image.height)}, {1024 + offset, 0, f32(font.image.width), f32(font.image.height)}, rl.WHITE)
 		offset += f32(font.image.width)
 		rl.UnloadImage(font.image)
 	}

@@ -87,7 +87,7 @@ main :: proc() {
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
 	rl.SetTextureFilter(texture, .BILINEAR)
-	ui.DoneWithAtlasImage()
+	//ui.DoneWithAtlasImage()
 
 	ui.SetScreenSize(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
 
@@ -177,6 +177,10 @@ main :: proc() {
 			rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.WHITE)
 		}
 		rl.EndDrawing()
+
+		if rl.IsKeyPressed(.F3) {
+			rl.ExportImage(image, "atlas.png")
+		}
 
 		if rl.WindowShouldClose() || close {
 			break
