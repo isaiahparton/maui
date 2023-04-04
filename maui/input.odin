@@ -20,6 +20,7 @@ Key :: enum {
 	up,
 	down,
 	a,
+	x,
 	c,
 	v,
 }

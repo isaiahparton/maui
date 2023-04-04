@@ -276,7 +276,7 @@ Style :: struct {
 	colors: [ColorIndex]Color,
 }
 StyleGetWidgetColor :: proc(hover, press: f32) -> Color {
-	return BlendColors(ctx.style.colors[.widgetBase], ctx.style.colors[.widgetShade], (hover + press) * 0.2)
+	return BlendThreeColors(ctx.style.colors[.widgetBase], ctx.style.colors[.widgetHover], ctx.style.colors[.widgetPress], hover + press)
 }
 
 /*
@@ -408,8 +408,8 @@ Init :: proc() {
 		colors[.backing] = {18, 18, 18, 255}
 		colors[.iconBase] = {192, 192, 192, 255}
 		colors[.widgetBase] = {50, 50, 50, 255}
-		colors[.widgetHover] = {55, 54, 57, 255}
-		colors[.widgetPress] = {87, 86, 89, 255}
+		colors[.widgetHover] = {65, 64, 67, 255}
+		colors[.widgetPress] = {77, 76, 79, 255}
 		colors[.widgetShade] = {255, 255, 255, 255}
 
 		colors[.outlineBase] = {80, 80, 80, 255}
@@ -715,6 +715,33 @@ BlendColors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
 			u8((f32(fg.g) - f32(bg.g)) * amount),
 			u8((f32(fg.b) - f32(bg.b)) * amount),
 			u8((f32(fg.a) - f32(bg.a)) * amount),
+		}
+	}
+	return
+}
+BlendThreeColors :: proc(first, second, third: Color, time: f32) -> (result: Color) {
+	if time <= 0 {
+		result = first
+	} else if time == 1 {
+		result = second
+	} else if time >= 2 {
+		result = third
+	} else {
+		firstTime := min(1, time)
+		result = first + {
+			u8((f32(second.r) - f32(first.r)) * firstTime),
+			u8((f32(second.g) - f32(first.g)) * firstTime),
+			u8((f32(second.b) - f32(first.b)) * firstTime),
+			u8((f32(second.a) - f32(first.a)) * firstTime),
+		}
+		if time > 1 {
+			secondTime := time - 1
+			result += {
+				u8((f32(third.r) - f32(second.r)) * secondTime),
+				u8((f32(third.g) - f32(second.g)) * secondTime),
+				u8((f32(third.b) - f32(second.b)) * secondTime),
+				u8((f32(third.a) - f32(second.a)) * secondTime),
+			}
 		}
 	}
 	return

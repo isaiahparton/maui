@@ -120,33 +120,41 @@ main :: proc() {
 			ui.PaintRect(layer.body, ui.GetColor(.windowBase, 1))
 			ui.PushLayout(rect)
 				ui.Shrink(20)
-				//ui.CutSize(30)
+
 				ui.CheckBox(&boolean, "Check Box")
+
 				ui.Space(10)
 				boolean = ui.ToggleSwitch(boolean)
+
 				ui.Space(10)
 				if ui.Layout(ui.Cut(.top, 30)) {
 					ui.CutSide(.left)
 					ui.CutSize(0.333, true)
 					choice = ui.RadioButtons(choice)
 				}
+
 				ui.Space(30)
-				ui.ButtonEx("sola fide")
+				ui.Button("sola fide")
+
 				ui.Space(10)
 				if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
 					resize(&buffer, len(newData))
 					copy(buffer[:], newData[:])
 				}
+
 				ui.Space(10)
 				if change, newValue := ui.SliderEx(value, 0, 20, "Slider Value"); change {
 					value = newValue
 				}
+
 				ui.Space(10)
 				value = ui.NumberInputFloat32(value, "Enter a value")
+
 				ui.Space(10)
 				if layer, ok := ui.Menu("hi", 120); ok {
 					ui.MenuOption("hello")
 				}
+				
 				ui.Space(10)
 				if ui.Layout(ui.Cut(.top, 30)) {
 					ui.CutSide(.left)

@@ -71,12 +71,12 @@ FontLoadData :: struct {
 
 FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	.default = {
-		size = 24,
-		file = "Muli-SemiBold.ttf",
+		size = 22,
+		file = "IBMPlexSans-Regular.ttf",
 	},
 	.header = {
 		size = 32,
-		file = "Muli-SemiBold.ttf",
+		file = "IBMPlexSans-Regular.ttf",
 	},
 	.monospace = {
 		size = 24,
@@ -84,7 +84,7 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	},
 	.label = {
 		size = 18,
-		file = "Muli-SemiBold.ttf",
+		file = "IBMPlexSans-Regular.ttf",
 	},
 }
 
