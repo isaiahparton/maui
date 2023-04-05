@@ -1,6 +1,8 @@
 package maui
 import "core:fmt"
 
+//TODO(isaiah): Rethink, how layouts work, add functionality for unknown layout size
+
 // place a rect in a nother rect
 ChildRect :: proc(parent: Rect, size: Vec2, alignX, alignY: Alignment) -> Rect {
 	rect := Rect{0, 0, size.x, size.y}
@@ -126,6 +128,7 @@ LayoutData :: struct {
 	size: f32,
 	// control alignment
 	alignX, alignY: Alignment,
+	growX, growY: bool,
 }
 PushLayout :: proc(rect: Rect) {
 	using ctx

@@ -268,7 +268,7 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 				if .numeric in format.options {
 					for i in 0 ..< input.runeCount {
 						glyph := int(input.runes[i])
-						if (glyph >= 48 && glyph <= 57) || (glyph == 46 && .integer not_in format.options) {
+						if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .integer not_in format.options) {
 							ScribeInsertRunes(input.runes[i:i+1])
 							change = true
 						}
@@ -507,9 +507,9 @@ ButtonPro :: proc(text: string, style: ButtonStyle, color: Color, corners: Corne
 			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, strokeColor)
 			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, strokeColor, .middle, .middle)
 		} else {
-			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, StyleGetWidgetColor(color, hoverTime + pressTime))
-			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, false, corners, StyleGetShadeColor(hoverTime))
-			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright), .middle, .middle)
+			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, BlendColors(GetColor(.widgetBase), GetColor(.widgetPress), pressTime))
+			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase, hoverTime))
+			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime), .middle, .middle)
 		}
 		
 
@@ -528,26 +528,26 @@ Button :: proc(text: string, loc := #caller_location) -> bool {
 /*
 	Icon Buttons
 */
-IconButtonEx :: proc(icon: IconIndex, corners: Corners, loc := #caller_location) -> bool {
-	using control, ok := BeginControl(HashId(loc), GetNextRect())
-	if !ok {
-		return false
+IconButtonEx :: proc(icon: IconIndex, corners: Corners, loc := #caller_location) -> (result: bool) {
+	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
+		using control
+		UpdateControl(control)
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+		PopId()
+
+		PaintRoundedRectEx(body, 5, corners, BlendColors(GetColor(.widgetBase, 1), GetColor(.widgetPress, 1), pressTime))
+		if hoverTime > 0 {
+			PaintRoundedRectOutlineEx(body, 5, true, corners, GetColor(.widgetPress, hoverTime))
+		}
+		DrawIconEx(icon, {body.x + body.w / 2, body.y + body.h / 2}, 1, .middle, .middle, GetColor(.text, 1))
+
+		EndControl(control)
+		result = .released in state
 	}
-	UpdateControl(control)
-
-	PushId(id) 
-		hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-		pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
-	PopId()
-
-	PaintRoundedRectEx(body, 5, corners, BlendColors(GetColor(.widgetBase, 1), GetColor(.widgetPress, 1), pressTime))
-	if hoverTime > 0 {
-		PaintRoundedRectOutlineEx(body, 5, true, corners, GetColor(.widgetPress, hoverTime))
-	}
-	DrawIconEx(icon, {body.x + body.w / 2, body.y + body.h / 2}, 1, .middle, .middle, GetColor(.text, 1))
-
-	EndControl(control)
-	return .released in state
+	return
 }
 IconButton :: proc(icon: IconIndex, loc := #caller_location) -> bool {
 	return IconButtonEx(icon, {.topLeft, .topRight, .bottomLeft, .bottomRight}, loc)
@@ -556,23 +556,23 @@ IconButton :: proc(icon: IconIndex, loc := #caller_location) -> bool {
 /*
 	Button option for menus
 */
-MenuOption :: proc(text: string, loc := #caller_location) -> bool {
-	using control, ok := BeginControl(HashId(loc), GetNextRect())
-	if !ok {
-		return false
+MenuOption :: proc(text: string, loc := #caller_location) -> (result: bool) {
+	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
+		using control
+		UpdateControl(control)
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+		PopId()
+
+		PaintRect(body, GetColor(.widgetBase, (hoverTime + pressTime) * 0.5))
+		PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text, 1), .middle, .middle)
+
+		EndControl(control)
+		result = .released in state
 	}
-	UpdateControl(control)
-
-	PushId(id) 
-		hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-		pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
-	PopId()
-
-	PaintRect(body, GetColor(.widgetBase, (hoverTime + pressTime) * 0.5))
-	PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text, 1), .middle, .middle)
-
-	EndControl(control)
-	return .released in state
+	return result
 }
 
 /*
@@ -699,8 +699,8 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		*/
 		body.w = 22
 		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
 			stateTime := AnimateBool(HashIdFromInt(2), active, 0.075)
 		PopId()
 
@@ -965,7 +965,7 @@ Widget :: proc(label: string, sides: Sides, loc := #caller_location) -> (clicked
 
 		PushId(id)
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
 		PopId()
 
 		corners := SideCorners(sides)
@@ -997,5 +997,31 @@ WidgetDivider :: proc() {
 	#partial switch side {
 		case .left: PaintRect({rect.x, rect.y + 10, 1, rect.h - 20}, GetColor(.outlineBase))
 		case .right: PaintRect({rect.x + rect.w, rect.y + 10, 1, rect.h - 20}, GetColor(.outlineBase))
+	}
+}
+
+/*
+	Sections
+*/
+@(deferred_out=_Section)
+Section :: proc(size: f32, label: string, sides: Sides) -> (ok: bool) {
+	CutSize(size)
+	rect := GetNextRect()
+
+	PaintRoundedRectOutlineEx(rect, WIDGET_ROUNDNESS, true, SideCorners(sides), GetColor(.outlineBase))
+	if len(label) != 0 {
+		font := GetFontData(.default)
+		textSize := MeasureString(font, label)
+		PaintRect({rect.x + WIDGET_ROUNDNESS + WIDGET_TEXT_OFFSET - 2, rect.y, textSize.x + 4, 1}, GetColor(.foreground))
+		PaintString(GetFontData(.default), label, {rect.x + WIDGET_ROUNDNESS + WIDGET_TEXT_OFFSET, rect.y - textSize.y / 2}, GetColor(.text))
+	}
+
+	PushLayout(rect)
+	Shrink(20)
+	return true
+}
+@private _Section :: proc(ok: bool) {
+	if ok {
+		PopLayout()
 	}
 }

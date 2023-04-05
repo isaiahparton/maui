@@ -41,10 +41,6 @@ LayerData :: struct {
 	commandOffset: i32,
 }
 
-LayerOptions :: struct {
-	origin, size: AnyVec2,
-}
-
 GetCurrentLayer :: proc() -> ^LayerData {
 	using ctx
 	return layerStack[layerDepth - 1]

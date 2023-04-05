@@ -66,10 +66,14 @@ package maui
 import "core:fmt"
 import "core:runtime"
 import "core:sort"
+import "core:slice"
+
 import "core:strconv"
 import "core:unicode/utf8"
+
 import "core:math"
-import "core:slice"
+import "core:math/linalg"
+
 import rl "vendor:raylib"
 
 
@@ -103,16 +107,9 @@ ID_STACK_SIZE :: 8
 KEY_REPEAT_DELAY :: 0.5
 KEY_REPEAT_RATE :: 24
 
-Absolute :: i32
-Relative :: f32
-Value :: union {
-	Absolute,
-	Relative,
-}
 Vec2 :: [2]f32
 Vec3 :: [3]f32
-
-AnyVec2 :: [2]Value
+Vec4 :: [4]f32
 
 VecVsRect :: proc(v: Vec2, r: Rect) -> bool {
 	return (v.x >= r.x) && (v.x <= r.x + r.w) && (v.y >= r.y) && (v.y <= r.y + r.h)
@@ -182,79 +179,12 @@ SetColorBrightness :: proc(color: Color, value: f32) -> Color {
 	}
 }
 ColorToHSV :: proc(color: Color) -> Vec3 {
-	hsv: Vec3 = {}
-    rgb: Vec3 = { f32(color.r) / 255.0, f32(color.g) / 255.0, f32(color.b) / 255.0 };
-    min, max, delta: f32
-
-    min = rgb.x < rgb.y? rgb.x : rgb.y
-    min = min  < rgb.z? min  : rgb.z
-
-    max = rgb.x > rgb.y? rgb.x : rgb.y
-    max = max  > rgb.z? max  : rgb.z
-
-    hsv.z = max
-    delta = max - min
-
-    if delta < 0.00001 {
-        hsv.y = 0.0
-        hsv.x = 0.0
-        return hsv
-    }
-
-    if max > 0.0 {
-        hsv.y = (delta/max)
-    } else {
-        hsv.y = 0.0
-        hsv.x = 0.0
-        return hsv
-    }
-
-    if rgb.x >= max {
-    	hsv.x = (rgb.y - rgb.z)/delta
-    } else {
-        if rgb.y >= max { 
-        	hsv.x = 2.0 + (rgb.z - rgb.x) / delta
-        } else {
-        	hsv.x = 4.0 + (rgb.x - rgb.y) / delta
-        }
-    }
-
-    hsv.x *= 60.0
-
-    if hsv.x < 0.0 {
-    	hsv.x += 360.0
-    }
-
-    return hsv;
+	hsva := linalg.vector4_rgb_to_hsl(linalg.Vector4f32{f32(color.r) / 255.0, f32(color.g) / 255.0, f32(color.b) / 255.0, f32(color.a) / 255.0})
+	return hsva.xyz
 }
 ColorFromHSV :: proc(hue, saturation, value: f32) -> Color {
-    color: Color = { 0, 0, 0, 255 }
-
-    // Red channel
-    k := math.mod((5.0 + hue / 60.0), 6)
-    t := 4.0 - k
-    k = (t < k)? t : k
-    k = (k < 1)? k : 1
-    k = (k > 0)? k : 0
-    color.r = u8((value - value * saturation * k) * 255.0)
-
-    // Green channel
-    k = math.mod((3.0 + hue / 60.0), 6)
-    t = 4.0 - k
-    k = (t < k)? t : k
-    k = (k < 1)? k : 1
-    k = (k > 0)? k : 0
-    color.g = u8((value - value * saturation * k) * 255.0)
-
-    // Blue channel
-    k = math.mod((1.0 + hue / 60.0), 6)
-    t = 4.0 - k
-    k = (t < k)? t : k
-    k = (k < 1)? k : 1
-    k = (k > 0)? k : 0
-    color.b = u8((value - value * saturation * k) * 255.0)
-
-    return color
+    rgba := linalg.vector4_hsl_to_rgb(hue, saturation, value, 1.0)
+    return {u8(rgba.r * 255.0), u8(rgba.g * 255.0), u8(rgba.b * 255.0), u8(rgba.a * 255.0)}
 }
 Fade :: proc(color: Color, alpha: f32) -> Color {
 	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
