@@ -166,7 +166,7 @@ GenCircles :: proc(painter: ^Painter, origin: Vec2) -> Vec2 {
 				// First row is filled
 				GenSmoothCircle(&painter.image, {rect.x + radius, rect.y + radius}, radius, CIRCLE_SMOOTHING)
 			} else {
-				GenSmoothRing(&painter.image, {rect.x + radius, rect.y + radius}, radius - f32(rowIndex) - 0.3, radius, CIRCLE_SMOOTHING)
+				GenSmoothRing(&painter.image, {rect.x + radius, rect.y + radius}, radius - f32(rowIndex), radius, CIRCLE_SMOOTHING)
 			}
 
 			// Space taken by this circle

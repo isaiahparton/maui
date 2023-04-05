@@ -161,7 +161,7 @@ main :: proc() {
 
 				ui.Space(30)
 				ui.CutSize(32)
-				ui.Button("sola fide")
+				ui.ButtonEx("SOLA FIDE", .contained, ui.GetColor(.accent))
 
 				ui.Space(10)
 				if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
@@ -198,7 +198,7 @@ main :: proc() {
 
 		rl.BeginDrawing()
 		if ui.ShouldRender() {
-			rl.ClearBackground(ui.GetColor(.backing))
+			rl.ClearBackground(transmute(rl.Color)ui.GetColor(.backing))
 			Render()
 			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.WHITE)
 			rl.DrawText(rl.TextFormat("COMMANDS: %i", commandCount), 0, 20, 20, rl.WHITE)

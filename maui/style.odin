@@ -29,9 +29,10 @@ COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
 	.iconBase = {135, 135, 135, 255},
 
 	.widgetBase = {170, 170, 174, 255},
-	.widgetHover = {162, 163, 169, 255},
-	.widgetPress = {150, 151, 157, 255},
+	.widgetHover = {152, 153, 159, 255},
+	.widgetPress = {130, 131, 137, 255},
 	.widgetShade = {0, 0, 0, 255},
+	.widgetText = {255, 255, 255, 255},
 
 	.outlineBase = {112, 113, 116, 255},
 
@@ -49,6 +50,7 @@ COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {
 	.widgetHover = {61, 60, 63, 255},
 	.widgetPress = {77, 76, 79, 255},
 	.widgetShade = {255, 255, 255, 255},
+	.widgetText = {28, 28, 28, 255},
 
 	.outlineBase = {80, 80, 80, 255},
 
@@ -68,6 +70,7 @@ ColorIndex :: enum {
 	widgetShade,
 	widgetHover,
 	widgetPress,
+	widgetText,
 
 	// Outline
 	outlineBase,
@@ -93,8 +96,8 @@ GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
 StyleApplyShade :: proc(base: Color, amount: f32) -> Color {
 	return BlendColors(base, ctx.style.colors[.shade], amount * 0.1)
 }
-StyleGetWidgetColor :: proc(hover, press: f32) -> Color {
-	return BlendThreeColors(ctx.style.colors[.widgetBase], ctx.style.colors[.widgetHover], ctx.style.colors[.widgetPress], hover + press)
+StyleGetWidgetColor :: proc(base: Color, amount: f32) -> Color {
+	return BlendColors(base, 255, amount * 0.1)
 }
 StyleGetShadeColor :: proc(alpha: f32 = 1) -> Color {
 	color := ctx.style.colors[.shade]

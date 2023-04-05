@@ -265,8 +265,18 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 			}
 			// Normal character input
 			if input.runeCount > 0 {
-				ScribeInsertRunes(input.runes[:input.runeCount])
-				change = true
+				if .numeric in format.options {
+					for i in 0 ..< input.runeCount {
+						glyph := int(input.runes[i])
+						if (glyph >= 48 && glyph <= 57) || (glyph == 46 && .integer not_in format.options) {
+							ScribeInsertRunes(input.runes[i:i+1])
+							change = true
+						}
+					}
+				} else {
+					ScribeInsertRunes(input.runes[:input.runeCount])
+					change = true
+				}
 			}
 			// Backspacing
 			if KeyPressed(.backspace) {
@@ -477,8 +487,8 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 	Regular Button
 */
 ButtonStyle :: enum {
-	outlined,
 	contained,
+	outlined,
 }
 ButtonPro :: proc(text: string, style: ButtonStyle, color: Color, corners: Corners, loc := #caller_location) -> (result: bool) {
 	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
@@ -488,26 +498,31 @@ ButtonPro :: proc(text: string, style: ButtonStyle, color: Color, corners: Corne
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.25)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
 		PopId()
 
 		if style == .outlined {
-			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, StyleApplyShade(color, hoverTime + pressTime))
+			strokeColor := StyleApplyShade(color, hoverTime + pressTime)
+			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, Fade(color, (hoverTime + pressTime) * 0.2))
+			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, strokeColor)
+			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, strokeColor, .middle, .middle)
 		} else {
-			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, StyleApplyShade(color, hoverTime + pressTime))
+			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, StyleGetWidgetColor(color, hoverTime + pressTime))
+			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, false, corners, StyleGetShadeColor(hoverTime))
+			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.textBright), .middle, .middle)
 		}
-		PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime), .middle, .middle)
+		
 
 		EndControl(control)
 		result = .released in state
 	}
 	return
 }
-ButtonEx :: proc(text: string, style: ButtonStyle, corners: Corners, loc := #caller_location) -> bool {
-	return ButtonPro(text, style, GetColor(.widgetBase), ALL_CORNERS, loc)
+ButtonEx :: proc(text: string, style: ButtonStyle, color: Color, loc := #caller_location) -> bool {
+	return ButtonPro(text, style, color, ALL_CORNERS, loc)
 }
 Button :: proc(text: string, loc := #caller_location) -> bool {
-	return ButtonEx(text, .contained, {.topLeft, .topRight, .bottomLeft, .bottomRight}, loc)
+	return ButtonEx(text, .contained, GetColor(.widgetBase), loc)
 }
 
 /*
@@ -599,7 +614,7 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 			font, 
 			ctx.numberText if .focused in state else data, 
 			control.body, 
-			{ options = {.numeric}, align = .middle },
+			{ options = {.numeric, .integer}, align = .middle },
 			control.state,
 			)
 		if change {
@@ -856,7 +871,7 @@ RadioButton :: proc(value: bool, name: string, loc := #caller_location) -> (sele
 		center: Vec2 = {body.x + 12, body.y + 12}
 		outerRadius := 23 - 4 * pressTime
 		if hoverTime > 0 {
-			PaintCircle(center, 30, StyleGetShadeColor(hoverTime))
+			PaintCircle(center, 34, StyleGetShadeColor(hoverTime))
 			PaintCircle(center, outerRadius, GetColor(.foreground))
 		}
 		PaintCircleOutline(center, outerRadius, true, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime + stateTime))
