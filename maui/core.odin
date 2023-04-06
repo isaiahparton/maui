@@ -93,6 +93,7 @@ CursorType :: enum {
 	disabled,
 }
 
+MAX_CLIP_RECTS :: #config(MAUI_MAX_CLIP_RECTS, 8)
 MAX_CONTROLS :: #config(MAUI_MAX_CONTROLS, 128)
 MAX_LAYERS :: #config(MAUI_MAX_LAYERS, 16)
 MAX_WINDOWS :: #config(MAUI_MAX_WINDOWS, 32)
@@ -129,24 +130,24 @@ ExpandRect :: proc(rect: Rect, amount: f32) -> Rect {
 /*
 	Rectangle sides and corners
 */
-Side :: enum {
+RectSide :: enum {
 	top,
 	bottom,
 	left,
 	right,
 }
-Sides :: bit_set[Side;u8]
+RectSides :: bit_set[RectSide;u8]
 
-Corner :: enum {
+RectCorner :: enum {
 	topLeft,
 	topRight,
 	bottomRight,
 	bottomLeft,
 }
-Corners :: bit_set[Corner;u8]
-ALL_CORNERS: Corners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
-SideCorners :: proc(sides: Sides) -> Corners {
-	corners: Corners = ALL_CORNERS
+RectCorners :: bit_set[RectCorner;u8]
+ALL_CORNERS: RectCorners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
+SideCorners :: proc(sides: RectSides) -> RectCorners {
+	corners: RectCorners = ALL_CORNERS
 	if .top in sides {
 		corners -= {.topLeft, .topRight}
 	}
@@ -281,6 +282,14 @@ AnimateBool :: proc(id: Id, condition: bool, duration: f32) -> f32 {
 	}
 	return animation.value
 }
+GetAnimation :: proc(id: Id) -> ^f32 {
+	if id not_in ctx.animations {
+		ctx.animations[id] = {}
+	}
+	animation := &ctx.animations[id]
+	animation.keepAlive = true
+	return &animation.value
+}
 
 Animation :: struct {
 	keepAlive: bool,
@@ -302,12 +311,13 @@ Context :: struct {
 	allocator: runtime.Allocator,
 	options: ContextOptions,
 
+	// Context
 	time,
 	deltaTime,
 	renderTime: f32,
-	disabled, dragging: bool,
+	disabled, dragging, shouldRender: bool,
 	size: Vec2,
-	lastRect: Rect,
+	lastRect, fullscreenRect: Rect,
 
 	// Each text input being edited
 	scribe: Scribe,
@@ -361,11 +371,16 @@ Context :: struct {
 	layoutDepth: i32,
 	layoutExpand: bool,
 
+	// Clip rects
+	clipRects: [MAX_CLIP_RECTS]Rect,
+	clipRectCount: i32,
+
 	// Next control options
 	nextId: Id,
 	nextRect: Rect,
 	setNextRect: bool,
 
+	// Control interactions
 	prevHoverId, 
 	nextHoverId, 
 	hoverId, 
@@ -510,6 +525,11 @@ Refresh :: proc() {
 	assert(layerDepth == 0, "You forgot to PopLayer()")
 	assert(idCount == 0, "You forgot to PopId()")
 
+	fullscreenRect = {0, 0, size.x, size.y}
+
+	clipRects[0] = fullscreenRect
+	clipRectCount = 1
+
 	for id, animation in &animations {
 		if animation.keepAlive {
 			animation.keepAlive = false
@@ -601,9 +621,11 @@ Refresh :: proc() {
 	input.prevKeyBits = input.keyBits
 	input.prevMouseBits = input.mouseBits
 	input.prevMousePos = input.mousePos
+
+	shouldRender = renderTime > 0
 }
 ShouldRender :: proc() -> bool {
-	return ctx.renderTime > 0
+	return ctx.shouldRender
 }
 
 /*

@@ -415,7 +415,7 @@ TextInputBytes :: proc(data: []u8, label, placeholder: string, options: TextInpu
 			GetColor(.backing, 1),
 			)
 		PaintString(
-			GetFontData(.label), 
+			GetFontData(.label),
 			label, 
 			{body.x + WIDGET_ROUNDNESS + 2, body.y - textSize.y / 2}, 
 			GetColor(.textBright if .focused in state else .text, 1),
@@ -488,9 +488,10 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 */
 ButtonStyle :: enum {
 	contained,
+	bright,
 	outlined,
 }
-ButtonPro :: proc(text: string, style: ButtonStyle, color: Color, corners: Corners, loc := #caller_location) -> (result: bool) {
+ButtonPro :: proc(text: string, style: ButtonStyle, corners: RectCorners, loc := #caller_location) -> (result: bool) {
 	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
 		using control
 
@@ -502,14 +503,17 @@ ButtonPro :: proc(text: string, style: ButtonStyle, color: Color, corners: Corne
 		PopId()
 
 		if style == .outlined {
-			strokeColor := StyleApplyShade(color, hoverTime + pressTime)
-			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, Fade(color, (hoverTime + pressTime) * 0.2))
-			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, strokeColor)
-			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, strokeColor, .middle, .middle)
-		} else {
+			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, Fade(BlendColors(GetColor(.widgetBase), GetColor(.widgetPress), pressTime), hoverTime))
+			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, BlendColors(GetColor(.widgetBase), GetColor(.widgetPress), hoverTime))
+			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.widgetPress), GetColor(.foreground), hoverTime), .middle, .middle)
+		} else if style == .contained {
 			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, BlendColors(GetColor(.widgetBase), GetColor(.widgetPress), pressTime))
 			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase, hoverTime))
-			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime), .middle, .middle)
+			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
+		} else {
+			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, BlendColors(GetColor(.accent), GetColor(.accentPress), pressTime))
+			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.accentPress, hoverTime))
+			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
 		}
 		
 
@@ -518,17 +522,17 @@ ButtonPro :: proc(text: string, style: ButtonStyle, color: Color, corners: Corne
 	}
 	return
 }
-ButtonEx :: proc(text: string, style: ButtonStyle, color: Color, loc := #caller_location) -> bool {
-	return ButtonPro(text, style, color, ALL_CORNERS, loc)
+ButtonEx :: proc(text: string, style: ButtonStyle, loc := #caller_location) -> bool {
+	return ButtonPro(text, style, ALL_CORNERS, loc)
 }
 Button :: proc(text: string, loc := #caller_location) -> bool {
-	return ButtonEx(text, .contained, GetColor(.widgetBase), loc)
+	return ButtonEx(text, .contained, loc)
 }
 
 /*
 	Icon Buttons
 */
-IconButtonEx :: proc(icon: IconIndex, corners: Corners, loc := #caller_location) -> (result: bool) {
+IconButtonEx :: proc(icon: IconIndex, corners: RectCorners, loc := #caller_location) -> (result: bool) {
 	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
 		using control
 		UpdateControl(control)
@@ -551,28 +555,6 @@ IconButtonEx :: proc(icon: IconIndex, corners: Corners, loc := #caller_location)
 }
 IconButton :: proc(icon: IconIndex, loc := #caller_location) -> bool {
 	return IconButtonEx(icon, {.topLeft, .topRight, .bottomLeft, .bottomRight}, loc)
-}
-
-/*
-	Button option for menus
-*/
-MenuOption :: proc(text: string, loc := #caller_location) -> (result: bool) {
-	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
-		using control
-		UpdateControl(control)
-
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
-		PopId()
-
-		PaintRect(body, GetColor(.widgetBase, (hoverTime + pressTime) * 0.5))
-		PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text, 1), .middle, .middle)
-
-		EndControl(control)
-		result = .released in state
-	}
-	return result
 }
 
 /*
@@ -646,7 +628,10 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 	Rectangle Slider
 */
 SliderEx :: proc(value, low, high: f32, name: string, loc := #caller_location) -> (change: bool, newValue: f32) {
-	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
+	rect := GetNextRect()
+	// TODO: Constants for sizes
+	rect = ChildRect(rect, {rect.w, 16}, .near, .middle)
+	if control, ok := BeginControl(HashId(loc), rect); ok {
 		using control
 
 		control.opts += {.draggable}
@@ -657,16 +642,30 @@ SliderEx :: proc(value, low, high: f32, name: string, loc := #caller_location) -
 			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
 		PopId()
 
-		PaintRoundedRect(body, WIDGET_ROUNDNESS, GetColor(.widgetBase, 1))
+		/*PaintRoundedRect(body, WIDGET_ROUNDNESS, GetColor(.widgetBase, 1))
 		PaintRoundedRect({body.x, body.y, body.w * clamp((value - low) / high, 0, 1), body.h}, WIDGET_ROUNDNESS, BlendColors(GetColor(.widgetPress, 1), GetColor(.accent, 1), hoverTime))
-		PaintAlignedString(GetFontData(.default), StringFormat("%s: %.2f", name, value), {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.text, 1), GetColor(.textBright, 1), hoverTime), .middle, .middle)
+		PaintAlignedString(GetFontData(.default), StringFormat("%s: %.2f", name, value), {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.text, 1), GetColor(.textBright, 1), hoverTime), .middle, .middle)*/
+		barRect: Rect = {body.x, body.y + 4, body.w, body.h - 8}
+		if value < high {
+			PaintRoundedRect(barRect, 4, GetColor(.backing))
+		}
+
+		range := body.w - 8
+		offset := range * clamp((value - low) / high, 0, 1)
+		fillColor := BlendColors(GetColor(.widgetBase), GetColor(.accent), hoverTime)
+		PaintRoundedRect({barRect.x, barRect.y, offset, barRect.h}, 4, fillColor)
+
+		thumbCenter: Vec2 = {body.x + 4 + offset, body.y + body.h / 2}
+		// TODO: Constants for these
+		thumbRadius := body.h
+		if hoverTime > 0 {
+			PaintCircle(thumbCenter, thumbRadius + 10 * (pressTime + hoverTime), StyleGetShadeColor(1))
+		}
+		PaintCircle(thumbCenter, thumbRadius, fillColor)
 
 		if .down in state {
 			change = true
-			newValue = clamp(low + ((input.mousePos.x - body.x) / body.w) * (high - low), low, high)
-		}
-		if .hovered in state {
-			ctx.cursor = .resizeEW
+			newValue = clamp(low + ((input.mousePos.x - body.x - 4) / range) * (high - low), low, high)
 		}
 
 		EndControl(control)
@@ -701,7 +700,7 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
 			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
-			stateTime := AnimateBool(HashIdFromInt(2), active, 0.075)
+			stateTime := AnimateBool(HashIdFromInt(2), active, 0.1)
 		PopId()
 
 		center: Vec2 = {body.x + 11, body.y + 11}
@@ -901,6 +900,7 @@ RadioButtons :: proc(value: $T, loc := #caller_location) -> (newValue: T) {
 
 /*
 	Drop-down Menus
+	FIXME: Menu closes when clicked on!
 */
 @(deferred_out=_Menu)
 Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^LayerData, active: bool) {
@@ -910,54 +910,87 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 		return
 	}
 	UpdateControl(control)
+	active = .active in bits
 
 	PushId(id) 
-		hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+		hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
 		pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+		stateTime := AnimateBool(HashIdFromInt(2), active, 0.15)
 	PopId()
 
-	active = .active in bits
-	corners: Corners = {.topLeft, .topRight}
+	corners: RectCorners = {.topLeft, .topRight}
 	if !active {
 		corners += {.bottomLeft, .bottomRight}
 	}
-	PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, GetColor(.backing, 1))
+	PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
 	PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase, hoverTime))
-	PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text, 1), .middle, .middle)
+	PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
+	PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
 
 	EndControl(control)
 	if .released in state {
-		if .active in bits {
-			bits -= {.active}
-		} else {
-			bits += {.active}
-		}
+		bits += {.active}
 	}
 
 	if active {
 		layer, ok = BeginLayer(AttachRectBottom(body, menuSize + WINDOW_ROUNDNESS), sharedId, {})
 		layer.order = .popup
 
-		PaintRoundedRectEx(layer.body, WINDOW_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.backing, 1))
+		if .hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left) {
+			bits -= {.active}
+		}
+
+		PaintRoundedRectEx(layer.body, WINDOW_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase, 1))
 
 		PushLayout(layer.body)
-		CutSize(28)
 	}
 	return 
 }
 @private _Menu :: proc(layer: ^LayerData, active: bool) {
 	if active {
-		PaintRoundedRectOutlineEx(layer.body, WINDOW_ROUNDNESS, true, {.bottomLeft, .bottomRight}, GetColor(.outlineBase, 1))
+		PaintRoundedRectOutlineEx(layer.body, WINDOW_ROUNDNESS, true, {.bottomLeft, .bottomRight}, GetColor(.widgetBase, 1))
 		EndLayer(layer)
 		PopLayout()
 	}
+}
+// Options within menus
+MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (result: bool) {
+	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
+		using control
+		UpdateControl(control)
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+		PopId()
+
+		PaintRect(body, GetColor(.widgetHover) if active else BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
+		PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
+
+		EndControl(control)
+		result = .released in state
+	}
+	return result
+}
+EnumMenu :: proc(value: $T, loc := #caller_location) -> (newValue: T) {
+	newValue = value
+	if layer, active := Menu(strings.to_upper_camel_case(Format(value), ctx.allocator), 120, loc); active {
+		for member in T {
+			PushId(HashIdFromInt(int(member)))
+				if MenuOption(strings.to_upper_camel_case(Format(member), ctx.allocator), value == member) {
+					newValue = member
+				}
+			PopId()
+		}
+	}
+	return
 }
 
 /*
 	Widgets are buttons that contain other controls
 */
 @(deferred_out=_Widget)
-Widget :: proc(label: string, sides: Sides, loc := #caller_location) -> (clicked, yes: bool) {
+Widget :: proc(label: string, sides: RectSides, loc := #caller_location) -> (clicked, yes: bool) {
 	if control, ok := BeginControl(HashId(loc), GetNextRect()); ok {
 		using control
 
@@ -1004,8 +1037,8 @@ WidgetDivider :: proc() {
 	Sections
 */
 @(deferred_out=_Section)
-Section :: proc(size: f32, label: string, sides: Sides) -> (ok: bool) {
-	CutSize(size)
+Section :: proc(size: f32, label: string, sides: RectSides) -> (ok: bool) {
+	Size(size)
 	rect := GetNextRect()
 
 	PaintRoundedRectOutlineEx(rect, WIDGET_ROUNDNESS, true, SideCorners(sides), GetColor(.outlineBase))

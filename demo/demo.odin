@@ -46,7 +46,7 @@ main :: proc() {
 
 		backend.NewFrame()
 
-		rect := ui.Cut(.right, 400)
+		rect := ui.Cut(.right, 500)
 		if layer, ok := ui.Layer(rect); ok {
 			ui.PaintRect(layer.body, ui.GetColor(.foreground, 1))
 			ui.PushLayout(rect)
@@ -55,10 +55,10 @@ main :: proc() {
 				ui.CheckBox(&boolean, "Check Box")
 
 				ui.Space(10)
-				ui.CutSize(46)
+				ui.Size(46)
 				if clicked, ok := ui.Widget("WiFi", {.bottom}); ok {
-					ui.CutSide(.right)
-					ui.CutSize(60)
+					ui.Side(.right)
+					ui.Size(60)
 					ui.Align(.middle)
 					wifi = ui.ToggleSwitch(wifi)
 					ui.WidgetDivider()
@@ -68,8 +68,8 @@ main :: proc() {
 					}
 				}
 				if clicked, ok := ui.Widget("Bluetooth", {.top}); ok {
-					ui.CutSide(.right)
-					ui.CutSize(60)
+					ui.Side(.right)
+					ui.Size(60)
 					ui.Align(.middle)
 					bluetooth = ui.ToggleSwitch(bluetooth)
 					ui.WidgetDivider()
@@ -81,14 +81,20 @@ main :: proc() {
 
 				ui.Space(10)
 				if ui.Layout(ui.Cut(.top, 30)) {
-					ui.CutSide(.left)
-					ui.CutSize(0.333, true)
+					ui.Side(.left)
+					ui.Size(0.333, true)
 					choice = ui.RadioButtons(choice)
 				}
 
 				ui.Space(30)
-				ui.CutSize(32)
-				ui.ButtonEx("SOLA FIDE", .contained, ui.GetColor(.accent))
+				ui.Size(28)
+				if ui.Layout(ui.Cut(.top, 28)) {
+					ui.Side(.left)
+					ui.Size(0.333, true)
+					ui.ButtonEx("SOLA FIDE", .outlined)
+					ui.ButtonEx("SOLA GRACIA", .contained)
+					ui.ButtonEx("SOLA SCRIPTURA", .bright)
+				}
 
 				ui.Space(10)
 				if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
@@ -105,14 +111,12 @@ main :: proc() {
 				value = ui.NumberInputFloat32(value, "Enter a value")
 
 				ui.Space(10)
-				if layer, ok := ui.Menu("hi", 120); ok {
-					ui.MenuOption("hello")
-				}
+				choice = ui.EnumMenu(choice)
 				
 				ui.Space(10)
 				if ui.Layout(ui.Cut(.top, 30)) {
-					ui.CutSide(.left)
-					ui.CutSize(120)
+					ui.Side(.left)
+					ui.Size(120)
 					integer = ui.Spinner(integer, -100, 100)
 				}
 			ui.PopLayout()

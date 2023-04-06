@@ -71,19 +71,19 @@ FontLoadData :: struct {
 
 FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	.default = {
-		size = 22,
+		size = 20,
 		file = "IBMPlexSans-Regular.ttf",
 	},
 	.header = {
-		size = 32,
+		size = 28,
 		file = "IBMPlexSans-Regular.ttf",
 	},
 	.monospace = {
-		size = 22,
+		size = 20,
 		file = "Inconsolata_Condensed-SemiBold.ttf",
 	},
 	.label = {
-		size = 18,
+		size = 16,
 		file = "IBMPlexSans-Regular.ttf",
 	},
 }
@@ -391,23 +391,46 @@ NextCommandIterator :: proc(pcm: ^^Command) -> (CommandVariant, bool) {
 	Drawing procedures
 */
 BeginClip :: proc(rect: Rect) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	cmd := PushCommand(CommandClip)
 	cmd.rect = rect
+	ctx.clipRects[ctx.clipRectCount] = rect
+	ctx.clipRectCount += 1
 }
 EndClip :: proc() {
+	if !ctx.shouldRender {
+		return
+	}
+
+	ctx.clipRectCount -= 1
 	cmd := PushCommand(CommandClip)
-	cmd.rect = {0, 0, ctx.size.x, ctx.size.y}
+	cmd.rect = ctx.clipRects[ctx.clipRectCount - 1]
 }
 PaintQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	PaintTriangle(p1, p2, p4, c)
 	PaintTriangle(p4, p2, p3, c)
 }
 PaintTriangle :: proc(p1, p2, p3: Vec2, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	cmd := PushCommand(CommandTriangle)
 	cmd.color = color
 	cmd.vertices = {p1, p2, p3}
 }
 PaintRect :: proc(rect: Rect, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	PaintQuad(
 		{f32(rect.x), f32(rect.y)},
 		{f32(rect.x), f32(rect.y + rect.h)},
@@ -417,6 +440,10 @@ PaintRect :: proc(rect: Rect, color: Color) {
 	)
 }
 PaintTriangleStrip :: proc(points: []Vec2, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
     if len(points) < 4 {
     	return
     }
@@ -439,6 +466,10 @@ PaintTriangleStrip :: proc(points: []Vec2, color: Color) {
     }
 }
 PaintLine :: proc(start, end: Vec2, thickness: f32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	delta := end - start
     length := math.sqrt(f32(delta.x * delta.x + delta.y * delta.y))
     if length > 0 && thickness > 0 {
@@ -453,15 +484,27 @@ PaintLine :: proc(start, end: Vec2, thickness: f32, color: Color) {
     }
 }
 PaintRectLines :: proc(rect: Rect, thickness: f32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	PaintRect({rect.x, rect.y, rect.w, thickness}, color)
 	PaintRect({rect.x, rect.y + rect.h - thickness, rect.w, thickness}, color)
 	PaintRect({rect.x, rect.y, thickness, rect.h}, color)
 	PaintRect({rect.x + rect.w - thickness, rect.y, thickness, rect.h}, color)
 }
 PaintCircleUh :: proc(center: Vec2, radius: f32, segments: i32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	PaintCircleSector(center, radius, 0, math.TAU, segments, color)
 }
 PaintCircleSector :: proc(center: Vec2, radius, start, end: f32, segments: i32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
@@ -475,9 +518,17 @@ PaintCircleSector :: proc(center: Vec2, radius, start, end: f32, segments: i32, 
     }
 }
 PaintRing :: proc(center: Vec2, inner, outer: f32, segments: i32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	PaintRingSector(center, inner, outer, 0, math.TAU, segments, color)
 }
 PaintRingSector :: proc(center: Vec2, inner, outer, start, end: f32, segments: i32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
@@ -492,6 +543,10 @@ PaintRingSector :: proc(center: Vec2, inner, outer, start, end: f32, segments: i
     }
 }
 PaintRectSweep :: proc(r: Rect, t: f32, c: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	if t >= 1 {
 		PaintRect(r, c)
 		return
@@ -507,6 +562,10 @@ PaintRectSweep :: proc(r: Rect, t: f32, c: Color) {
 	)
 }
 PaintTexture :: proc(src, dst: Rect, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	cmd := PushCommand(CommandTexture)
 	cmd.uvMin = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
 	cmd.uvMax = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}
@@ -515,6 +574,10 @@ PaintTexture :: proc(src, dst: Rect, color: Color) {
 	cmd.color = color
 }
 PaintTextureEx :: proc(src, dst: Rect, angle: f32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	cmd := PushCommand(CommandTexture)
 	cmd.uvMin = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
 	cmd.uvMax = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}
@@ -523,6 +586,10 @@ PaintTextureEx :: proc(src, dst: Rect, angle: f32, color: Color) {
 	cmd.color = color
 }
 PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	index := int(radius) - MIN_CIRCLE_SIZE
 	if index < 0 || index >= CIRCLE_SIZES {
 		return
@@ -531,6 +598,10 @@ PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
 	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
 }
 PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	index := CIRCLE_SIZES + int(radius) - MIN_CIRCLE_SIZE
 	if !thin {
 		index += CIRCLE_SIZES
@@ -542,7 +613,11 @@ PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) 
 	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
 }
 
-PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Color) {
+PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: RectCorners, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	if rect.h == 0 || rect.w == 0 {
 		return
 	}
@@ -591,6 +666,10 @@ PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: Corners, color: Col
 	}
 }
 PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	if rect.w == 0 || rect.h == 0 {
 		return
 	}
@@ -625,6 +704,10 @@ PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 }
 
 PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, thin: bool, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
 	if color.a == 0 || index < 0 || index >= CIRCLE_SIZES {
 		return
@@ -655,7 +738,11 @@ PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, thin: bool, color: Colo
 		PaintRect({rect.x + rect.w - thickness, rect.y + radius, thickness, rect.h - radius * 2}, color)
 	}
 }
-PaintRoundedRectOutlineEx :: proc(rect: Rect, radius: f32, thin: bool, corners: Corners, color: Color) {
+PaintRoundedRectOutlineEx :: proc(rect: Rect, radius: f32, thin: bool, corners: RectCorners, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
 	if color.a == 0 || index < 0 || index >= CIRCLE_SIZES {
 		return
@@ -702,6 +789,10 @@ PaintRoundedRectOutlineEx :: proc(rect: Rect, radius: f32, thin: bool, corners: 
 	}
 }
 PaintCollapseArrow :: proc(center: Vec2, size, time: f32, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	angle := (1 - time) * math.PI * 0.5
 	norm: Vec2 = {math.cos(angle), math.sin(angle)}
 	PaintTriangle(
@@ -730,6 +821,10 @@ MeasureString :: proc(font: FontData, text: string) -> Vec2 {
 	return size
 }
 PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) -> Vec2 {
+	if !ctx.shouldRender {
+		return {}
+	}
+
 	origin := origin
 	size := Vec2{}
 	for codepoint in text {
@@ -742,6 +837,10 @@ PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) ->
 	return size
 }
 PaintAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
+	if !ctx.shouldRender {
+		return {}
+	}
+
 	origin := origin
 	if alignX == .middle {
 		origin.x -= math.trunc(MeasureString(font, text).x / 2)
@@ -757,6 +856,10 @@ PaintAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Co
 }
 // Draw a glyph, mathematically clipped to 'clipRect'
 PaintClippedGlyph :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
     src := glyph.source
     dst := Rect{ 
         f32(i32(origin.x + glyph.offset.x)), 
@@ -840,9 +943,17 @@ IconIndex :: enum {
 }
 ICON_SIZE :: 24
 DrawIcon :: proc(icon: IconIndex, origin: Vec2, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	DrawIconEx(icon, origin, 1, .near, .near, color)
 }
 DrawIconEx :: proc(icon: IconIndex, origin: Vec2, scale: f32, alignX, alignY: Alignment, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
 	offset := Vec2{}
 	if alignX == .middle {
 		offset.x -= ICON_SIZE / 2

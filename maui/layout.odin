@@ -27,38 +27,38 @@ ShrinkRect :: proc(b: Rect, a: f32) -> Rect {
 	return {b.x + a, b.y + a, b.w - a * 2, b.h - a * 2}
 }
 // cut a rect and return the cut piece
-CutRectLeft :: proc(b: ^Rect, a: f32) -> (r: Rect) {
-	a := min(b.w, a)
-	r = {b.x, b.y, a, b.h}
-	b.x += a
-	b.w -= a
+CutRectLeft :: proc(rect: ^Rect, amount: f32) -> (result: Rect) {
+	amount := min(rect.w, amount)
+	result = {rect.x, rect.y, amount, rect.h}
+	rect.x += amount
+	rect.w -= amount
 	return
 }
-CutRectTop :: proc(b: ^Rect, a: f32) -> (r: Rect) {
-	a := min(b.h, a)
-	r = {b.x, b.y, b.w, a}
-	b.y += a
-	b.h -= a
+CutRectTop :: proc(rect: ^Rect, amount: f32) -> (result: Rect) {
+	amount := min(rect.h, amount)
+	result = {rect.x, rect.y, rect.w, amount}
+	rect.y += amount
+	rect.h -= amount
 	return
 }
-CutRectRight :: proc(b: ^Rect, a: f32) -> (r: Rect) {
-	a := min(b.w, a)
-	b.w -= a
-	r = {b.x + b.w, b.y, a, b.h}
+CutRectRight :: proc(rect: ^Rect, amount: f32) -> (result: Rect) {
+	amount := min(rect.w, amount)
+	rect.w -= amount
+	result = {rect.x + rect.w, rect.y, amount, rect.h}
 	return
 }
-CutRectBottom :: proc(b: ^Rect, a: f32) -> (r: Rect) {
-	a := min(b.h, a)
-	b.h -= a
-	r = {b.x, b.y + b.h, b.w, a}
+CutRectBottom :: proc(rect: ^Rect, amount: f32) -> (result: Rect) {
+	amount := min(rect.h, amount)
+	rect.h -= amount
+	result = {rect.x, rect.y + rect.h, rect.w, amount}
 	return
 }
-CutRect :: proc(r: ^Rect, s: Side, a: f32) -> Rect {
-	switch s {
-		case .bottom: 	return CutRectBottom(r, a)
-		case .top: 		return CutRectTop(r, a)
-		case .left: 	return CutRectLeft(r, a)
-		case .right: 	return CutRectRight(r, a)
+CutRect :: proc(rect: ^Rect, side: RectSide, amount: f32) -> Rect {
+	switch side {
+		case .bottom: 	return CutRectBottom(rect, amount)
+		case .top: 		return CutRectTop(rect, amount)
+		case .left: 	return CutRectLeft(rect, amount)
+		case .right: 	return CutRectRight(rect, amount)
 	}
 	return {}
 }
@@ -89,19 +89,19 @@ GetRectBottom :: proc(b: Rect, a: f32) -> Rect {
 	return {b.x, b.y + b.h - a, b.w, a}
 }
 // attach a rect
-AttachRectLeft :: proc(b: Rect, a: f32) -> Rect {
-	return {b.x - a, b.y, a, b.h}
+AttachRectLeft :: proc(rect: Rect, amount: f32) -> Rect {
+	return {rect.x - amount, rect.y, amount, rect.h}
 }
-AttachRectTop :: proc(b: Rect, a: f32) -> Rect {
-	return {b.x, b.y - a, b.w, a}
+AttachRectTop :: proc(rect: Rect, amount: f32) -> Rect {
+	return {rect.x, rect.y - amount, rect.w, amount}
 }
-AttachRectRight :: proc(b: Rect, a: f32) -> Rect {
-	return {b.x + b.w, b.y, a, b.h}
+AttachRectRight :: proc(rect: Rect, amount: f32) -> Rect {
+	return {rect.x + rect.w, rect.y, amount, rect.h}
 }
-AttachRectBottom :: proc(b: Rect, a: f32) -> Rect {
-	return {b.x, b.y + b.h, b.w, a}
+AttachRectBottom :: proc(rect: Rect, amount: f32) -> Rect {
+	return {rect.x, rect.y + rect.h, rect.w, amount}
 }
-AttachRect :: proc(rect: Rect, side: Side, size: f32) -> Rect {
+AttachRect :: proc(rect: Rect, side: RectSide, size: f32) -> Rect {
 	switch side {
 		case .bottom: 	return AttachRectTop(rect, size)
 		case .top: 		return AttachRectBottom(rect, size)
@@ -112,7 +112,7 @@ AttachRect :: proc(rect: Rect, side: Side, size: f32) -> Rect {
 }
 
 
-Cut :: proc(side: Side, amount: f32) -> Rect {
+Cut :: proc(side: RectSide, amount: f32) -> Rect {
 	assert(ctx.layoutDepth > 0)
 	layout := GetCurrentLayout()
 	return CutRect(&layout.rect, side, amount)
@@ -124,11 +124,10 @@ Cut :: proc(side: Side, amount: f32) -> Rect {
 */
 LayoutData :: struct {
 	rect: Rect,
-	side: Side,
-	size: f32,
+	side: RectSide,
+	size, margin: f32,
 	// control alignment
 	alignX, alignY: Alignment,
-	growX, growY: bool,
 }
 PushLayout :: proc(rect: Rect) {
 	using ctx
@@ -162,7 +161,7 @@ AlignX :: proc(align: Alignment) {
 AlignY :: proc(align: Alignment) {
 	GetCurrentLayout().alignY = align
 }
-CutSize :: proc(size: f32, relative := false) {
+Size :: proc(size: f32, relative := false) {
 	layout := GetCurrentLayout()
 	if relative {
 		if layout.side == .top || layout.side == .bottom {
@@ -174,16 +173,16 @@ CutSize :: proc(size: f32, relative := false) {
 	}
 	layout.size = size
 }
-CutSide :: proc(side: Side) {
+Side :: proc(side: RectSide) {
 	GetCurrentLayout().side = side
 }
-Space :: proc(a: f32) {
-	l := GetCurrentLayout()
-	CutRect(&l.rect, l.side, a)
+Space :: proc(amount: f32) {
+	layout := GetCurrentLayout()
+	CutRect(&layout.rect, layout.side, amount)
 }
-Shrink :: proc(a: f32) {
-	l := GetCurrentLayout()
-	l.rect = ShrinkRect(l.rect, a)
+Shrink :: proc(amount: f32) {
+	layout := GetCurrentLayout()
+	layout.rect = ShrinkRect(layout.rect, amount)
 }
 
 GetCurrentLayout :: proc() -> ^LayoutData {
@@ -193,12 +192,29 @@ GetCurrentLayout :: proc() -> ^LayoutData {
 GetNextRect :: proc() -> Rect {
 	layout := GetCurrentLayout()
 	ctx.lastRect = UseNextRect() or_else CutLayout(layout)
+	if layout.margin > 0 {
+		ctx.lastRect = ShrinkRect(ctx.lastRect, layout.margin)
+	}
 	return ctx.lastRect
 }
 GetNextRectEx :: proc(size: Vec2) -> Rect {
 	layout := GetCurrentLayout()
-	layout.size = max(layout.size, size.x)
 	return ChildRect(UseNextRect() or_else CutLayout(layout), size, layout.alignX, layout.alignY)
+}
+
+LayoutNext :: proc(layout: ^LayoutData) -> Rect {
+	assert(layout != nil)
+
+	ctx.lastRect = UseNextRect() or_else CutLayout(layout)
+	if layout.margin > 0 {
+		ctx.lastRect = ShrinkRect(ctx.lastRect, layout.margin)
+	}
+	return ctx.lastRect
+}
+LayoutNextEx :: proc(layout: ^LayoutData, size: Vec2) -> Rect {
+	assert(layout != nil)
+
+	return ChildRect(LayoutNext(layout), size, layout.alignX, layout.alignY)
 }
 
 /*

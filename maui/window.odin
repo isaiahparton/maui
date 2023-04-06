@@ -27,7 +27,7 @@ WindowData :: struct {
 	state: WindowState,
 	bits: WindowBits,
 	// for resizing
-	dragSide: Side,
+	dragSide: RectSide,
 	dragAnchor: f32,
 	// minimum layout size
 	minLayoutSize: Vec2,

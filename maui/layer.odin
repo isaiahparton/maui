@@ -6,6 +6,8 @@ import "core:fmt"
 	Each layer contains a command buffer for draw calls made in that layer.
 */
 
+// TODO: Only call clip rects when there is overflowing content
+
 /*
 	General purpose booleans
 */
@@ -75,6 +77,7 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	return
 }
 
+// TODO: Closing layers
 @private BeginLayer :: proc(rect: Rect, id: Id, options: LayerBits) -> (layer: ^LayerData, ok: bool) {
 	using ctx
 	
