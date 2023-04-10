@@ -27,7 +27,7 @@ Key :: enum {
 KeyBits :: bit_set[Key]
 
 Input :: struct {
-	prevMousePos, mousePos: Vec2,
+	prevMousePoint, mousePoint: Vec2,
 	mouseBits, prevMouseBits: MouseBits,
 	keyBits, prevKeyBits: KeyBits,
 	lastKey: Key,
@@ -66,7 +66,7 @@ Input :: struct {
 }
 
 SetMousePosition :: proc(x, y: f32) {
-	input.mousePos = {x, y}
+	input.mousePoint = {x, y}
 }
 InputAddCharPress :: proc(char: rune) {
 	input.runes[input.runeCount] = char

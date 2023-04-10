@@ -63,15 +63,21 @@ CutRect :: proc(rect: ^Rect, side: RectSide, amount: f32) -> Rect {
 	return {}
 }
 CutLayout :: proc(using layout: ^LayoutData) -> (result: Rect) {
-	switch side {
-		case .bottom:
-		result = CutRectBottom(&rect, size)
-		case .top:
-		result = CutRectTop(&rect, size)
-		case .left:
-		result = CutRectLeft(&rect, size)
-		case .right:
-		result = CutRectRight(&rect, size)
+	if layout.grow {
+		switch side {
+			case .bottom: 	result = AttachRectTop(rect, size)
+			case .top: 		result = AttachRectBottom(rect, size)
+			case .left: 	result = AttachRectRight(rect, size)
+			case .right: 	result = AttachRectLeft(rect, size)
+		}
+		layout.rect = result
+	} else {
+		switch side {
+			case .bottom: 	result = CutRectBottom(&rect, size)
+			case .top: 		result = CutRectTop(&rect, size)
+			case .left: 	result = CutRectLeft(&rect, size)
+			case .right: 	result = CutRectRight(&rect, size)
+		}
 	}
 	return
 }
@@ -128,10 +134,12 @@ LayoutData :: struct {
 	size, margin: f32,
 	// control alignment
 	alignX, alignY: Alignment,
+	grow: bool,
 }
-PushLayout :: proc(rect: Rect) {
+PushLayout :: proc(rect: Rect) -> (layout: ^LayoutData) {
 	using ctx
-	layouts[layoutDepth] = {
+	layout = &layouts[layoutDepth]
+	layout^ = {
 		rect = rect,
 		size = WIDGET_HEIGHT,
 	}
@@ -141,6 +149,7 @@ PushLayout :: proc(rect: Rect) {
 			PaintRectLines(rect, 1, {255, 255, 0, 255})
 		}
 	}
+	return
 }
 PopLayout :: proc() {
 	using ctx
@@ -150,6 +159,16 @@ PopLayout :: proc() {
 /*
 	Current layout control
 */
+SetNextRect :: proc(rect: Rect) {
+	ctx.setNextRect = true
+	ctx.nextRect = rect
+}
+UseNextRect :: proc() -> (rect: Rect, ok: bool) {
+	rect = ctx.nextRect
+	ok = ctx.setNextRect
+	ctx.setNextRect = false
+	return
+}
 Align :: proc(align: Alignment) {
 	layout := GetCurrentLayout()
 	layout.alignX = align
@@ -161,7 +180,10 @@ AlignX :: proc(align: Alignment) {
 AlignY :: proc(align: Alignment) {
 	GetCurrentLayout().alignY = align
 }
-Size :: proc(size: f32, relative := false) {
+SetMargin :: proc(margin: f32) {
+	GetCurrentLayout().margin = margin
+}
+SetSize :: proc(size: f32, relative := false) {
 	layout := GetCurrentLayout()
 	if relative {
 		if layout.side == .top || layout.side == .bottom {
@@ -173,7 +195,7 @@ Size :: proc(size: f32, relative := false) {
 	}
 	layout.size = size
 }
-Side :: proc(side: RectSide) {
+SetSide :: proc(side: RectSide) {
 	GetCurrentLayout().side = side
 }
 Space :: proc(amount: f32) {
@@ -189,23 +211,11 @@ GetCurrentLayout :: proc() -> ^LayoutData {
 	using ctx
 	return &layouts[layoutDepth - 1]
 }
-GetNextRect :: proc() -> Rect {
-	layout := GetCurrentLayout()
-	ctx.lastRect = UseNextRect() or_else CutLayout(layout)
-	if layout.margin > 0 {
-		ctx.lastRect = ShrinkRect(ctx.lastRect, layout.margin)
-	}
-	return ctx.lastRect
-}
-GetNextRectEx :: proc(size: Vec2) -> Rect {
-	layout := GetCurrentLayout()
-	return ChildRect(UseNextRect() or_else CutLayout(layout), size, layout.alignX, layout.alignY)
-}
 
 LayoutNext :: proc(layout: ^LayoutData) -> Rect {
 	assert(layout != nil)
 
-	ctx.lastRect = UseNextRect() or_else CutLayout(layout)
+	ctx.lastRect = CutLayout(layout)
 	if layout.margin > 0 {
 		ctx.lastRect = ShrinkRect(ctx.lastRect, layout.margin)
 	}
@@ -221,11 +231,12 @@ LayoutNextEx :: proc(layout: ^LayoutData, size: Vec2) -> Rect {
 	Manual layouts
 */
 @(deferred_out=_Layout)
-Layout :: proc(r: Rect) -> (ok: bool) {
-	PushLayout(r)
-	return true
+Layout :: proc(r: Rect) -> (layout: ^LayoutData, ok: bool) {
+	layout = PushLayout(r)
+	ok = true
+	return
 }
-@private _Layout :: proc(ok: bool) {
+@private _Layout :: proc(layout: ^LayoutData, ok: bool) {
 	if ok {
 		PopLayout()
 	}

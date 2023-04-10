@@ -113,10 +113,10 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 		Resizing
 	*/
 	if .resizable in options {
-		topHover := VecVsRect(input.mousePos, {rect.x, rect.y, rect.w, 3})
-		leftHover := VecVsRect(input.mousePos, {rect.x, rect.y, 3, rect.h})
-		bottomHover := VecVsRect(input.mousePos, {rect.x, rect.y + rect.h - 3, rect.w, 3})
-		rightHover := VecVsRect(input.mousePos, {rect.x + rect.w - 3, rect.y, 3, rect.h})
+		topHover := VecVsRect(input.mousePoint, {rect.x, rect.y, rect.w, 3})
+		leftHover := VecVsRect(input.mousePoint, {rect.x, rect.y, 3, rect.h})
+		bottomHover := VecVsRect(input.mousePoint, {rect.x, rect.y + rect.h - 3, rect.w, 3})
+		rightHover := VecVsRect(input.mousePoint, {rect.x + rect.w - 3, rect.y, 3, rect.h})
 		if topHover || bottomHover {
 			ctx.cursor = .resizeNS
 		}
@@ -163,10 +163,10 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 		}
 		PaintAlignedString(GetFontData(.default), name, {titleRect.x + textOffset, baseline}, GetColor(.textBright, 1), .near, .middle)
 
-		if .resizing not_in state && ctx.hoveredLayer == layer.id && VecVsRect(input.mousePos, titleRect) {
+		if .resizing not_in state && ctx.hoveredLayer == layer.id && VecVsRect(input.mousePoint, titleRect) {
 			if MousePressed(.left) {
 				state += {.moving}
-				ctx.dragAnchor = Vec2{layer.body.x, layer.body.y} - input.mousePos
+				ctx.dragAnchor = Vec2{layer.body.x, layer.body.y} - input.mousePoint
 			}
 			if canCollapse && MousePressed(.right) {
 				if .shouldCollapse in state {
@@ -235,18 +235,18 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 	if .resizing in state {
 		switch dragSide {
 			case .bottom:
-			rect.h = input.mousePos.y - rect.y
+			rect.h = input.mousePoint.y - rect.y
 			ctx.cursor = .resizeNS
 			case .left:
-			rect.x = input.mousePos.x
-			rect.w = dragAnchor - input.mousePos.x
+			rect.x = input.mousePoint.x
+			rect.w = dragAnchor - input.mousePoint.x
 			ctx.cursor = .resizeEW
 			case .right:
-			rect.w = input.mousePos.x - rect.x
+			rect.w = input.mousePoint.x - rect.x
 			ctx.cursor = .resizeEW
 			case .top:
-			rect.y = input.mousePos.y
-			rect.h = dragAnchor - input.mousePos.y
+			rect.y = input.mousePoint.y
+			rect.h = dragAnchor - input.mousePoint.y
 			ctx.cursor = .resizeNS
 		}
 		rect.w = max(rect.w, minLayoutSize.x)
@@ -257,7 +257,7 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 	}
 	if .moving in state {
 		ctx.cursor = .resizeAll
-		newOrigin := input.mousePos + ctx.dragAnchor
+		newOrigin := input.mousePoint + ctx.dragAnchor
 		rect.x = newOrigin.x
 		rect.y = newOrigin.y
 		if MouseReleased(.left) {

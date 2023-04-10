@@ -28,20 +28,6 @@ PixelFormat :: rl.PixelFormat
 Image :: rl.Image
 
 /*
-	How this is going to work:
-
-	REBUILD_ATLAS :: ODIN_DEBUG
-	OnStart :: proc() {
-		when REBUILD_ATLAS {
-			RebuildAndExportAtlas()
-		} else {
-			LoadAtlasData()
-		}
-	}
-*/
-
-
-/*
 	NPatch dealings
 */
 PatchIndex :: enum {

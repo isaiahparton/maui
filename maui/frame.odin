@@ -47,7 +47,7 @@ PopFrame :: proc() {
 
 @(deferred_out=_Frame)
 Frame :: proc(options: FrameOptions, loc := #caller_location) -> (ok: bool) {
-	return PushFrame(GetNextRect(), options, loc)
+	return PushFrame(LayoutNext(GetCurrentLayout()), options, loc)
 }
 @private _Frame :: proc(ok: bool) {
 	if ok {

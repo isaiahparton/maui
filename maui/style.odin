@@ -19,15 +19,15 @@ HALF_CHECKBOX_SIZE :: CHECKBOX_SIZE / 2
 COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
 	.accent = {55, 125, 248, 255},
 	.accentHover = {45, 115, 233, 255},
-	.accentPress = {35, 105, 223, 255},
+	.accentPress = {20, 75, 255, 255},
 
 	.foreground = {255, 255, 255, 255},
 	.backing = {212, 211, 218, 255},
 	.iconBase = {135, 135, 135, 255},
 
-	.widgetBase = {170, 170, 174, 255},
-	.widgetHover = {152, 153, 159, 255},
-	.widgetPress = {130, 131, 137, 255},
+	.widgetBase = {170, 170, 180, 255},
+	.widgetHover = {142, 143, 154, 255},
+	.widgetPress = {123, 124, 140, 255},
 
 	.outlineBase = {112, 113, 116, 255},
 
