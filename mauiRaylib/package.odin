@@ -16,6 +16,7 @@ NewFrame :: proc() {
 	ui.SetMouseBit(.left, rl.IsMouseButtonDown(.LEFT))
 	ui.SetMouseBit(.right, rl.IsMouseButtonDown(.RIGHT))
 	ui.SetMouseBit(.middle, rl.IsMouseButtonDown(.MIDDLE))
+	ui.SetMouseScroll(0, rl.GetMouseWheelMove())
 	
 	key := rl.GetCharPressed()
 	for key != 0 {

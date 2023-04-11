@@ -90,9 +90,6 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 		options = pOptions
 	}
 
-	/*
-		Draw the layer body and title bar if needed
-	*/
 	layerRect := rect
 	layerRect.h -= (layerRect.h - WINDOW_TITLE_SIZE) * howCollapsed
 
@@ -102,16 +99,12 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 	drawRect = rect
 	layoutRect := rect
 
-	/*
-		Draw body
-	*/
+	// Body
 	if .collapsed not_in state {
 		PaintRoundedRect(drawRect, WINDOW_ROUNDNESS, GetColor(.foreground, 1))
 	}
 
-	/*
-		Resizing
-	*/
+	// Get resize click
 	if .resizable in options {
 		topHover := VecVsRect(input.mousePoint, {rect.x, rect.y, rect.w, 3})
 		leftHover := VecVsRect(input.mousePoint, {rect.x, rect.y, 3, rect.h})
@@ -142,18 +135,18 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 		}
 	}
 
-	/*
-		Handle title bar
-	*/
+	// Draw title bar and get movement dragging
 	if .title in options {
 		titleRect := CutRectTop(&layoutRect, WINDOW_TITLE_SIZE)
 
+		// Draw title rectangle
 		if .collapsed in state {
 			PaintRoundedRect(titleRect, WINDOW_ROUNDNESS, GetColor(.widgetBase, 1))
 		} else {
 			PaintRoundedRectEx(titleRect, WINDOW_ROUNDNESS, {.topLeft, .topRight}, GetColor(.widgetBase, 1))
 		}
 
+		// Title bar decoration
 		baseline := titleRect.y + titleRect.h / 2
 		textOffset := titleRect.h * 0.25
 		canCollapse := .collapsable in options || .collapsed in state
@@ -162,7 +155,6 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 			textOffset = titleRect.h * 0.85
 		}
 		PaintAlignedString(GetFontData(.default), name, {titleRect.x + textOffset, baseline}, GetColor(.textBright, 1), .near, .middle)
-
 		if .resizing not_in state && ctx.hoveredLayer == layer.id && VecVsRect(input.mousePoint, titleRect) {
 			if MousePressed(.left) {
 				state += {.moving}
@@ -176,7 +168,6 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 				}
 			}
 		}
-
 		if .closable in options {
 			SetNextRect(ChildRect(GetRectRight(titleRect, titleRect.h), {30, 30}, .middle, .middle))
 			if IconButton(.close) {
@@ -187,23 +178,22 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 		state -= {.shouldCollapse}
 	}
 
+	// Apply collapse
 	drawRect.h -= layoutRect.h * howCollapsed
 
+	// Interpolate collapse
 	if .shouldCollapse in state {
 		howCollapsed = min(1, howCollapsed + ctx.deltaTime * 7)
 	} else {
 		howCollapsed = max(0, howCollapsed - ctx.deltaTime * 7)
 	}
-
 	if howCollapsed >= 1 {
 		state += {.collapsed}
 	} else {
 		state -= {.collapsed}
 	}
 
-	/*
-		Handle resizing
-	*/
+	// Push layout if necessary
 	if .collapsed in state {
 		ok = false
 	} else {
@@ -217,9 +207,7 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 @private EndWindow :: proc(using window: ^WindowData) {
 	state += {.initialized}
 
-	/*
-		Window decoration
-	*/
+	// Outline
 	PaintRoundedRectOutline(drawRect, WINDOW_ROUNDNESS, true, GetColor(.text, 1))
 
 	// Drop window context
@@ -229,9 +217,7 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 	PopId()
 	EndLayer(layer)
 
-	/*
-		Handle window manipulation
-	*/
+	// Handle resizing
 	if .resizing in state {
 		switch dragSide {
 			case .bottom:
@@ -255,6 +241,8 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 			state -= {.resizing}
 		}
 	}
+
+	// Handle movement
 	if .moving in state {
 		ctx.cursor = .resizeAll
 		newOrigin := input.mousePoint + ctx.dragAnchor

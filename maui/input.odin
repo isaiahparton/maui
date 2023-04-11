@@ -27,7 +27,7 @@ Key :: enum {
 KeyBits :: bit_set[Key]
 
 Input :: struct {
-	prevMousePoint, mousePoint: Vec2,
+	prevMousePoint, mousePoint, mouseScroll: Vec2,
 	mouseBits, prevMouseBits: MouseBits,
 	keyBits, prevKeyBits: KeyBits,
 	lastKey: Key,
@@ -65,6 +65,9 @@ Input :: struct {
 	return key in keyBits
 }
 
+SetMouseScroll :: proc(x, y: f32) {
+	input.mouseScroll = {x, y}
+}
 SetMousePosition :: proc(x, y: f32) {
 	input.mousePoint = {x, y}
 }

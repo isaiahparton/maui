@@ -206,12 +206,6 @@ Context :: struct {
 	// Used for dragging stuff
 	dragAnchor: Vec2,
 
-	// Retained frame data
-	frames: [MAX_FRAMES]FrameData,
-	frameExists: [MAX_FRAMES]bool,
-	frameMap: map[Id]i32,
-	frameIndex: i32,
-
 	// Layout
 	layouts: [MAX_LAYOUTS]LayoutData,
 	layoutDepth: i32,

@@ -175,9 +175,7 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 
 	// Iterate over the bytes
 	for index := 0; index <= len(data); {
-		/*
-			Decoding
-		*/
+		// Decode the next glyph
 		bytes := 1
 		glyph: rune = 0
 		if index < len(data) {
@@ -390,6 +388,9 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 	return
 }
 
+/*
+	Text input widgets
+*/
 TextInputBytes :: proc(data: []u8, label, placeholder: string, format: TextInputFormat, loc := #caller_location) -> (change: bool, newData: []u8) {
 	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
 		using control

@@ -13,6 +13,7 @@ import "core:fmt"
 */
 LayerBit :: enum {
 	stayAlive,
+	clipped,
 }
 LayerBits :: bit_set[LayerBit]
 /*
@@ -31,7 +32,12 @@ LayerData :: struct {
 	id: Id,
 	bits: LayerBits,
 	body: Rect,
+	// Content layout size
 	layoutSize: Vec2,
+	// Content bounding box
+	contentRect: Rect,
+	// Negative content offset
+	scroll: Vec2,
 	// draw order
 	order: LayerOrder,
 	// list index
@@ -81,23 +87,17 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 @private BeginLayer :: proc(rect: Rect, id: Id, options: LayerBits) -> (layer: ^LayerData, ok: bool) {
 	using ctx
 	
-	/*
-		Find or create the layer
-	*/
+	// Find or create layer
 	layer, ok = CreateOrGetLayer(id)
 	if !ok {
 		return
 	}
 
-	/*
-		Update layer stack
-	*/
+	// Push layer stack
 	layerStack[layerDepth] = layer
 	layerDepth += 1
 
-	/*
-		Update layer values
-	*/
+	// Update layer data
 	layer.bits += {.stayAlive}
 	layer.id = id
 	layer.commandOffset = 0
@@ -106,7 +106,12 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	}
 
 	PushId(id)
-	BeginClip(layer.body)
+	if !RectContainsRect(layer.body, layer.contentRect) {
+		BeginClip(layer.body)
+		layer.bits += {.clipped}
+	} else {
+		layer.bits -= {.clipped}
+	}
 
 	return
 }
@@ -119,7 +124,10 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 		}
 	}
 
-	EndClip()
+	//TODO(isaiah): Change this to store 2 ^Command then set them to clip rects if necessary
+	if .clipped in layer.bits {
+		EndClip()
+	}
 	PopId()
 
 	layerDepth -= 1
