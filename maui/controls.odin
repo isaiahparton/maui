@@ -75,6 +75,11 @@ BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 	return
 }
 EndControl :: proc(control: ^Control) {
+	layer := GetCurrentLayer()
+	layer.contentRect.x = min(layer.contentRect.x, control.body.x)
+	layer.contentRect.y = min(layer.contentRect.y, control.body.y)
+	layer.contentRect.w = max(layer.contentRect.w, (control.body.x + control.body.w) - layer.contentRect.x)
+	layer.contentRect.h = max(layer.contentRect.h, (control.body.y + control.body.h) - layer.contentRect.y)
 }
 UpdateControl :: proc(using control: ^Control) {
 	if ctx.disabled {
@@ -928,7 +933,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 		}
 
 		if active {
-			layer, ok = BeginLayer(AttachRectBottom(body, menuSize + WINDOW_ROUNDNESS), sharedId, {})
+			layer, ok = BeginLayer(AttachRectBottom(body, menuSize + WINDOW_ROUNDNESS), {}, sharedId, {})
 			layer.order = .popup
 
 			if .hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left) {

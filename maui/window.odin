@@ -93,7 +93,7 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 	layerRect := rect
 	layerRect.h -= (layerRect.h - WINDOW_TITLE_SIZE) * howCollapsed
 
-	layer, ok = BeginLayer(layerRect, id, {})
+	layer, ok = BeginLayer(layerRect, {}, id, {})
 	PushId(id)
 
 	drawRect = rect

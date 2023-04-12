@@ -47,85 +47,83 @@ main :: proc() {
 		backend.NewFrame()
 
 		rect := ui.Cut(.right, 500)
-		if layer, ok := ui.Layer(rect); ok {
+		rect.h /= 2
+		if layer, ok := ui.Layer(rect, {500, 1000}); ok {
 			ui.PaintRect(layer.body, ui.GetColor(.foreground, 1))
+			ui.Shrink(20)
 
-			if layout, ok := ui.Layout(rect); ok {
-				ui.Shrink(20)
+			ui.CheckBox(&boolean, "Check Box")
 
-				ui.CheckBox(&boolean, "Check Box")
+			ui.Space(10)
+			ui.SetSize(46)
+			if clicked, ok := ui.Widget("WiFi", {.bottom}); ok {
+				ui.SetSide(.right)
+				ui.SetSize(60)
+				ui.Align(.middle)
+				wifi = ui.ToggleSwitch(wifi)
+				ui.WidgetDivider()
+
+				if clicked {
+					wifi = !wifi
+				}
+			}
+			if clicked, ok := ui.Widget("Bluetooth", {.top}); ok {
+				ui.SetSide(.right)
+				ui.SetSize(60)
+				ui.Align(.middle)
+				bluetooth = ui.ToggleSwitch(bluetooth)
+				ui.WidgetDivider()
+
+				if clicked {
+					bluetooth = !bluetooth
+				}
+			}
+
+			ui.Space(10)
+			if layout, ok := ui.Layout(ui.Cut(.top, 80)); ok {
+				layout.side = .left
+				layout.alignX = .middle
+				layout.alignY = .middle
+				layout.size = layout.rect.w / 3
+				choice = ui.RadioButtons(choice, .bottom)
+			}
+
+			if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
+				layout.side = .left
+				layout.size = layout.rect.w / 3
+				layout.margin = 5
+
+				ui.ButtonEx("SOLA FIDE", .subtle)
+				ui.ButtonEx("SOLA GRACIA", .normal)
+				ui.ButtonEx("SOLA SCRIPTURA", .bright)
+			}
+
+			ui.Space(20)
+			ui.SetSize(300)
+			if ui.Section("Section", {}) {
+				ui.SetSize(36)
+				ui.Space(10)
+				if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
+					resize(&buffer, len(newData))
+					copy(buffer[:], newData[:])
+				}
 
 				ui.Space(10)
-				ui.SetSize(46)
-				if clicked, ok := ui.Widget("WiFi", {.bottom}); ok {
-					ui.SetSide(.right)
-					ui.SetSize(60)
-					ui.Align(.middle)
-					wifi = ui.ToggleSwitch(wifi)
-					ui.WidgetDivider()
-
-					if clicked {
-						wifi = !wifi
-					}
-				}
-				if clicked, ok := ui.Widget("Bluetooth", {.top}); ok {
-					ui.SetSide(.right)
-					ui.SetSize(60)
-					ui.Align(.middle)
-					bluetooth = ui.ToggleSwitch(bluetooth)
-					ui.WidgetDivider()
-
-					if clicked {
-						bluetooth = !bluetooth
-					}
+				if change, newValue := ui.SliderEx(value, 0, 20, "Slider Value"); change {
+					value = newValue
 				}
 
 				ui.Space(10)
-				if layout, ok := ui.Layout(ui.Cut(.top, 80)); ok {
-					layout.side = .left
-					layout.alignX = .middle
-					layout.alignY = .middle
-					layout.size = layout.rect.w / 3
-					choice = ui.RadioButtons(choice, .bottom)
-				}
+				value = ui.NumberInputFloat32(value, "Enter a value")
 
-				if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
-					layout.side = .left
-					layout.size = layout.rect.w / 3
-					layout.margin = 5
-
-					ui.ButtonEx("SOLA FIDE", .subtle)
-					ui.ButtonEx("SOLA GRACIA", .normal)
-					ui.ButtonEx("SOLA SCRIPTURA", .bright)
-				}
-
-				ui.Space(20)
-				layout.size = 300
-				if ui.Section("Section", {}) {
-					ui.SetSize(36)
-					ui.Space(10)
-					if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
-						resize(&buffer, len(newData))
-						copy(buffer[:], newData[:])
-					}
-
-					ui.Space(10)
-					if change, newValue := ui.SliderEx(value, 0, 20, "Slider Value"); change {
-						value = newValue
-					}
-
-					ui.Space(10)
-					value = ui.NumberInputFloat32(value, "Enter a value")
-
-					ui.Space(10)
-					ui.SetSize(30)
-					choice = ui.EnumMenu(choice)
-					
-					ui.Space(10)
-					if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
-						layout.side = .left; layout.size = 100
-						integer = ui.Spinner(integer, -100, 100)
-					}
+				ui.Space(10)
+				ui.SetSize(30)
+				choice = ui.EnumMenu(choice)
+				
+				ui.Space(10)
+				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+					layout.side = .left; layout.size = 100
+					integer = ui.Spinner(integer, -100, 100)
 				}
 			}
 		}

@@ -214,6 +214,8 @@ Context :: struct {
 	// Clip rects
 	clipRects: [MAX_CLIP_RECTS]Rect,
 	clipRectCount: i32,
+	// Render time clip rect
+	clipRect: Rect,
 
 	// Next control options
 	nextId: Id,
