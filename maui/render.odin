@@ -346,17 +346,17 @@ NextCommand :: proc(pcmd: ^^Command) -> bool {
 	if hotLayer >= i32(len(layerList)) {
 		return false
 	}
-	using layer := &layers[layerList[hotLayer]]
+	layer := &layers[layerList[hotLayer]]
 
 	cmd := pcmd^
 	defer pcmd^ = cmd
 	if cmd != nil { 
 		cmd = (^Command)(uintptr(cmd) + uintptr(cmd.size)) 
 	} else {
-		cmd = (^Command)(&commands[0])
+		cmd = (^Command)(&layer.commands[0])
 	}
 	InvalidCommand :: #force_inline proc(using layer: ^LayerData) -> ^Command {
-		return (^Command)(&commands[commandOffset])
+		return (^Command)(&layer.commands[commandOffset])
 	}
 	clip, ok := cmd.variant.(^CommandClip)
 	if ok {
@@ -391,17 +391,14 @@ BeginClip :: proc(rect: Rect) {
 
 	cmd := PushCommand(CommandClip)
 	cmd.rect = rect
-	ctx.clipRects[ctx.clipRectCount] = rect
-	ctx.clipRectCount += 1
 }
 EndClip :: proc() {
 	if !ctx.shouldRender {
 		return
 	}
 
-	ctx.clipRectCount -= 1
 	cmd := PushCommand(CommandClip)
-	cmd.rect = ctx.clipRects[ctx.clipRectCount - 1]
+	cmd.rect = ctx.fullscreenRect
 }
 PaintQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
 	if !ctx.shouldRender {
@@ -507,7 +504,7 @@ PaintCircleSector :: proc(center: Vec2, radius, start, end: f32, segments: i32, 
         	center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, 
         	center + {math.cos(angle) * radius, math.sin(angle) * radius}, 
         	color,
-        	)
+    	)
         angle += step;
     }
 }
@@ -532,7 +529,7 @@ PaintRingSector :: proc(center: Vec2, inner, outer, start, end: f32, segments: i
         	center + {math.cos(angle + step) * inner, math.sin(angle + step) * inner},
         	center + {math.cos(angle + step) * outer, math.sin(angle + step) * outer},
         	color,
-        	)
+    	)
         angle += step;
     }
 }
@@ -615,7 +612,7 @@ PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: RectCorners, color:
 	if rect.h == 0 || rect.w == 0 {
 		return
 	}
-	if corners == {} {
+	if radius == 0 || corners == {} {
 		PaintRect(rect, color)
 		return
 	}
@@ -664,6 +661,11 @@ PaintRoundedRect :: proc(rect: Rect, radius: f32, color: Color) {
 		return
 	}
 
+	if radius == 0 {
+		PaintRect(rect, color)
+		return
+	}
+
 	if rect.w == 0 || rect.h == 0 {
 		return
 	}
@@ -702,11 +704,16 @@ PaintRoundedRectOutline :: proc(rect: Rect, radius: f32, thin: bool, color: Colo
 		return
 	}
 
+	thickness: f32 = 1 if thin else 2
+	if radius == 0 {
+		PaintRectLines(rect, thickness, color)
+		return
+	}
+
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
 	if color.a == 0 || index < 0 || index >= CIRCLE_SIZES {
 		return
 	}
-	thickness: f32 = 1 if thin else 2
 	source := painter.circles[index + (CIRCLE_SIZES if thin else (CIRCLE_SIZES * 2))].source
 	halfSize := math.trunc(source.w / 2)
 
@@ -737,11 +744,16 @@ PaintRoundedRectOutlineEx :: proc(rect: Rect, radius: f32, thin: bool, corners: 
 		return
 	}
 
+	thickness: f32 = 1 if thin else 2
+	if radius == 0 || corners == {} {
+		PaintRectLines(rect, thickness, color)
+		return
+	}
+
 	index := int(radius * 2) - MIN_CIRCLE_SIZE
 	if color.a == 0 || index < 0 || index >= CIRCLE_SIZES {
 		return
 	}
-	thickness: f32 = 1 if thin else 2
 	source := painter.circles[index + (CIRCLE_SIZES if thin else (CIRCLE_SIZES * 2))].source
 	halfSize := math.trunc(source.w / 2)
 

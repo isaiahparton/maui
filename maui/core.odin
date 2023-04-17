@@ -102,13 +102,15 @@ MAX_FRAMES :: #config(MAUI_MAX_FRAMES, 32)
 // Maximum layout depth (times you can call PushLayout())
 MAX_LAYOUTS :: #config(MAUI_MAX_LAYOUTS, 32)
 // Size of each layer's command buffer
-COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 32 * 1024)
+COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 48 * 1024)
 // Size of id stack (times you can call PushId())
 ID_STACK_SIZE :: 8
 // Repeating key press
 KEY_REPEAT_DELAY :: 0.5
 KEY_REPEAT_RATE :: 24
 ALL_CORNERS: RectCorners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
+
+DOUBLE_CLICK_TIME :: 0.25
 
 Id :: distinct u32
 
@@ -165,6 +167,9 @@ Context :: struct {
 	size, setMousePoint: Vec2,
 	lastRect, fullscreenRect: Rect,
 
+	firstClick, doubleClick: bool,
+	doubleClickTimer: f32,
+
 	// Each text input being edited
 	scribe: Scribe,
 	numberText: []u8,
@@ -211,16 +216,14 @@ Context :: struct {
 	layoutDepth: i32,
 	layoutExpand: bool,
 
-	// Clip rects
-	clipRects: [MAX_CLIP_RECTS]Rect,
-	clipRectCount: i32,
-	// Render time clip rect
 	clipRect: Rect,
 
 	// Next control options
 	nextId: Id,
 	nextRect: Rect,
 	setNextRect: bool,
+
+	focusIndex: i32,
 
 	// Control interactions
 	prevHoverId, 
@@ -230,6 +233,13 @@ Context :: struct {
 	pressId, 
 	focusId,
 	prevFocusId: Id,
+}
+
+Enable :: proc(){
+	ctx.disabled = false
+}
+Disable :: proc(){
+	ctx.disabled = true
 }
 
 /*
@@ -283,9 +293,9 @@ SetColorBrightness :: proc(color: Color, value: f32) -> Color {
 		color.a,
 	}
 }
-ColorToHSV :: proc(color: Color) -> Vec3 {
+ColorToHSV :: proc(color: Color) -> Vec4 {
 	hsva := linalg.vector4_rgb_to_hsl(linalg.Vector4f32{f32(color.r) / 255.0, f32(color.g) / 255.0, f32(color.b) / 255.0, f32(color.a) / 255.0})
-	return hsva.xyz
+	return hsva.xyzw
 }
 ColorFromHSV :: proc(hue, saturation, value: f32) -> Color {
     rgba := linalg.vector4_hsl_to_rgb(hue, saturation, value, 1.0)
@@ -460,7 +470,7 @@ Prepare :: proc() {
 	/*
 		This decides if the frame should be drawn
 	*/
-	if input.prevMousePoint != input.mousePoint || input.keyBits != {} || input.mouseBits != {} {
+	if input.prevMousePoint != input.mousePoint || input.keyBits != {} || input.mouseBits != {} || input.mouseScroll != {} {
 		renderTime = 1
 	}
 	for i in 0 ..< MAX_CONTROLS {
@@ -547,9 +557,6 @@ Refresh :: proc() {
 
 	fullscreenRect = {0, 0, size.x, size.y}
 
-	clipRects[0] = fullscreenRect
-	clipRectCount = 1
-
 	for id, animation in &animations {
 		if animation.keepAlive {
 			animation.keepAlive = false
@@ -635,6 +642,52 @@ Refresh :: proc() {
 				}
 			}
 		}
+	}
+
+	if KeyPressed(.tab) && ctx.focusIndex >= 0 {
+		rect := ctx.controls[ctx.focusIndex].body
+		next := ctx.focusId
+		for i in 0 ..< MAX_CONTROLS {
+			if !ctx.controlExists[i] || ctx.focusIndex == i32(i) {
+				continue
+			}
+			control := &ctx.controls[i]
+			if (control.body.x > rect.x || control.body.y > rect.y) && control.options >= {.tabSelect} {
+				next = control.id
+			}
+		}
+		if next == ctx.focusId {
+			for i in 0 ..< MAX_CONTROLS {
+				if !ctx.controlExists[i] || ctx.focusIndex == i32(i) {
+					continue
+				}
+				control := &ctx.controls[i]
+				if control.options >= {.tabSelect} {
+					next = control.id
+					break
+				}
+			}
+		}
+		ctx.focusId = next
+	}
+	focusIndex = -1
+
+	doubleClick = false
+	if MousePressed(.left) {
+		if firstClick {
+			doubleClick = true
+			firstClick = false
+		} else {
+			firstClick = true
+		}
+	}
+	if prevHoverId != hoverId || doubleClickTimer > DOUBLE_CLICK_TIME {
+		firstClick = false
+	}
+	if firstClick {
+		doubleClickTimer += deltaTime
+	} else {
+		doubleClickTimer = 0
 	}
 
 	// Reset input bits

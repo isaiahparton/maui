@@ -3,10 +3,11 @@ import rl "vendor:raylib"
 import ui "../maui"
 
 @private texture: rl.Texture
+
 Init :: proc() {
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
-	rl.SetTextureFilter(texture, .BILINEAR)
+	rl.SetTextureFilter(texture, .TRILINEAR)
 	ui.DoneWithAtlasImage()
 }
 
@@ -16,17 +17,11 @@ NewFrame :: proc() {
 	ui.SetMouseBit(.left, rl.IsMouseButtonDown(.LEFT))
 	ui.SetMouseBit(.right, rl.IsMouseButtonDown(.RIGHT))
 	ui.SetMouseBit(.middle, rl.IsMouseButtonDown(.MIDDLE))
-	ui.SetMouseScroll(0, rl.GetMouseWheelMove())
-	
-	key := rl.GetCharPressed()
-	for key != 0 {
-		ui.InputAddCharPress(key)
-		key = rl.GetCharPressed()
-	}
 
 	ui.SetKeyBit(.control, rl.IsKeyDown(.LEFT_CONTROL) || rl.IsKeyDown(.RIGHT_CONTROL))
-	ui.SetKeyBit(.shift, rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT))
+	shiftDown := rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT); ui.SetKeyBit(.shift, shiftDown)
 	ui.SetKeyBit(.backspace, rl.IsKeyDown(.BACKSPACE))
+	ui.SetKeyBit(.tab, rl.IsKeyDown(.TAB))
 	ui.SetKeyBit(.left, rl.IsKeyDown(.LEFT))
 	ui.SetKeyBit(.right, rl.IsKeyDown(.RIGHT))
 	ui.SetKeyBit(.up, rl.IsKeyDown(.UP))
@@ -36,6 +31,18 @@ NewFrame :: proc() {
 	ui.SetKeyBit(.x, rl.IsKeyDown(.X))
 	ui.SetKeyBit(.c, rl.IsKeyDown(.C))
 	ui.SetKeyBit(.v, rl.IsKeyDown(.V))
+
+	if shiftDown {
+		ui.SetMouseScroll(rl.GetMouseWheelMove(), 0)
+	} else {
+		ui.SetMouseScroll(0, rl.GetMouseWheelMove())
+	}
+	
+	key := rl.GetCharPressed()
+	for key != 0 {
+		ui.InputAddCharPress(key)
+		key = rl.GetCharPressed()
+	}
 
 	ui.ctx.deltaTime = rl.GetFrameTime()
 }

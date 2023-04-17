@@ -141,7 +141,6 @@ PushLayout :: proc(rect: Rect) -> (layout: ^LayoutData) {
 	layout = &layouts[layoutDepth]
 	layout^ = {
 		rect = rect,
-		size = WIDGET_HEIGHT,
 	}
 	layoutDepth += 1
 	when ODIN_DEBUG {

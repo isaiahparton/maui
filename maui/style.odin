@@ -3,31 +3,34 @@ package maui
 /*
 	Geometric appearance
 */
-WINDOW_ROUNDNESS :: 10
+WINDOW_ROUNDNESS :: 8
 WINDOW_TITLE_SIZE :: 40
 
-WIDGET_HEIGHT :: 30
-WIDGET_ROUNDNESS :: 5
-WIDGET_TEXT_OFFSET :: 7
+WIDGET_ROUNDNESS :: 0
+WIDGET_TEXT_OFFSET :: 9
 
 CHECKBOX_SIZE :: 22
 HALF_CHECKBOX_SIZE :: CHECKBOX_SIZE / 2
+
+SCROLL_BAR_SIZE :: 14
+SCROLL_BAR_PADDING :: 4
 
 /*
 	Color schemes
 */
 COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
 	.accent = {55, 125, 248, 255},
-	.accentHover = {45, 115, 233, 255},
-	.accentPress = {20, 75, 255, 255},
+	.accentHover = {35, 105, 250, 255},
+	.accentPress = {16, 65, 245, 255},
 
-	.foreground = {255, 255, 255, 255},
-	.backing = {212, 211, 218, 255},
+	.foreground = {218, 218, 218, 255},
+	.backing = {255, 255, 255, 255},
+	.backingHighlight = {240, 240, 240, 255},
 	.iconBase = {135, 135, 135, 255},
 
-	.widgetBase = {170, 170, 180, 255},
-	.widgetHover = {142, 143, 154, 255},
-	.widgetPress = {123, 124, 140, 255},
+	.widgetBase = {160, 160, 165, 255},
+	.widgetHover = {143, 144, 155, 255},
+	.widgetPress = {112, 113, 129, 255},
 
 	.outlineBase = {112, 113, 116, 255},
 
@@ -42,6 +45,7 @@ COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {
 
 	.foreground = {28, 28, 28, 255},
 	.backing = {18, 18, 18, 255},
+	.backingHighlight = {18, 18, 18, 255},
 	.iconBase = {192, 192, 192, 255},
 
 	.widgetBase = {50, 50, 50, 255},
@@ -60,6 +64,7 @@ ColorIndex :: enum {
 
 	// Background of text inputs and toggle switches
 	backing,
+	backingHighlight,
 
 	// Clickable things
 	widgetBase,
@@ -87,7 +92,7 @@ Style :: struct {
 
 GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
 	color := ctx.style.colors[index]
-	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
+	return {color.r, color.g, color.b, u8(f32(color.a) * clamp(alpha, 0, 1))}
 }
 StyleApplyShade :: proc(base: Color, amount: f32) -> Color {
 	return BlendColors(base, ctx.style.colors[.shade], amount * 0.1)

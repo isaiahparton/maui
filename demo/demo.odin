@@ -47,36 +47,21 @@ main :: proc() {
 		backend.NewFrame()
 
 		rect := ui.Cut(.right, 500)
-		rect.h /= 2
-		if layer, ok := ui.Layer(rect, {500, 1000}); ok {
+		if layer, ok := ui.Layer(rect, {}); ok {
 			ui.PaintRect(layer.body, ui.GetColor(.foreground, 1))
 			ui.Shrink(20)
 
+			ui.SetSize(40)
+			ui.AlignY(.middle)
+
 			ui.CheckBox(&boolean, "Check Box")
+			boolean = ui.ToggleSwitch(boolean)
 
 			ui.Space(10)
-			ui.SetSize(46)
-			if clicked, ok := ui.Widget("WiFi", {.bottom}); ok {
-				ui.SetSide(.right)
-				ui.SetSize(60)
-				ui.Align(.middle)
-				wifi = ui.ToggleSwitch(wifi)
-				ui.WidgetDivider()
-
-				if clicked {
-					wifi = !wifi
-				}
-			}
-			if clicked, ok := ui.Widget("Bluetooth", {.top}); ok {
-				ui.SetSide(.right)
-				ui.SetSize(60)
-				ui.Align(.middle)
-				bluetooth = ui.ToggleSwitch(bluetooth)
-				ui.WidgetDivider()
-
-				if clicked {
-					bluetooth = !bluetooth
-				}
+			if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+				ui.SetSize(30)
+				ui.SetSide(.left)
+				ui.IconButton(.pencil)
 			}
 
 			ui.Space(10)
@@ -118,12 +103,17 @@ main :: proc() {
 
 				ui.Space(10)
 				ui.SetSize(30)
-				choice = ui.EnumMenu(choice)
+				choice = ui.EnumMenu(choice, 30)
 				
 				ui.Space(10)
 				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
 					layout.side = .left; layout.size = 100
-					integer = ui.Spinner(integer, -100, 100)
+					integer = ui.Spinner(integer, 0, 255)
+				}
+				ui.Space(10)
+				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+					layout.side = .left; layout.size = 100
+					integer = ui.DragSpinner(integer, 0, 0)
 				}
 			}
 		}

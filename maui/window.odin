@@ -192,6 +192,9 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 	} else {
 		state -= {.collapsed}
 	}
+	if howCollapsed > 0 && howCollapsed < 1 {
+		layer.bits += {.clipped}
+	}
 
 	// Push layout if necessary
 	if .collapsed in state {
