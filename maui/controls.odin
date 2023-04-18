@@ -165,6 +165,7 @@ TextInputOption :: enum {
 	hidden,
 	numeric,
 	integer,
+	selectAll,
 }
 TextInputOptions :: bit_set[TextInputOption]
 TextInputFormat :: struct {
@@ -256,6 +257,11 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 		ctx.scribe.index = hoverIndex
 		ctx.scribe.anchor = hoverIndex
 		ctx.scribe.length = 0
+	}
+	if .selectAll in format.options && .justFocused in state {
+		ctx.scribe.index = 0
+		ctx.scribe.anchor = 0
+		ctx.scribe.length = len(data)
 	}
 
 	// Text manipulation
@@ -719,7 +725,13 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 		}
 
 		if .active in bits {
-			if change, newData := MutableTextFromBytes(font, transmute([]u8)numberText[:], body, {align = .middle}, state); change {
+			if change, newData := MutableTextFromBytes(
+				font, 
+				transmute([]u8)numberText[:], 
+				body, 
+				{align = .middle, options = {.selectAll}}, 
+				state,
+			); change {
 				if parsedValue, ok := strconv.parse_int(string(newData)); ok {
 					newValue = parsedValue
 				}
@@ -786,11 +798,11 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		}
 
 		if stateTime < 1 {
-			PaintRoundedRect(body, 3, GetColor(.foreground if ctx.disabled else .backing, 1))
-			PaintRoundedRectOutline(body, 3, false, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime))
+			PaintRoundedRect(body, 4, GetColor(.foreground if ctx.disabled else .backing, 1))
+			PaintRoundedRectOutline(body, 4, false, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime))
 		}
 		if stateTime > 0 {
-			PaintRoundedRect(body, 3, GetColor(.widgetBase if ctx.disabled else .accent, stateTime))
+			PaintRoundedRect(body, 4, GetColor(.widgetBase if ctx.disabled else .accent, stateTime))
 			DrawIconEx(.minus if status == .unknown else .check, center, stateTime, .middle, .middle, GetColor(.foreground, 1))
 		}
 		PaintString(GetFontData(.default), text, {body.x + body.w + WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
