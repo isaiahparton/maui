@@ -810,6 +810,25 @@ PaintCollapseArrow :: proc(center: Vec2, size, time: f32, color: Color) {
 }
 
 /*
+	Label rendering
+*/
+Label :: struct {
+	text: string,
+	icon: IconIndex,
+}
+MeasureLabel :: proc(label: Label) -> (size: Vec2) {
+	size += MeasureString(GetFontData(.label), label.text)
+	if label.icon != .none {
+		icon := painter.icons[label.icon]
+		size += {icon.w, icon.h}
+	}
+	return
+}
+PaintLabel :: proc(label: Label, origin: Vec2) {
+
+}
+
+/*
 	Text rendering
 */
 Alignment :: enum {
@@ -819,7 +838,7 @@ Alignment :: enum {
 }
 MeasureString :: proc(font: FontData, text: string) -> Vec2 {
 	size := Vec2{}
-	for codepoint in text {
+	for codepoint, index in text {
 		glyph := GetGlyphData(font, codepoint)
 		size.x += glyph.advance + GLYPH_SPACING
 	}
@@ -947,7 +966,6 @@ IconIndex :: enum {
 	minus,
 	upload,
 }
-ICON_SIZE :: 24
 DrawIcon :: proc(icon: IconIndex, origin: Vec2, color: Color) {
 	if !ctx.shouldRender {
 		return
@@ -961,18 +979,19 @@ DrawIconEx :: proc(icon: IconIndex, origin: Vec2, scale: f32, alignX, alignY: Al
 	}
 
 	offset := Vec2{}
+	src := painter.icons[icon]
 	if alignX == .middle {
-		offset.x -= ICON_SIZE / 2
+		offset.x -= src.w / 2
 	} else if alignX == .far {
-		offset.x -= ICON_SIZE
+		offset.x -= src.w
 	}
 	if alignY == .middle {
-		offset.y -= ICON_SIZE / 2
+		offset.y -= src.h / 2
 	} else if alignY == .far {
-		offset.y -= ICON_SIZE
+		offset.y -= src.h
 	}
-	dst := Rect{0, 0, f32(ICON_SIZE * scale), f32(ICON_SIZE * scale)}
+	dst := Rect{0, 0, src.w, src.h}
 	dst.x = origin.x - dst.w / 2
 	dst.y = origin.y - dst.h / 2
-	PaintTexture(painter.icons[icon], dst, color)
+	PaintTexture(src, dst, color)
 }

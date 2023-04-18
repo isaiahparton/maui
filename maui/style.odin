@@ -6,7 +6,7 @@ package maui
 WINDOW_ROUNDNESS :: 8
 WINDOW_TITLE_SIZE :: 40
 
-WIDGET_ROUNDNESS :: 0
+WIDGET_ROUNDNESS :: 5
 WIDGET_TEXT_OFFSET :: 9
 
 CHECKBOX_SIZE :: 22
@@ -24,6 +24,9 @@ COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
 	.accentPress = {16, 65, 245, 255},
 
 	.foreground = {218, 218, 218, 255},
+	.foregroundHover = {200, 200, 200, 255},
+	.foregroundPress = {170, 170, 170, 255},
+
 	.backing = {255, 255, 255, 255},
 	.backingHighlight = {240, 240, 240, 255},
 	.iconBase = {135, 135, 135, 255},
@@ -44,6 +47,8 @@ COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {
 	.accentPress = {53, 120, 243, 255},
 
 	.foreground = {28, 28, 28, 255},
+	.foregroundHover = {28, 28, 28, 255},
+	.foregroundPress = {28, 28, 28, 255},
 	.backing = {18, 18, 18, 255},
 	.backingHighlight = {18, 18, 18, 255},
 	.iconBase = {192, 192, 192, 255},
@@ -61,6 +66,8 @@ COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {
 
 ColorIndex :: enum {
 	foreground,
+	foregroundHover,
+	foregroundPress,
 
 	// Background of text inputs and toggle switches
 	backing,

@@ -47,7 +47,7 @@ Control :: struct {
 	options: ControlOptions,
 	state: ControlState,
 }
-
+@(deferred_out=EndControl)
 BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 	using ctx
 
@@ -80,7 +80,14 @@ BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 
 	return
 }
-EndControl :: proc(control: ^Control) {
+EndControl :: proc(control: ^Control, ok: bool) {
+	if !ok {
+		return
+	}
+	if ctx.disabled {
+		PaintDisableShade(control.body)
+	}
+
 	layer := GetCurrentLayer()
 	layer.contentRect.x = min(layer.contentRect.x, control.body.x)
 	layer.contentRect.y = min(layer.contentRect.y, control.body.y)
@@ -140,6 +147,10 @@ UpdateControl :: proc(using control: ^Control) {
 	}
 
 	return
+}
+
+PaintDisableShade :: proc(rect: Rect) {
+	PaintRect(rect, GetColor(.foreground, 0.5))
 }
 
 // Primitives??
@@ -445,6 +456,10 @@ TextInputBytes :: proc(data: []u8, label, placeholder: string, format: TextInput
 				PaintAlignedString(font, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
 			}
 		}
+
+		body.y -= 10
+		body.h += 10
+		
 	}
 	return
 }
@@ -488,6 +503,10 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 			PaintRect({body.x + WIDGET_TEXT_OFFSET - 2, body.y, textSize.x + 4, 2}, GetColor(.backing, 1))
 			PaintString(GetFontData(.label), label, {body.x + WIDGET_TEXT_OFFSET, body.y - textSize.y / 2}, GetColor(.text, 1))
 		}
+
+		body.y -= 10
+		body.h += 10
+		
 	}
 	return
 }
@@ -540,7 +559,7 @@ ButtonPro :: proc(text: string, style: ButtonStyle, corners: RectCorners, loc :=
 		}
 		
 
-		EndControl(control)
+		
 		result = .released in state
 	}
 	return
@@ -573,13 +592,49 @@ IconButtonEx :: proc(icon: IconIndex, corners: RectCorners, loc := #caller_locat
 		}
 		DrawIconEx(icon, {body.x + body.w / 2, body.y + body.h / 2}, 1, .middle, .middle, GetColor(.text, 1))
 
-		EndControl(control)
+		
 		result = .released in state
 	}
 	return
 }
 IconButton :: proc(icon: IconIndex, loc := #caller_location) -> bool {
-	return IconButtonEx(icon, {.topLeft, .topRight, .bottomLeft, .bottomRight}, loc)
+	return IconButtonEx(icon, ALL_CORNERS, loc)
+}
+
+IconButtonToggleEx :: proc(value: bool, icon: IconIndex, corners: RectCorners, loc := #caller_location) -> (newValue: bool) {
+	newValue = value
+	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+		using control
+		UpdateControl(control)
+		if .released in state {
+			newValue = !value
+		}
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			stateTime := AnimateBool(HashIdFromInt(1), value, 0.15)
+		PopId()
+
+		fillColor: Color
+		if newValue {
+			fillColor = GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime)
+		} else {
+			fillColor = GetColor(.foregroundPress) if .down in state else BlendColors(GetColor(.foreground), GetColor(.foregroundHover), hoverTime)
+		}
+		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, fillColor)
+		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, false, corners, GetColor(.outlineBase))
+		if corners & {.topRight, .bottomRight} == {} {
+			PaintRect({body.x + body.w - 2, body.y + 2, 1, body.h - 4}, fillColor)
+		}
+		if corners & {.topLeft, .bottomLeft} == {} {
+			PaintRect({body.x + 1, body.y + 2, 1, body.h - 4}, fillColor)
+		}
+		DrawIconEx(icon, {body.x + body.w / 2, body.y + body.h / 2}, 1, .middle, .middle, GetColor(.text if newValue else .outlineBase))
+	}
+	return
+}
+IconButtonToggle :: proc(value: bool, icon: IconIndex, loc := #caller_location) -> bool {
+	return IconButtonToggleEx(value, icon, ALL_CORNERS, loc)
 }
 
 /*
@@ -691,7 +746,7 @@ SliderEx :: proc(value, low, high: f32, name: string, loc := #caller_location) -
 			newValue = clamp(low + ((input.mousePoint.x - body.x - HALF_HEIGHT) / range) * (high - low), low, high)
 		}
 
-		EndControl(control)
+		
 	}
 	return
 }
@@ -751,7 +806,7 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 			bits -= {.active}
 		}
 
-		EndControl(control)
+		
 	}
 	if low < high {
 		newValue = clamp(newValue, low, high)
@@ -768,7 +823,7 @@ CheckBoxStatus :: enum u8 {
 	unknown,
 }
 CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location) -> (change, newValue: bool) {
-	SIZE :: 20
+	SIZE :: 22
 	HALF_SIZE :: SIZE / 2
 	if control, ok := BeginControl(HashId(loc), LayoutNextEx(GetCurrentLayout(), SIZE)); ok {
 		using control
@@ -798,11 +853,11 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		}
 
 		if stateTime < 1 {
-			PaintRoundedRect(body, 4, GetColor(.foreground if ctx.disabled else .backing, 1))
-			PaintRoundedRectOutline(body, 4, false, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime))
+			PaintRoundedRect(body, 5, GetColor(.foreground if ctx.disabled else .backing, 1))
+			PaintRoundedRectOutline(body, 5, false, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime))
 		}
 		if stateTime > 0 {
-			PaintRoundedRect(body, 4, GetColor(.widgetBase if ctx.disabled else .accent, stateTime))
+			PaintRoundedRect(body, 5, GetColor(.widgetBase if ctx.disabled else .accent, stateTime))
 			DrawIconEx(.minus if status == .unknown else .check, center, stateTime, .middle, .middle, GetColor(.foreground, 1))
 		}
 		PaintString(GetFontData(.default), text, {body.x + body.w + WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
@@ -813,7 +868,7 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 			change = true
 		}
 
-		EndControl(control)
+		
 	}
 	return
 }
@@ -918,7 +973,7 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 			newValue = !value
 		}
 
-		EndControl(control)
+		
 	}
 	return
 }
@@ -987,7 +1042,7 @@ RadioButtonEx :: proc(value: bool, name: string, textSide: RectSide, loc := #cal
 			selected = true
 		}
 
-		EndControl(control)
+		
 	}
 	return
 }
@@ -1030,7 +1085,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 		PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
 		PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
 
-		EndControl(control)
+		
 		if .released in state {
 			bits = bits ~ {.active}
 		}
@@ -1071,7 +1126,7 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 		PaintRect(body, GetColor(.widgetHover) if active else BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
 		PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
 
-		EndControl(control)
+		
 		result = .released in state
 	}
 	return result
@@ -1112,7 +1167,7 @@ Widget :: proc(label: string, sides: RectSides, loc := #caller_location) -> (cli
 		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase))
 		PaintAlignedString(GetFontData(.default), label, {body.x + body.h * 0.25, body.y + body.h / 2}, GetColor(.text), .near, .middle)
 
-		EndControl(control)
+		
 		PushLayout(body)
 
 		clicked = .released in state

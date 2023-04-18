@@ -24,6 +24,8 @@ main :: proc() {
 	integer := 0
 	boolean := false
 
+	a, b, c: bool
+
 	wifi := true
 	bluetooth := false
 
@@ -53,9 +55,19 @@ main :: proc() {
 
 			ui.SetSize(40)
 			ui.AlignY(.middle)
-
+			ui.Enable()
 			ui.CheckBox(&boolean, "Check Box")
 			boolean = ui.ToggleSwitch(boolean)
+
+			ui.ctx.disabled = !boolean
+
+			ui.Space(10)
+			if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+				ui.SetSize(30); ui.SetSide(.left);
+				a = ui.IconButtonToggleEx(a, .pencil, {.topLeft, .bottomLeft})
+				b = ui.IconButtonToggleEx(b, .heart, {})
+				c = ui.IconButtonToggleEx(c, .eye, {.topRight, .bottomRight})
+			}
 
 			ui.Space(10)
 			if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
