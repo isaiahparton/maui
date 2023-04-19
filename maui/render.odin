@@ -58,11 +58,11 @@ FontLoadData :: struct {
 FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	.default = {
 		size = 20,
-		file = "IBMPlexSans-Regular.ttf",
+		file = "IBMPlexSans-Medium.ttf",
 	},
 	.header = {
 		size = 28,
-		file = "IBMPlexSans-Regular.ttf",
+		file = "IBMPlexSans-Medium.ttf",
 	},
 	.monospace = {
 		size = 20,
@@ -70,7 +70,7 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	},
 	.label = {
 		size = 16,
-		file = "IBMPlexSans-Regular.ttf",
+		file = "IBMPlexSans-Medium.ttf",
 	},
 }
 

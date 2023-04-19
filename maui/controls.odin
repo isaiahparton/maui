@@ -216,7 +216,7 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 		if .focused in state && .justFocused not_in state {
 			if ctx.scribe.length == 0 && .readOnly not_in format.options {
 				if ctx.scribe.index == index {
-					PaintRect({point.x - 1, point.y, 2, font.size}, GetColor(.text))
+					PaintRect({point.x - 1, point.y, 1, font.size}, GetColor(.text))
 				}
 			} else if index >= ctx.scribe.index && index < ctx.scribe.index + ctx.scribe.length {
 				PaintRect({point.x, point.y, glyphWidth, font.size}, GetColor(.text))
@@ -449,7 +449,7 @@ TextInputBytes :: proc(data: []u8, label, placeholder: string, format: TextInput
 			labelFont := GetFontData(.label)
 			textSize := MeasureString(labelFont, label)
 			PaintRect({body.x + WIDGET_TEXT_OFFSET - 2, body.y, textSize.x + 4, 2}, GetColor(.backing, 1))
-			PaintString(GetFontData(.label), label, {body.x + WIDGET_TEXT_OFFSET, body.y - textSize.y / 2}, GetColor(.text, 1))
+			PaintString(GetFontData(.label), label, {body.x + WIDGET_TEXT_OFFSET, body.y - textSize.y / 2}, GetColor(.textBright, 1))
 		}
 		if len(placeholder) != 0 {
 			if len(data) == 0 {
@@ -459,7 +459,6 @@ TextInputBytes :: proc(data: []u8, label, placeholder: string, format: TextInput
 
 		body.y -= 10
 		body.h += 10
-		
 	}
 	return
 }
@@ -506,7 +505,6 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 
 		body.y -= 10
 		body.h += 10
-		
 	}
 	return
 }
@@ -1023,7 +1021,7 @@ RadioButtonEx :: proc(value: bool, name: string, textSide: RectSide, loc := #cal
 			PaintCircle(center, outerRadius, GetColor(.foreground))
 		}
 		if !ctx.disabled {
-			PaintCircle(center, outerRadius, GetColor(.backing))
+			PaintCircle(center, outerRadius - 2, GetColor(.backing))
 		}
 		PaintCircleOutline(center, outerRadius, false, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime + stateTime))
 		if stateTime > 0 {
@@ -1091,14 +1089,15 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 		}
 
 		if active {
-			layer, ok = BeginLayer(AttachRectBottom(body, menuSize + WIDGET_ROUNDNESS), {}, sharedId, {.outlined})
+			layer, ok = BeginLayer(AttachRectBottom(body, menuSize), {}, sharedId, {.outlined})
 			layer.order = .popup
 
 			if (.hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left)) || .submit in layer.bits {
 				bits -= {.active}
 			}
 
-			PaintRoundedRectEx(layer.body, WIDGET_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase, 1))
+			//PaintRoundedRectEx(layer.body, WIDGET_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase, 1))
+			PaintRect(layer.body, GetColor(.widgetBase))
 
 			PushLayout(layer.body)
 		}
@@ -1108,6 +1107,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 @private _Menu :: proc(layer: ^LayerData, active: bool) {
 	if active {
 		//PaintRoundedRectOutlineEx(layer.body, WIDGET_ROUNDNESS, true, {.bottomLeft, .bottomRight}, GetColor(.outlineBase))
+		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
 		EndLayer(layer)
 		PopLayout()
 	}
@@ -1126,7 +1126,6 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 		PaintRect(body, GetColor(.widgetHover) if active else BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
 		PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
 
-		
 		result = .released in state
 	}
 	return result
@@ -1167,7 +1166,6 @@ Widget :: proc(label: string, sides: RectSides, loc := #caller_location) -> (cli
 		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase))
 		PaintAlignedString(GetFontData(.default), label, {body.x + body.h * 0.25, body.y + body.h / 2}, GetColor(.text), .near, .middle)
 
-		
 		PushLayout(body)
 
 		clicked = .released in state
