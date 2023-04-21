@@ -8,6 +8,7 @@ Init :: proc() {
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
 	rl.SetTextureFilter(texture, .BILINEAR)
+	rl.ExportImage(image, "atlas.png")
 	ui.DoneWithAtlasImage()
 }
 

@@ -6,7 +6,10 @@ import "core:os"
 import "core:strings"
 import "core:runtime"
 import "core:path/filepath"
+import "core:unicode"
 import "core:unicode/utf8"
+
+import stb "vendor:stb/truetype"
 import rl "vendor:raylib"
 
 TEXTURE_WIDTH :: 4096
@@ -16,7 +19,7 @@ TRIANGLE_STEP :: math.TAU / 3
 
 // up to how small/big should circles be pre-rendered?
 MIN_CIRCLE_SIZE :: 2
-MAX_CIRCLE_SIZE :: 40
+MAX_CIRCLE_SIZE :: 48
 CIRCLE_SIZES :: MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE
 
 MAX_CIRCLE_STROKE_SIZE :: 2
@@ -58,7 +61,7 @@ FontLoadData :: struct {
 FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	.default = {
 		size = 20,
-		file = "IBMPlexSans-Medium.ttf",
+		file = "merged.ttf",
 	},
 	.header = {
 		size = 28,
@@ -84,7 +87,7 @@ FontData :: struct {
 	size: f32,
 	image: rl.Image,
 	glyphs: []GlyphData,
-	firstGlyph: rune,
+	glyphMap: map[rune]i32,
 }
 
 GenSmoothCircle :: proc(image: ^rl.Image, center: Vec2, radius, smooth: f32) {
@@ -165,41 +168,19 @@ GenCircles :: proc(painter: ^Painter, origin: Vec2) -> Vec2 {
 	return offset
 }
 GenIcons :: proc(painter: ^Painter, rect: Rect) {
-	offset :Vec2= {}
-	maxHeight :f32= 0
-	for index in IconIndex {
-		if index == .none {
-			continue
-		}
-
-		path := fmt.caprintf("icons/%v.png", index)
-		defer delete(path)
-
-		iconImage := rl.LoadImage(path)
-		rl.ImageColorBrightness(&iconImage, 255)
-		if iconImage.data == nil {
-			fmt.println("failed to load", path)
-			continue
-		}
-		size :Vec2= {f32(iconImage.width), f32(iconImage.height)}
-
-		if offset.x + size.x > rect.w {
-			offset.x = 0
-			offset.y += maxHeight
-			if offset.y + maxHeight > rect.h {
-				break
-			}
-		}
-
-		source := Rect{rect.x + offset.x, rect.y + offset.y, size.x, size.y}
-		rl.ImageDraw(&painter.image, iconImage, {0, 0, f32(size.x), f32(size.y)}, transmute(rl.Rectangle)source, rl.WHITE)
-		painter.icons[index] = source
-
-		offset.x += size.x
-		maxHeight = max(maxHeight, size.y)
-	}
+	return
 }
-GenFont :: proc(origin: Vec2, path: string, size, glyphCount: i32) -> (font: FontData, success: bool) {
+GenFont :: proc(painter: ^Painter, origin: Vec2, path: string, size, glyphCount: i32) -> (font: FontData, success: bool) {
+	fontGlyphs := make([dynamic]rune)
+	defer delete(fontGlyphs)
+
+	for i in 0 ..< 255 {
+		if !unicode.is_letter(rune(i)) && !unicode.is_number(rune(i)) && !unicode.is_symbol(rune(i)) {
+			continue
+		}
+		append(&fontGlyphs, rune(i))
+	}
+	append(&fontGlyphs, '')
 	/*
 		Pass each glyph to a packer	
 	*/
@@ -210,38 +191,56 @@ GenFont :: proc(origin: Vec2, path: string, size, glyphCount: i32) -> (font: Fon
     		return
     	}
 
-        glyphCount := glyphCount if glyphCount > 0 else 95
-        glyphPadding := i32(1)
-        glyphInfo := rl.LoadFontData((transmute(runtime.Raw_Slice)fileData).data, i32(len(fileData)), size, nil, glyphCount, .DEFAULT)
-
-        if glyphInfo != nil {
-        	rects := make([^]rl.Rectangle, glyphCount)
-            font.image = rl.GenImageFontAtlas(glyphInfo, &rects, glyphCount, size, glyphPadding, 0);
-
-            font.glyphs = make([]GlyphData, glyphCount)
-            font.firstGlyph = glyphInfo[0].value
-            for index in 0..<glyphCount {
-            	rect := rects[index]
-            	font.glyphs[index] = {
-            		source = {origin.x + rect.x, origin.y + rect.y, rect.width, rect.height},
-            		offset = {f32(glyphInfo[index].offsetX), f32(glyphInfo[index].offsetY)},
-            		advance = f32(glyphInfo[index].advanceX),
-            	}
-            }
-
-            font.size = f32(size)
+        fontInfo: stb.fontinfo
+        if !stb.InitFont(&fontInfo, transmute([^]u8)(&fileData), 0) {
+        	fmt.println("stb_truetype failed to initialize font")
+        	return
         }
-        rl.UnloadFontData(glyphInfo, glyphCount)
+
+        scaleFactor := stb.ScaleForPixelHeight(&fontInfo, f32(size))
+
+        ascent, descent, lineGap: i32
+        stb.GetFontVMetrics(&fontInfo, &ascent, &descent, &lineGap)
+
+        offset: Vec2
+        font.glyphs = make([]GlyphData, glyphCount)
+        for glyph, index in fontGlyphs {
+        	glyphWidth, glyphHeight: i32
+        	offsetX, offsetY: i32
+
+        	imageData := stb.GetCodepointBitmap(&fontInfo, scaleFactor, scaleFactor, glyph, &glyphWidth, &glyphHeight, &offsetX, &offsetY)
+        	glyphAdvance: i32
+        	stb.GetGlyphHMetrics(&fontInfo, i32(glyph), &glyphAdvance, nil)
+
+        	// Copy bitmap to atlas
+        	image: Image = {
+        		data = imageData,
+        		mipmaps = 1,
+        		width = glyphWidth,
+        		height = glyphHeight,
+        		format = .UNCOMPRESSED_GRAY_ALPHA,
+        	}
+        	rect: Rect = {origin.x + offset.x, origin.y + offset.y, f32(glyphWidth), f32(glyphHeight)}
+        	rl.ImageDraw(&painter.image, image, {0, 0, rect.w, rect.h}, transmute(rl.Rectangle)rect, rl.WHITE)
+        	rl.UnloadImage(image)
+
+        	font.glyphs[index] = {
+        		offset = {f32(offsetX), f32(offsetY)},
+        		source = rect,
+        		advance = f32(glyphAdvance),
+        	}
+        	font.glyphMap[glyph] = i32(index)
+        }
         success = true
     }
     return
 }
 GetGlyphData :: proc(font: FontData, codepoint: rune) -> GlyphData {
-	index := int(codepoint) - int(font.firstGlyph)
-	if len(font.glyphs) <= index || index < 0 {
-		return font.glyphs[int('?') - int(font.firstGlyph)]
+	index, ok := font.glyphMap[codepoint]
+	if ok {
+		return font.glyphs[index]
 	}
-	return font.glyphs[index]
+	return {}
 }
 GetFontData :: proc(index: FontIndex) -> FontData {
 	return painter.fonts[index]
@@ -255,7 +254,6 @@ GetFontData :: proc(index: FontIndex) -> FontData {
 Painter :: struct {
 	circles: [CIRCLE_SIZES * CIRCLE_ROWS]PatchData,
 	fonts: [FontIndex]FontData,
-	icons: [IconIndex]Rect,
 
 	// atlas
 	image: Image,
@@ -276,20 +274,13 @@ GenAtlas :: proc(using painter: ^Painter) {
 
 	offset :f32= 0
 	for data, index in FONT_LOAD_DATA {
-		font, success := GenFont({1024 + offset, 0}, StringFormat("fonts/%s", data.file), data.size, 256)
+		font, success := GenFont(painter, {circleSpace.x + offset, 0}, StringFormat("fonts/%s", data.file), data.size, 256)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
 			continue
 		}
 		fonts[index] = font
 		offset += f32(font.image.width)
-	}
-
-	offset = 0
-	for font in fonts {
-		rl.ImageDraw(&image, font.image, {0, 0, f32(font.image.width), f32(font.image.height)}, {1024 + offset, 0, f32(font.image.width), f32(font.image.height)}, rl.WHITE)
-		offset += f32(font.image.width)
-		rl.UnloadImage(font.image)
 	}
 }
 
@@ -808,124 +799,6 @@ PaintCollapseArrow :: proc(center: Vec2, size, time: f32, color: Color) {
 		color,
 		)
 }
-
-/*
-	Label rendering
-*/
-Label :: struct {
-	text: string,
-	icon: IconIndex,
-}
-MeasureLabel :: proc(label: Label) -> (size: Vec2) {
-	size += MeasureString(GetFontData(.label), label.text)
-	if label.icon != .none {
-		icon := painter.icons[label.icon]
-		size += {icon.w, icon.h}
-	}
-	return
-}
-PaintLabel :: proc(label: Label, origin: Vec2) {
-
-}
-
-/*
-	Text rendering
-*/
-Alignment :: enum {
-	near,
-	middle,
-	far,
-}
-MeasureString :: proc(font: FontData, text: string) -> Vec2 {
-	size := Vec2{}
-	for codepoint, index in text {
-		glyph := GetGlyphData(font, codepoint)
-		size.x += glyph.advance + GLYPH_SPACING
-	}
-	size.y = font.size
-	return size
-}
-PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) -> Vec2 {
-	if !ctx.shouldRender {
-		return {}
-	}
-
-	origin := origin
-	size := Vec2{}
-	for codepoint in text {
-		glyph := GetGlyphData(font, codepoint)
-		PaintTexture(glyph.source, {math.trunc(origin.x + glyph.offset.x), origin.y + glyph.offset.y, glyph.source.w, glyph.source.h}, color)
-		origin.x += glyph.advance + GLYPH_SPACING
-		size.x += glyph.advance + GLYPH_SPACING
-	}
-	size.y = font.size
-	return size
-}
-PaintAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
-	if !ctx.shouldRender {
-		return {}
-	}
-
-	origin := origin
-	if alignX == .middle {
-		origin.x -= math.trunc(MeasureString(font, text).x / 2)
-	} else if alignX == .far {
-		origin.x -= MeasureString(font, text).x
-	}
-	if alignY == .middle {
-		origin.y -= MeasureString(font, text).y / 2
-	} else if alignY == .far {
-		origin.y -= MeasureString(font, text).y
-	}
-	return PaintString(font, text, origin, color)
-}
-// Draw a glyph, mathematically clipped to 'clipRect'
-PaintClippedGlyph :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {
-	if !ctx.shouldRender {
-		return
-	}
-
-    src := glyph.source
-    dst := Rect{ 
-        f32(i32(origin.x + glyph.offset.x)), 
-        f32(i32(origin.y + glyph.offset.y)), 
-        src.w, 
-        src.h,
-    }
-    if dst.x < clipRect.x {
-    	delta := clipRect.x - dst.x
-    	dst.w -= delta
-    	dst.x += delta
-    	src.x += delta
-    }
-    if dst.y < clipRect.y {
-    	delta := clipRect.y - dst.y
-    	dst.h -= delta
-    	dst.y += delta
-    	src.y += delta
-    }
-    if dst.x + dst.w > clipRect.x + clipRect.w {
-    	dst.w = (clipRect.x + clipRect.w) - dst.x
-    }
-    if dst.y + dst.h > clipRect.y + clipRect.h {
-    	dst.h = (clipRect.y + clipRect.h) - dst.y
-    }
-    src.w = dst.w
-    src.h = dst.h
-    if src.w <= 0 || src.h <= 0 {
-    	return
-    }
-    PaintTexture(src, dst, color)
-}
-/*
-/*
-	Draw a clipped glyphs with math instead of GPU commands
-*/
-DrawClippedGlyph :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {
-	
-}
-*/
-
 /*
 	Icons in the order they appear on the atlas (left to right, descending)
 */
@@ -978,20 +851,5 @@ DrawIconEx :: proc(icon: IconIndex, origin: Vec2, scale: f32, alignX, alignY: Al
 		return
 	}
 
-	offset := Vec2{}
-	src := painter.icons[icon]
-	if alignX == .middle {
-		offset.x -= src.w / 2
-	} else if alignX == .far {
-		offset.x -= src.w
-	}
-	if alignY == .middle {
-		offset.y -= src.h / 2
-	} else if alignY == .far {
-		offset.y -= src.h
-	}
-	dst := Rect{0, 0, src.w, src.h}
-	dst.x = origin.x - dst.w / 2
-	dst.y = origin.y - dst.h / 2
-	PaintTexture(src, dst, color)
+	return
 }

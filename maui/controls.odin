@@ -528,11 +528,23 @@ ButtonPro :: proc(text: string, style: ButtonStyle, corners: RectCorners, loc :=
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.25)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.2)
+			if .released in state {
+				GetAnimation(HashIdFromInt(1))^ = 1
+			}
 		PopId()
 
 		roundness := body.h / 2
 
+		if pressTime > 0 {
+			if .down in state {
+				rect := ExpandRect(body, rl.EaseCubicOut(pressTime, 0, 5, 1))
+				PaintRoundedRect(rect, rect.h / 2, StyleGetShadeColor(1))
+			} else {
+				rect := ExpandRect(body, 5)
+				PaintRoundedRect(rect, rect.h / 2, StyleGetShadeColor(pressTime))
+			}
+		}
 		if style == .subtle {
 			if hoverTime < 1 {
 				PaintRoundedRectOutlineEx(body, roundness, false, corners, GetColor(.widgetHover))
@@ -555,8 +567,6 @@ ButtonPro :: proc(text: string, style: ButtonStyle, corners: RectCorners, loc :=
 			}
 			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
 		}
-		
-
 		
 		result = .released in state
 	}
@@ -581,9 +591,18 @@ IconButtonEx :: proc(icon: IconIndex, corners: RectCorners, loc := #caller_locat
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.075)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.2)
 		PopId()
 
+		if pressTime > 0 {
+			if .down in state {
+				rect := ExpandRect(body, rl.EaseCubicOut(pressTime, 0, 5, 1))
+				PaintRoundedRect(rect, math.round(WIDGET_ROUNDNESS * f32(1.5)), StyleGetShadeColor(1))
+			} else {
+				rect := ExpandRect(body, 5)
+				PaintRoundedRect(rect, math.round(WIDGET_ROUNDNESS * f32(1.5)), StyleGetShadeColor(pressTime))
+			}
+		}
 		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
 		if .down not_in state {
 			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, false, corners, GetColor(.widgetPress, pressTime))
@@ -870,26 +889,18 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 	}
 	return
 }
-CheckBox :: proc(value: ^bool, text: string, loc := #caller_location) -> bool {
-	if value == nil {
-		return false
+CheckBox :: proc(value: bool, text: string, loc := #caller_location) -> bool {
+	if change, newValue := CheckBoxEx(.on if value else .off, text, loc); change {
+		return newValue
 	}
-	if change, newValue := CheckBoxEx(.on if value^ else .off, text, loc); change {
-		value^ = newValue
-		return true
-	}
-	return false
+	return value
 }
 CheckBoxBitSet :: proc(set: ^$S/bit_set[$E;$U], bit: E, text: string, loc := #caller_location) -> bool {
 	if set == nil {
 		return false
 	}
-	if change, newValue := CheckBoxEx(.on if bit in set else .off, text, loc); change {
-		if newValue {
-			incl(set, bit)
-		} else {
-			excl(set, bit)
-		}
+	if change, _ := CheckBoxEx(.on if bit in set else .off, text, loc); change {
+		set^ = set^ ~ {bit}
 		return true
 	}
 	return false
@@ -1048,7 +1059,7 @@ RadioButtons :: proc(value: $T, side: RectSide, loc := #caller_location) -> (new
 	newValue = value
 	for member in T {
 		PushId(HashIdFromInt(int(member)))
-			if RadioButtonEx(member == value, strings.to_upper_camel_case(Format(member), ctx.allocator), side) {
+			if RadioButtonEx(member == value, CapitalizeString(Format(member)), side) {
 				newValue = member
 			}
 		PopId()
@@ -1057,8 +1068,7 @@ RadioButtons :: proc(value: $T, side: RectSide, loc := #caller_location) -> (new
 }
 
 /*
-	Drop-down Menus
-	FIXME: Menu closes when clicked on!
+	Combo box
 */
 @(deferred_out=_Menu)
 Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^LayerData, active: bool) {
@@ -1079,12 +1089,12 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 			corners += {.bottomLeft, .bottomRight}
 		}
 		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, BlendColors(GetColor(.backing), GetColor(.backingHighlight), pressTime))
-		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase, hoverTime + stateTime))
+		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, !active, corners, GetColor(.accent) if active else GetColor(.outlineBase, hoverTime + stateTime))
 		PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
 		PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
 
 		
-		if .released in state {
+		if .pressed in state {
 			bits = bits ~ {.active}
 		}
 
@@ -1132,11 +1142,11 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 }
 EnumMenu :: proc(value: $T, optionSize: f32, loc := #caller_location) -> (newValue: T) {
 	newValue = value
-	if layer, active := Menu(strings.to_upper_camel_case(Format(value), ctx.allocator), optionSize * len(T), loc); active {
+	if layer, active := Menu(CapitalizeString(Format(value)), optionSize * len(T), loc); active {
 		SetSize(optionSize)
 		for member in T {
 			PushId(HashIdFromInt(int(member)))
-				if MenuOption(strings.to_upper_camel_case(Format(member), ctx.allocator), value == member) {
+				if MenuOption(CapitalizeString(Format(member)), value == member) {
 					newValue = member
 				}
 			PopId()
@@ -1215,6 +1225,8 @@ Section :: proc(label: string, sides: RectSides) -> (ok: bool) {
 	}
 }
 
+
+
 /*
 	Scroll bar
 */
@@ -1273,4 +1285,81 @@ ScrollBarV :: proc(value, low, high, thumbSize: f32, loc := #caller_location) ->
 		}
 	}
 	return
+}
+
+
+/*
+	Tabs
+*/
+Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bool) {
+	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+		using control
+
+		UpdateControl(control)
+
+		PushId(id)
+			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.15)
+			pressTime := AnimateBool(HashId(int(2)), .down in state, 0.1)
+			stateTime := AnimateBool(HashId(int(1)), active, 0.2)
+		PopId()
+
+		center: Vec2 = {body.x + body.w / 2, body.y + body.h / 2}
+		textSize := PaintAlignedString(GetFontData(.default), label, center, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime), .middle, .middle)
+		size := textSize.x
+		if hoverTime > 0 && stateTime < 1 {
+			PaintRect({center.x - size / 2, body.y + body.h - 4, size, 4}, GetColor(.foregroundHover, hoverTime))
+		}
+		size *= stateTime
+		if stateTime > 0 {
+			PaintRect({center.x - size / 2, body.y + body.h - 4, size, 4}, GetColor(.accent, stateTime))
+		}
+
+		result = .pressed in state
+	}
+	return
+}
+EnumTabs :: proc(value: $T, loc := #caller_location) -> (newValue: T) { 
+	newValue = value
+	rect := LayoutNext(GetCurrentLayout())
+	if layout, ok := Layout(rect); ok {
+		layout.size = layout.rect.w / len(T); layout.side = .left
+		for member in T {
+			PushId(HashId(int(member)))
+				if Tab(member == value, CapitalizeString(Format(member)), loc) {
+					newValue = member
+				}
+			PopId()
+		}
+		PaintRect({rect.x, rect.y + rect.h - 1, rect.w, 1}, GetColor(.foregroundPress))
+	}
+	return
+}
+
+/*
+	Plain text
+*/
+Text :: proc(font: FontIndex, text: string, fit: bool) {
+	fontData := GetFontData(font)
+	textSize := MeasureString(fontData, text)
+	layout := GetCurrentLayout()
+	if fit {
+		LayoutFitControl(layout, textSize)
+	}
+	rect := LayoutNextEx(layout, textSize)
+	PaintString(fontData, text, {rect.x, rect.y}, GetColor(.text))
+}
+TextBox :: proc(font: FontIndex, text: string, options: StringPaintOptions) {
+	fontData := GetFontData(font)
+	rect := LayoutNext(GetCurrentLayout())
+	PaintStringContained(fontData, text, rect, options, GetColor(.text))
+}
+
+/*
+	Progress bar
+*/
+ProgressBar :: proc(value: f32) {
+	rect := LayoutNext(GetCurrentLayout())
+	radius := rect.h / 2
+	PaintRoundedRect(rect, radius, GetColor(.backing))
+	PaintRoundedRect({rect.x, rect.y, rect.w * clamp(value, 0, 1), rect.h}, radius, GetColor(.accent))
 }

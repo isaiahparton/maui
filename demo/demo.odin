@@ -9,6 +9,18 @@ import "core:fmt"
 import "core:math"
 import "core:slice"
 
+// Set up your own layout values
+DEFAULT_SPACING :: 10
+HEADER_LEADING_SPACE :: 24
+HEADER_TRAILING_SPACE :: 12
+DEFAULT_BUTTON_SIZE :: 36
+DEFAULT_TEXT_INPUT_SIZE :: 36
+
+Tabs :: enum {
+	text,
+	input,
+	table,
+}
 Choices :: enum {
 	first,
 	second,
@@ -23,11 +35,11 @@ main :: proc() {
 	value: f32 = 10.0
 	integer := 0
 	boolean := false
+	tab: Tabs
 
 	a, b, c: bool
 
-	wifi := true
-	bluetooth := false
+	wordwrap: bool
 
 	buffer := make([dynamic]u8)
 
@@ -51,82 +63,80 @@ main :: proc() {
 		rect := ui.Cut(.right, 500)
 		if layer, ok := ui.Layer(rect, {}); ok {
 			ui.PaintRect(layer.body, ui.GetColor(.foreground, 1))
+			ui.Enable()
+
+			// Tabs
+			ui.SetSize(40)
+			tab = ui.EnumTabs(tab)
+
+			// Apply content padding
 			ui.Shrink(20)
 
-			ui.SetSize(40)
-			ui.AlignY(.middle)
-			ui.Enable()
-			ui.CheckBox(&boolean, "Check Box")
-			boolean = ui.ToggleSwitch(boolean)
-
-			ui.ctx.disabled = !boolean
-
-			ui.Space(10)
-			if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
-				ui.SetSize(30); ui.SetSide(.left);
-				a = ui.IconButtonToggleEx(a, .pencil, {.topLeft, .bottomLeft})
-				b = ui.IconButtonToggleEx(b, .heart, {})
-				c = ui.IconButtonToggleEx(c, .eye, {.topRight, .bottomRight})
-			}
-
-			ui.Space(10)
-			if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+			if tab == .text {
 				ui.SetSize(30)
-				ui.SetSide(.left)
-				ui.IconButton(.pencil)
-			}
+				wordwrap = ui.CheckBox(wordwrap, "Enable word wrap")
+				ui.SetSize(1, true)
+				ui.TextBox(.label, "Lorem ipsum dolor sit amet. Et unde alias eum repellendus earum est autem error cum esse enim? Est veritatis asperiores vel fugiat unde non dolorem voluptatibus rem maiores autem? Vel facilis eveniet ea molestiae fugiat ut cupiditate corrupti. Qui consequatur earum sed explicabo iste qui dolorum iste qui dolor sapiente ex odit obcaecati aut quibusdam vitae. Eum rerum harum et laboriosam praesentium cum numquam dolores. Sed pariatur autem a atque quia et dolor numquam et animi harum et molestias ratione et amet delectus aut nemo nemo. Eum autem inventore ea ipsam harum cum architecto rerum cum incidunt quia? Eos velit deleniti cum magnam quod aut eaque eligendi vel assumenda vitae sit dolor placeat? Aut omnis perferendis eos repellendus deleniti et exercitationem molestiae ut dolorem fugit.", {.wordwrap} if wordwrap else {})
+			} else if tab == .input {
+				ui.SetSize(40)
+				ui.AlignY(.middle)
 
-			ui.Space(10)
-			if layout, ok := ui.Layout(ui.Cut(.top, 80)); ok {
-				layout.side = .left
-				layout.alignX = .middle
-				layout.alignY = .middle
-				layout.size = layout.rect.w / 3
-				choice = ui.RadioButtons(choice, .bottom)
-			}
+				// Boolean controls
+				ui.Text(.header, "Boolean Controls", true)
+				ui.Space(HEADER_TRAILING_SPACE)
+				boolean = ui.CheckBox(boolean, "Check Box")
+				ui.Space(DEFAULT_SPACING)
+				boolean = ui.ToggleSwitch(boolean)
 
-			if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
-				layout.side = .left
-				layout.size = layout.rect.w / 3
-				layout.margin = 5
+				// Icon buttons
+				ui.Space(HEADER_LEADING_SPACE)
+				ui.Text(.header, "Toolbox", true)
+				ui.Space(HEADER_TRAILING_SPACE)
+				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+					ui.SetSize(30); ui.SetSide(.left);
+					a = ui.IconButtonToggleEx(a, .pencil, {.topLeft, .bottomLeft})
+					b = ui.IconButtonToggleEx(b, .heart, {})
+					c = ui.IconButtonToggleEx(c, .eye, {.topRight, .bottomRight})
+					ui.Space(DEFAULT_SPACING)
+					ui.IconButton(.pencil)
+				}
 
-				ui.ButtonEx("SOLA FIDE", .subtle)
-				ui.ButtonEx("SOLA GRACIA", .normal)
-				ui.ButtonEx("SOLA SCRIPTURA", .bright)
-			}
+				// Radio buttons
+				ui.Space(HEADER_LEADING_SPACE)
+				ui.Text(.header, "Radio Buttons", true)
+				ui.Space(HEADER_TRAILING_SPACE)
+				if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
+					layout.side = .left
+					layout.alignX = .middle
+					layout.alignY = .middle
+					layout.size = layout.rect.w / 3
+					choice = ui.RadioButtons(choice, .bottom)
+				}
 
-			ui.Space(20)
-			ui.SetSize(300)
-			if ui.Section("Section", {}) {
-				ui.SetSize(36)
-				ui.Space(10)
+				// Radio buttons
+				ui.Space(HEADER_LEADING_SPACE)
+				ui.Text(.header, "Buttons", true)
+				ui.Space(HEADER_TRAILING_SPACE)
+				if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
+					layout.side = .left; layout.size = layout.rect.w / 3; layout.margin = 5
+					ui.ButtonEx("SOLA FIDE", .subtle)
+					ui.ButtonEx("SOLA GRACIA", .normal)
+					ui.ButtonEx("SOLA SCRIPTURA", .bright)
+				}
+
+				// Radio buttons
+				ui.Space(HEADER_LEADING_SPACE)
+				ui.Text(.header, "Text Input", true)
+				ui.Space(HEADER_TRAILING_SPACE)
+				ui.SetSize(DEFAULT_TEXT_INPUT_SIZE)
 				if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
 					resize(&buffer, len(newData))
 					copy(buffer[:], newData[:])
 				}
-
-				ui.Space(10)
-				if change, newValue := ui.SliderEx(value, 0, 20, "Slider Value"); change {
-					value = newValue
-				}
-
-				ui.Space(10)
+				ui.Space(DEFAULT_SPACING)
 				value = ui.NumberInputFloat32(value, "Enter a value")
-
-				ui.Space(10)
-				ui.SetSize(30)
-				choice = ui.EnumMenu(choice, 30)
-				
-				ui.Space(10)
-				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
-					layout.side = .left; layout.size = 100
-					integer = ui.Spinner(integer, 0, 255)
-				}
-				ui.Space(10)
-				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
-					layout.side = .left; layout.size = 100
-					integer = ui.DragSpinner(integer, 0, 0)
-				}
+			} else if tab == .table {
+				ui.Text(.default, "Comming soon...", true)
 			}
 		}
 
@@ -139,7 +149,7 @@ main :: proc() {
 		if ui.ShouldRender() {
 			rl.ClearBackground(transmute(rl.Color)ui.GetColor(.backing))
 			backend.Render()
-			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.WHITE)
+			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
 		}
 		rl.EndDrawing()
 

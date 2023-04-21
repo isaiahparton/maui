@@ -38,7 +38,7 @@ COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
 	.outlineBase = {112, 113, 116, 255},
 
 	.textBright = {15, 15, 15, 255},
-	.text = {58, 58, 58, 255},
+	.text = {75, 75, 75, 255},
 	.shade = {0, 0, 0, 255},
 }
 COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {

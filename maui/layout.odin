@@ -225,6 +225,13 @@ LayoutNextEx :: proc(layout: ^LayoutData, size: Vec2) -> Rect {
 
 	return ChildRect(LayoutNext(layout), size, layout.alignX, layout.alignY)
 }
+LayoutFitControl :: proc(layout: ^LayoutData, size: Vec2) {
+	if layout.side == .left || layout.side == .right {
+		layout.size = size.x
+	} else {
+		layout.size = size.y
+	}
+}
 
 /*
 	Manual layouts

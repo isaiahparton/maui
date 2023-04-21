@@ -69,6 +69,7 @@ import "core:sort"
 import "core:slice"
 
 import "core:strconv"
+import "core:unicode"
 import "core:unicode/utf8"
 
 import "core:math"
@@ -102,7 +103,7 @@ MAX_FRAMES :: #config(MAUI_MAX_FRAMES, 32)
 // Maximum layout depth (times you can call PushLayout())
 MAX_LAYOUTS :: #config(MAUI_MAX_LAYOUTS, 32)
 // Size of each layer's command buffer
-COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 48 * 1024)
+COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 256 * 1024)
 // Size of id stack (times you can call PushId())
 ID_STACK_SIZE :: 8
 // Repeating key press
@@ -781,6 +782,14 @@ Join :: proc(args: ..string) -> string {
 		size += len(arg)
 	}
 	str := string(buffer[:size])
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return str
+}
+CapitalizeString :: proc(str: string) -> string {
+	buffer := &fmtBuffers[fmtBufferIndex]
+	copy(buffer[:len(str)], str[:])
+	buffer[0] = u8(unicode.to_upper(rune(buffer[0])))
+	str := string(buffer[:len(str)])
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
 }
