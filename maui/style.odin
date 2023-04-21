@@ -109,5 +109,5 @@ StyleGetWidgetColor :: proc(base: Color, amount: f32) -> Color {
 }
 StyleGetShadeColor :: proc(alpha: f32 = 1) -> Color {
 	color := ctx.style.colors[.shade]
-	return {color.r, color.g, color.b, u8(f32(color.a) * alpha * 0.1)}
+	return {color.r, color.g, color.b, u8(f32(color.a) * alpha * 0.075)}
 }

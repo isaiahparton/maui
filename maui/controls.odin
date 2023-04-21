@@ -242,7 +242,7 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 			point.x = origin.x
 			point.y += font.size * 1.5
 		} else if glyph != '\t' && glyph != ' ' {
-			PaintClippedGlyph(glyphData, point, rect, GetColor(.backing if highlight else .textBright, 1))
+			PaintGlyphClipped(glyphData, point, rect, GetColor(.backing if highlight else .textBright, 1))
 		}
 
 		/*
@@ -510,6 +510,30 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 }
 
 /*
+	The label type
+*/
+Label :: union {
+	string,
+	Icon,
+}
+
+PaintLabel :: proc(fontData: FontData, label: Label, origin: Vec2, color: Color, alignX, alignY: Alignment) {
+	switch variant in label {
+		case string: PaintAlignedString(fontData, variant, origin, color, alignX, alignY)
+		case Icon: PaintGlyphAligned(GetGlyphData(fontData, rune(variant)), origin, color, alignX, alignY)
+	}
+}
+MeasureLabel :: proc(fontData: FontData, label: Label) -> (size: Vec2) {
+	switch variant in label {
+		case string: size = MeasureString(fontData, variant)
+		case Icon:
+		glyph := GetGlyphData(fontData, rune(variant))
+		size = {glyph.source.w, glyph.source.y}
+	}
+	return
+}
+
+/*
 	Regular Button
 */
 ButtonStyle :: enum {
@@ -517,10 +541,10 @@ ButtonStyle :: enum {
 	bright,
 	subtle,
 }
-ButtonPro :: proc(text: string, style: ButtonStyle, corners: RectCorners, loc := #caller_location) -> (result: bool) {
+ButtonPro :: proc(label: Label, style: ButtonStyle, corners: RectCorners, loc := #caller_location) -> (result: bool) {
 	layout := GetCurrentLayout()
 	if layout.side == .left || layout.side == .right {
-		layout.size = MeasureString(GetFontData(.default), text).x + layout.rect.h + layout.margin * 2
+		layout.size = MeasureLabel(GetFontData(.default), label).x + layout.rect.h + layout.margin * 2
 	}
 	if control, ok := BeginControl(HashId(loc), LayoutNext(layout)); ok {
 		using control
@@ -553,72 +577,36 @@ ButtonPro :: proc(text: string, style: ButtonStyle, corners: RectCorners, loc :=
 			if .down not_in state {
 				PaintRoundedRectOutlineEx(body, roundness, false, corners, GetColor(.widgetPress, pressTime))
 			}
-			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.widgetPress), GetColor(.backing), hoverTime), .middle, .middle)
+			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.widgetPress), GetColor(.backing), hoverTime), .middle, .middle)
 		} else if style == .normal {
 			PaintRoundedRectEx(body, roundness, corners, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
 			if .down not_in state {
 				PaintRoundedRectOutlineEx(body, roundness, false, corners, GetColor(.widgetPress, pressTime))
 			}
-			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
+			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
 		} else {
 			PaintRoundedRectEx(body, roundness, corners, GetColor(.accentPress) if .down in state else BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
 			if .down not_in state {
 				PaintRoundedRectOutlineEx(body, roundness, false, corners, GetColor(.accentPress, pressTime))
 			}
-			PaintAlignedString(GetFontData(.default), text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
+			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
 		}
 		
 		result = .released in state
 	}
 	return
 }
-ButtonEx :: proc(text: string, style: ButtonStyle, loc := #caller_location) -> bool {
-	return ButtonPro(text, style, ALL_CORNERS, loc)
+ButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) -> bool {
+	return ButtonPro(label, style, ALL_CORNERS, loc)
 }
-Button :: proc(text: string, loc := #caller_location) -> bool {
-	return ButtonEx(text, .normal, loc)
+Button :: proc(label: Label, loc := #caller_location) -> bool {
+	return ButtonEx(label, .normal, loc)
 }
-
-
 
 /*
-	Icon Buttons
+	Toggle buttons
 */
-IconButtonEx :: proc(icon: IconIndex, corners: RectCorners, loc := #caller_location) -> (result: bool) {
-	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using control
-		UpdateControl(control)
-
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.2)
-		PopId()
-
-		if pressTime > 0 {
-			if .down in state {
-				rect := ExpandRect(body, rl.EaseCubicOut(pressTime, 0, 5, 1))
-				PaintRoundedRect(rect, math.round(WIDGET_ROUNDNESS * f32(1.5)), StyleGetShadeColor(1))
-			} else {
-				rect := ExpandRect(body, 5)
-				PaintRoundedRect(rect, math.round(WIDGET_ROUNDNESS * f32(1.5)), StyleGetShadeColor(pressTime))
-			}
-		}
-		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
-		if .down not_in state {
-			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, false, corners, GetColor(.widgetPress, pressTime))
-		}
-		DrawIconEx(icon, {body.x + body.w / 2, body.y + body.h / 2}, 1, .middle, .middle, GetColor(.text, 1))
-
-		
-		result = .released in state
-	}
-	return
-}
-IconButton :: proc(icon: IconIndex, loc := #caller_location) -> bool {
-	return IconButtonEx(icon, ALL_CORNERS, loc)
-}
-
-IconButtonToggleEx :: proc(value: bool, icon: IconIndex, corners: RectCorners, loc := #caller_location) -> (newValue: bool) {
+ToggleButtonEx :: proc(value: bool, label: Label, corners: RectCorners, loc := #caller_location) -> (newValue: bool) {
 	newValue = value
 	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using control
@@ -646,12 +634,13 @@ IconButtonToggleEx :: proc(value: bool, icon: IconIndex, corners: RectCorners, l
 		if corners & {.topLeft, .bottomLeft} == {} {
 			PaintRect({body.x + 1, body.y + 2, 1, body.h - 4}, fillColor)
 		}
-		DrawIconEx(icon, {body.x + body.w / 2, body.y + body.h / 2}, 1, .middle, .middle, GetColor(.text if newValue else .outlineBase))
+		
+		PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text if value else .outlineBase), .middle, .middle)
 	}
 	return
 }
-IconButtonToggle :: proc(value: bool, icon: IconIndex, loc := #caller_location) -> bool {
-	return IconButtonToggleEx(value, icon, ALL_CORNERS, loc)
+ToggleButton :: proc(value: bool, label: Label, loc := #caller_location) -> bool {
+	return ToggleButtonEx(value, label, ALL_CORNERS, loc)
 }
 
 /*
@@ -710,12 +699,12 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 	*/
 	loc.column += 1
 	SetNextRect(leftButtonRect)
-	if IconButtonEx(.minus, {.topLeft, .bottomLeft}, loc) {
+	if ButtonPro(Icon.remove, .normal, {.topLeft, .bottomLeft}, loc) {
 		newValue = max(low, value - 1)
 	}
 	loc.column += 1
 	SetNextRect(rightButtonRect)
-	if IconButtonEx(.plus, {.topRight, .bottomRight}, loc) {
+	if ButtonPro(Icon.add, .normal, {.topRight, .bottomRight}, loc) {
 		newValue = min(high, value + 1)
 	}
 	return
@@ -875,7 +864,7 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		}
 		if stateTime > 0 {
 			PaintRoundedRect(body, 5, GetColor(.widgetBase if ctx.disabled else .accent, stateTime))
-			DrawIconEx(.minus if status == .unknown else .check, center, stateTime, .middle, .middle, GetColor(.foreground, 1))
+			PaintIconAligned(GetFontData(.header), .remove if status == .unknown else .check, center, GetColor(.foreground, 1), .middle, .middle)
 		}
 		PaintString(GetFontData(.default), text, {body.x + body.w + WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
 		if .released in state {

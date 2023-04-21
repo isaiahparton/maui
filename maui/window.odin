@@ -170,7 +170,7 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 		}
 		if .closable in options {
 			SetNextRect(ChildRect(GetRectRight(titleRect, titleRect.h), {30, 30}, .middle, .middle))
-			if IconButton(.close) {
+			if Button(.close) {
 				state += {.shouldClose}
 			}
 		}

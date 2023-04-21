@@ -3,13 +3,12 @@ import "core:fmt"
 import "core:math"
 import "core:mem"
 import "core:os"
+import "core:strconv"
 import "core:strings"
 import "core:runtime"
 import "core:path/filepath"
 import "core:unicode"
 import "core:unicode/utf8"
-
-import stb "vendor:stb/truetype"
 import rl "vendor:raylib"
 
 TEXTURE_WIDTH :: 4096
@@ -65,7 +64,7 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	},
 	.header = {
 		size = 28,
-		file = "IBMPlexSans-Medium.ttf",
+		file = "merged.ttf",
 	},
 	.monospace = {
 		size = 20,
@@ -73,7 +72,7 @@ FONT_LOAD_DATA :: [FontIndex]FontLoadData {
 	},
 	.label = {
 		size = 16,
-		file = "IBMPlexSans-Medium.ttf",
+		file = "merged.ttf",
 	},
 }
 
@@ -170,20 +169,10 @@ GenCircles :: proc(painter: ^Painter, origin: Vec2) -> Vec2 {
 GenIcons :: proc(painter: ^Painter, rect: Rect) {
 	return
 }
-GenFont :: proc(painter: ^Painter, origin: Vec2, path: string, size, glyphCount: i32) -> (font: FontData, success: bool) {
-	fontGlyphs := make([dynamic]rune)
-	defer delete(fontGlyphs)
 
-	for i in 0 ..< 255 {
-		if !unicode.is_letter(rune(i)) && !unicode.is_number(rune(i)) && !unicode.is_symbol(rune(i)) {
-			continue
-		}
-		append(&fontGlyphs, rune(i))
-	}
-	append(&fontGlyphs, '')
-	/*
-		Pass each glyph to a packer	
-	*/
+GenFont :: proc(origin: Vec2, path: string, size: i32, codepoints: []rune) -> (font: FontData, success: bool) {
+	rawArray := transmute(runtime.Raw_Slice)codepoints
+
 	extension := filepath.ext(path)
     if extension == ".ttf" || extension == ".otf" {
     	fileData, ok := os.read_entire_file(path)
@@ -191,46 +180,31 @@ GenFont :: proc(painter: ^Painter, origin: Vec2, path: string, size, glyphCount:
     		return
     	}
 
-        fontInfo: stb.fontinfo
-        if !stb.InitFont(&fontInfo, transmute([^]u8)(&fileData), 0) {
-        	fmt.println("stb_truetype failed to initialize font")
-        	return
+        glyphCount := i32(len(codepoints))
+        glyphPadding := i32(1)
+        glyphInfo := rl.LoadFontData((transmute(runtime.Raw_Slice)fileData).data, i32(len(fileData)), size, transmute([^]rune)(rawArray.data), glyphCount, .DEFAULT)
+
+        if glyphInfo != nil {
+        	font.size = f32(size)
+        	rects := make([^]rl.Rectangle, glyphCount)
+            font.image = rl.GenImageFontAtlas(glyphInfo, &rects, glyphCount, size, glyphPadding, 0);
+
+            font.glyphs = make([]GlyphData, glyphCount)
+            for index in 0 ..< glyphCount {
+            	rect := rects[index]
+            	codepoint := glyphInfo[index].value
+            	if codepoint > unicode.MAX_LATIN1 {
+            		glyphInfo[index].offsetY = i32(font.size / 2 - rect.height / 2)
+            	}
+            	font.glyphs[index] = {
+            		source = {origin.x + rect.x, origin.y + rect.y, rect.width, rect.height},
+            		offset = {f32(glyphInfo[index].offsetX), f32(glyphInfo[index].offsetY)},
+            		advance = f32(glyphInfo[index].advanceX),
+            	}
+            	font.glyphMap[codepoint] = index
+            }
         }
-
-        scaleFactor := stb.ScaleForPixelHeight(&fontInfo, f32(size))
-
-        ascent, descent, lineGap: i32
-        stb.GetFontVMetrics(&fontInfo, &ascent, &descent, &lineGap)
-
-        offset: Vec2
-        font.glyphs = make([]GlyphData, glyphCount)
-        for glyph, index in fontGlyphs {
-        	glyphWidth, glyphHeight: i32
-        	offsetX, offsetY: i32
-
-        	imageData := stb.GetCodepointBitmap(&fontInfo, scaleFactor, scaleFactor, glyph, &glyphWidth, &glyphHeight, &offsetX, &offsetY)
-        	glyphAdvance: i32
-        	stb.GetGlyphHMetrics(&fontInfo, i32(glyph), &glyphAdvance, nil)
-
-        	// Copy bitmap to atlas
-        	image: Image = {
-        		data = imageData,
-        		mipmaps = 1,
-        		width = glyphWidth,
-        		height = glyphHeight,
-        		format = .UNCOMPRESSED_GRAY_ALPHA,
-        	}
-        	rect: Rect = {origin.x + offset.x, origin.y + offset.y, f32(glyphWidth), f32(glyphHeight)}
-        	rl.ImageDraw(&painter.image, image, {0, 0, rect.w, rect.h}, transmute(rl.Rectangle)rect, rl.WHITE)
-        	rl.UnloadImage(image)
-
-        	font.glyphs[index] = {
-        		offset = {f32(offsetX), f32(offsetY)},
-        		source = rect,
-        		advance = f32(glyphAdvance),
-        	}
-        	font.glyphMap[glyph] = i32(index)
-        }
+        rl.UnloadFontData(glyphInfo, glyphCount)
         success = true
     }
     return
@@ -265,6 +239,20 @@ DoneWithAtlasImage :: proc() {
 }
 
 GenAtlas :: proc(using painter: ^Painter) {
+	defaultCodepoints : []rune = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265}
+	codepoints := make([]rune, len(defaultCodepoints) + len(Icon))
+	copy(codepoints[:], defaultCodepoints[:len(defaultCodepoints)])
+	for icon, index in Icon {
+		codepoints[len(defaultCodepoints) + index] = rune(icon)
+	}
+	firstIconIndex: int
+	for codepoint, index in codepoints {
+		if codepoint > unicode.MAX_LATIN1 {
+			firstIconIndex = index
+			break
+		}
+	}
+
 	image = rl.GenImageColor(TEXTURE_WIDTH, TEXTURE_HEIGHT, {})
 	image.format = .UNCOMPRESSED_GRAY_ALPHA
 
@@ -272,15 +260,22 @@ GenAtlas :: proc(using painter: ^Painter) {
 	circleSpace := GenCircles(painter, {1, 0})
 	GenIcons(painter, {0, circleSpace.y, 512, 512 - circleSpace.y})
 
-	offset :f32= 0
+	offset: f32 = 0
 	for data, index in FONT_LOAD_DATA {
-		font, success := GenFont(painter, {circleSpace.x + offset, 0}, StringFormat("fonts/%s", data.file), data.size, 256)
+		font, success := GenFont({circleSpace.x + offset, 0}, StringFormat("fonts/%s", data.file), data.size, codepoints[:firstIconIndex] if index == .monospace else codepoints)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
 			continue
 		}
 		fonts[index] = font
 		offset += f32(font.image.width)
+	}
+
+	offset = 0
+	for font in fonts {
+		rl.ImageDraw(&image, font.image, {0, 0, f32(font.image.width), f32(font.image.height)}, {circleSpace.x + offset, 0, f32(font.image.width), f32(font.image.height)}, rl.WHITE)
+		offset += f32(font.image.width)
+		rl.UnloadImage(font.image)
 	}
 }
 
@@ -798,58 +793,4 @@ PaintCollapseArrow :: proc(center: Vec2, size, time: f32, color: Color) {
 		center + {math.cos(angle), math.sin(angle)} * size, 
 		color,
 		)
-}
-/*
-	Icons in the order they appear on the atlas (left to right, descending)
-*/
-IconIndex :: enum {
-	none = -1,
-	plus,
-	archive,
-	arrowUp,
-	arrowDown,
-	arrowLeft,
-	arrowRight,
-	undo,
-	redo,
-	barChart,
-	calendar,
-	check,
-	close,
-	delete,
-	download,
-	eyeOff,
-	eye,
-	file,
-	folder,
-	heart,
-	history,
-	home,
-	keyboard,
-	list,
-	menu,
-	palette,
-	pencil,
-	pieChart,
-	pushPin,
-	search,
-	cog,
-	shoppingBasket,
-	star,
-	minus,
-	upload,
-}
-DrawIcon :: proc(icon: IconIndex, origin: Vec2, color: Color) {
-	if !ctx.shouldRender {
-		return
-	}
-
-	DrawIconEx(icon, origin, 1, .near, .near, color)
-}
-DrawIconEx :: proc(icon: IconIndex, origin: Vec2, scale: f32, alignX, alignY: Alignment, color: Color) {
-	if !ctx.shouldRender {
-		return
-	}
-
-	return
 }

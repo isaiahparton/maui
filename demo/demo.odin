@@ -75,8 +75,12 @@ main :: proc() {
 			if tab == .text {
 				ui.SetSize(30)
 				wordwrap = ui.CheckBox(wordwrap, "Enable word wrap")
-				ui.SetSize(1, true)
-				ui.TextBox(.label, "Lorem ipsum dolor sit amet. Et unde alias eum repellendus earum est autem error cum esse enim? Est veritatis asperiores vel fugiat unde non dolorem voluptatibus rem maiores autem? Vel facilis eveniet ea molestiae fugiat ut cupiditate corrupti. Qui consequatur earum sed explicabo iste qui dolorum iste qui dolor sapiente ex odit obcaecati aut quibusdam vitae. Eum rerum harum et laboriosam praesentium cum numquam dolores. Sed pariatur autem a atque quia et dolor numquam et animi harum et molestias ratione et amet delectus aut nemo nemo. Eum autem inventore ea ipsam harum cum architecto rerum cum incidunt quia? Eos velit deleniti cum magnam quod aut eaque eligendi vel assumenda vitae sit dolor placeat? Aut omnis perferendis eos repellendus deleniti et exercitationem molestiae ut dolorem fugit.", {.wordwrap} if wordwrap else {})
+				ui.SetSize(300)
+				ui.TextBox(.default, "Lorem ipsum dolor sit amet. Et unde alias eum repellendus earum est autem error cum esse enim? Est veritatis asperiores vel fugiat unde non dolorem voluptatibus rem maiores autem? Vel facilis eveniet ea molestiae fugiat ut cupiditate corrupti. Qui consequatur earum sed explicabo iste qui dolorum iste qui dolor sapiente ex odit obcaecati aut quibusdam vitae. Eum rerum harum et laboriosam praesentium cum numquam dolores. Sed pariatur autem a atque quia et dolor numquam et animi harum et molestias ratione et amet delectus aut nemo nemo. Eum autem inventore ea ipsam harum cum architecto rerum cum incidunt quia? Eos velit deleniti cum magnam quod aut eaque eligendi vel assumenda vitae sit dolor placeat? Aut omnis perferendis eos repellendus deleniti et exercitationem molestiae ut dolorem fugit.", {.wordwrap} if wordwrap else {})
+				ui.Space(100)
+				ui.Text(.label, "\ue5ca\ue3c9\ue145\ue15b\ue5cd\ue88a\ue746\ue87d", true)
+				ui.Text(.default, "\ue5ca\ue3c9\ue145\ue15b\ue5cd\ue88a\ue746\ue87d", true)
+				ui.Text(.header, "\ue5ca\ue3c9\ue145\ue15b\ue5cd\ue88a\ue746\ue87d", true)
 			} else if tab == .input {
 				ui.SetSize(40)
 				ui.AlignY(.middle)
@@ -94,11 +98,11 @@ main :: proc() {
 				ui.Space(HEADER_TRAILING_SPACE)
 				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
 					ui.SetSize(30); ui.SetSide(.left);
-					a = ui.IconButtonToggleEx(a, .pencil, {.topLeft, .bottomLeft})
-					b = ui.IconButtonToggleEx(b, .heart, {})
-					c = ui.IconButtonToggleEx(c, .eye, {.topRight, .bottomRight})
+					a = ui.ToggleButtonEx(a, ui.Icon.heart, {.topLeft, .bottomLeft})
+					b = ui.ToggleButtonEx(b, ui.Icon.heart, {})
+					c = ui.ToggleButtonEx(c, ui.Icon.heart, {.topRight, .bottomRight})
 					ui.Space(DEFAULT_SPACING)
-					ui.IconButton(.pencil)
+					ui.Button("\ue87d FAVORITE")
 				}
 
 				// Radio buttons

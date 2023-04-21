@@ -2,6 +2,24 @@ package maui
 import "core:math"
 import "core:fmt"
 
+/*
+	These are the unicode values of the icons
+	in google's material symbols font
+*/
+Icon :: enum rune {
+	check 				= 0xe5ca,
+	close 				= 0xe5cd,
+	heart 				= 0xe87d,
+	edit 				= 0xe3c9,
+	home 				= 0xe88a,
+	add 				= 0xe145,
+	shoppingCart 		= 0xe8cc,
+	attachFile			= 0xe226,
+	remove 				= 0xe15b,
+	delete 				= 0xe872,
+	user 				= 0xe7fd,
+}
+
 StringPaintOption :: enum {
 	wordwrap,
 }
@@ -40,7 +58,7 @@ PaintStringContained :: proc(font: FontData, text: string, rect: Rect, options: 
 			point.y += font.size
 		} else {
 			if point.y + font.size >= rect.y + rect.h {
-				PaintClippedGlyph(glyph, point, rect, color)
+				PaintGlyphClipped(glyph, point, rect, color)
 			} else {
 				PaintTexture(glyph.source, {math.trunc(point.x + glyph.offset.x), point.y + glyph.offset.y, glyph.source.w, glyph.source.h}, color)
 			}
@@ -67,15 +85,17 @@ Alignment :: enum {
 }
 MeasureString :: proc(font: FontData, text: string) -> Vec2 {
 	size, lineSize: Vec2
+	lines := 1
 	for codepoint, index in text {
 		glyph := GetGlyphData(font, codepoint)
 		lineSize.x += glyph.advance + GLYPH_SPACING
 		size.x = max(size.x, lineSize.x)
-		if codepoint == '\n' || index == len(text) - 1 {
+		if codepoint == '\n' {
 			size.x = max(size.x, lineSize.x)
-			size.y += font.size
+			lines += 1
 		}
 	}
+	size.y = font.size * f32(lines)
 	return size
 }
 PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) -> Vec2 {
@@ -118,8 +138,29 @@ PaintAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Co
 	return PaintString(font, text, origin, color)
 }
 
+PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, alignY: Alignment) {
+	if !ctx.shouldRender {
+		return
+	}
+
+   	rect := glyph.source
+	switch alignX {
+		case .far: rect.x = origin.x - rect.w
+		case .middle: rect.x = origin.x - rect.w / 2
+		case .near: rect.x = origin.x
+	}
+	switch alignY {
+		case .far: rect.y = origin.y - rect.h
+		case .middle: rect.y = origin.y - rect.h / 2
+		case .near: rect.y = origin.y
+	}
+    PaintTexture(glyph.source, rect, color)
+}
+PaintIconAligned :: proc(fontData: FontData, icon: Icon, origin: Vec2, color: Color, alignX, alignY: Alignment) {
+	PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), origin, color, alignX, alignY)
+}
 // Draw a glyph, mathematically clipped to 'clipRect'
-PaintClippedGlyph :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {
+PaintGlyphClipped :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {
 	if !ctx.shouldRender {
 		return
 	}
