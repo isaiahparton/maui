@@ -141,6 +141,13 @@ main :: proc() {
 				value = ui.NumberInputFloat32(value, "Enter a value")
 			} else if tab == .table {
 				ui.Text(.default, "Comming soon...", true)
+				ui.SetSize(500)
+				if layer, ok := ui.Frame(1000); ok {
+					ui.SetSize(30)
+					for i in 0 ..< 20 {
+						ui.Text(.default, ui.StringFormat("Text %i", i), false)
+					}
+				}
 			}
 		}
 

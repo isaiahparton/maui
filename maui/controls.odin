@@ -89,10 +89,7 @@ EndControl :: proc(control: ^Control, ok: bool) {
 	}
 
 	layer := GetCurrentLayer()
-	layer.contentRect.x = min(layer.contentRect.x, control.body.x)
-	layer.contentRect.y = min(layer.contentRect.y, control.body.y)
-	layer.contentRect.w = max(layer.contentRect.w, (control.body.x + control.body.w) - layer.contentRect.x)
-	layer.contentRect.h = max(layer.contentRect.h, (control.body.y + control.body.h) - layer.contentRect.y)
+	UpdateLayerContentRect(layer, control.body)
 }
 UpdateControl :: proc(using control: ^Control) {
 	if ctx.disabled {
@@ -1336,6 +1333,7 @@ Text :: proc(font: FontIndex, text: string, fit: bool) {
 	}
 	rect := LayoutNextEx(layout, textSize)
 	PaintString(fontData, text, {rect.x, rect.y}, GetColor(.text))
+	UpdateLayerContentRect(GetCurrentLayer(), rect)
 }
 TextBox :: proc(font: FontIndex, text: string, options: StringPaintOptions) {
 	fontData := GetFontData(font)

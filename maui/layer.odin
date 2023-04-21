@@ -214,12 +214,36 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 
 	layerDepth -= 1
 }
+UpdateLayerContentRect :: proc(layer: ^LayerData, rect: Rect) {
+	layer.contentRect.x = min(layer.contentRect.x, rect.x)
+	layer.contentRect.y = min(layer.contentRect.y, rect.y)
+	layer.contentRect.w = max(layer.contentRect.w, (rect.x + rect.w) - layer.contentRect.x)
+	layer.contentRect.h = max(layer.contentRect.h, (rect.y + rect.h) - layer.contentRect.y)
+}
 
 @(deferred_out=_Layer)
 Layer :: proc(rect: Rect, size: Vec2, loc := #caller_location) -> (layer: ^LayerData, ok: bool) {
 	return BeginLayer(rect, size, HashId(loc), {})
 }
 @private _Layer :: proc(layer: ^LayerData, ok: bool) {
+	if ok {
+		EndLayer(layer)
+	}
+}
+
+/*
+	Layer uses
+*/
+@(deferred_out=_Frame)
+Frame :: proc(size: Vec2, loc := #caller_location) -> (layer: ^LayerData, ok: bool) {
+	layer, ok = BeginLayer(LayoutNext(GetCurrentLayout()), size, HashId(loc), {})
+	if ok {
+		PaintRect(layer.body, GetColor(.backing))
+	}
+	return
+}
+@private
+_Frame :: proc(layer: ^LayerData, ok: bool) {
 	if ok {
 		EndLayer(layer)
 	}
