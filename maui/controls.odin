@@ -497,7 +497,7 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 			labelFont := GetFontData(.label)
 			textSize := MeasureString(labelFont, label)
 			PaintRect({body.x + WIDGET_TEXT_OFFSET - 2, body.y, textSize.x + 4, 2}, GetColor(.backing, 1))
-			PaintString(GetFontData(.label), label, {body.x + WIDGET_TEXT_OFFSET, body.y - textSize.y / 2}, GetColor(.text, 1))
+			PaintString(GetFontData(.label), label, {body.x + WIDGET_TEXT_OFFSET, body.y - textSize.y / 2}, GetColor(.textBright))
 		}
 
 		body.y -= 10
@@ -538,7 +538,7 @@ ButtonStyle :: enum {
 	bright,
 	subtle,
 }
-ButtonPro :: proc(label: Label, style: ButtonStyle, corners: RectCorners, loc := #caller_location) -> (result: bool) {
+RoundButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) -> (result: bool) {
 	layout := GetCurrentLayout()
 	if layout.side == .left || layout.side == .right {
 		layout.size = MeasureLabel(GetFontData(.default), label).x + layout.rect.h + layout.margin * 2
@@ -568,23 +568,23 @@ ButtonPro :: proc(label: Label, style: ButtonStyle, corners: RectCorners, loc :=
 		}
 		if style == .subtle {
 			if hoverTime < 1 {
-				PaintRoundedRectOutlineEx(body, roundness, false, corners, GetColor(.widgetHover))
+				PaintRoundedRectOutline(body, roundness, false, GetColor(.widgetHover))
 			}
-			PaintRoundedRectEx(body, roundness, corners, GetColor(.widgetPress) if .down in state else GetColor(.widgetHover, hoverTime))
+			PaintRoundedRect(body, roundness, GetColor(.widgetPress) if .down in state else GetColor(.widgetHover, hoverTime))
 			if .down not_in state {
-				PaintRoundedRectOutlineEx(body, roundness, false, corners, GetColor(.widgetPress, pressTime))
+				PaintRoundedRectOutline(body, roundness, false, GetColor(.widgetPress, pressTime))
 			}
 			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.widgetPress), GetColor(.backing), hoverTime), .middle, .middle)
 		} else if style == .normal {
-			PaintRoundedRectEx(body, roundness, corners, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
+			PaintRoundedRect(body, roundness, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
 			if .down not_in state {
-				PaintRoundedRectOutlineEx(body, roundness, false, corners, GetColor(.widgetPress, pressTime))
+				PaintRoundedRectOutline(body, roundness, false, GetColor(.widgetPress, pressTime))
 			}
 			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
 		} else {
-			PaintRoundedRectEx(body, roundness, corners, GetColor(.accentPress) if .down in state else BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
+			PaintRoundedRect(body, roundness, GetColor(.accentPress) if .down in state else BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
 			if .down not_in state {
-				PaintRoundedRectOutlineEx(body, roundness, false, corners, GetColor(.accentPress, pressTime))
+				PaintRoundedRectOutline(body, roundness, false, GetColor(.accentPress, pressTime))
 			}
 			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
 		}
@@ -593,13 +593,40 @@ ButtonPro :: proc(label: Label, style: ButtonStyle, corners: RectCorners, loc :=
 	}
 	return
 }
-ButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) -> bool {
-	return ButtonPro(label, style, ALL_CORNERS, loc)
-}
-Button :: proc(label: Label, loc := #caller_location) -> bool {
-	return ButtonEx(label, .normal, loc)
+RoundButton :: proc(label: Label, loc := #caller_location) -> bool {
+	return RoundButtonEx(label, .normal, loc)
 }
 
+
+/*
+	Regular buttons
+
+	Can be grouped
+*/
+ButtonEx :: proc(value: bool, label: Label, corners: RectCorners, loc := #caller_location) -> (newValue: bool) {
+	newValue = value
+	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+		using control
+		UpdateControl(control)
+		if .released in state {
+			newValue = !value
+		}
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			stateTime := AnimateBool(HashIdFromInt(1), value, 0.15)
+		PopId()
+
+		fillColor := GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime)
+		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, fillColor)
+		
+		PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text), .middle, .middle)
+	}
+	return
+}
+Button :: proc(value: bool, label: Label, loc := #caller_location) -> bool {
+	return ToggleButtonEx(value, label, ALL_CORNERS, loc)
+}
 /*
 	Toggle buttons
 */
@@ -696,12 +723,12 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 	*/
 	loc.column += 1
 	SetNextRect(leftButtonRect)
-	if ButtonPro(Icon.remove, .normal, {.topLeft, .bottomLeft}, loc) {
+	if ButtonEx(Icon.remove, .normal, {.topLeft, .bottomLeft}, loc) {
 		newValue = max(low, value - 1)
 	}
 	loc.column += 1
 	SetNextRect(rightButtonRect)
-	if ButtonPro(Icon.add, .normal, {.topRight, .bottomRight}, loc) {
+	if ButtonEx(Icon.add, .normal, {.topRight, .bottomRight}, loc) {
 		newValue = min(high, value + 1)
 	}
 	return

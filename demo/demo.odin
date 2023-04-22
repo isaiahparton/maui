@@ -102,7 +102,6 @@ main :: proc() {
 					b = ui.ToggleButtonEx(b, ui.Icon.heart, {})
 					c = ui.ToggleButtonEx(c, ui.Icon.heart, {.topRight, .bottomRight})
 					ui.Space(DEFAULT_SPACING)
-					ui.Button("\ue87d FAVORITE")
 				}
 
 				// Radio buttons
@@ -123,9 +122,9 @@ main :: proc() {
 				ui.Space(HEADER_TRAILING_SPACE)
 				if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
 					layout.side = .left; layout.size = layout.rect.w / 3; layout.margin = 5
-					ui.ButtonEx("SOLA FIDE", .subtle)
-					ui.ButtonEx("SOLA GRACIA", .normal)
-					ui.ButtonEx("SOLA SCRIPTURA", .bright)
+					ui.RoundButtonEx("SOLA FIDE", .subtle)
+					ui.RoundButtonEx("SOLA GRACIA", .normal)
+					ui.RoundButtonEx("SOLA SCRIPTURA", .bright)
 				}
 
 				// Radio buttons
