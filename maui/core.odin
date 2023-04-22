@@ -635,6 +635,7 @@ Refresh :: proc() {
 				WithTitle(window, "Debug options")
 
 				Shrink(10)
+				SetSize(30)
 				CheckBoxBitSetHeader(&options, "")
 				for option in ContextOption {
 					PushId(HashIdFromInt(int(option)))

@@ -18,6 +18,9 @@ Icon :: enum rune {
 	remove 				= 0xe15b,
 	delete 				= 0xe872,
 	user 				= 0xe7fd,
+	formatItalic		= 0xe23f,
+	formatBold			= 0xe238,
+	formatUnderline		= 0xe249,
 }
 
 StringPaintOption :: enum {

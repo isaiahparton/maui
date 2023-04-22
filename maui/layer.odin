@@ -28,6 +28,7 @@ LayerOptions :: bit_set[LayerOption]
 LayerOrder :: enum {
 	background,
 	floating,
+	frame,
 	popup,
 	tooltip,
 }
@@ -145,7 +146,6 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 
 	// Begin layout
 	PushLayout({layer.body.x - layer.scroll.x, layer.body.y - layer.scroll.y, layer.layoutSize.x, layer.layoutSize.y})
-
 	return
 }
 @private EndLayer :: proc(layer: ^LayerData) {
@@ -156,6 +156,7 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 			PaintRectLines(layer.body, 1, {255, 0, 255, 255})
 		}
 	}
+	PaintRectLines(layer.body, 1, {255, 0, 255, 255})
 	
 	PopLayout()
 
@@ -168,8 +169,8 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 		SCROLL_STEP :: 55
 
 		maxScroll: Vec2 = {
-			max(layer.layoutSize.x - layer.body.w + SCROLL_BAR_SIZE, 0),
-			max(layer.layoutSize.y - layer.body.h + SCROLL_BAR_SIZE, 0),
+			max(layer.contentRect.w - layer.body.w + SCROLL_BAR_SIZE, 0),
+			max(layer.contentRect.h - layer.body.h + SCROLL_BAR_SIZE, 0),
 		}
 
 		// Update scroll offset
@@ -231,6 +232,23 @@ Layer :: proc(rect: Rect, size: Vec2, loc := #caller_location) -> (layer: ^Layer
 	}
 }
 
+Clip :: enum {
+	none,		// completely visible
+	partial,	// partially visible
+	full,		// hidden
+}
+CheckClip :: proc(clip, rect: Rect) -> Clip {
+	if rect.x > clip.x + clip.w || rect.x + rect.w < clip.x ||
+	   rect.y > clip.y + clip.h || rect.y + rect.h < clip.y { 
+		return .full 
+	}
+	if rect.x >= clip.x && rect.x + rect.w <= clip.x + clip.w &&
+	   rect.y >= clip.y && rect.y + rect.h <= clip.y + clip.h { 
+		return .none
+	}
+	return .partial
+}
+
 /*
 	Layer uses
 */
@@ -238,6 +256,7 @@ Layer :: proc(rect: Rect, size: Vec2, loc := #caller_location) -> (layer: ^Layer
 Frame :: proc(size: Vec2, loc := #caller_location) -> (layer: ^LayerData, ok: bool) {
 	layer, ok = BeginLayer(LayoutNext(GetCurrentLayout()), size, HashId(loc), {})
 	if ok {
+		layer.order = .frame
 		PaintRect(layer.body, GetColor(.backing))
 	}
 	return

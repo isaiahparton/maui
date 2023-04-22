@@ -375,6 +375,7 @@ BeginClip :: proc(rect: Rect) {
 		return
 	}
 
+	ctx.clipRect = rect
 	cmd := PushCommand(CommandClip)
 	cmd.rect = rect
 }
@@ -383,8 +384,9 @@ EndClip :: proc() {
 		return
 	}
 
+	ctx.clipRect = ctx.fullscreenRect
 	cmd := PushCommand(CommandClip)
-	cmd.rect = ctx.fullscreenRect
+	cmd.rect = ctx.clipRect
 }
 PaintQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
 	if !ctx.shouldRender {

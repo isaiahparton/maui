@@ -530,14 +530,14 @@ MeasureLabel :: proc(fontData: FontData, label: Label) -> (size: Vec2) {
 	return
 }
 
-/*
-	Regular Button
-*/
 ButtonStyle :: enum {
 	normal,
 	bright,
 	subtle,
 }
+/*
+	Rounded, standalone buttons for major actions
+*/
 RoundButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) -> (result: bool) {
 	layout := GetCurrentLayout()
 	if layout.side == .left || layout.side == .right {
@@ -599,34 +599,50 @@ RoundButton :: proc(label: Label, loc := #caller_location) -> bool {
 
 
 /*
-	Regular buttons
+	Regular buttons for secondary actions
 
-	Can be grouped
+	Can be grouped and attached to other controls
 */
-ButtonEx :: proc(value: bool, label: Label, corners: RectCorners, loc := #caller_location) -> (newValue: bool) {
-	newValue = value
-	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+ButtonEx :: proc(label: Label, corners: RectCorners, loc := #caller_location) -> (result: bool) {
+	layout := GetCurrentLayout()
+	if layout.side == .left || layout.side == .right {
+		layout.size = MeasureLabel(GetFontData(.default), label).x + layout.rect.h / 2 + layout.margin * 2
+	}
+	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(layout)); ok {
 		using control
 		UpdateControl(control)
-		if .released in state {
-			newValue = !value
-		}
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashIdFromInt(1), value, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.2)
+			if .released in state {
+				GetAnimation(HashIdFromInt(1))^ = 1
+			}
 		PopId()
 
-		fillColor := GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime)
-		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, fillColor)
-		
-		PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text), .middle, .middle)
+		/*if pressTime > 0 {
+			if .down in state {
+				rect := ExpandRect(body, rl.EaseCubicOut(pressTime, 0, 5, 1))
+				PaintRoundedRectEx(rect, WIDGET_ROUNDNESS * 1.5, corners, StyleGetShadeColor(1))
+			} else {
+				rect := ExpandRect(body, 5)
+				PaintRoundedRectEx(rect, WIDGET_ROUNDNESS * 1.5, corners, StyleGetShadeColor(pressTime))
+			}
+		}*/
+		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
+		if .down not_in state {
+			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, false, corners, GetColor(.widgetPress, pressTime))
+		}
+		PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
+
+		result = .released in state
 	}
 	return
 }
-Button :: proc(value: bool, label: Label, loc := #caller_location) -> bool {
-	return ToggleButtonEx(value, label, ALL_CORNERS, loc)
+Button :: proc(label: Label, loc := #caller_location) -> bool {
+	return ButtonEx(label, ALL_CORNERS, loc)
 }
+
 /*
 	Toggle buttons
 */
@@ -723,12 +739,12 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 	*/
 	loc.column += 1
 	SetNextRect(leftButtonRect)
-	if ButtonEx(Icon.remove, .normal, {.topLeft, .bottomLeft}, loc) {
+	if ButtonEx(Icon.remove, {.topLeft, .bottomLeft}, loc) {
 		newValue = max(low, value - 1)
 	}
 	loc.column += 1
 	SetNextRect(rightButtonRect)
-	if ButtonEx(Icon.add, .normal, {.topRight, .bottomRight}, loc) {
+	if ButtonEx(Icon.add, {.topRight, .bottomRight}, loc) {
 		newValue = min(high, value + 1)
 	}
 	return
@@ -1353,13 +1369,15 @@ EnumTabs :: proc(value: $T, loc := #caller_location) -> (newValue: T) {
 */
 Text :: proc(font: FontIndex, text: string, fit: bool) {
 	fontData := GetFontData(font)
-	textSize := MeasureString(fontData, text)
 	layout := GetCurrentLayout()
+	textSize := MeasureString(fontData, text)
 	if fit {
 		LayoutFitControl(layout, textSize)
 	}
 	rect := LayoutNextEx(layout, textSize)
-	PaintString(fontData, text, {rect.x, rect.y}, GetColor(.text))
+	if CheckClip(ctx.clipRect, rect) != .full {
+		PaintString(fontData, text, {rect.x, rect.y}, GetColor(.text))
+	}
 	UpdateLayerContentRect(GetCurrentLayer(), rect)
 }
 TextBox :: proc(font: FontIndex, text: string, options: StringPaintOptions) {

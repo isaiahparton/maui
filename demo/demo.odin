@@ -34,6 +34,7 @@ main :: proc() {
 	close := false
 	value: f32 = 10.0
 	integer := 0
+	items := 100
 	boolean := false
 	tab: Tabs
 
@@ -92,33 +93,9 @@ main :: proc() {
 				ui.Space(DEFAULT_SPACING)
 				boolean = ui.ToggleSwitch(boolean)
 
-				// Icon buttons
+				// Round buttons
 				ui.Space(HEADER_LEADING_SPACE)
-				ui.Text(.header, "Toolbox", true)
-				ui.Space(HEADER_TRAILING_SPACE)
-				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
-					ui.SetSize(30); ui.SetSide(.left);
-					a = ui.ToggleButtonEx(a, ui.Icon.heart, {.topLeft, .bottomLeft})
-					b = ui.ToggleButtonEx(b, ui.Icon.heart, {})
-					c = ui.ToggleButtonEx(c, ui.Icon.heart, {.topRight, .bottomRight})
-					ui.Space(DEFAULT_SPACING)
-				}
-
-				// Radio buttons
-				ui.Space(HEADER_LEADING_SPACE)
-				ui.Text(.header, "Radio Buttons", true)
-				ui.Space(HEADER_TRAILING_SPACE)
-				if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
-					layout.side = .left
-					layout.alignX = .middle
-					layout.alignY = .middle
-					layout.size = layout.rect.w / 3
-					choice = ui.RadioButtons(choice, .bottom)
-				}
-
-				// Radio buttons
-				ui.Space(HEADER_LEADING_SPACE)
-				ui.Text(.header, "Buttons", true)
+				ui.Text(.header, "Round Buttons", true)
 				ui.Space(HEADER_TRAILING_SPACE)
 				if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
 					layout.side = .left; layout.size = layout.rect.w / 3; layout.margin = 5
@@ -127,7 +104,22 @@ main :: proc() {
 					ui.RoundButtonEx("SOLA SCRIPTURA", .bright)
 				}
 
-				// Radio buttons
+				// Regular Buttons
+				ui.Space(HEADER_LEADING_SPACE)
+				ui.Text(.header, "Default Buttons", true)
+				ui.Space(HEADER_TRAILING_SPACE)
+				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+					ui.SetSize(30); ui.SetSide(.left);
+					a = ui.ToggleButtonEx(a, ui.Icon.formatBold, {.topLeft, .bottomLeft})
+					b = ui.ToggleButtonEx(b, ui.Icon.formatItalic, {})
+					c = ui.ToggleButtonEx(c, ui.Icon.formatUnderline, {.topRight, .bottomRight})
+					ui.Space(DEFAULT_SPACING)
+					ui.ButtonEx("\ue87d Favorites", {.topLeft, .bottomLeft})
+					ui.Space(2)
+					ui.ButtonEx("\ue145", {.topRight, .bottomRight})
+				}
+
+				// Text input
 				ui.Space(HEADER_LEADING_SPACE)
 				ui.Text(.header, "Text Input", true)
 				ui.Space(HEADER_TRAILING_SPACE)
@@ -138,13 +130,30 @@ main :: proc() {
 				}
 				ui.Space(DEFAULT_SPACING)
 				value = ui.NumberInputFloat32(value, "Enter a value")
+
+				// Single choice
+				ui.Space(HEADER_LEADING_SPACE)
+				ui.Text(.header, "Menus", true)
+				ui.Space(HEADER_TRAILING_SPACE)
+				ui.SetSize(30)
+				choice = ui.RadioButtons(choice, .left)
+				ui.Space(DEFAULT_SPACING)
+				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+					layout.size = 140; layout.side = .left
+					choice = ui.EnumMenu(choice, 30)
+				}
 			} else if tab == .table {
-				ui.Text(.default, "Comming soon...", true)
-				ui.SetSize(500)
-				if layer, ok := ui.Frame(1000); ok {
+				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+					layout.side = .left; layout.size = 120
+					items = ui.Spinner(items, 0, 1000)
+				}
+				ui.Space(DEFAULT_SPACING)
+				ui.SetSize(300)
+				if layer, ok := ui.Frame({0, f32(items) * 30}); ok {
+					ui.AlignY(.middle)
 					ui.SetSize(30)
-					for i in 0 ..< 20 {
-						ui.Text(.default, ui.StringFormat("Text %i", i), false)
+					for i in 0 ..< items {
+						ui.Text(.default, ui.StringFormat("Item %i", i + 1), false)
 					}
 				}
 			}
