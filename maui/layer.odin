@@ -156,7 +156,6 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 			PaintRectLines(layer.body, 1, {255, 0, 255, 255})
 		}
 	}
-	PaintRectLines(layer.body, 1, {255, 0, 255, 255})
 	
 	PopLayout()
 
