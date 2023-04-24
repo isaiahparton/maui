@@ -1,6 +1,79 @@
 package maui
+
 import "core:math"
+
 import "core:fmt"
+
+import "core:unicode"
+import "core:unicode/utf8"
+
+/*
+	Safe text formatting for short-term usage
+*/
+@private fmtBuffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
+@private fmtBufferIndex: u8
+StringFormat :: proc(text: string, args: ..any) -> string {
+	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return str
+}
+SPrintF :: proc(text: string, args: ..any) -> []u8 {
+	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
+	slice := fmtBuffers[fmtBufferIndex][:len(str)]
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return slice
+}
+Format :: proc(args: ..any) -> string {
+	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return str
+}
+Join :: proc(args: []string, sep := " ") -> string {
+	size := 0
+	buffer := &fmtBuffers[fmtBufferIndex]
+	for arg, index in args {
+		copy(buffer[size:size + len(arg)], arg[:])
+		size += len(arg)
+		if index < len(args) - 1 {
+			copy(buffer[size:size + len(sep)], sep[:])
+			size += len(sep)
+		}
+	}
+	str := string(buffer[:size])
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return str
+}
+CapitalizeString :: proc(str: string) -> string {
+	buffer := &fmtBuffers[fmtBufferIndex]
+	copy(buffer[:len(str)], str[:])
+	buffer[0] = u8(unicode.to_upper(rune(buffer[0])))
+	str := string(buffer[:len(str)])
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return str
+}
+
+FormatBitSet :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
+	size := 0
+	buffer := &fmtBuffers[fmtBufferIndex]
+	count := 0
+	max := card(set)
+	for member in E {
+		if member not_in set {
+			continue
+		}
+		name := CapitalizeString(Format(member))
+		copy(buffer[size:size + len(name)], name[:])
+		size += len(name)
+		if count < max - 1 {
+			copy(buffer[size:size + len(sep)], sep[:])
+			size += len(sep)
+		}
+		count += 1
+	}
+	str := string(buffer[:size])
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return str
+}
 
 /*
 	These are the unicode values of the icons

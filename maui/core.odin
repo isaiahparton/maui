@@ -478,11 +478,6 @@ Prepare :: proc() {
 		if controlExists[i] {
 			control := &controls[i]
 			if .stayAlive in control.bits {
-
-				if control.state & {.hovered, .down} != {} {
-					renderTime = 1
-				}
-
 				control.bits -= {.stayAlive}
 			} else {
 				controlExists[i] = false
@@ -752,47 +747,6 @@ FindLastSeperator :: proc(slice: []u8) -> int {
 		}
 	}
 	return 0
-}
-
-/*
-	Safe text formatting for short-term usage
-*/
-@private fmtBuffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
-@private fmtBufferIndex: u8
-StringFormat :: proc(text: string, args: ..any) -> string {
-	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return str
-}
-SPrintF :: proc(text: string, args: ..any) -> []u8 {
-	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
-	slice := fmtBuffers[fmtBufferIndex][:len(str)]
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return slice
-}
-Format :: proc(args: ..any) -> string {
-	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return str
-}
-Join :: proc(args: ..string) -> string {
-	size := 0
-	buffer := &fmtBuffers[fmtBufferIndex]
-	for arg in args {
-		copy(buffer[size:size + len(arg)], arg[:])
-		size += len(arg)
-	}
-	str := string(buffer[:size])
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return str
-}
-CapitalizeString :: proc(str: string) -> string {
-	buffer := &fmtBuffers[fmtBufferIndex]
-	copy(buffer[:len(str)], str[:])
-	buffer[0] = u8(unicode.to_upper(rune(buffer[0])))
-	str := string(buffer[:len(str)])
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return str
 }
 
 //@private

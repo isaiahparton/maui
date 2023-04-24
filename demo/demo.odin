@@ -30,12 +30,14 @@ Choices :: enum {
 main :: proc() {
 
 	// Demo values
+	choices: bit_set[Choices]
 	choice: Choices = .first
 	close := false
 	value: f32 = 10.0
 	integer := 0
 	items := 100
 	boolean := false
+	font: ui.FontIndex
 	tab: Tabs
 
 	a, b, c: bool
@@ -62,7 +64,7 @@ main :: proc() {
 		backend.NewFrame()
 
 		rect := ui.Cut(.right, 500)
-		if layer, ok := ui.Layer(rect, {}); ok {
+		if layer, ok := ui.Layer(rect, {0, 2000}); ok {
 			ui.PaintRect(layer.body, ui.GetColor(.foreground, 1))
 			ui.Enable()
 
@@ -76,12 +78,13 @@ main :: proc() {
 			if tab == .text {
 				ui.SetSize(30)
 				wordwrap = ui.CheckBox(wordwrap, "Enable word wrap")
-				ui.SetSize(300)
-				ui.TextBox(.default, "Lorem ipsum dolor sit amet. Et unde alias eum repellendus earum est autem error cum esse enim? Est veritatis asperiores vel fugiat unde non dolorem voluptatibus rem maiores autem? Vel facilis eveniet ea molestiae fugiat ut cupiditate corrupti. Qui consequatur earum sed explicabo iste qui dolorum iste qui dolor sapiente ex odit obcaecati aut quibusdam vitae. Eum rerum harum et laboriosam praesentium cum numquam dolores. Sed pariatur autem a atque quia et dolor numquam et animi harum et molestias ratione et amet delectus aut nemo nemo. Eum autem inventore ea ipsam harum cum architecto rerum cum incidunt quia? Eos velit deleniti cum magnam quod aut eaque eligendi vel assumenda vitae sit dolor placeat? Aut omnis perferendis eos repellendus deleniti et exercitationem molestiae ut dolorem fugit.", {.wordwrap} if wordwrap else {})
-				ui.Space(100)
-				ui.Text(.label, "\ue5ca\ue3c9\ue145\ue15b\ue5cd\ue88a\ue746\ue87d", true)
-				ui.Text(.default, "\ue5ca\ue3c9\ue145\ue15b\ue5cd\ue88a\ue746\ue87d", true)
-				ui.Text(.header, "\ue5ca\ue3c9\ue145\ue15b\ue5cd\ue88a\ue746\ue87d", true)
+				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+					layout.side = .left; layout.size = 120
+					font = ui.EnumMenu(font, 30)
+				}
+				ui.SetSize(1, true)
+				ui.Space(DEFAULT_SPACING)
+				ui.TextBox(font, "Lorem ipsum dolor sit amet. Et unde alias eum repellendus earum est autem error cum esse enim? Est veritatis asperiores vel fugiat unde non dolorem voluptatibus rem maiores autem? Vel facilis eveniet ea molestiae fugiat ut cupiditate corrupti. Qui consequatur earum sed explicabo iste qui dolorum iste qui dolor sapiente ex odit obcaecati aut quibusdam vitae. Eum rerum harum et laboriosam praesentium cum numquam dolores. Sed pariatur autem a atque quia et dolor numquam et animi harum et molestias ratione et amet delectus aut nemo nemo. Eum autem inventore ea ipsam harum cum architecto rerum cum incidunt quia? Eos velit deleniti cum magnam quod aut eaque eligendi vel assumenda vitae sit dolor placeat? Aut omnis perferendis eos repellendus deleniti et exercitationem molestiae ut dolorem fugit.", {.wordwrap} if wordwrap else {})
 			} else if tab == .input {
 				ui.SetSize(40)
 				ui.AlignY(.middle)
@@ -97,10 +100,12 @@ main :: proc() {
 				ui.Space(HEADER_LEADING_SPACE)
 				ui.Text(.header, "Round Buttons", true)
 				ui.Space(HEADER_TRAILING_SPACE)
-				if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
-					layout.side = .left; layout.size = layout.rect.w / 3; layout.margin = 5
+				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+					layout.side = .left; layout.size = layout.rect.w / 3;
 					ui.RoundButtonEx("SOLA FIDE", .subtle)
+					ui.Space(DEFAULT_SPACING)
 					ui.RoundButtonEx("SOLA GRACIA", .normal)
+					ui.Space(DEFAULT_SPACING)
 					ui.RoundButtonEx("SOLA SCRIPTURA", .bright)
 				}
 
@@ -133,7 +138,7 @@ main :: proc() {
 
 				// Single choice
 				ui.Space(HEADER_LEADING_SPACE)
-				ui.Text(.header, "Menus", true)
+				ui.Text(.header, "Single choice", true)
 				ui.Space(HEADER_TRAILING_SPACE)
 				ui.SetSize(30)
 				choice = ui.RadioButtons(choice, .left)
@@ -141,6 +146,23 @@ main :: proc() {
 				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
 					layout.size = 140; layout.side = .left
 					choice = ui.EnumMenu(choice, 30)
+				}
+
+				// Single choice
+				ui.Space(HEADER_LEADING_SPACE)
+				ui.Text(.header, "Multiple choice", true)
+				ui.Space(HEADER_TRAILING_SPACE)
+				ui.SetSize(30)
+				ui.CheckBoxBitSetHeader(&choices, "Choices")
+				for element in Choices {
+					ui.PushId(ui.HashId(int(element)))
+						ui.CheckBoxBitSet(&choices, element, ui.Format(element))
+					ui.PopId()
+				}
+				ui.Space(DEFAULT_SPACING)
+				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+					layout.size = 240; layout.side = .left
+					choices = ui.BitSetMenu(choices, 30)
 				}
 			} else if tab == .table {
 				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {

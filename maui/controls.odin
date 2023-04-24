@@ -22,6 +22,7 @@ ControlOption :: enum {
 	holdFocus,
 	draggable,
 	tabSelect,
+	noClick,
 }
 ControlOptions :: bit_set[ControlOption]
 // User input state
@@ -104,6 +105,9 @@ UpdateControl :: proc(using control: ^Control) {
 	// If hovered
 	if ctx.hoverId == id {
 		state += {.hovered}
+		if .noClick in options && MouseDown(.left) {
+			ctx.pressId = id
+		}
 	} else if ctx.pressId == id {
 		if .draggable in options {
 			if MouseReleased(.left) {
@@ -1117,11 +1121,10 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 		if !active {
 			corners += {.bottomLeft, .bottomRight}
 		}
-		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, BlendColors(GetColor(.backing), GetColor(.backingHighlight), pressTime))
-		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, !active, corners, GetColor(.accent) if active else GetColor(.outlineBase, hoverTime + stateTime))
+		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
+		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase, stateTime))
 		PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
 		PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
-
 		
 		if .pressed in state {
 			bits = bits ~ {.active}
@@ -1146,6 +1149,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 @private _Menu :: proc(layer: ^LayerData, active: bool) {
 	if active {
 		//PaintRoundedRectOutlineEx(layer.body, WIDGET_ROUNDNESS, true, {.bottomLeft, .bottomRight}, GetColor(.outlineBase))
+		UpdateLayerContentRect(ctx.layerStack[ctx.layerDepth - 2], layer.body)
 		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
 		EndLayer(layer)
 		PopLayout()
@@ -1155,6 +1159,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (result: bool) {
 	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
 		using control
+		options += {.noClick}
 		UpdateControl(control)
 
 		PushId(id)
@@ -1171,12 +1176,30 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 }
 EnumMenu :: proc(value: $T, optionSize: f32, loc := #caller_location) -> (newValue: T) {
 	newValue = value
-	if layer, active := Menu(CapitalizeString(Format(value)), optionSize * len(T), loc); active {
+	if layer, active := Menu(CapitalizeString(Format(value)), optionSize * (len(T) - 1), loc); active {
 		SetSize(optionSize)
 		for member in T {
+			if member == value {
+				continue
+			}
 			PushId(HashIdFromInt(int(member)))
-				if MenuOption(CapitalizeString(Format(member)), value == member) {
+				if MenuOption(CapitalizeString(Format(member)), false) {
 					newValue = member
+				}
+			PopId()
+		}
+	}
+	return
+}
+BitSetMenu :: proc(set: $S/bit_set[$E;$U], optionSize: f32, loc := #caller_location) -> (newSet: S) {
+	newSet = set
+	
+	if layer, active := Menu(FormatBitSet(set, ", "), optionSize * len(E), loc); active {
+		SetSize(optionSize)
+		for member in E {
+			PushId(HashIdFromInt(int(member)))
+				if MenuOption(CapitalizeString(Format(member)), member in set) {
+					newSet = newSet ~ {member}
 				}
 			PopId()
 		}
@@ -1265,7 +1288,6 @@ ScrollBarH :: proc(value, low, high, thumbSize: f32, loc := #caller_location) ->
 		using control
 		range := body.w - thumbSize
 		valueRange := (high - low) if high > low else 1
-		thumbRect: Rect = {body.x + range * ((value - low) / valueRange), body.y, thumbSize, body.h}
 
 		control.options += {.draggable}
 		UpdateControl(control)
@@ -1274,10 +1296,12 @@ ScrollBarH :: proc(value, low, high, thumbSize: f32, loc := #caller_location) ->
 			pressTime := AnimateBool(HashId(int(1)), .down in state, 0.1)
 		PopId()
 
-		opacity := 0.5 + hoverTime * 0.5
+		time := 0.5 + hoverTime * 0.5
 
-		PaintRoundedRect(body, body.h / 2, GetColor(.backing, opacity))
-		PaintRoundedRect(thumbRect, body.h / 2, Fade(BlendColors(GetColor(.widgetHover), GetColor(.widgetPress), hoverTime), opacity))
+		rect: Rect = {body.x, body.y, body.w, body.h * time}
+		thumbRect: Rect = {rect.x + range * clamp((value - low) / valueRange, 0, 1), rect.y, thumbSize, rect.h}
+		PaintRoundedRect(rect, math.floor(rect.h / 2), GetColor(.foreground))
+		PaintRoundedRect(thumbRect, math.floor(rect.h / 2), BlendColors(GetColor(.widgetHover), GetColor(.widgetPress), hoverTime))
 
 		if .down in state {
 			normal := clamp((input.mousePoint.x - (body.x + thumbSize / 2)) / range, 0, 1)
@@ -1293,7 +1317,6 @@ ScrollBarV :: proc(value, low, high, thumbSize: f32, loc := #caller_location) ->
 		using control
 		range := body.h - thumbSize
 		valueRange := (high - low) if high > low else 1
-		thumbRect: Rect = {body.x, body.y + range * ((value - low) / valueRange), body.w, thumbSize}
 
 		control.options += {.draggable}
 		UpdateControl(control)
@@ -1302,10 +1325,12 @@ ScrollBarV :: proc(value, low, high, thumbSize: f32, loc := #caller_location) ->
 			pressTime := AnimateBool(HashId(int(1)), .down in state, 0.1)
 		PopId()
 
-		opacity := 0.5 + hoverTime * 0.5
+		time := 0.5 + hoverTime * 0.5
 
-		PaintRoundedRect(body, body.w / 2, GetColor(.backing, opacity))
-		PaintRoundedRect(thumbRect, body.w / 2, Fade(BlendColors(GetColor(.widgetHover), GetColor(.widgetPress), hoverTime), opacity))
+		rect: Rect = {body.x + body.w * (1 - time), body.y, body.w * time, body.h}
+		thumbRect: Rect = {rect.x, rect.y + range * clamp((value - low) / valueRange, 0, 1), rect.w, thumbSize}
+		PaintRoundedRect(rect, math.floor(rect.w / 2), GetColor(.foreground))
+		PaintRoundedRect(thumbRect, math.floor(rect.w / 2), BlendColors(GetColor(.widgetHover), GetColor(.widgetPress), hoverTime))
 
 		if .down in state {
 			normal := clamp((input.mousePoint.y - (body.y + thumbSize / 2)) / range, 0, 1)
@@ -1327,17 +1352,14 @@ Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bo
 		UpdateControl(control)
 
 		PushId(id)
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.15)
-			pressTime := AnimateBool(HashId(int(2)), .down in state, 0.1)
-			stateTime := AnimateBool(HashId(int(1)), active, 0.2)
+			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
+			stateTime := AnimateBool(HashId(int(1)), active, 0.15)
 		PopId()
 
+		PaintRect(body, GetColor(.foreground if active else .foregroundHover))
 		center: Vec2 = {body.x + body.w / 2, body.y + body.h / 2}
-		textSize := PaintAlignedString(GetFontData(.default), label, center, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime), .middle, .middle)
+		textSize := PaintAlignedString(GetFontData(.default), label, center, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime + stateTime), .middle, .middle)
 		size := textSize.x
-		if hoverTime > 0 && stateTime < 1 {
-			PaintRect({center.x - size / 2, body.y + body.h - 4, size, 4}, GetColor(.foregroundHover, hoverTime))
-		}
 		size *= stateTime
 		if stateTime > 0 {
 			PaintRect({center.x - size / 2, body.y + body.h - 4, size, 4}, GetColor(.accent, stateTime))
@@ -1359,7 +1381,6 @@ EnumTabs :: proc(value: $T, loc := #caller_location) -> (newValue: T) {
 				}
 			PopId()
 		}
-		PaintRect({rect.x, rect.y + rect.h - 1, rect.w, 1}, GetColor(.foregroundPress))
 	}
 	return
 }
@@ -1384,6 +1405,12 @@ TextBox :: proc(font: FontIndex, text: string, options: StringPaintOptions) {
 	fontData := GetFontData(font)
 	rect := LayoutNext(GetCurrentLayout())
 	PaintStringContained(fontData, text, rect, options, GetColor(.text))
+}
+
+GlyphIcon :: proc(font: FontIndex, icon: Icon) {
+	fontData := GetFontData(font)
+	rect := LayoutNext(GetCurrentLayout())
+	PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), {rect.x + rect.w / 2, rect.y + rect.h / 2}, GetColor(.text), .middle, .middle)
 }
 
 /*
