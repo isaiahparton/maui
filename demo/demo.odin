@@ -8,6 +8,7 @@ import "core:runtime"
 import "core:fmt"
 import "core:math"
 import "core:slice"
+import "core:mem"
 
 // Set up your own layout values
 DEFAULT_SPACING :: 10
@@ -27,7 +28,7 @@ Choices :: enum {
 	third,
 }
 
-main :: proc() {
+_main :: proc() {
 
 	// Demo values
 	choices: bit_set[Choices]
@@ -45,6 +46,7 @@ main :: proc() {
 	wordwrap: bool
 
 	buffer := make([dynamic]u8)
+	defer delete(buffer)
 
 	// set up raylib
 	rl.SetConfigFlags({.WINDOW_RESIZABLE})
@@ -66,7 +68,6 @@ main :: proc() {
 		rect := ui.Cut(.right, 500)
 		if layer, ok := ui.Layer(rect, {0, 2000}); ok {
 			ui.PaintRect(layer.body, ui.GetColor(.foreground, 1))
-			ui.Enable()
 
 			// Tabs
 			ui.SetSize(40)
@@ -100,13 +101,13 @@ main :: proc() {
 				ui.Space(HEADER_LEADING_SPACE)
 				ui.Text(.header, "Round Buttons", true)
 				ui.Space(HEADER_TRAILING_SPACE)
-				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+				if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
 					layout.side = .left; layout.size = layout.rect.w / 3;
-					ui.RoundButtonEx("SOLA FIDE", .subtle)
+					ui.PillButtonEx("SOLA FIDE", .subtle)
 					ui.Space(DEFAULT_SPACING)
-					ui.RoundButtonEx("SOLA GRACIA", .normal)
+					ui.PillButtonEx("SOLA GRACIA", .normal)
 					ui.Space(DEFAULT_SPACING)
-					ui.RoundButtonEx("SOLA SCRIPTURA", .bright)
+					ui.PillButtonEx("SOLA SCRIPTURA", .bright)
 				}
 
 				// Regular Buttons
@@ -197,5 +198,23 @@ main :: proc() {
 		if rl.WindowShouldClose() || close {
 			break
 		}
+	}
+
+	ui.Uninit()
+}
+
+main :: proc() {
+
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	context.allocator = mem.tracking_allocator(&track)
+
+	_main()
+
+	for _, leak in track.allocation_map {
+		fmt.printf("%v leaked %v bytes\n", leak.location, leak.size)
+	}
+	for bad_free in track.bad_free_array {
+		fmt.printf("%v allocation %p was freed badly\n", bad_free.location, bad_free.memory)
 	}
 }

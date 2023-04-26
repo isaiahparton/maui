@@ -115,8 +115,9 @@ PaintStringContained :: proc(font: FontData, text: string, rect: Rect, options: 
 
 		if .wordwrap in options && index >= nextWord {
 			for wordCodepoint, wordIndex in text[index:] {
-				if wordCodepoint == ' ' {
-					nextWord = index + wordIndex
+				textIndex := index + wordIndex
+				if wordCodepoint == ' ' || textIndex == len(text) - 1 {
+					nextWord = textIndex
 					break
 				}
 			}

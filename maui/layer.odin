@@ -79,6 +79,8 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 		for i in 0 ..< MAX_LAYERS {
 			if !layerExists[i] {
 				layerExists[i] = true
+
+				delete(layers[i].contents)
 				layers[i] = {}
 
 				layer = &layers[i]

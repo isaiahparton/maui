@@ -77,6 +77,7 @@ BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 		if control.id == ctx.focusId {
 			ctx.focusIndex = idx
 		}
+		ctx.lastControl = idx
 	}
 
 	return
@@ -542,7 +543,7 @@ ButtonStyle :: enum {
 /*
 	Rounded, standalone buttons for major actions
 */
-RoundButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) -> (result: bool) {
+PillButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) -> (result: bool) {
 	layout := GetCurrentLayout()
 	if layout.side == .left || layout.side == .right {
 		layout.size = MeasureLabel(GetFontData(.default), label).x + layout.rect.h + layout.margin * 2
@@ -597,8 +598,8 @@ RoundButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location)
 	}
 	return
 }
-RoundButton :: proc(label: Label, loc := #caller_location) -> bool {
-	return RoundButtonEx(label, .normal, loc)
+PillButton :: proc(label: Label, loc := #caller_location) -> bool {
+	return PillButtonEx(label, .normal, loc)
 }
 
 
@@ -1134,8 +1135,14 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 			layer, ok = BeginLayer(AttachRectBottom(body, menuSize), {}, sharedId, {.outlined})
 			layer.order = .popup
 
-			if (.hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left)) || .submit in layer.bits {
+			if (.hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left)) {
 				bits -= {.active}
+			}
+
+			if .submit in layer.bits {
+				bits -= {.active}
+				EndLayer(layer)
+				return nil, false
 			}
 
 			//PaintRoundedRectEx(layer.body, WIDGET_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase, 1))
@@ -1159,7 +1166,6 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (result: bool) {
 	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
 		using control
-		options += {.noClick}
 		UpdateControl(control)
 
 		PushId(id)
@@ -1176,18 +1182,18 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 }
 EnumMenu :: proc(value: $T, optionSize: f32, loc := #caller_location) -> (newValue: T) {
 	newValue = value
-	if layer, active := Menu(CapitalizeString(Format(value)), optionSize * (len(T) - 1), loc); active {
+	if layer, active := Menu(CapitalizeString(Format(value)), optionSize * len(T), loc); active {
 		SetSize(optionSize)
 		for member in T {
-			if member == value {
-				continue
-			}
 			PushId(HashIdFromInt(int(member)))
 				if MenuOption(CapitalizeString(Format(member)), false) {
 					newValue = member
 				}
 			PopId()
 		}
+	}
+	if ctx.hoverId == ctx.controls[ctx.lastControl].id {
+		newValue = cast(T)clamp(int(newValue) - int(input.mouseScroll.y), 0, len(T) - 1)
 	}
 	return
 }

@@ -18,7 +18,7 @@ TRIANGLE_STEP :: math.TAU / 3
 
 // up to how small/big should circles be pre-rendered?
 MIN_CIRCLE_SIZE :: 2
-MAX_CIRCLE_SIZE :: 48
+MAX_CIRCLE_SIZE :: 60
 CIRCLE_SIZES :: MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE
 
 MAX_CIRCLE_STROKE_SIZE :: 2
@@ -176,6 +176,7 @@ GenFont :: proc(origin: Vec2, path: string, size: i32, codepoints: []rune) -> (f
 	extension := filepath.ext(path)
     if extension == ".ttf" || extension == ".otf" {
     	fileData, ok := os.read_entire_file(path)
+    	defer delete(fileData)
     	if !ok {
     		return
     	}
@@ -186,10 +187,14 @@ GenFont :: proc(origin: Vec2, path: string, size: i32, codepoints: []rune) -> (f
 
         if glyphInfo != nil {
         	font.size = f32(size)
-        	rects := make([^]rl.Rectangle, glyphCount)
+
+        	rects := make([^]rl.Rectangle, glyphCount, context.temp_allocator)
+        	mem.free_all(context.temp_allocator)
+
             font.image = rl.GenImageFontAtlas(glyphInfo, &rects, glyphCount, size, glyphPadding, 0);
 
             font.glyphs = make([]GlyphData, glyphCount)
+
             for index in 0 ..< glyphCount {
             	rect := rects[index]
             	codepoint := glyphInfo[index].value
@@ -209,6 +214,8 @@ GenFont :: proc(origin: Vec2, path: string, size: i32, codepoints: []rune) -> (f
     }
     return
 }
+
+
 GetGlyphData :: proc(font: FontData, codepoint: rune) -> GlyphData {
 	index, ok := font.glyphMap[codepoint]
 	if ok {
@@ -234,6 +241,20 @@ Painter :: struct {
 }
 painter: ^Painter
 
+InitPainter :: proc() {
+	painter = new(Painter)
+
+	GenAtlas(painter)
+}
+UninitPainter :: proc() {
+	for font in &painter.fonts {
+		delete(font.glyphs)
+		delete(font.glyphMap)
+	}
+
+	free(painter)
+}
+
 DoneWithAtlasImage :: proc() {
 	rl.UnloadImage(painter.image)
 }
@@ -241,6 +262,8 @@ DoneWithAtlasImage :: proc() {
 GenAtlas :: proc(using painter: ^Painter) {
 	defaultCodepoints : []rune = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265}
 	codepoints := make([]rune, len(defaultCodepoints) + len(Icon))
+	defer delete(codepoints)
+
 	copy(codepoints[:], defaultCodepoints[:len(defaultCodepoints)])
 	for icon, index in Icon {
 		codepoints[len(defaultCodepoints) + index] = rune(icon)

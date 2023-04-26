@@ -185,6 +185,7 @@ Context :: struct {
 	// Retained control data
 	controls: [MAX_CONTROLS]Control,
 	controlExists: [MAX_CONTROLS]bool,
+	lastControl: i32,
 
 	// Retained window data
 	windows: [MAX_WINDOWS]WindowData,
@@ -227,6 +228,7 @@ Context :: struct {
 	focusIndex: i32,
 
 	// Control interactions
+	lastIndex: i32,
 	prevHoverId, 
 	nextHoverId, 
 	hoverId, 
@@ -460,9 +462,23 @@ Init :: proc() {
 	/*
 		Set up painter and load atlas
 	*/
-	painter = new(Painter)
-	GenAtlas(painter)
+	InitPainter()
 }
+Uninit :: proc() {
+	delete(ctx.scribe.buffer)
+	delete(ctx.animations)
+	delete(ctx.windowMap)
+	delete(ctx.layerMap)
+	delete(ctx.layerList)
+	for layer in &ctx.layers {
+		delete(layer.contents)
+	}
+
+	UninitPainter()
+
+	free(ctx)
+}
+
 Prepare :: proc() {
 	using ctx
 
