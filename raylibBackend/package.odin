@@ -1,6 +1,8 @@
 package mauiRaylib
 import rl "vendor:raylib"
-import ui "../maui"
+import ui ".."
+
+import "core:strings"
 
 @private texture: rl.Texture
 
@@ -9,6 +11,17 @@ Init :: proc() {
 	texture = rl.LoadTextureFromImage(image)
 	rl.SetTextureFilter(texture, .BILINEAR)
 	ui.DoneWithAtlasImage()
+
+	ui.BackendSetClipboardString = proc(str: string) {
+		cstr := strings.clone_to_cstring(str)
+		defer delete(cstr)
+		rl.SetClipboardText(cstr)
+	}
+	ui.BackendGetClipboardString = proc() -> string {
+		cstr := rl.GetClipboardText()
+		defer delete(cstr)
+		return strings.clone_from_cstring(cstr)
+	}
 }
 
 NewFrame :: proc() {

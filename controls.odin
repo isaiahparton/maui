@@ -210,6 +210,9 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 		if index < len(data) {
 			glyph, bytes = utf8.decode_rune_in_bytes(data[index:])
 		}
+		if .hidden in format.options {
+			glyph = '•'
+		}
 		glyphData := GetGlyphData(font, glyph)
 		glyphWidth := glyphData.advance + GLYPH_SPACING
 
@@ -240,9 +243,11 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 		}
 
 		// Draw the glyph
-		if .multiline in format.options && glyph == '\n' {
-			point.x = origin.x
-			point.y += font.size * 1.5
+		if glyph == '\n' {
+			if .multiline in format.options {
+				point.x = origin.x
+				point.y += font.size
+			}
 		} else if glyph != '\t' && glyph != ' ' {
 			PaintGlyphClipped(glyphData, point, rect, GetColor(.backing if highlight else .textBright, 1))
 		}
@@ -278,148 +283,157 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 	}
 
 	// Text manipulation
-	if .focused not_in state {
-		return
-	}
-	using ctx.scribe
+	if .focused in state {
 
-	if KeyDown(.control) {
-		if KeyPressed(.c) {
-			// copy to clipboard
-		}
-	}
-	if .readOnly not_in format.options {
+		// Bring 'index' and 'length' into scope
+		using ctx.scribe
+
+		// Copying
 		if KeyDown(.control) {
-			if KeyPressed(.a) {
-				index = 0
-				anchor = 0
-				length = len(data)
-			}
-			if KeyPressed(.v) {
-				// paste from clipboard
+			if KeyPressed(.c) {
+				if length > 0 {
+					SetClipboardString(string(data[index:index + length]))
+				} else {
+					SetClipboardString(string(data[:]))
+				}
 			}
 		}
-		// Normal character input
-		if input.runeCount > 0 {
-			if .numeric in format.options {
-				for i in 0 ..< input.runeCount {
-					glyph := int(input.runes[i])
-					if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .integer not_in format.options) {
-						ScribeInsertRunes(input.runes[i:i+1])
-						change = true
-					}
+
+		// Input
+		if .readOnly not_in format.options {
+			if KeyDown(.control) {
+				if KeyPressed(.a) {
+					index = 0
+					anchor = 0
+					length = len(data)
 				}
-			} else {
-				ScribeInsertRunes(input.runes[:input.runeCount])
+				if KeyPressed(.v) {
+					ScribeInsertString(GetClipboardString())
+					change = true
+				}
+			}
+			// Normal character input
+			if input.runeCount > 0 {
+				if .numeric in format.options {
+					for i in 0 ..< input.runeCount {
+						glyph := int(input.runes[i])
+						if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .integer not_in format.options) {
+							ScribeInsertRunes(input.runes[i:i+1])
+							change = true
+						}
+					}
+				} else {
+					ScribeInsertRunes(input.runes[:input.runeCount])
+					change = true
+				}
+			}
+			// Enter
+			if .multiline in format.options && KeyPressed(.enter) {
+				ScribeInsertRunes({'\n'})
 				change = true
 			}
-		}
-		// Enter
-		if .multiline in format.options && KeyPressed(.enter) {
-			ScribeInsertRunes({'\n'})
-			change = true
-		}
-		// Backspacing
-		if KeyPressed(.backspace) {
-			ScribeBackspace()
-			change = true
-		}
-		// Arrowkey navigation
-		if KeyPressed(.left) {
-			delta := 0
-			// How far should the cursor move?
-			if KeyDown(.control) {
-				delta = FindLastSeperator(buffer[:index])
-			} else{
-				_, delta = utf8.decode_last_rune_in_bytes(buffer[:index + length])
-				delta = -delta
+			// Backspacing
+			if KeyPressed(.backspace) {
+				ScribeBackspace()
+				change = true
 			}
-			// Highlight or not
-			if KeyDown(.shift) {
-				if index < anchor {
-					newIndex := index + delta
-					index = max(0, newIndex)
-					length = anchor - index
-				} else {
-					newIndex := index + length + delta
-					index = min(anchor, newIndex)
-					length = max(anchor, newIndex) - index
+			// Arrowkey navigation
+			// TODO(isaiah): Implement up/down navigation for multiline text input
+			if KeyPressed(.left) {
+				delta := 0
+				// How far should the cursor move?
+				if KeyDown(.control) {
+					delta = FindLastSeperator(buffer[:index])
+				} else{
+					_, delta = utf8.decode_last_rune_in_bytes(buffer[:index + length])
+					delta = -delta
 				}
-			} else {
+				// Highlight or not
+				if KeyDown(.shift) {
+					if index < anchor {
+						newIndex := index + delta
+						index = max(0, newIndex)
+						length = anchor - index
+					} else {
+						newIndex := index + length + delta
+						index = min(anchor, newIndex)
+						length = max(anchor, newIndex) - index
+					}
+				} else {
+					if length == 0 {
+						index += delta
+					}
+					length = 0
+					anchor = index
+				}
+				// Clamp cursor
+				index = max(0, index)
+				length = max(0, length)
+			}
+			if KeyPressed(.right) {
+				delta := 0
+				// How far should the cursor move
+				if KeyDown(.control) {
+					delta = FindNextSeperator(buffer[index + length:])
+				} else {
+					_, delta = utf8.decode_rune_in_bytes(buffer[index + length:])
+				}
+				// Highlight or not?
+				if KeyDown(.shift) {
+					if index < anchor {
+						newIndex := index + delta
+						index = newIndex
+						length = anchor - newIndex
+					} else {
+						newIndex := index + length + delta
+						index = anchor
+						length = newIndex - index
+					}
+				} else {
+					if length > 0 {
+						index += length
+					} else {
+						index += delta
+					}
+					length = 0
+					anchor = index
+				}
+				// Clamp cursor
 				if length == 0 {
-					index += delta
-				}
-				length = 0
-				anchor = index
-			}
-			// Clamp cursor
-			index = max(0, index)
-			length = max(0, length)
-		}
-		if KeyPressed(.right) {
-			delta := 0
-			// How far should the cursor move
-			if KeyDown(.control) {
-				delta = FindNextSeperator(buffer[index + length:])
-			} else {
-				_, delta = utf8.decode_rune_in_bytes(buffer[index + length:])
-			}
-			// Highlight or not?
-			if KeyDown(.shift) {
-				if index < anchor {
-					newIndex := index + delta
-					index = newIndex
-					length = anchor - newIndex
+					if index > len(buffer) {
+						index = len(buffer)
+					}
 				} else {
-					newIndex := index + length + delta
-					index = anchor
-					length = newIndex - index
+					if index + length > len(buffer) {
+						length = len(buffer) - index
+					}
 				}
-			} else {
-				if length > 0 {
-					index += length
-				} else {
-					index += delta
-				}
-				length = 0
-				anchor = index
+				index = max(0, index)
+				length = max(0, length)
 			}
-			// Clamp cursor
-			if length == 0 {
-				if index > len(buffer) {
-					index = len(buffer)
-				}
-			} else {
-				if index + length > len(buffer) {
-					length = len(buffer) - index
-				}
+		}
+
+		// When the text input is clicked, resize the
+		// scribe buffer and copy the data to it
+		if .readOnly not_in format.options && .justFocused in state {
+			length := len(data)
+			if format.capacity > 0 {
+				length = min(length, format.capacity)
 			}
-			index = max(0, index)
-			length = max(0, length)
+			resize(&ctx.scribe.buffer, length)
+			copy(ctx.scribe.buffer[:], data[:length])
+		}
+
+		// Create new data slice
+		if change {
+			ctx.renderTime = 1
+			length := len(ctx.scribe.buffer) 
+			if format.capacity > 0 {
+				length = min(length, format.capacity)
+			}
+			newData = ctx.scribe.buffer[:length]
 		}
 	}
-
-	// When the text input is clicked, resize the
-	// scribe buffer and copy the data to it
-	if .readOnly not_in format.options && .justFocused in state {
-		length := len(data)
-		if format.capacity > 0 {
-			length = min(length, format.capacity)
-		}
-		resize(&ctx.scribe.buffer, length)
-		copy(ctx.scribe.buffer[:], data[:length])
-	}
-
-	// Create new data slice
-	if change {
-		ctx.renderTime = 1
-		length := len(ctx.scribe.buffer) 
-		if format.capacity > 0 {
-			length = min(length, format.capacity)
-		}
-		newData = ctx.scribe.buffer[:length]
-	}
-
 	return
 }
 
@@ -498,17 +512,21 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 
 		PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, .focused not_in state, GetColor(.accent, 1) if .focused in state else GetColor(.outlineBase, hoverTime))
 		// Draw placeholder
-		if len(label) > 0 {
-			labelFont := GetFontData(.label)
-			textSize := MeasureString(labelFont, label)
-			PaintRect({body.x + WIDGET_TEXT_OFFSET - 2, body.y, textSize.x + 4, 2}, GetColor(.backing, 1))
-			PaintString(GetFontData(.label), label, {body.x + WIDGET_TEXT_OFFSET, body.y - textSize.y / 2}, GetColor(.textBright))
-		}
+		PaintControlLabel(body, label, GetColor(.backing))
 
 		body.y -= 10
 		body.h += 10
 	}
 	return
+}
+
+PaintControlLabel :: proc(rect: Rect, label: string, backgroundColor: Color) {
+	if len(label) > 0 {
+		labelFont := GetFontData(.label)
+		textSize := MeasureString(labelFont, label)
+		PaintRect({rect.x + WIDGET_TEXT_OFFSET - 2, rect.y, textSize.x + 4, 2}, backgroundColor)
+		PaintString(GetFontData(.label), label, {rect.x + WIDGET_TEXT_OFFSET, rect.y - textSize.y / 2}, GetColor(.textBright))
+	}
 }
 
 /*
@@ -638,7 +656,9 @@ ButtonEx :: proc(label: Label, corners: RectCorners, loc := #caller_location) ->
 		if .down not_in state {
 			PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, false, corners, GetColor(.widgetPress, pressTime))
 		}
-		PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
+
+		_, isIcon := label.(Icon)
+		PaintLabel(GetFontData(.header if isIcon else .default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.backing), .middle, .middle)
 
 		result = .released in state
 	}
@@ -1105,7 +1125,7 @@ RadioButtons :: proc(value: $T, side: RectSide, loc := #caller_location) -> (new
 	Combo box
 */
 @(deferred_out=_Menu)
-Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^LayerData, active: bool) {
+Menu :: proc(text: string menuSize: f32, loc := #caller_location) -> (layer: ^LayerData, active: bool) {
 	sharedId := HashId(loc)
 	if control, ok := BeginControl(sharedId, LayoutNext(GetCurrentLayout())); ok {
 		using control
@@ -1122,11 +1142,12 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 		if !active {
 			corners += {.bottomLeft, .bottomRight}
 		}
-		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
+		fill := BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime)
+		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, fill)
 		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase, stateTime))
 		PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
 		PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
-		
+
 		if .pressed in state {
 			bits = bits ~ {.active}
 		}

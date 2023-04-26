@@ -40,27 +40,27 @@ Input :: struct {
 	keyPulse: bool,
 }
 
-@private MousePressed :: proc(button: MouseButton) -> bool {
+MousePressed :: proc(button: MouseButton) -> bool {
 	using input
 	return (button in mouseBits) && (button not_in prevMouseBits)
 }
-@private MouseReleased :: proc(button: MouseButton) -> bool {
+MouseReleased :: proc(button: MouseButton) -> bool {
 	using input
 	return (button not_in mouseBits) && (button in prevMouseBits)
 }
-@private MouseDown :: proc(button: MouseButton) -> bool {
+MouseDown :: proc(button: MouseButton) -> bool {
 	using input
 	return button in mouseBits
 }
-@private KeyPressed :: proc(key: Key) -> bool {
+KeyPressed :: proc(key: Key) -> bool {
 	using input
 	return (key in keyBits) && ((key not_in prevKeyBits) || (lastKey == key && keyPulse))
 }
-@private KeyReleased :: proc(key: Key) -> bool {
+KeyReleased :: proc(key: Key) -> bool {
 	using input
 	return (key not_in keyBits) && (key in prevKeyBits)
 }
-@private KeyDown :: proc(key: Key) -> bool {
+KeyDown :: proc(key: Key) -> bool {
 	using input
 	return key in keyBits
 }
@@ -90,4 +90,4 @@ SetKeyBit :: proc(key: Key, value: bool) {
 	}
 }
 
-@private input: Input
+input: Input

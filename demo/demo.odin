@@ -1,8 +1,8 @@
 package demo
 
-import ui "../maui"
+import ui "isaiah:maui"
 import rl "vendor:raylib"
-import backend "../mauiRaylib"
+import backend "isaiah:maui/raylibBackend"
 
 import "core:runtime"
 import "core:fmt"

@@ -94,6 +94,10 @@ Icon :: enum rune {
 	formatItalic		= 0xe23f,
 	formatBold			= 0xe238,
 	formatUnderline		= 0xe249,
+	chevronDown 		= 0xe313,
+	chevronLeft 		= 0xe314,
+	chevronRight 		= 0xe314,
+	chevronUp			= 0xe316,
 }
 
 StringPaintOption :: enum {

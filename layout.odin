@@ -123,6 +123,19 @@ Cut :: proc(side: RectSide, amount: f32) -> Rect {
 	layout := GetCurrentLayout()
 	return CutRect(&layout.rect, side, amount)
 }
+CutEx :: proc(side: RectSide, amount: f32, relative := false) -> Rect {
+	assert(ctx.layoutDepth > 0)
+	layout := GetCurrentLayout()
+	amount := amount
+	if relative {
+		if layout.side == .left || layout.side == .right {
+			amount *= layout.rect.w
+		} else {
+			amount *= layout.rect.h
+		}
+	}
+	return CutRect(&layout.rect, side, amount)
+}
 
 
 /*
@@ -237,12 +250,13 @@ LayoutFitControl :: proc(layout: ^LayoutData, size: Vec2) {
 	Manual layouts
 */
 @(deferred_out=_Layout)
-Layout :: proc(r: Rect) -> (layout: ^LayoutData, ok: bool) {
-	layout = PushLayout(r)
+Layout :: proc(side: RectSide, size: f32, relative := false) -> (ok: bool) {
+	rect := CutEx(side, size, relative)
+	PushLayout(rect)
 	ok = true
 	return
 }
-@private _Layout :: proc(layout: ^LayoutData, ok: bool) {
+@private _Layout :: proc(ok: bool) {
 	if ok {
 		PopLayout()
 	}

@@ -7,5 +7,5 @@ major WIP
 - [x] renderer independant (draw anything with triangle, scissor and texture commands)
 - [ ] blazingly fast
 - [ ] highly optimized (operation culling)
-- [ ] looks kinda good
+- [x] looks kinda good
 - [x] dead simple layout system

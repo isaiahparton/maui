@@ -2,7 +2,7 @@
 	/// Core components of ui ///
 
 	# Layer
-		Container for controls, drawn in order, rendered contents are clipped to body
+		Container for controls, handles clipping and scrolling, drawn in order
 
 		+---------------+
 		|				|
@@ -34,22 +34,6 @@
 				 | option 3   | option 2 |
 				 +------------+----------+
 
-	# Frame
-		A scrollable area, or graph viewport
-		Pushes a layer, whos contents are offset
-		according to the frame's state
-
-		+-----------------------+-+
-		| Lorem ipsum dolor    	|#|
-		| sit amet, consectetur	|#|
-		| adipiscing elit, sed  |#|
-		| do eiusmod tempor 	| |
-		| incididu ut labore et | |
-		| ut labore et dolore	| |
-		| magna aliqua. Ut enim | |
-		| ad minim veniam, quis | |
-		+-----------------------+-+
-
 	# Layout
 		A rectangle in which controls and other layouts are placed
 
@@ -63,6 +47,7 @@
 		C is cut from the bottom of B
 */
 package maui
+
 import "core:fmt"
 import "core:runtime"
 import "core:sort"
@@ -108,10 +93,25 @@ COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 256 * 1024)
 ID_STACK_SIZE :: 8
 // Repeating key press
 KEY_REPEAT_DELAY :: 0.5
-KEY_REPEAT_RATE :: 24
+KEY_REPEAT_RATE :: 30
 ALL_CORNERS: RectCorners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
 
 DOUBLE_CLICK_TIME :: 0.25
+
+BackendGetClipboardString: proc() -> string = ---
+BackendSetClipboardString: proc(string) = ---
+
+GetClipboardString :: proc() -> string {
+	if BackendGetClipboardString != nil {
+		return BackendGetClipboardString()
+	}
+	return {}
+}
+SetClipboardString :: proc(str: string) {
+	if BackendSetClipboardString != nil {
+		BackendSetClipboardString(str)
+	}
+}
 
 Id :: distinct u32
 
@@ -243,6 +243,11 @@ Enable :: proc(){
 }
 Disable :: proc(){
 	ctx.disabled = true
+}
+
+GetLastControl :: proc() -> ^Control {
+	using ctx
+	return &controls[lastControl]
 }
 
 /*
