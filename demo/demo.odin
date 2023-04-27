@@ -79,8 +79,8 @@ _main :: proc() {
 			if tab == .text {
 				ui.SetSize(30)
 				wordwrap = ui.CheckBox(wordwrap, "Enable word wrap")
-				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
-					layout.side = .left; layout.size = 120
+				if ui.Layout(.top, 30) {
+					ui.SetSide(.left); ui.SetSize(120)
 					font = ui.EnumMenu(font, 30)
 				}
 				ui.SetSize(1, true)
@@ -101,8 +101,8 @@ _main :: proc() {
 				ui.Space(HEADER_LEADING_SPACE)
 				ui.Text(.header, "Round Buttons", true)
 				ui.Space(HEADER_TRAILING_SPACE)
-				if layout, ok := ui.Layout(ui.Cut(.top, 40)); ok {
-					layout.side = .left; layout.size = layout.rect.w / 3;
+				if ui.Layout(.top, 40) {
+					ui.SetSide(.left);
 					ui.PillButtonEx("SOLA FIDE", .subtle)
 					ui.Space(DEFAULT_SPACING)
 					ui.PillButtonEx("SOLA GRACIA", .normal)
@@ -114,7 +114,7 @@ _main :: proc() {
 				ui.Space(HEADER_LEADING_SPACE)
 				ui.Text(.header, "Default Buttons", true)
 				ui.Space(HEADER_TRAILING_SPACE)
-				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
+				if ui.Layout(.top, 30) {
 					ui.SetSize(30); ui.SetSide(.left);
 					a = ui.ToggleButtonEx(a, ui.Icon.formatBold, {.topLeft, .bottomLeft})
 					b = ui.ToggleButtonEx(b, ui.Icon.formatItalic, {})
@@ -144,8 +144,8 @@ _main :: proc() {
 				ui.SetSize(30)
 				choice = ui.RadioButtons(choice, .left)
 				ui.Space(DEFAULT_SPACING)
-				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
-					layout.size = 140; layout.side = .left
+				if ui.Layout(.top, 30) {
+					ui.SetSize(120); ui.SetSide(.left)
 					choice = ui.EnumMenu(choice, 30)
 				}
 
@@ -161,13 +161,13 @@ _main :: proc() {
 					ui.PopId()
 				}
 				ui.Space(DEFAULT_SPACING)
-				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
-					layout.size = 240; layout.side = .left
+				if ui.Layout(.top, 30) {
+					ui.SetSize(24); ui.SetSide(.left)
 					choices = ui.BitSetMenu(choices, 30)
 				}
 			} else if tab == .table {
-				if layout, ok := ui.Layout(ui.Cut(.top, 30)); ok {
-					layout.side = .left; layout.size = 120
+				if ui.Layout(.top, 30) {
+					ui.SetSide(.left); ui.SetSize(120)
 					items = ui.Spinner(items, 0, 1000)
 				}
 				ui.Space(DEFAULT_SPACING)

@@ -246,6 +246,18 @@ LayoutFitControl :: proc(layout: ^LayoutData, size: Vec2) {
 	}
 }
 
+@(deferred_out=_LayoutEx)
+LayoutEx :: proc(rect: Rect) -> (layout: ^LayoutData, ok: bool) {
+	layout = PushLayout(rect)
+	ok = layout != {}
+	return
+}
+@private _LayoutEx :: proc(_: ^LayoutData, ok: bool) {
+	if ok {
+		PopLayout()
+	}
+}
+
 /*
 	Manual layouts
 */

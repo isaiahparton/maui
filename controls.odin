@@ -1399,7 +1399,7 @@ Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bo
 EnumTabs :: proc(value: $T, loc := #caller_location) -> (newValue: T) { 
 	newValue = value
 	rect := LayoutNext(GetCurrentLayout())
-	if layout, ok := Layout(rect); ok {
+	if layout, ok := LayoutEx(rect); ok {
 		layout.size = layout.rect.w / len(T); layout.side = .left
 		for member in T {
 			PushId(HashId(int(member)))
