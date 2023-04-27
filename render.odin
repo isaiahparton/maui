@@ -343,9 +343,8 @@ Command :: struct {
 /*
 	Push a command to the current layer's buffer
 */
-PushCommand :: proc($Type: typeid, extra_size := 0) -> ^Type {
+PushCommand :: proc(layer: ^LayerData, $Type: typeid, extra_size := 0) -> ^Type {
 	assert(ctx.layerDepth > 0, "PushCommand() There is no layer on which to draw!")
-	layer := GetCurrentLayer()
 	
 	size := i32(size_of(Type) + extra_size)
 	cmd := transmute(^Type)&layer.commands[layer.commandOffset]
@@ -407,7 +406,7 @@ BeginClip :: proc(rect: Rect) {
 	}
 
 	ctx.clipRect = rect
-	cmd := PushCommand(CommandClip)
+	cmd := PushCommand(GetCurrentLayer(), CommandClip)
 	cmd.rect = rect
 }
 EndClip :: proc() {
@@ -416,7 +415,7 @@ EndClip :: proc() {
 	}
 
 	ctx.clipRect = ctx.fullscreenRect
-	cmd := PushCommand(CommandClip)
+	cmd := PushCommand(GetCurrentLayer(), CommandClip)
 	cmd.rect = ctx.clipRect
 }
 PaintQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
@@ -431,9 +430,9 @@ PaintTriangle :: proc(p1, p2, p3: Vec2, color: Color) {
 	if !ctx.shouldRender {
 		return
 	}
-
-	cmd := PushCommand(CommandTriangle)
-	cmd.color = color
+	layer := GetCurrentLayer()
+	cmd := PushCommand(layer, CommandTriangle)
+	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}
 	cmd.vertices = {p1, p2, p3}
 }
 PaintRect :: proc(rect: Rect, color: Color) {
@@ -576,24 +575,13 @@ PaintTexture :: proc(src, dst: Rect, color: Color) {
 		return
 	}
 
-	cmd := PushCommand(CommandTexture)
+	layer := GetCurrentLayer()
+	cmd := PushCommand(layer, CommandTexture)
 	cmd.uvMin = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
 	cmd.uvMax = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}
 	cmd.min = {dst.x, dst.y}
 	cmd.max = {dst.x + dst.w, dst.y + dst.h}
-	cmd.color = color
-}
-PaintTextureEx :: proc(src, dst: Rect, angle: f32, color: Color) {
-	if !ctx.shouldRender {
-		return
-	}
-
-	cmd := PushCommand(CommandTexture)
-	cmd.uvMin = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
-	cmd.uvMax = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}
-	cmd.min = {dst.x, dst.y}
-	cmd.max = {dst.x + dst.w, dst.y + dst.h}
-	cmd.color = color
+	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}
 }
 PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
 	if !ctx.shouldRender {

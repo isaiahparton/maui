@@ -700,7 +700,8 @@ ToggleButtonEx :: proc(value: bool, label: Label, corners: RectCorners, loc := #
 			PaintRect({body.x + 1, body.y + 2, 1, body.h - 4}, fillColor)
 		}
 		
-		PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text if value else .outlineBase), .middle, .middle)
+		_, isIcon := label.(Icon)
+		PaintLabel(GetFontData(.header if isIcon else .default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text if value else .outlineBase), .middle, .middle)
 	}
 	return
 }
@@ -1155,6 +1156,7 @@ Menu :: proc(text: string menuSize: f32, loc := #caller_location) -> (layer: ^La
 		if active {
 			layer, ok = BeginLayer(AttachRectBottom(body, menuSize), {}, sharedId, {.outlined})
 			layer.order = .popup
+			layer.opacity = stateTime
 
 			if (.hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left)) {
 				bits -= {.active}
@@ -1400,7 +1402,7 @@ EnumTabs :: proc(value: $T, loc := #caller_location) -> (newValue: T) {
 	newValue = value
 	rect := LayoutNext(GetCurrentLayout())
 	if layout, ok := LayoutEx(rect); ok {
-		layout.size = layout.rect.w / len(T); layout.side = .left
+		layout.size = layout.rect.w / f32(len(T)); layout.side = .left
 		for member in T {
 			PushId(HashId(int(member)))
 				if Tab(member == value, CapitalizeString(Format(member)), loc) {

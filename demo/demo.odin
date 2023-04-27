@@ -101,7 +101,7 @@ _main :: proc() {
 				ui.Space(HEADER_LEADING_SPACE)
 				ui.Text(.header, "Round Buttons", true)
 				ui.Space(HEADER_TRAILING_SPACE)
-				if ui.Layout(.top, 40) {
+				if ui.Layout(.top, 30) {
 					ui.SetSide(.left);
 					ui.PillButtonEx("SOLA FIDE", .subtle)
 					ui.Space(DEFAULT_SPACING)
@@ -122,7 +122,7 @@ _main :: proc() {
 					ui.Space(DEFAULT_SPACING)
 					ui.ButtonEx("\ue87d Favorites", {.topLeft, .bottomLeft})
 					ui.Space(2)
-					ui.ButtonEx("\ue145", {.topRight, .bottomRight})
+					ui.ButtonEx(ui.Icon.add, {.topRight, .bottomRight})
 				}
 
 				// Text input
@@ -162,7 +162,7 @@ _main :: proc() {
 				}
 				ui.Space(DEFAULT_SPACING)
 				if ui.Layout(.top, 30) {
-					ui.SetSize(24); ui.SetSide(.left)
+					ui.SetSize(240); ui.SetSide(.left)
 					choices = ui.BitSetMenu(choices, 30)
 				}
 			} else if tab == .table {
@@ -176,7 +176,7 @@ _main :: proc() {
 					ui.AlignY(.middle)
 					ui.SetSize(30)
 					for i in 0 ..< items {
-						ui.Text(.default, ui.StringFormat("Item %i", i + 1), false)
+						ui.Text(.default, ui.StringFormat(" Item %i", i + 1), false)
 					}
 				}
 			}

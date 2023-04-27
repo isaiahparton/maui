@@ -40,6 +40,7 @@ LayerData :: struct {
 	bits: LayerBits,
 	options: LayerOptions,
 	body: Rect,
+	opacity: f32,
 	// Inner layout size
 	layoutSize: Vec2,
 	// Content bounding box
@@ -81,7 +82,7 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 				layerExists[i] = true
 
 				delete(layers[i].contents)
-				layers[i] = {}
+				layers[i] = {opacity=1}
 
 				layer = &layers[i]
 				ok = true
@@ -119,13 +120,11 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 
 	PushId(id)
 	if !RectContainsRect(layer.body, layer.contentRect) {
-		layer.clipCommand = PushCommand(CommandClip)
+		layer.clipCommand = PushCommand(layer, CommandClip)
 		layer.bits += {.clipped}
 	} else {
 		layer.bits -= {.clipped}
 	}
-
-	layer.contentRect = {layer.body.x + layer.body.w, layer.body.y + layer.body.h, 0, 0}
 
 	layer.layoutSize = {
 		max(size.x, layer.body.w),
@@ -133,18 +132,21 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	}
 
 	// Detect scrollbar necessity
-	if layer.layoutSize.x > layer.body.w {
+	if layer.contentRect.w > layer.body.w {
 		layer.layoutSize.y -= SCROLL_BAR_SIZE
 		layer.bits += {.scrollX}
 	} else {
 		layer.bits -= {.scrollX}
 	}
-	if layer.layoutSize.y > layer.body.h {
+	if layer.contentRect.h > layer.body.h {
 		layer.layoutSize.x -= SCROLL_BAR_SIZE
 		layer.bits += {.scrollY}
 	} else {
 		layer.bits -= {.scrollY}
 	}
+
+	// Reset content rect
+	layer.contentRect = {layer.body.x + layer.body.w, layer.body.y + layer.body.h, 0, 0}
 
 	// Begin layout
 	PushLayout({layer.body.x - layer.scroll.x, layer.body.y - layer.scroll.y, layer.layoutSize.x, layer.layoutSize.y})
@@ -164,7 +166,7 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	// Handle content clipping
 	if .clipped in layer.bits {
 		layer.clipCommand.rect = layer.body
-		PushCommand(CommandClip).rect = fullscreenRect
+		PushCommand(layer, CommandClip).rect = fullscreenRect
 
 		SCROLL_SPEED :: 16
 		SCROLL_STEP :: 55
