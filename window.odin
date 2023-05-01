@@ -154,7 +154,7 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 			PaintCollapseArrow({titleRect.x + titleRect.h / 2, baseline}, 8, howCollapsed, GetColor(.textBright, 1))
 			textOffset = titleRect.h * 0.85
 		}
-		PaintAlignedString(GetFontData(.default), name, {titleRect.x + textOffset, baseline}, GetColor(.textBright, 1), .near, .middle)
+		PaintStringAligned(GetFontData(.default), name, {titleRect.x + textOffset, baseline}, GetColor(.textBright, 1), .near, .middle)
 		if .resizing not_in state && ctx.hoveredLayer == layer.id && VecVsRect(input.mousePoint, titleRect) {
 			if MousePressed(.left) {
 				state += {.moving}

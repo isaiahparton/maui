@@ -128,7 +128,7 @@ CutEx :: proc(side: RectSide, amount: f32, relative := false) -> Rect {
 	layout := GetCurrentLayout()
 	amount := amount
 	if relative {
-		if layout.side == .left || layout.side == .right {
+		if side == .left || side == .right {
 			amount *= layout.rect.w
 		} else {
 			amount *= layout.rect.h

@@ -241,10 +241,10 @@ Painter :: struct {
 }
 painter: ^Painter
 
-InitPainter :: proc() {
+InitPainter :: proc() -> bool {
 	painter = new(Painter)
 
-	GenAtlas(painter)
+	return GenAtlas(painter)
 }
 UninitPainter :: proc() {
 	for font in &painter.fonts {
@@ -259,7 +259,7 @@ DoneWithAtlasImage :: proc() {
 	rl.UnloadImage(painter.image)
 }
 
-GenAtlas :: proc(using painter: ^Painter) {
+GenAtlas :: proc(using painter: ^Painter) -> (result: bool) {
 	dir := #file
 	for i := len(dir) - 1; i > 0; i -= 1 {
 		if dir[i] == '/' {
@@ -296,6 +296,7 @@ GenAtlas :: proc(using painter: ^Painter) {
 		font, success := GenFont({circleSpace.x + offset, 0}, StringFormat("%s/fonts/%s", dir, data.file), data.size, codepoints[:firstIconIndex] if index == .monospace else codepoints)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
+			result = false
 			continue
 		}
 		fonts[index] = font
@@ -308,6 +309,9 @@ GenAtlas :: proc(using painter: ^Painter) {
 		offset += f32(font.image.width)
 		rl.UnloadImage(font.image)
 	}
+
+	result = true
+	return
 }
 
 /*

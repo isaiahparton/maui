@@ -20,6 +20,8 @@ LayerBits :: bit_set[LayerBit]
 // Options
 LayerOption :: enum {
 	outlined,
+	noScrollX,
+	noScrollY,
 }
 LayerOptions :: bit_set[LayerOption]
 /*
@@ -116,10 +118,12 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	layer.commandOffset = 0
 	if rect != {} {
 		layer.body = rect
+	} else {
+		layer.body = ctx.fullscreenRect
 	}
 
 	PushId(id)
-	if !RectContainsRect(layer.body, layer.contentRect) {
+	if layer.body != ctx.fullscreenRect && !RectContainsRect(layer.body, layer.contentRect) {
 		layer.clipCommand = PushCommand(layer, CommandClip)
 		layer.bits += {.clipped}
 	} else {
@@ -132,13 +136,13 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 	}
 
 	// Detect scrollbar necessity
-	if layer.contentRect.w > layer.body.w {
+	if layer.contentRect.w > layer.body.w && layer.options < {.noScrollX} {
 		layer.layoutSize.y -= SCROLL_BAR_SIZE
 		layer.bits += {.scrollX}
 	} else {
 		layer.bits -= {.scrollX}
 	}
-	if layer.contentRect.h > layer.body.h {
+	if layer.contentRect.h > layer.body.h && layer.options < {.noScrollY} {
 		layer.layoutSize.x -= SCROLL_BAR_SIZE
 		layer.bits += {.scrollY}
 	} else {

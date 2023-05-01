@@ -7,6 +7,8 @@ import "core:fmt"
 import "core:unicode"
 import "core:unicode/utf8"
 
+TEXT_BREAK :: "..."
+
 /*
 	Safe text formatting for short-term usage
 */
@@ -81,6 +83,7 @@ FormatBitSet :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 */
 Icon :: enum rune {
 	check 				= 0xe5ca,
+	error 				= 0xe002,
 	close 				= 0xe5cd,
 	heart 				= 0xe87d,
 	edit 				= 0xe3c9,
@@ -98,10 +101,13 @@ Icon :: enum rune {
 	chevronLeft 		= 0xe314,
 	chevronRight 		= 0xe314,
 	chevronUp			= 0xe316,
+	folder 				= 0xe2c8,
+	admin 				= 0xe32a,
 }
 
 StringPaintOption :: enum {
-	wordwrap,
+	wrap,
+	word_wrap,
 }
 StringPaintOptions :: bit_set[StringPaintOption]
 PaintStringContained :: proc(font: FontData, text: string, rect: Rect, options: StringPaintOptions, color: Color) -> Vec2 {
@@ -112,26 +118,39 @@ PaintStringContained :: proc(font: FontData, text: string, rect: Rect, options: 
 	point: Vec2 = {rect.x, rect.y}
 	size: Vec2
 	nextWord: int
+
+	breakSize: f32
+	if options < {.wrap} {
+		breakSize = MeasureString(font, TEXT_BREAK).x
+	}
+
 	for codepoint, index in text {
 		glyph := GetGlyphData(font, codepoint)
 		totalAdvance := glyph.advance + GLYPH_SPACING
 		space := totalAdvance
 
-		if .wordwrap in options && index >= nextWord {
-			for wordCodepoint, wordIndex in text[index:] {
-				textIndex := index + wordIndex
-				if wordCodepoint == ' ' || textIndex == len(text) - 1 {
-					nextWord = textIndex
-					break
+		if options >= {.wrap} {
+			if options >= {.word_wrap} && index >= nextWord {
+				for wordCodepoint, wordIndex in text[index:] {
+					textIndex := index + wordIndex
+					if wordCodepoint == ' ' || textIndex == len(text) - 1 {
+						nextWord = textIndex
+						break
+					}
+				}
+				if nextWord > index {
+					space = MeasureString(font, text[index:nextWord]).x
 				}
 			}
-			if nextWord > index {
-				space = MeasureString(font, text[index:nextWord]).x
+			if point.x + space > rect.x + rect.w && codepoint != ' ' {
+				if options >= {.wrap} {
+					point.x = rect.x
+					point.y += font.size
+				}
 			}
-		}
-		if point.x + space > rect.x + rect.w && codepoint != ' ' {
-			point.x = rect.x
-			point.y += font.size
+		} else if point.x + totalAdvance + breakSize >= rect.x + rect.w {
+			PaintString(font, TEXT_BREAK, point, color)
+			break
 		}
 
 		if codepoint == '\n' {
@@ -200,7 +219,7 @@ PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) ->
 	size.y = font.size
 	return size
 }
-PaintAlignedString :: proc(font: FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
+PaintStringAligned :: proc(font: FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
 	if !ctx.shouldRender {
 		return {}
 	}

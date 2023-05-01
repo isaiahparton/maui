@@ -31,7 +31,7 @@ COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
 	.backingHighlight = {240, 240, 240, 255},
 	.iconBase = {135, 135, 135, 255},
 
-	.widgetBase = {160, 160, 165, 255},
+	.widgetBase = {157, 157, 162, 255},
 	.widgetHover = {143, 144, 155, 255},
 	.widgetPress = {112, 113, 129, 255},
 

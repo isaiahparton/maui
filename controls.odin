@@ -469,7 +469,7 @@ TextInputBytes :: proc(data: []u8, label, placeholder: string, format: TextInput
 		}
 		if len(placeholder) != 0 {
 			if len(data) == 0 {
-				PaintAlignedString(font, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
+				PaintStringAligned(font, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
 			}
 		}
 
@@ -539,7 +539,7 @@ Label :: union {
 
 PaintLabel :: proc(fontData: FontData, label: Label, origin: Vec2, color: Color, alignX, alignY: Alignment) {
 	switch variant in label {
-		case string: PaintAlignedString(fontData, variant, origin, color, alignX, alignY)
+		case string: PaintStringAligned(fontData, variant, origin, color, alignX, alignY)
 		case Icon: PaintGlyphAligned(GetGlyphData(fontData, rune(variant)), origin, color, alignX, alignY)
 	}
 }
@@ -549,6 +549,27 @@ MeasureLabel :: proc(fontData: FontData, label: Label) -> (size: Vec2) {
 		case Icon:
 		glyph := GetGlyphData(fontData, rune(variant))
 		size = {glyph.source.w, glyph.source.y}
+	}
+	return
+}
+
+/*
+	Buttons for navigation
+*/
+NavOptionEx :: proc(active: bool, text: string, loc := #caller_location) -> (result: bool) {
+	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
+		using control
+		UpdateControl(control)
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			stateTime := AnimateBool(HashIdFromInt(1), active, 0.2)
+		PopId()
+
+		PaintRect(body, StyleGetShadeColor(hoverTime + stateTime))
+		PaintStringAligned(GetFontData(.default), text, {body.x + body.h * (0.25 + (0.5 * hoverTime)), body.y + body.h / 2}, GetColor(.text), .near, .middle)
+		
+		result = .released in state
 	}
 	return
 }
@@ -864,7 +885,7 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 				}
 			}
 		} else {
-			PaintAlignedString(font, numberText, center, GetColor(.text), .middle, .middle)
+			PaintStringAligned(font, numberText, center, GetColor(.text), .middle, .middle)
 
 			if .down in state {
 				newValue = value + int(input.mousePoint.x - input.prevMousePoint.x) + int(input.mousePoint.y - input.prevMousePoint.y)
@@ -1147,7 +1168,7 @@ Menu :: proc(text: string menuSize: f32, loc := #caller_location) -> (layer: ^La
 		PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, fill)
 		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase, stateTime))
 		PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
-		PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
+		PaintStringAligned(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
 
 		if .pressed in state {
 			bits = bits ~ {.active}
@@ -1197,7 +1218,7 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 		PopId()
 
 		PaintRect(body, GetColor(.widgetHover) if active else BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
-		PaintAlignedString(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
+		PaintStringAligned(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
 
 		result = .released in state
 	}
@@ -1255,7 +1276,7 @@ Widget :: proc(label: string, sides: RectSides, loc := #caller_location) -> (cli
 			PaintRoundedRectEx(body, WIDGET_ROUNDNESS, corners, StyleGetShadeColor((hoverTime + pressTime) * 0.75))
 		}
 		PaintRoundedRectOutlineEx(body, WIDGET_ROUNDNESS, true, corners, GetColor(.outlineBase))
-		PaintAlignedString(GetFontData(.default), label, {body.x + body.h * 0.25, body.y + body.h / 2}, GetColor(.text), .near, .middle)
+		PaintStringAligned(GetFontData(.default), label, {body.x + body.h * 0.25, body.y + body.h / 2}, GetColor(.text), .near, .middle)
 
 		PushLayout(body)
 
@@ -1278,6 +1299,19 @@ WidgetDivider :: proc() {
 	#partial switch side {
 		case .left: PaintRect({rect.x, rect.y + 10, 1, rect.h - 20}, GetColor(.outlineBase))
 		case .right: PaintRect({rect.x + rect.w, rect.y + 10, 1, rect.h - 20}, GetColor(.outlineBase))
+	}
+}
+
+/*
+	Litterally just a line
+*/
+Divider :: proc(size: f32) {
+	layout := GetCurrentLayout()
+	rect := CutRect(&layout.rect, layout.side, size)
+	if layout.side == .left || layout.side == .right {
+		PaintRect({rect.x + rect.w / 2, rect.y, 1, rect.h}, GetColor(.foregroundHover))
+	} else {
+		PaintRect({rect.x, rect.y + rect.h / 2, rect.w, 1}, GetColor(.foregroundHover))
 	}
 }
 
@@ -1387,7 +1421,7 @@ Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bo
 
 		PaintRect(body, GetColor(.foreground if active else .foregroundHover))
 		center: Vec2 = {body.x + body.w / 2, body.y + body.h / 2}
-		textSize := PaintAlignedString(GetFontData(.default), label, center, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime + stateTime), .middle, .middle)
+		textSize := PaintStringAligned(GetFontData(.default), label, center, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime + stateTime), .middle, .middle)
 		size := textSize.x
 		size *= stateTime
 		if stateTime > 0 {
@@ -1425,7 +1459,7 @@ Text :: proc(font: FontIndex, text: string, fit: bool) {
 		LayoutFitControl(layout, textSize)
 	}
 	rect := LayoutNextEx(layout, textSize)
-	if CheckClip(ctx.clipRect, rect) != .full {
+	if CheckClip(ctx.clipRect, rect) != .none || true {
 		PaintString(fontData, text, {rect.x, rect.y}, GetColor(.text))
 	}
 	UpdateLayerContentRect(GetCurrentLayer(), rect)

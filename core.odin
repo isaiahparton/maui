@@ -456,7 +456,7 @@ SetScreenSize :: proc(w, h: f32) {
 	ctx.size = {w, h}
 }
 
-Init :: proc() {
+Init :: proc() -> bool {
 	/*
 		Set up default context and set style
 	*/
@@ -464,10 +464,15 @@ Init :: proc() {
 
 	//TODO(isaiah): do something with this!
 	ctx.style.colors = COLOR_SCHEME_LIGHT
+	
 	/*
 		Set up painter and load atlas
 	*/
-	InitPainter()
+	if !InitPainter() {
+		fmt.print("failed to initialize painter module\n")
+		return false
+	}
+	return true
 }
 Uninit :: proc() {
 	delete(ctx.scribe.buffer)

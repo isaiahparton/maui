@@ -7,6 +7,8 @@ import "core:strings"
 @private texture: rl.Texture
 
 Init :: proc() {
+	assert(rl.IsWindowReady())
+
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
 	rl.SetTextureFilter(texture, .BILINEAR)
