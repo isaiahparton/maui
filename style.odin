@@ -23,17 +23,16 @@ COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
 	.accentHover = {35, 105, 250, 255},
 	.accentPress = {16, 65, 245, 255},
 
-	.foreground = {218, 218, 218, 255},
-	.foregroundHover = {200, 200, 200, 255},
-	.foregroundPress = {170, 170, 170, 255},
+	.foreground = {255, 255, 255, 255},
+	.foregroundHover = {245, 245, 245, 255},
+	.foregroundPress = {230, 230, 230, 255},
 
-	.backing = {255, 255, 255, 255},
-	.backingHighlight = {240, 240, 240, 255},
-	.iconBase = {135, 135, 135, 255},
+	.backing = {218, 218, 218, 255},
+	.backingHighlight = {200, 200, 200, 255},
 
-	.widgetBase = {157, 157, 162, 255},
-	.widgetHover = {143, 144, 155, 255},
-	.widgetPress = {112, 113, 129, 255},
+	.widgetBase = {182, 185, 182, 255},
+	.widgetHover = {167, 168, 170, 255},
+	.widgetPress = {145, 145, 155, 255},
 
 	.outlineBase = {112, 113, 116, 255},
 
@@ -51,7 +50,6 @@ COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {
 	.foregroundPress = {28, 28, 28, 255},
 	.backing = {18, 18, 18, 255},
 	.backingHighlight = {18, 18, 18, 255},
-	.iconBase = {192, 192, 192, 255},
 
 	.widgetBase = {50, 50, 50, 255},
 	.widgetHover = {61, 60, 63, 255},
@@ -87,7 +85,6 @@ ColorIndex :: enum {
 	accentPress,
 
 	shade,
-	iconBase,
 	text,
 	textBright,
 }

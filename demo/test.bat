@@ -1,2 +1,2 @@
 @echo off
-odin run demo -debug
+odin run . -debug -collection:isaiah="C:\\dev\\isaiah"

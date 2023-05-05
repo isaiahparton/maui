@@ -103,6 +103,10 @@ Icon :: enum rune {
 	chevronUp			= 0xe316,
 	folder 				= 0xe2c8,
 	admin 				= 0xe32a,
+	shoppingBag 		= 0xf1cc,
+	receipt 			= 0xef6e,
+	inventory 			= 0xe1a1,
+	history 			= 0xe889,
 }
 
 StringPaintOption :: enum {

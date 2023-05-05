@@ -100,8 +100,9 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 	layoutRect := rect
 
 	// Body
+	drawRect.h -= layoutRect.h * howCollapsed
 	if .collapsed not_in state {
-		PaintRoundedRect(drawRect, WINDOW_ROUNDNESS, GetColor(.foreground, 1))
+		PaintRoundedRect(drawRect, WINDOW_ROUNDNESS, GetColor(.foreground))
 	}
 
 	// Get resize click
@@ -178,9 +179,6 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 		state -= {.shouldCollapse}
 	}
 
-	// Apply collapse
-	drawRect.h -= layoutRect.h * howCollapsed
-
 	// Interpolate collapse
 	if .shouldCollapse in state {
 		howCollapsed = min(1, howCollapsed + ctx.deltaTime * 7)
@@ -191,9 +189,6 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 		state += {.collapsed}
 	} else {
 		state -= {.collapsed}
-	}
-	if howCollapsed > 0 && howCollapsed < 1 {
-		layer.bits += {.clipped}
 	}
 
 	// Push layout if necessary
