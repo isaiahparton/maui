@@ -11,7 +11,7 @@ Init :: proc() {
 
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
-	rl.SetTextureFilter(texture, .TRILINEAR)
+	rl.SetTextureFilter(texture, .POINT)
 	ui.DoneWithAtlasImage()
 
 	ui.BackendSetClipboardString = proc(str: string) {

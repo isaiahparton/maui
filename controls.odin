@@ -201,6 +201,15 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 		}
 	}
 	point := origin
+	size: Vec2
+	cursorStart, cursorEnd: Vec2
+
+	if .justFocused in state {
+		ctx.scribe.offset = {}
+	}
+	if .focused in state {
+		point -= ctx.scribe.offset
+	}
 
 	// Iterate over the bytes
 	for index := 0; index <= len(data); {
@@ -221,12 +230,19 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 		if .focused in state && .justFocused not_in state {
 			if ctx.scribe.length == 0 && .readOnly not_in format.options {
 				if ctx.scribe.index == index {
-					PaintRect({point.x - 1, point.y, 1, font.size}, GetColor(.text))
+					PaintRect({math.floor(point.x - 1), point.y, 1, font.size}, GetColor(.text))
 				}
 			} else if index >= ctx.scribe.index && index < ctx.scribe.index + ctx.scribe.length {
-				PaintRect({point.x, point.y, glyphWidth, font.size}, GetColor(.text))
+				PaintRect({max(point.x, rect.x), point.y, min(glyphWidth, rect.w - (point.x - rect.x), (point.x + glyphWidth) - rect.x), font.size}, GetColor(.text))
 				highlight = true
 			}
+		}
+
+		if ctx.scribe.index == index {
+			cursorStart = (point + ctx.scribe.offset) - origin
+		}
+		if ctx.scribe.index + ctx.scribe.length == index {
+			cursorEnd = (point + ctx.scribe.offset) - origin
 		}
 
 		// Decide the hovered glyph
@@ -252,16 +268,31 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 			PaintGlyphClipped(glyphData, point, rect, GetColor(.backing if highlight else .textBright, 1))
 		}
 
-		/*
-			Finished, move index and point
-		*/
+		// Finished, move index and point
 		point.x += glyphData.advance + GLYPH_SPACING
+		size.x += glyphData.advance + GLYPH_SPACING
 		index += bytes
 	}
 
-	/*
-		Mouse selection
-	*/
+	if ctx.scribe.move < 0 {
+		if cursorStart.x < ctx.scribe.offset.x {
+			ctx.scribe.offset.x = cursorStart.x
+		}
+		if cursorStart.x > ctx.scribe.offset.x + rect.w {
+			ctx.scribe.offset.x = cursorStart.x - rect.w
+		}
+		ctx.scribe.move = 0
+	} else if ctx.scribe.move > 0 {
+		if cursorEnd.x < ctx.scribe.offset.x {
+			ctx.scribe.offset.x = cursorEnd.x
+		}
+		if cursorEnd.x > ctx.scribe.offset.x + rect.w {
+			ctx.scribe.offset.x = cursorEnd.x - rect.w
+		}
+		ctx.scribe.move = 0
+	}
+
+	// Mouse
 	if .down in state {
 		if hoverIndex < ctx.scribe.anchor {
 			ctx.scribe.index = hoverIndex
@@ -269,6 +300,13 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 		} else {
 			ctx.scribe.index = ctx.scribe.anchor
 			ctx.scribe.length = hoverIndex - ctx.scribe.anchor
+		}
+		if size.x > rect.w {
+			if input.mousePoint.x < rect.x {
+				ctx.scribe.offset.x -= (rect.x - input.mousePoint.x) * 0.5
+			} else if input.mousePoint.x > rect.x + rect.w {
+				ctx.scribe.offset.x += (input.mousePoint.x - (rect.x + rect.w)) * 0.5
+			}
 		}
 	}
 	if .justFocused in state || .pressed in state {
@@ -337,6 +375,7 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 				ScribeBackspace()
 				change = true
 			}
+
 			// Arrowkey navigation
 			// TODO(isaiah): Implement up/down navigation for multiline text input
 			if KeyPressed(.left) {
@@ -369,6 +408,9 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 				// Clamp cursor
 				index = max(0, index)
 				length = max(0, length)
+				// Move offset
+				move = -1
+				
 			}
 			if KeyPressed(.right) {
 				delta := 0
@@ -410,6 +452,8 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 				}
 				index = max(0, index)
 				length = max(0, length)
+				// Move offset
+				move = 1
 			}
 		}
 
@@ -432,6 +476,12 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 				length = min(length, format.capacity)
 			}
 			newData = ctx.scribe.buffer[:length]
+		}
+
+		if size.x > rect.w {
+			ctx.scribe.offset.x = clamp(ctx.scribe.offset.x, 0, (size.x - rect.w) + WIDGET_TEXT_OFFSET * 2)
+		} else {
+			ctx.scribe.offset.x = 0
 		}
 	}
 	return
@@ -463,9 +513,9 @@ TextInputBytes :: proc(data: []u8, label, placeholder: string, format: TextInput
 			PaintRoundedRect(body, WIDGET_ROUNDNESS, GetColor(.foreground))
 		}
 		font := GetFontData(.default)
-		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accent), min(1, hoverTime + stateTime))
-		PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, .focused not_in state, outlineColor)
 		change, newData = MutableTextFromBytes(font, data, control.body, format, control.state)
+		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
+		PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, .focused not_in state, outlineColor)
 
 		// Draw placeholder
 		PaintControlLabel(body, label, outlineColor, GetColor(.foreground))
@@ -499,15 +549,12 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 		}
 
 		// Painting
-		// Painting
 		if stateTime > 0 {
 			rect := ExpandRect(body, rl.EaseCubicOut(stateTime, 0, 3, 1))
 			PaintRoundedRect(rect, math.floor(f32(WIDGET_ROUNDNESS) * 1.5), StyleGetShadeColor(1))
 			PaintRoundedRect(body, WIDGET_ROUNDNESS, GetColor(.foreground))
 		}
 		font := GetFontData(.monospace)
-		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accent), min(1, hoverTime + stateTime))
-		PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, .focused not_in state, outlineColor)
 
 		data := SPrintF("%.2f", value)
 		if .justFocused in state {
@@ -515,6 +562,8 @@ NumberInputFloat32 :: proc(value: f32, label: string, loc := #caller_location) -
 			ctx.numberText = slice.clone(data)
 		}
 		change, newData := MutableTextFromBytes(font, ctx.numberText if .focused in state else data, control.body, {options = {.numeric}, capacity = 15}, control.state)
+		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
+		PaintRoundedRectOutline(body, WIDGET_ROUNDNESS, .focused not_in state, outlineColor)
 		if change {
 			newValue, ok = strconv.parse_f32(string(newData))
 			delete(ctx.numberText)
@@ -571,12 +620,12 @@ NavOptionEx :: proc(active: bool, icon: Icon, text: string, loc := #caller_locat
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashIdFromInt(1), active, 0.2)
+			stateTime := AnimateBool(HashIdFromInt(1), active, 0.15)
 		PopId()
 
 		PaintRoundedRect(body, WIDGET_ROUNDNESS, Fade(255, min(hoverTime + stateTime, 1) * 0.25))
 		PaintIconAligned(GetFontData(.header), icon, {body.x + body.h / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
-		PaintStringAligned(GetFontData(.default), text, {body.x + body.h * rl.EaseCubicInOut(stateTime, 1, 0.5, 1), body.y + body.h / 2}, GetColor(.foreground), .near, .middle)
+		PaintStringAligned(GetFontData(.default), text, {body.x + body.h * rl.EaseCubicInOut(stateTime, 1, 0.3, 1), body.y + body.h / 2}, GetColor(.foreground), .near, .middle)
 		
 		result = .released in state
 	}
@@ -624,16 +673,16 @@ PillButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) 
 			if .down not_in state {
 				PaintRoundedRectOutline(body, roundness, false, GetColor(.foregroundPress, pressTime))
 			}
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.outlineBase), GetColor(.accent), hoverTime), .middle, .middle)
+			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.outlineBase), .middle, .middle)
 		} else if style == .normal {
 			PaintRoundedRect(body, roundness, GetColor(.foreground))
-			PaintRoundedRectOutline(body, roundness, true, BlendColors(GetColor(.outlineBase), GetColor(.accent), hoverTime))
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.outlineBase), GetColor(.accent), hoverTime), .middle, .middle)
+			PaintRoundedRectOutline(body, roundness, false, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime))
+			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime), .middle, .middle)
 		} else {
-			PaintRoundedRect(body, roundness, GetColor(.accentPress) if .down in state else BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
-			if .down not_in state {
+			PaintRoundedRect(body, roundness, BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
+			/*if .down not_in state {
 				PaintRoundedRectOutline(body, roundness, false, GetColor(.accentPress, pressTime))
-			}
+			}*/
 			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
 		}
 		
@@ -951,7 +1000,7 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 
 		if stateTime < 1 {
 			PaintRoundedRect(body, 5, GetColor(.foreground))
-			PaintRoundedRectOutline(body, 5, false, BlendColors(GetColor(.outlineBase, 1), GetColor(.accent, 1), hoverTime))
+			PaintRoundedRectOutline(body, 5, false, GetColor(.outlineBase, 1))
 		}
 		if stateTime > 0 {
 			PaintRoundedRect(body, 5, GetColor(.widgetBase if ctx.disabled else .accent, stateTime))

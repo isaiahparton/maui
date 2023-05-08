@@ -148,6 +148,8 @@ RectCorners :: bit_set[RectCorner;u8]
 Scribe :: struct {
 	index, length, anchor: int,
 	buffer: [dynamic]u8,
+	offset: Vec2,
+	move: int,
 }
 
 ContextOption :: enum {
