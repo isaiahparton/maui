@@ -34,7 +34,7 @@ _main :: proc() {
 	choices: bit_set[Choices]
 	choice: Choices = .first
 	close := false
-	value: f32 = 10.0
+	value := 10.0
 	integer := 0
 	items := 100
 	boolean := false
@@ -49,8 +49,7 @@ _main :: proc() {
 	defer delete(buffer)
 
 	// set up raylib
-	rl.SetConfigFlags({.WINDOW_RESIZABLE})
-	rl.SetTraceLogLevel(.NONE)
+	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	rl.InitWindow(1000, 800, "Maui Demo")
 	rl.MaximizeWindow()
 	rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
@@ -135,7 +134,7 @@ _main :: proc() {
 					copy(buffer[:], newData[:])
 				}
 				ui.Space(DEFAULT_SPACING)
-				value = ui.NumberInputFloat32(value, "Enter a value")
+				value = ui.NumberInputFloat64(value, "Enter a value")
 
 				// Single choice
 				ui.Space(HEADER_LEADING_SPACE)

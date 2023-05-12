@@ -93,7 +93,7 @@ Icon :: enum rune {
 	attachFile			= 0xEA84,
 	remove 				= 0xF1AE,
 	delete 				= 0xEC1D,
-	user 				= 0xF255,
+	user 				= 0xF25F,
 	formatItalic		= 0xe23f,
 	formatBold			= 0xe238,
 	formatUnderline		= 0xe249,
@@ -107,6 +107,14 @@ Icon :: enum rune {
 	receipt 			= 0xEAC2,
 	inventory 			= 0xF1C6,
 	history 			= 0xEE17,
+	copy 				= 0xECD5,
+	checkBoxMultiple	= 0xEB88,
+	eye 				= 0xECB4,
+	eyeOff 				= 0xECB6,
+	cog 				= 0xF0ED,
+	group 				= 0xEDE2,
+	flowChart 			= 0xED46,
+	pieChart 			= 0xEFF5,
 }
 
 StringPaintOption :: enum {
@@ -115,6 +123,9 @@ StringPaintOption :: enum {
 }
 StringPaintOptions :: bit_set[StringPaintOption]
 PaintStringContained :: proc(font: FontData, text: string, rect: Rect, options: StringPaintOptions, color: Color) -> Vec2 {
+	return PaintStringContainedEx(font, text, rect, options, .near, .near, color)
+}
+PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options: StringPaintOptions, alignX, alignY: Alignment, color: Color) -> Vec2 {
 	if !ctx.shouldRender {
 		return {}
 	}
@@ -122,6 +133,19 @@ PaintStringContained :: proc(font: FontData, text: string, rect: Rect, options: 
 	point: Vec2 = {rect.x, rect.y}
 	size: Vec2
 	nextWord: int
+
+	totalSize: Vec2
+	if alignX != .near || alignY != .near {
+		totalSize = MeasureString(font, text)
+		#partial switch alignX {
+			case .far: point += rect.w - totalSize.x
+			case .middle: point += rect.w / 2 - totalSize.x / 2
+		}
+		#partial switch alignY {
+			case .far: point += rect.h - totalSize.y
+			case .middle: point += rect.h / 2 - totalSize.y / 2
+		}
+	}
 
 	breakSize: f32
 	if options < {.wrap} {

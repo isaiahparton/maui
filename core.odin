@@ -77,23 +77,24 @@ CursorType :: enum {
 	disabled,
 }
 
-FMT_BUFFER_COUNT :: 16
-FMT_BUFFER_SIZE :: 128
+FMT_BUFFER_COUNT 	:: 16
+FMT_BUFFER_SIZE 	:: 128
 
-MAX_CLIP_RECTS :: #config(MAUI_MAX_CLIP_RECTS, 8)
-MAX_CONTROLS :: #config(MAUI_MAX_CONTROLS, 128)
-MAX_LAYERS :: #config(MAUI_MAX_LAYERS, 16)
-MAX_WINDOWS :: #config(MAUI_MAX_WINDOWS, 32)
-MAX_FRAMES :: #config(MAUI_MAX_FRAMES, 32)
+MAX_STYLES			:: 4
+MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 8)
+MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 128)
+MAX_LAYERS 			:: #config(MAUI_MAX_LAYERS, 16)
+MAX_WINDOWS 		:: #config(MAUI_MAX_WINDOWS, 32)
+MAX_FRAMES 			:: #config(MAUI_MAX_FRAMES, 32)
 // Maximum layout depth (times you can call PushLayout())
-MAX_LAYOUTS :: #config(MAUI_MAX_LAYOUTS, 32)
+MAX_LAYOUTS 		:: #config(MAUI_MAX_LAYOUTS, 32)
 // Size of each layer's command buffer
 COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 256 * 1024)
 // Size of id stack (times you can call PushId())
-ID_STACK_SIZE :: 8
+ID_STACK_SIZE 		:: 8
 // Repeating key press
-KEY_REPEAT_DELAY :: 0.5
-KEY_REPEAT_RATE :: 30
+KEY_REPEAT_DELAY 	:: 0.5
+KEY_REPEAT_RATE 	:: 30
 ALL_CORNERS: RectCorners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
 
 DOUBLE_CLICK_TIME :: 0.25
@@ -147,9 +148,9 @@ RectCorners :: bit_set[RectCorner;u8]
 
 Scribe :: struct {
 	index, length, anchor: int,
+	prev_index, prev_length: int,
 	buffer: [dynamic]u8,
 	offset: Vec2,
-	move: int,
 }
 
 ContextOption :: enum {

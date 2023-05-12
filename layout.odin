@@ -1,8 +1,28 @@
 package maui
 import "core:fmt"
 
-//TODO(isaiah): Rethink, how layouts work, add functionality for unknown layout size
 
+SquishRectLeft :: proc(rect: Rect, amount: f32) -> Rect {
+	return {rect.x + amount, rect.y, rect.w - amount, rect.h}
+}
+SquishRectRight :: proc(rect: Rect, amount: f32) -> Rect {
+	return {rect.x, rect.y, rect.w - amount, rect.h}
+}
+SquishRectTop :: proc(rect: Rect, amount: f32) -> Rect {
+	return {rect.x, rect.y + amount, rect.w, rect.h - amount}
+}
+SquishRectBottom :: proc(rect: Rect, amount: f32) -> Rect {
+	return {rect.x, rect.y, rect.w, rect.h - amount}
+}
+SquishRect :: proc(rect: Rect, side: RectSide, amount: f32) -> (result: Rect) {
+	switch side {
+		case .bottom: 	result = SquishRectBottom(rect, amount)
+		case .top: 		result = SquishRectTop(rect, amount)
+		case .left: 	result = SquishRectLeft(rect, amount)
+		case .right: 	result = SquishRectRight(rect, amount)
+	}
+	return
+}
 // place a rect in a nother rect
 ChildRect :: proc(parent: Rect, size: Vec2, alignX, alignY: Alignment) -> Rect {
 	rect := Rect{0, 0, size.x, size.y}
