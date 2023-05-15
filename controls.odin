@@ -265,7 +265,7 @@ MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: Tex
 				point.y += font.size
 			}
 		} else if glyph != '\t' && glyph != ' ' {
-			PaintGlyphClipped(glyphData, point, rect, GetColor(.backing if highlight else .textBright, 1))
+			PaintGlyphClipped(glyphData, point, rect, GetColor(.highlightedText if highlight else .text, 1))
 		}
 
 		// Finished, move index and point
@@ -1467,7 +1467,7 @@ Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bo
 
 		PaintRect(body, GetColor(.foreground if active else .foregroundHover))
 		center: Vec2 = {body.x + body.w / 2, body.y + body.h / 2}
-		textSize := PaintStringAligned(GetFontData(.default), label, center, BlendColors(GetColor(.text), GetColor(.textBright), hoverTime + stateTime), .middle, .middle)
+		textSize := PaintStringAligned(GetFontData(.default), label, center, GetColor(.text), .middle, .middle)
 		size := textSize.x
 		size *= stateTime
 		if stateTime > 0 {
@@ -1498,6 +1498,9 @@ EnumTabs :: proc(value: $T, tabSize: f32, loc := #caller_location) -> (newValue:
 	Plain text
 */
 Text :: proc(font: FontIndex, text: string, fit: bool) {
+	TextEx(font, text, fit, GetColor(.text))
+}
+TextEx :: proc(font: FontIndex, text: string, fit: bool, color: Color) {
 	fontData := GetFontData(font)
 	layout := GetCurrentLayout()
 	textSize := MeasureString(fontData, text)
@@ -1506,7 +1509,7 @@ Text :: proc(font: FontIndex, text: string, fit: bool) {
 	}
 	rect := LayoutNextEx(layout, textSize)
 	if CheckClip(ctx.clipRect, rect) != .none || true {
-		PaintString(fontData, text, {rect.x, rect.y}, GetColor(.text))
+		PaintString(fontData, text, {rect.x, rect.y}, color)
 	}
 	UpdateLayerContentRect(GetCurrentLayer(), rect)
 }

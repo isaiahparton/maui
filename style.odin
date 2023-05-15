@@ -35,7 +35,7 @@ COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
 
 	.outlineBase = {112, 113, 116, 255},
 
-	.textBright = {15, 15, 15, 255},
+	.highlightedText = {218, 218, 218, 255},
 	.text = {75, 75, 75, 255},
 	.shade = {0, 0, 0, 255},
 }
@@ -56,7 +56,7 @@ COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {
 
 	.outlineBase = {80, 80, 80, 255},
 
-	.textBright = {255, 255, 255, 255},
+	.highlightedText = {18, 18, 18, 255},
 	.text = {200, 200, 200, 255},
 	.shade = 255,
 }
@@ -85,14 +85,38 @@ ColorIndex :: enum {
 
 	shade,
 	text,
-	textBright,
+	highlightedText,
+}
+
+MAX_COLOR_CHANGES :: 32
+
+ColorChange :: struct {
+	index: ColorIndex,
+	value: Color,
 }
 
 // Style
 Style :: struct {
 	colors: [ColorIndex]Color,
+	changeStack: [MAX_COLOR_CHANGES]ColorChange,
+	changeCount: int,
 }
 
+PushColor :: proc(index: ColorIndex, value: Color) {
+	using ctx
+	style.changeStack[style.changeCount] = {
+		index = index,
+		value = style.colors[index],
+	}
+	style.changeCount += 1
+	style.colors[index] = value
+}
+PopColor :: proc() {
+	using ctx
+	assert(style.changeCount > 0)
+	style.changeCount -= 1
+	style.colors[style.changeStack[style.changeCount].index] = style.changeStack[style.changeCount].value
+}
 GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
 	color := ctx.style.colors[index]
 	return {color.r, color.g, color.b, u8(f32(color.a) * clamp(alpha, 0, 1))}

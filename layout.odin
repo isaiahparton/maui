@@ -1,7 +1,7 @@
 package maui
 import "core:fmt"
 
-
+// Move the side of a rectangle
 SquishRectLeft :: proc(rect: Rect, amount: f32) -> Rect {
 	return {rect.x + amount, rect.y, rect.w - amount, rect.h}
 }
