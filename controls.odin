@@ -1065,7 +1065,7 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 */
 ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 	newValue = value
-	if control, ok := BeginControl(HashId(loc), LayoutNextEx(GetCurrentLayout(), {34, 26})); ok {
+	if control, ok := BeginControl(HashId(loc), LayoutNextEx(GetCurrentLayout(), {36, 28})); ok {
 		using control
 		UpdateControl(control)
 
@@ -1082,7 +1082,7 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 		move := baseRect.w - baseRect.h
 		thumbCenter := start + {move * (rl.EaseBackOut(howOn, 0, 1, 1) if value else rl.EaseBackIn(howOn, 0, 1, 1)), 0}
 
-		strokeColor := BlendColors(GetColor(.outlineBase), GetColor(.widgetBase if ctx.disabled else .accent), howOn)
+		strokeColor := GetColor(.widgetBase if ctx.disabled else .outlineBase)
 		if howOn < 1 {
 			if !ctx.disabled {
 				PaintRoundedRect(baseRect, baseRadius, GetColor(.foreground))
@@ -1091,23 +1091,23 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 		}
 		if howOn > 0 {
 			if howOn < 1 {
-				PaintRoundedRect({baseRect.x, baseRect.y, thumbCenter.x - baseRect.x, baseRect.h}, baseRadius, GetColor(.widgetBase if ctx.disabled else .accent))
+				PaintRoundedRect({baseRect.x, baseRect.y, thumbCenter.x - baseRect.x, baseRect.h}, baseRadius, GetColor(.widgetBase if ctx.disabled else .outlineBase))
 			} else {
-				PaintRoundedRect(baseRect, baseRadius, GetColor(.widgetBase if ctx.disabled else .accent))
+				PaintRoundedRect(baseRect, baseRadius, GetColor(.widgetBase if ctx.disabled else .outlineBase))
 			}
 		}
 		if hoverTime > 0 {
-			PaintCircle(thumbCenter, 30, StyleGetShadeColor(hoverTime))
+			PaintCircle(thumbCenter, 32, StyleGetShadeColor(hoverTime))
 		}
 		if pressTime > 0 {
 			if .down in state {
-				PaintCircle(thumbCenter, 19 + 11 * pressTime, StyleGetShadeColor())
+				PaintCircle(thumbCenter, 21 + 11 * pressTime, StyleGetShadeColor())
 			} else {
-				PaintCircle(thumbCenter, 30, StyleGetShadeColor(pressTime))
+				PaintCircle(thumbCenter, 32, StyleGetShadeColor(pressTime))
 			}
 		}
-		PaintCircle(thumbCenter, 17, GetColor(.foreground))
-		PaintCircleOutline(thumbCenter, 19, false, strokeColor)
+		PaintCircle(thumbCenter, 18, GetColor(.foreground))
+		PaintCircleOutline(thumbCenter, 21, false, strokeColor)
 		
 		if .released in state {
 			newValue = !value
