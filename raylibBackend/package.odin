@@ -70,9 +70,6 @@ Render :: proc() {
 		rl.ShowCursor()
 		rl.SetMouseCursor(rl.MouseCursor(int(ctx.cursor)))
 	}
-	if ctx.setMouse {
-		rl.SetMousePosition(i32(ctx.setMousePoint.x), i32(ctx.setMousePoint.y))
-	}
 
 	cmd: ^Command
 	

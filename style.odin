@@ -34,6 +34,8 @@ COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
 	.widgetPress = {145, 145, 155, 255},
 
 	.outlineBase = {112, 113, 116, 255},
+	.outlineHot = {140, 141, 144, 255},
+	.outlineActive = {112, 113, 116, 255},
 
 	.highlightedText = {218, 218, 218, 255},
 	.text = {75, 75, 75, 255},
@@ -55,6 +57,8 @@ COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {
 	.widgetPress = {77, 76, 79, 255},
 
 	.outlineBase = {80, 80, 80, 255},
+	.outlineHot = {80, 80, 80, 255},
+	.outlineActive = {80, 80, 80, 255},
 
 	.highlightedText = {18, 18, 18, 255},
 	.text = {200, 200, 200, 255},
@@ -77,6 +81,8 @@ ColorIndex :: enum {
 
 	// Outline
 	outlineBase,
+	outlineHot,
+	outlineActive,
 
 	// Some bright accent color that stands out
 	accent,

@@ -115,13 +115,15 @@ _main :: proc() {
 				ui.Space(HEADER_TRAILING_SPACE)
 				if ui.Layout(.top, 30) {
 					ui.SetSize(30); ui.SetSide(.left);
-					a = ui.ToggleButtonEx(a, ui.Icon.formatBold, {.topLeft, .bottomLeft})
-					b = ui.ToggleButtonEx(b, ui.Icon.formatItalic, {})
-					c = ui.ToggleButtonEx(c, ui.Icon.formatUnderline, {.topRight, .bottomRight})
+					a = ui.ToggleButton(a, ui.Icon.formatBold)
+					ui.Space(5)
+					b = ui.ToggleButton(b, ui.Icon.formatItalic)
+					ui.Space(5)
+					c = ui.ToggleButton(c, ui.Icon.formatUnderline)
 					ui.Space(DEFAULT_SPACING)
-					ui.ButtonEx("\ue87d Favorites", {.topLeft, .bottomLeft})
+					ui.Button("\ue87d Favorites")
 					ui.Space(2)
-					ui.ButtonEx(ui.Icon.add, {.topRight, .bottomRight})
+					ui.Button(ui.Icon.add)
 				}
 
 				// Text input

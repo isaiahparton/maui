@@ -167,9 +167,13 @@ Context :: struct {
 	time,
 	deltaTime,
 	renderTime: f32,
-	disabled, dragging, setMouse, shouldRender: bool,
-	size, setMousePoint: Vec2,
+	disabled, dragging, shouldRender: bool,
+	size: Vec2,
 	lastRect, fullscreenRect: Rect,
+
+	attachTooltip: bool,
+	tooltipText: string,
+	tooltipSide: RectSide,
 
 	firstClick, doubleClick: bool,
 	doubleClickTimer: f32,
@@ -189,6 +193,7 @@ Context :: struct {
 	controls: [MAX_CONTROLS]Control,
 	controlExists: [MAX_CONTROLS]bool,
 	lastControl: i32,
+	controlCount: int,
 
 	// Retained window data
 	windows: [MAX_WINDOWS]WindowData,
@@ -503,7 +508,8 @@ Prepare :: proc() {
 	if input.prevMousePoint != input.mousePoint || input.keyBits != {} || input.mouseBits != {} || input.mouseScroll != {} {
 		renderTime = 1
 	}
-	for i in 0 ..< MAX_CONTROLS {
+	controlCount = 0
+	for i in 0..<MAX_CONTROLS {
 		if controlExists[i] {
 			control := &controls[i]
 			if .stayAlive in control.bits {
@@ -511,6 +517,7 @@ Prepare :: proc() {
 			} else {
 				controlExists[i] = false
 			}
+			controlCount += 1
 		}
 	}
 
@@ -529,7 +536,7 @@ Prepare :: proc() {
 		}
 	}
 
-	if topLayer != prevTopLayer {
+	if topLayer != prevTopLayer && prevTopLayer < i32(len(layerList)) && layers[layerList[prevTopLayer]].order != .frame {
 		index := layerList[topLayer]
 		copy(layerList[topLayer:], layerList[topLayer + 1:])
 		layerList[prevTopLayer] = index
@@ -555,11 +562,16 @@ Prepare :: proc() {
 				if MousePressed(.left) {
 					topLayer = i32(index)
 				}
+			} else if .popup in layer.options {
+				if MousePressed(.left) {
+					layer.bits -= {.stayAlive}
+				}
 			}
 			if .stayAlive in layer.bits {
 				layer.bits -= {.stayAlive}
 			} else {
 				layerExists[layerIndex] = false
+				delete(layer.contents)
 				ordered_remove(&layerList, index)
 				delete_key(&layerMap, layer.id)
 			}
@@ -574,7 +586,6 @@ Refresh :: proc() {
 	cursor = .default
 
 	input.runeCount = 0
-	setMouse = false
 
 	assert(layoutDepth == 0, "You forgot to PopLayout()")
 	assert(layerDepth == 0, "You forgot to PopLayer()")
@@ -637,8 +648,6 @@ Refresh :: proc() {
 	renderTime = max(0, renderTime - deltaTime)
 	time += deltaTime
 
-	free_all(allocator)
-
 	PushLayout({0, 0, size.x, size.y})
 
 	/*
@@ -670,31 +679,29 @@ Refresh :: proc() {
 		}
 	}
 
-	if KeyPressed(.tab) && ctx.focusIndex >= 0 {
-		rect := ctx.controls[ctx.focusIndex].body
-		next := ctx.focusId
-		for i in 0 ..< MAX_CONTROLS {
-			if !ctx.controlExists[i] || ctx.focusIndex == i32(i) {
-				continue
-			}
-			control := &ctx.controls[i]
-			if (control.body.x > rect.x || control.body.y > rect.y) && control.options >= {.tabSelect} {
-				next = control.id
+	if KeyPressed(.tab) && ctx.focusIndex >= 0 && controls[ctx.focusIndex].options >= {.tabSelect} {
+		array: [dynamic]int
+		for i in 0..<MAX_CONTROLS {
+			if controlExists[i] && controls[i].options >= {.tabSelect} {
+				append(&array, i)
 			}
 		}
-		if next == ctx.focusId {
-			for i in 0 ..< MAX_CONTROLS {
-				if !ctx.controlExists[i] || ctx.focusIndex == i32(i) {
-					continue
-				}
-				control := &ctx.controls[i]
-				if control.options >= {.tabSelect} {
-					next = control.id
+		if len(array) > 1 {
+			slice.sort_by(array[:], proc(i, j: int) -> bool {
+				rect_i := ctx.controls[i].body
+				rect_j := ctx.controls[j].body
+				return rect_i.x < rect_j.x || rect_i.y < rect_j.y
+			})
+			i: int
+			for j in 0..<len(array) {
+				if controls[array[j]].id == focusId {
+					i = j
 					break
 				}
 			}
+			ctx.focusId = controls[array[(i + 1) % len(array)]].id
 		}
-		ctx.focusId = next
+		delete(array)
 	}
 	focusIndex = -1
 

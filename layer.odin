@@ -20,8 +20,12 @@ LayerBits :: bit_set[LayerBit]
 // Options
 LayerOption :: enum {
 	outlined,
+	popup,
+	invisible,
 	noScrollX,
 	noScrollY,
+	noScrollMarginX,
+	noScrollMarginY,
 }
 LayerOptions :: bit_set[LayerOption]
 /*
@@ -67,42 +71,71 @@ GetCurrentLayer :: proc() -> ^LayerData {
 	using ctx
 	return layerStack[layerDepth - 1]
 }
-GetLayer :: proc(name: string) -> ^LayerData {
+GetLayer :: proc(name: string) -> (layer: ^LayerData, ok: bool) {
 	using ctx
-	layer, ok := layerMap[HashId(name)]
-	if ok {
-		return layer
-	}
-	return nil
+	layer, ok = layerMap[HashId(name)]
+	return
 }
-CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
-	using ctx
-	layer, ok = layerMap[id]
-	if !ok {
-		for i in 0 ..< MAX_LAYERS {
-			if !layerExists[i] {
-				layerExists[i] = true
+CreateLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bool) {
+	for i in 0 ..< MAX_LAYERS {
+		if !ctx.layerExists[i] {
+			ctx.layerExists[i] = true
 
-				delete(layers[i].contents)
-				layers[i] = {opacity=1}
+			delete(ctx.layers[i].contents)
+			ctx.layers[i] = {}
 
-				layer = &layers[i]
-				ok = true
-
-				layerMap[id] = layer
-				append(&layerList, i32(i))
-
-				break
+			layer = &ctx.layers[i]
+			ok = true
+			if options >= {.invisible} {
+				layer.opacity = 0
+			} else {
+				layer.opacity = 1
 			}
+
+			ctx.layerMap[id] = layer
+			append(&ctx.layerList, i32(i))
+
+			break
 		}
 	}
 	return
+}
+CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bool) {
+	layer, ok = ctx.layerMap[id]
+	if !ok && .popup not_in options {
+		layer, ok = CreateLayer(id, options)
+	}
+	return
+}
+OpenPopup :: proc(name: string) {
+	id := HashId(name)
+	layer, ok := ctx.layerMap[id]
+	if !ok {
+		layer, ok = CreateLayer(id, {.popup})
+	}
+}
+@(deferred_out=_Popup)
+Popup :: proc(name: string, size: Vec2) -> (layer: ^LayerData, ok: bool) {
+	layer, ok = BeginLayer(ChildRect(ctx.fullscreenRect, size, .middle, .middle), {}, HashId(name), {.popup})
+	if ok {
+		PaintRect(layer.body, GetColor(.foreground))
+		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
+	}
+	return
+}
+_Popup :: proc(layer: ^LayerData, ok: bool) {
+	if ok {
+		EndLayer(layer)
+	}
+}
+ClosePopup :: proc(layer: ^LayerData) {
+	layer.bits -= {.stayAlive}
 }
 
 // TODO: Closing layers
 @private BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bool) {
 	// Find or create layer
-	layer, ok = CreateOrGetLayer(id)
+	layer, ok = CreateOrGetLayer(id, options)
 	if !ok {
 		return
 	}
@@ -134,17 +167,20 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 		max(size.x, layer.body.w),
 		max(size.y, layer.body.h),
 	}
-
 	// Detect scrollbar necessity
 	if layer.contentRect.w > layer.body.w && layer.options < {.noScrollX} {
-		layer.layoutSize.y -= SCROLL_BAR_SIZE
 		layer.bits += {.scrollX}
+		/*if layer.options < {.noScrollMarginY} {
+			layer.layoutSize.y -= SCROLL_BAR_SIZE
+		}*/
 	} else {
 		layer.bits -= {.scrollX}
 	}
 	if layer.contentRect.h > layer.body.h && layer.options < {.noScrollY} {
-		layer.layoutSize.x -= SCROLL_BAR_SIZE
 		layer.bits += {.scrollY}
+		/*if layer.options < {.noScrollMarginX} {
+			layer.layoutSize.x -= SCROLL_BAR_SIZE
+		}*/
 	} else {
 		layer.bits -= {.scrollY}
 	}
@@ -176,8 +212,8 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 		SCROLL_STEP :: 55
 
 		maxScroll: Vec2 = {
-			max(layer.contentRect.w - layer.body.w + SCROLL_BAR_SIZE, 0),
-			max(layer.contentRect.h - layer.body.h + SCROLL_BAR_SIZE, 0),
+			max(layer.contentRect.w - layer.body.w, 0),
+			max(layer.contentRect.h - layer.body.h, 0),
 		}
 
 		// Update scroll offset
@@ -198,7 +234,7 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 			rect.x += SCROLL_BAR_PADDING
 			rect.w -= SCROLL_BAR_PADDING * 2
 			SetNextRect(rect)
-			if change, newValue := ScrollBarH(layer.scroll.x, 0, maxScroll.x, max(SCROLL_BAR_SIZE * 2, rect.w * layer.body.w / layer.layoutSize.x)); change {
+			if change, newValue := ScrollBar(layer.scroll.x, 0, maxScroll.x, max(SCROLL_BAR_SIZE * 2, rect.w * layer.body.w / layer.layoutSize.x), false); change {
 				layer.scroll.x = newValue
 				layer.scrollTarget.x = newValue
 			}
@@ -212,7 +248,7 @@ CreateOrGetLayer :: proc(id: Id) -> (layer: ^LayerData, ok: bool) {
 			rect.y += SCROLL_BAR_PADDING
 			rect.h -= SCROLL_BAR_PADDING * 2
 			SetNextRect(rect)
-			if change, newValue := ScrollBarV(layer.scroll.y, 0, maxScroll.y, max(SCROLL_BAR_SIZE * 2, rect.h * layer.body.h / layer.layoutSize.y)); change {
+			if change, newValue := ScrollBar(layer.scroll.y, 0, maxScroll.y, max(SCROLL_BAR_SIZE * 2, rect.h * layer.body.h / layer.layoutSize.y), true); change {
 				layer.scroll.y = newValue
 				layer.scrollTarget.y = newValue
 			}
@@ -230,8 +266,8 @@ UpdateLayerContentRect :: proc(layer: ^LayerData, rect: Rect) {
 }
 
 @(deferred_out=_Layer)
-Layer :: proc(rect: Rect, size: Vec2, loc := #caller_location) -> (layer: ^LayerData, ok: bool) {
-	return BeginLayer(rect, size, HashId(loc), {})
+Layer :: proc(rect: Rect, size: Vec2, options: LayerOptions, loc := #caller_location) -> (layer: ^LayerData, ok: bool) {
+	return BeginLayer(rect, size, HashId(loc), options)
 }
 @private _Layer :: proc(layer: ^LayerData, ok: bool) {
 	if ok {
@@ -260,8 +296,8 @@ CheckClip :: proc(clip, rect: Rect) -> Clip {
 	Layer uses
 */
 @(deferred_out=_Frame)
-Frame :: proc(size: Vec2, loc := #caller_location) -> (layer: ^LayerData, ok: bool) {
-	layer, ok = BeginLayer(LayoutNext(GetCurrentLayout()), size, HashId(loc), {})
+Frame :: proc(size: Vec2, options: LayerOptions, loc := #caller_location) -> (layer: ^LayerData, ok: bool) {
+	layer, ok = BeginLayer(LayoutNext(GetCurrentLayout()), size, HashId(loc), options)
 	if ok {
 		layer.order = .frame
 		PaintRect(layer.body, GetColor(.backing))

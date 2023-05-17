@@ -1,6 +1,7 @@
 package maui
 
 import "core:math"
+import "core:math/linalg"
 
 import "core:fmt"
 
@@ -104,6 +105,7 @@ Icon :: enum rune {
 	folder 				= 0xED57,
 	admin 				= 0xEA14,
 	shoppingBasket 		= 0xF11A,
+	shoppingBag 		= 0xF115,
 	receipt 			= 0xEAC2,
 	inventory 			= 0xF1C6,
 	history 			= 0xEE17,
@@ -113,8 +115,9 @@ Icon :: enum rune {
 	eyeOff 				= 0xECB6,
 	cog 				= 0xF0ED,
 	group 				= 0xEDE2,
-	flowChart 			= 0xED46,
+	flowChart 			= 0xEF59,
 	pieChart 			= 0xEFF5,
+	keyboard 			= 0xEE74,
 }
 
 StringPaintOption :: enum {
@@ -219,7 +222,7 @@ MeasureString :: proc(font: FontData, text: string) -> Vec2 {
 		lineSize.x += glyph.advance + GLYPH_SPACING
 		size.x = max(size.x, lineSize.x)
 		if codepoint == '\n' {
-			size.x = max(size.x, lineSize.x)
+			lineSize = {}
 			lines += 1
 		}
 	}
@@ -285,7 +288,7 @@ PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, 
     PaintTexture(glyph.source, rect, color)
 }
 PaintIconAligned :: proc(fontData: FontData, icon: Icon, origin: Vec2, color: Color, alignX, alignY: Alignment) {
-	PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), origin, color, alignX, alignY)
+	PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), linalg.floor(origin), color, alignX, alignY)
 }
 // Draw a glyph, mathematically clipped to 'clipRect'
 PaintGlyphClipped :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {
