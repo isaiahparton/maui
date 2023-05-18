@@ -164,8 +164,11 @@ PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options
 			if options >= {.word_wrap} && index >= nextWord {
 				for wordCodepoint, wordIndex in text[index:] {
 					textIndex := index + wordIndex
-					if wordCodepoint == ' ' || textIndex == len(text) - 1 {
+					if wordCodepoint == ' ' {
 						nextWord = textIndex
+						break
+					} else if textIndex >= len(text) - 1 {
+						nextWord = textIndex + 1
 						break
 					}
 				}
@@ -273,6 +276,8 @@ PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, 
 	if !ctx.shouldRender {
 		return
 	}
+
+	origin := linalg.floor(origin)
 
    	rect := glyph.source
 	switch alignX {

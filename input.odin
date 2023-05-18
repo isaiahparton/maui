@@ -10,6 +10,7 @@ MouseButton :: enum {
 MouseBits :: bit_set[MouseButton]
 Key :: enum {
 	alt,
+	escape,
 	control,
 	shift,
 	tab,

@@ -13,7 +13,7 @@ import "core:unicode/utf8"
 
 import rl "vendor:raylib"
 
-RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, "..")
+RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, ".")
 TEXTURE_WIDTH :: 4096
 TEXTURE_HEIGHT :: 256
 
@@ -592,7 +592,7 @@ PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
 		return
 	}
 	source := ExpandRect(painter.circles[index].source, 1)
-	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
+	PaintTexture(source, {center.x - math.floor(source.w / 2), center.y - math.floor(source.h / 2), source.w, source.h}, color)
 }
 PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) {
 	if !ctx.shouldRender {
@@ -608,6 +608,67 @@ PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) 
 	}
 	source := ExpandRect(painter.circles[index].source, 1)
 	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
+}
+
+PaintPillH :: proc(rect: Rect, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
+	radius := math.floor(rect.h / 2)
+
+	if rect.w == 0 || rect.h == 0 {
+		return
+	}
+	index := int(rect.h) - MIN_CIRCLE_SIZE
+	if index < 0 || index >= CIRCLE_SIZES {
+		return
+	}
+	source := painter.circles[index].source
+	halfSize := math.trunc(source.w / 2)
+
+	halfWidth := min(halfSize, rect.w / 2)
+
+	sourceLeft: Rect = {source.x, source.y, halfWidth, source.h}
+	sourceRight: Rect = {source.x + source.w - halfWidth, source.y, halfWidth, source.h}
+
+	PaintTexture(sourceLeft, {rect.x, rect.y, halfWidth, rect.h}, color)
+	PaintTexture(sourceRight, {rect.x + rect.w - halfWidth, rect.y, halfWidth, rect.h}, color)
+
+	if rect.w > rect.h {
+		PaintRect({rect.x + radius, rect.y, rect.w - radius * 2, rect.h}, color)
+	}
+}
+PaintPillOutlineH :: proc(rect: Rect, thin: bool, color: Color) {
+	if !ctx.shouldRender {
+		return
+	}
+
+	thickness: f32 = 1 if thin else 2
+	radius := math.floor(rect.h / 2)
+
+	if rect.w == 0 || rect.h == 0 {
+		return
+	}
+	index := int(rect.h) - MIN_CIRCLE_SIZE
+	if index < 0 || index >= CIRCLE_SIZES {
+		return
+	}
+	source := painter.circles[index + (CIRCLE_SIZES if thin else (CIRCLE_SIZES * 2))].source
+	halfSize := math.trunc(source.w / 2)
+
+	halfWidth := min(halfSize, rect.w / 2)
+
+	sourceLeft: Rect = {source.x, source.y, halfWidth, source.h}
+	sourceRight: Rect = {source.x + source.w - halfWidth, source.y, halfWidth, source.h}
+
+	PaintTexture(sourceLeft, {rect.x, rect.y, halfWidth, rect.h}, color)
+	PaintTexture(sourceRight, {rect.x + rect.w - halfWidth, rect.y, halfWidth, rect.h}, color)
+
+	if rect.w > rect.h {
+		PaintRect({rect.x + radius, rect.y, rect.w - radius * 2, thickness}, color)
+		PaintRect({rect.x + radius, rect.y + rect.h - thickness, rect.w - radius * 2, thickness}, color)
+	}
 }
 
 PaintRoundedRectEx :: proc(rect: Rect, radius: f32, corners: RectCorners, color: Color) {

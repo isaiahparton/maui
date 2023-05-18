@@ -167,7 +167,7 @@ Context :: struct {
 	time,
 	deltaTime,
 	renderTime: f32,
-	disabled, dragging, shouldRender: bool,
+	disabled, dragging, shouldRender, keySelect: bool,
 	size: Vec2,
 	lastRect, fullscreenRect: Rect,
 
@@ -506,7 +506,7 @@ Prepare :: proc() {
 		This decides if the frame should be drawn
 	*/
 	if input.prevMousePoint != input.mousePoint || input.keyBits != {} || input.mouseBits != {} || input.mouseScroll != {} {
-		renderTime = 1
+		renderTime = 0.5
 	}
 	controlCount = 0
 	for i in 0..<MAX_CONTROLS {
@@ -582,7 +582,6 @@ Prepare :: proc() {
 }
 Refresh :: proc() {
 	using ctx
-
 	cursor = .default
 
 	input.runeCount = 0
@@ -635,6 +634,12 @@ Refresh :: proc() {
 	if dragging && pressId != 0 {
 		hoverId = pressId
 	}
+	if keySelect {
+		hoverId = focusId
+		if KeyPressed(.enter) {
+			pressId = hoverId
+		}
+	}
 	nextHoverId = 0
 
 	/*
@@ -679,10 +684,10 @@ Refresh :: proc() {
 		}
 	}
 
-	if KeyPressed(.tab) && ctx.focusIndex >= 0 && controls[ctx.focusIndex].options >= {.tabSelect} {
+	if KeyPressed(.tab) && ctx.focusIndex >= 0 {
 		array: [dynamic]int
 		for i in 0..<MAX_CONTROLS {
-			if controlExists[i] && controls[i].options >= {.tabSelect} {
+			if controlExists[i] && .noKeySelect not_in controls[i].options {
 				append(&array, i)
 			}
 		}
@@ -690,7 +695,14 @@ Refresh :: proc() {
 			slice.sort_by(array[:], proc(i, j: int) -> bool {
 				rect_i := ctx.controls[i].body
 				rect_j := ctx.controls[j].body
-				return rect_i.x < rect_j.x || rect_i.y < rect_j.y
+				if rect_i.y == rect_j.y {
+					if rect_i.x < rect_j.x {
+						return true
+					}
+				} else if rect_i.y < rect_j.y {
+					return true
+				}
+				return false
 			})
 			i: int
 			for j in 0..<len(array) {
@@ -700,11 +712,13 @@ Refresh :: proc() {
 				}
 			}
 			ctx.focusId = controls[array[(i + 1) % len(array)]].id
+			ctx.keySelect = true
 		}
 		delete(array)
 	}
 	focusIndex = -1
 
+	dragging = false
 	doubleClick = false
 	if MousePressed(.left) {
 		if firstClick {
@@ -721,6 +735,10 @@ Refresh :: proc() {
 		doubleClickTimer += deltaTime
 	} else {
 		doubleClickTimer = 0
+	}
+
+	if input.mousePoint - input.prevMousePoint != {} {
+		keySelect = false
 	}
 
 	// Reset input bits

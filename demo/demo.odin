@@ -51,6 +51,7 @@ _main :: proc() {
 	// set up raylib
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	rl.InitWindow(1000, 800, "Maui Demo")
+	rl.SetExitKey(.NULL)
 	rl.MaximizeWindow()
 	rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
 
@@ -65,7 +66,7 @@ _main :: proc() {
 		backend.NewFrame()
 
 		rect := ui.Cut(.right, 500)
-		if layer, ok := ui.Layer(rect, {0, 2000}); ok {
+		if layer, ok := ui.Layer(rect, {0, 2000}, {}); ok {
 			ui.PaintRect(layer.body, ui.GetColor(.foreground, 1))
 
 			// Tabs
@@ -115,26 +116,33 @@ _main :: proc() {
 				ui.Space(HEADER_TRAILING_SPACE)
 				if ui.Layout(.top, 30) {
 					ui.SetSize(30); ui.SetSide(.left);
-					a = ui.ToggleButton(a, ui.Icon.formatBold)
+					a = ui.ToggleButton(a, ui.Icon.copy)
 					ui.Space(5)
-					b = ui.ToggleButton(b, ui.Icon.formatItalic)
+					b = ui.ToggleButton(b, ui.Icon.delete)
 					ui.Space(5)
-					c = ui.ToggleButton(c, ui.Icon.formatUnderline)
+					c = ui.ToggleButton(c, ui.Icon.edit)
 					ui.Space(DEFAULT_SPACING)
 					ui.Button("\ue87d Favorites")
-					ui.Space(2)
-					ui.Button(ui.Icon.add)
+					ui.Space(1)
+					ui.SetSize(30)
+					ui.ButtonEx(ui.Icon.add, .middle, false)
 				}
 
 				// Text input
 				ui.Space(HEADER_LEADING_SPACE)
 				ui.Text(.header, "Text Input", true)
+
 				ui.Space(HEADER_TRAILING_SPACE)
 				ui.SetSize(DEFAULT_TEXT_INPUT_SIZE)
 				if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
 					resize(&buffer, len(newData))
 					copy(buffer[:], newData[:])
 				}
+				if ui.AttachMenu(120) {
+					ui.SetSize(30)
+					ui.MenuOption("option", false)
+				}
+
 				ui.Space(DEFAULT_SPACING)
 				value = ui.NumberInputFloat64(value, "Enter a value")
 
@@ -173,7 +181,7 @@ _main :: proc() {
 				}
 				ui.Space(DEFAULT_SPACING)
 				ui.SetSize(300)
-				if layer, ok := ui.Frame({0, f32(items) * 30}); ok {
+				if layer, ok := ui.Frame({0, f32(items) * 30}, {}); ok {
 					ui.AlignY(.middle)
 					ui.SetSize(30)
 					for i in 0 ..< items {

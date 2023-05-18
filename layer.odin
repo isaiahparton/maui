@@ -146,6 +146,7 @@ ClosePopup :: proc(layer: ^LayerData) {
 
 	// Update layer data
 	layer.bits += {.stayAlive}
+	layer.bits -= {.submit}
 	layer.options = options
 	layer.id = id
 	layer.commandOffset = 0

@@ -15,13 +15,14 @@ import rl "vendor:raylib"
 ControlBit :: enum {
 	stayAlive,
 	active,
+	menuOpen,
 }
 ControlBits :: bit_set[ControlBit]
 // Behavior options
 ControlOption :: enum {
 	holdFocus,
 	draggable,
-	tabSelect,
+	noKeySelect,
 	noClick,
 }
 ControlOptions :: bit_set[ControlOption]
@@ -47,6 +48,7 @@ Control :: struct {
 	bits: ControlBits,
 	options: ControlOptions,
 	state: ControlState,
+	parent: Id,
 }
 @(deferred_out=EndControl)
 BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
@@ -60,7 +62,7 @@ BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 		for i in 0 ..< MAX_CONTROLS {
 			if !controlExists[i] {
 				controlExists[i] = true
-				controls[i] = {}
+				controls[i] = {parent = layer.id}
 				idx = i32(i)
 				layer.contents[id] = idx
 				break
@@ -162,7 +164,7 @@ UpdateControl :: proc(using control: ^Control) {
 				state += {.doubleClicked}
 			}
 		}
-		if MouseReleased(.left) {
+		if MouseReleased(.left) || (ctx.keySelect && KeyReleased(.enter)) {
 			state += {.released}
 			ctx.pressId = 0
 			GetCurrentLayer().bits += {.submit}
@@ -518,7 +520,7 @@ StringInputUnsafe :: proc(text: ^string, label, placeholder: string, format: Tex
 TextInputBytes :: proc(data: []u8, label, placeholder: string, format: TextInputFormat, loc := #caller_location) -> (change: bool, newData: []u8) {
 	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using control
-		options += {.draggable, .tabSelect}
+		options += {.draggable}
 		UpdateControl(control)
 
 		// Animation values
@@ -558,7 +560,7 @@ NumberInputFloat64Ex :: proc(value: f64, label, format: string, loc := #caller_l
 		using control
 
 		newValue = value
-		control.options += {.draggable, .tabSelect}
+		control.options += {.draggable}
 		UpdateControl(control)
 
 		// Animation values
@@ -593,75 +595,6 @@ NumberInputFloat64Ex :: proc(value: f64, label, format: string, loc := #caller_l
 		body.h += 10
 	}
 	return
-}
-
-// Text input with auto complete
-StringInputWithMenu :: proc(text: ^string, label, placeholder: string, menuSize: f32, loc := #caller_location) -> (layer: ^LayerData, ok: bool) {
-	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using control
-		options += {.draggable, .tabSelect}
-		UpdateControl(control)
-
-		// Animation values
-		PushId(id)
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
-		PopId()
-
-		if .hovered in state || .down in state {
-			ctx.cursor = .beam
-		}
-
-		PaintRect(body, GetColor(.foreground))
-		font := GetFontData(.default)
-		if change, newData := MutableTextFromBytes(font, transmute([]u8)text[:], control.body, {}, control.state); change {
-			delete(text^)
-			text^ = strings.clone_from_bytes(newData)
-		}
-		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
-		PaintRectLines(body, 2 if state >= {.focused} else 1, outlineColor)
-
-		// Draw placeholder
-		PaintControlLabel(body, label, outlineColor, GetColor(.foreground))
-		if len(placeholder) != 0 {
-			if len(text) == 0 {
-				PaintStringAligned(font, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
-			}
-		}
-
-		body.y -= 10
-		body.h += 10
-		
-		if .focused in state {
-			layer, ok = BeginLayer(AttachRectBottom(body, menuSize), {}, id, {.outlined})
-			layer.order = .popup
-			layer.opacity = stateTime
-
-			if (.hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left)) {
-				bits -= {.active}
-			}
-
-			if .submit in layer.bits {
-				bits -= {.active}
-				EndLayer(layer)
-				return nil, false
-			}
-
-			//PaintRoundedRectEx(layer.body, WIDGET_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase, 1))
-			PaintRect(layer.body, GetColor(.widgetBase))
-
-			PushLayout(layer.body)
-		}
-	}
-	return 
-}
-_StringInputWithMenu :: proc(layer: ^LayerData, ok: bool) {
-	if ok {
-		UpdateLayerContentRect(ctx.layerStack[ctx.layerDepth - 2], layer.body)
-		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
-		EndLayer(layer)
-		PopLayout()
-	}
 }
 
 PaintControlLabel :: proc(rect: Rect, label: string, fillColor, backgroundColor: Color) {
@@ -755,14 +688,14 @@ PillButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) 
 			}
 		}
 		if style == .subtle {
-			PaintRoundedRect(body, roundness, GetColor(.foreground))
-			PaintRoundedRectOutline(body, roundness, false, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime))
+			PaintPillH(body, GetColor(.foreground))
+			PaintPillOutlineH(body, false, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime))
 			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime), .middle, .middle)
 		} else if style == .normal {
-			PaintRoundedRect(body, roundness, BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
+			PaintPillH(body, BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
 			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text), .middle, .middle)
 		} else {
-			PaintRoundedRect(body, roundness, BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
+			PaintPillH(body, BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
 			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text), .middle, .middle)
 		}
 		
@@ -1221,8 +1154,7 @@ RadioButtonEx :: proc(value: bool, name: string, textSide: RectSide, loc := #cal
 		if hoverTime > 0 {
 			PaintRoundedRect(body, HALF_SIZE, StyleGetShadeColor(hoverTime))
 		}
-		PaintCircle(center, 21, BlendColors(GetColor(.outlineBase), GetColor(.outlineHot), hoverTime))
-		PaintCircle(center, 21 - rl.EaseQuadOut(stateTime, 3 + 5 * pressTime, 10, 1), GetColor(.foreground))
+		PaintRing(center, HALF_SIZE - rl.EaseQuadOut(stateTime, 2 + 3 * pressTime, 5, 1), HALF_SIZE, 16, BlendColors(GetColor(.outlineBase), GetColor(.outlineHot), hoverTime))
 
 		// Text
 		switch textSide {
@@ -1324,7 +1256,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 			layer.order = .popup
 			layer.opacity = stateTime
 
-			if (.hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left)) {
+			if (.hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left)) || KeyPressed(.escape) {
 				bits -= {.active}
 			}
 
@@ -1351,6 +1283,35 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (layer: ^L
 		PopLayout()
 	}
 }
+// Can be used for auto-complete on a text input
+@(deferred_out=_AttachMenu)
+AttachMenu :: proc(menuSize: f32, size: Vec2 = {}, options: LayerOptions = {}) -> (ok: bool) {
+	if control := GetLastControl(); control != nil {
+		if control.bits >= {.menuOpen} {
+			layer: ^LayerData
+			layer, ok = BeginLayer(AttachRectBottom(control.body, menuSize), size, control.id, options)
+			if ok {
+				layer.order = .popup
+				PaintRect(layer.body, GetColor(.widgetBase))
+			}
+
+			if ctx.focusId != ctx.prevFocusId && ctx.focusId != control.id && ctx.focusId not_in layer.contents {
+				control.bits -= {.menuOpen}
+			}
+		} else if control.state >= {.justFocused} {
+			control.bits += {.menuOpen}
+		}
+	}
+	return 
+}
+@private 
+_AttachMenu :: proc(ok: bool) {
+	if ok {
+		layer := GetCurrentLayer()
+		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
+		EndLayer(layer)
+	}
+}
 // Options within menus
 MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (result: bool) {
 	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
@@ -1364,6 +1325,38 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 
 		PaintRect(body, GetColor(.widgetHover) if active else BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
 		PaintStringAligned(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
+
+		if .focused in state {
+			if KeyPressed(.down) || KeyPressed(.up) {
+				d := -1 if KeyPressed(.up) else 1
+				array: [dynamic]int
+				defer delete(array)
+				m: int
+				for i in 0..<MAX_CONTROLS {
+					if ctx.controlExists[i] && ctx.controls[i].parent == GetCurrentLayer().id {
+						if i == int(ctx.lastControl) {
+							m = len(array)
+						}
+						append(&array, i)
+					}
+				}
+				slice.sort_by(array[:], proc(i, j: int) -> bool {
+					return ctx.controls[i].body.y < ctx.controls[j].body.y
+				})
+				i: int
+				for x in 0..<len(array) {
+					i += d
+					if i < 0 {
+						i = len(array) - 1
+					} else if i == len(array) {
+						i = 0
+					}
+					if (m - i < 0) == (d < 0) {
+						ctx.focusId = ctx.controls[i].id
+					}
+				}
+			}
+		}
 
 		result = .released in state
 	}
@@ -1380,9 +1373,6 @@ EnumMenu :: proc(value: $T, optionSize: f32, loc := #caller_location) -> (newVal
 				}
 			PopId()
 		}
-	}
-	if ctx.hoverId == ctx.controls[ctx.lastControl].id {
-		newValue = cast(T)clamp(int(newValue) - int(input.mouseScroll.y), 0, len(T) - 1)
 	}
 	return
 }
@@ -1498,7 +1488,7 @@ ScrollBar :: proc(value, low, high, thumbSize: f32, vertical: bool, loc := #call
 		range := rect[2 + i] - thumbSize
 		valueRange := (high - low) if high > low else 1
 
-		control.options += {.draggable}
+		control.options += {.draggable, .noKeySelect}
 		UpdateControl(control)
 		PushId(id)
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
@@ -1544,7 +1534,7 @@ ScrollBar :: proc(value, low, high, thumbSize: f32, vertical: bool, loc := #call
 Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bool) {
 	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using control
-
+		options += {.noKeySelect}
 		UpdateControl(control)
 
 		PushId(id)
