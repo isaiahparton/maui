@@ -56,12 +56,12 @@ LayerData :: struct {
 	// draw order
 	order: LayerOrder,
 	// list index
-	index: i32,
+	index: int,
 	// controls on this layer
-	contents: map[Id]i32,
+	contents: map[Id]int,
 	// draw commands for this layer
 	commands: [COMMAND_BUFFER_SIZE]u8,
-	commandOffset: i32,
+	commandOffset: int,
 	// Clip command stored for use after
 	// contents are already drawn
 	clipCommand: ^CommandClip,
@@ -93,7 +93,7 @@ CreateLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bo
 			}
 
 			ctx.layerMap[id] = layer
-			append(&ctx.layerList, i32(i))
+			append(&ctx.layerList, i)
 
 			break
 		}

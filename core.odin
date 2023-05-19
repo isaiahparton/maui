@@ -77,15 +77,17 @@ CursorType :: enum {
 	disabled,
 }
 
+RENDER_TIMEOUT 		:: 0.5
+
 FMT_BUFFER_COUNT 	:: 16
 FMT_BUFFER_SIZE 	:: 128
 
+MAX_GROUPS 			:: 8
 MAX_STYLES			:: 4
 MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 8)
-MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 128)
+MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 512)
 MAX_LAYERS 			:: #config(MAUI_MAX_LAYERS, 16)
 MAX_WINDOWS 		:: #config(MAUI_MAX_WINDOWS, 32)
-MAX_FRAMES 			:: #config(MAUI_MAX_FRAMES, 32)
 // Maximum layout depth (times you can call PushLayout())
 MAX_LAYOUTS 		:: #config(MAUI_MAX_LAYOUTS, 32)
 // Size of each layer's command buffer
@@ -153,6 +155,10 @@ Scribe :: struct {
 	offset: Vec2,
 }
 
+Group :: struct {
+	state: ControlState,
+}
+
 ContextOption :: enum {
 	showLayouts,
 	showLayers,
@@ -162,6 +168,9 @@ ContextOptions :: bit_set[ContextOption]
 Context :: struct {
 	allocator: runtime.Allocator,
 	options: ContextOptions,
+
+	groupDepth: int,
+	groups: [MAX_GROUPS]Group,
 
 	// Context
 	time,
@@ -185,14 +194,14 @@ Context :: struct {
 	style: Style,
 
 	idStack: [ID_STACK_SIZE]Id,
-	idCount: i32,
+	idCount: int,
 
 	animations: map[Id]Animation,
 
 	// Retained control data
 	controls: [MAX_CONTROLS]Control,
 	controlExists: [MAX_CONTROLS]bool,
-	lastControl: i32,
+	lastControl: int,
 	controlCount: int,
 
 	// Retained window data
@@ -200,21 +209,21 @@ Context :: struct {
 	windowExists: [MAX_WINDOWS]bool,
 	windowMap: map[Id]^WindowData,
 	windowStack: [MAX_WINDOWS]^WindowData,
-	windowDepth: i32,
+	windowDepth: int,
 
 	// Retained layer data
 	layers: [MAX_LAYERS]LayerData,
 	layerExists: [MAX_LAYERS]bool,
 	// Ordered list for sorting
 	layerMap: map[Id]^LayerData,
-	layerList: [dynamic]i32,
+	layerList: [dynamic]int,
 	layerStack: [MAX_LAYERS]^LayerData,
 	// Current layer on top of list
-	topLayer, prevTopLayer: i32,
+	topLayer, prevTopLayer: int,
 	// Current layer being drawn
-	hotLayer: i32,
+	hotLayer: int,
 	// Index stack for layers within layers
-	layerDepth: i32,
+	layerDepth: int,
 	// Current layer state
 	nextHoveredLayer, hoveredLayer, focusedLayer: Id,
 
@@ -223,7 +232,7 @@ Context :: struct {
 
 	// Layout
 	layouts: [MAX_LAYOUTS]LayoutData,
-	layoutDepth: i32,
+	layoutDepth: int,
 	layoutExpand: bool,
 
 	clipRect: Rect,
@@ -233,10 +242,10 @@ Context :: struct {
 	nextRect: Rect,
 	setNextRect: bool,
 
-	focusIndex: i32,
+	focusIndex: int,
 
 	// Control interactions
-	lastIndex: i32,
+	lastIndex: int,
 	prevHoverId, 
 	nextHoverId, 
 	hoverId, 
@@ -256,6 +265,17 @@ Disable :: proc(){
 GetLastControl :: proc() -> ^Control {
 	using ctx
 	return &controls[lastControl]
+}
+
+BeginGroup :: proc() {
+	using ctx
+	groups[groupDepth] = {}
+	groupDepth += 1
+}
+EndGroup :: proc() -> ^Group {
+	using ctx
+	groupDepth -= 1
+	return &groups[groupDepth]
 }
 
 /*
@@ -506,7 +526,7 @@ Prepare :: proc() {
 		This decides if the frame should be drawn
 	*/
 	if input.prevMousePoint != input.mousePoint || input.keyBits != {} || input.mouseBits != {} || input.mouseScroll != {} {
-		renderTime = 0.5
+		renderTime = RENDER_TIMEOUT
 	}
 	controlCount = 0
 	for i in 0..<MAX_CONTROLS {
@@ -536,16 +556,16 @@ Prepare :: proc() {
 		}
 	}
 
-	if topLayer != prevTopLayer && prevTopLayer < i32(len(layerList)) && layers[layerList[prevTopLayer]].order != .frame {
+	if topLayer != prevTopLayer && prevTopLayer < len(layerList) && layers[layerList[prevTopLayer]].order != .frame {
 		index := layerList[topLayer]
 		copy(layerList[topLayer:], layerList[topLayer + 1:])
 		layerList[prevTopLayer] = index
 
-		slice.sort_by(layerList[:], proc(a, b: i32) -> bool {
+		slice.sort_by(layerList[:], proc(a, b: int) -> bool {
 			return int(layers[a].order) < int(layers[b].order)
 		})
 	}
-	topLayer = i32(len(layerList) - 1)
+	topLayer = len(layerList) - 1
 	prevTopLayer = topLayer
 
 	/*
@@ -560,7 +580,7 @@ Prepare :: proc() {
 			if VecVsRect(input.mousePoint, layer.body) {
 				hoveredLayer = layer.id
 				if MousePressed(.left) {
-					topLayer = i32(index)
+					topLayer = index
 				}
 			} else if .popup in layer.options {
 				if MousePressed(.left) {
@@ -684,13 +704,22 @@ Refresh :: proc() {
 		}
 	}
 
-	if KeyPressed(.tab) && ctx.focusIndex >= 0 {
+	if KeyPressed(.tab) && focusIndex >= 0 {
 		array: [dynamic]int
+		defer delete(array)
+
+		anchor: int
 		for i in 0..<MAX_CONTROLS {
-			if controlExists[i] && .noKeySelect not_in controls[i].options {
-				append(&array, i)
+			if controlExists[i] {
+				if i == focusIndex {
+					anchor = len(array)
+				}
+				if .keySelect in controls[i].options && .disabled not_in controls[i].bits {
+					append(&array, i)
+				}
 			}
 		}
+
 		if len(array) > 1 {
 			slice.sort_by(array[:], proc(i, j: int) -> bool {
 				rect_i := ctx.controls[i].body
@@ -704,17 +733,9 @@ Refresh :: proc() {
 				}
 				return false
 			})
-			i: int
-			for j in 0..<len(array) {
-				if controls[array[j]].id == focusId {
-					i = j
-					break
-				}
-			}
-			ctx.focusId = controls[array[(i + 1) % len(array)]].id
+			ctx.focusId = controls[array[(anchor + 1) % len(array)]].id
 			ctx.keySelect = true
 		}
-		delete(array)
 	}
 	focusIndex = -1
 

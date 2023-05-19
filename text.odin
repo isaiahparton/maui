@@ -118,6 +118,8 @@ Icon :: enum rune {
 	flowChart 			= 0xEF59,
 	pieChart 			= 0xEFF5,
 	keyboard 			= 0xEE74,
+	spreadsheet			= 0xECDE,
+	contactBook 		= 0xEBCB,
 }
 
 StringPaintOption :: enum {

@@ -51,7 +51,7 @@ _main :: proc() {
 	// set up raylib
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	rl.InitWindow(1000, 800, "Maui Demo")
-	rl.SetExitKey(.NULL)
+	rl.SetExitKey(.KEY_NULL)
 	rl.MaximizeWindow()
 	rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
 

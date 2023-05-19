@@ -13,7 +13,7 @@ import "core:unicode/utf8"
 
 import rl "vendor:raylib"
 
-RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, ".")
+RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, "..")
 TEXTURE_WIDTH :: 4096
 TEXTURE_HEIGHT :: 256
 
@@ -336,7 +336,7 @@ CommandVariant :: union {
 }
 Command :: struct {
 	variant: CommandVariant,
-	size: i32,
+	size: u8,
 }
 
 /*
@@ -345,12 +345,12 @@ Command :: struct {
 PushCommand :: proc(layer: ^LayerData, $Type: typeid, extra_size := 0) -> ^Type {
 	assert(ctx.layerDepth > 0, "PushCommand() There is no layer on which to draw!")
 	
-	size := i32(size_of(Type) + extra_size)
+	size := size_of(Type) + extra_size
 	cmd := transmute(^Type)&layer.commands[layer.commandOffset]
 	assert(layer.commandOffset + size < COMMAND_BUFFER_SIZE, "PushCommand() Insufficient space in command buffer!")
 	layer.commandOffset += size
 	cmd.variant = cmd
-	cmd.size = size
+	cmd.size = u8(size)
 	return cmd
 }
 /*
@@ -358,7 +358,7 @@ PushCommand :: proc(layer: ^LayerData, $Type: typeid, extra_size := 0) -> ^Type 
 */
 NextCommand :: proc(pcmd: ^^Command) -> bool {
 	using ctx
-	if hotLayer >= i32(len(layerList)) {
+	if hotLayer >= len(layerList) {
 		return false
 	}
 	layer := &layers[layerList[hotLayer]]

@@ -10,9 +10,8 @@ Init :: proc() {
 	assert(rl.IsWindowReady())
 
 	image := transmute(rl.Image)ui.painter.image
-	//rl.ExportImage(image, "atlas.png")
 	texture = rl.LoadTextureFromImage(image)
-	rl.SetTextureFilter(texture, .POINT)
+	rl.SetTextureFilter(texture, .BILINEAR)
 	ui.DoneWithAtlasImage()
 
 	ui.BackendSetClipboardString = proc(str: string) {
@@ -43,7 +42,6 @@ NewFrame :: proc() {
 	ui.SetKeyBit(.up, rl.IsKeyDown(.UP))
 	ui.SetKeyBit(.down, rl.IsKeyDown(.DOWN))
 	ui.SetKeyBit(.enter, rl.IsKeyDown(.ENTER))
-	ui.SetKeyBit(.escape, rl.IsKeyDown(.ESCAPE))
 	ui.SetKeyBit(.a, rl.IsKeyDown(.A))
 	ui.SetKeyBit(.x, rl.IsKeyDown(.X))
 	ui.SetKeyBit(.c, rl.IsKeyDown(.C))
