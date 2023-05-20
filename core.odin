@@ -85,7 +85,7 @@ FMT_BUFFER_SIZE 	:: 128
 MAX_GROUPS 			:: 8
 MAX_STYLES			:: 4
 MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 8)
-MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 512)
+MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 1024)
 MAX_LAYERS 			:: #config(MAUI_MAX_LAYERS, 16)
 MAX_WINDOWS 		:: #config(MAUI_MAX_WINDOWS, 32)
 // Maximum layout depth (times you can call PushLayout())
@@ -162,7 +162,6 @@ Group :: struct {
 ContextOption :: enum {
 	showLayouts,
 	showLayers,
-	showDebugWindow,
 }
 ContextOptions :: bit_set[ContextOption]
 Context :: struct {
@@ -544,19 +543,20 @@ Prepare :: proc() {
 	/*
 		Delete unused window data
 	*/
-	for i in 0 ..< MAX_WINDOWS {
+	for i in 0..<MAX_WINDOWS {
 		if windowExists[i] {
 			window := &windows[i]
-			if .stayAlive in window.bits {
-				window.bits -= {.stayAlive}
-			} else {
+			if .stayAlive not_in window.bits || .close in window.bits {
 				windowExists[i] = false
 				delete_key(&windowMap, window.id)
+			}
+			if .stayAlive in window.bits {
+				window.bits -= {.stayAlive}
 			}
 		}
 	}
 
-	if topLayer != prevTopLayer && prevTopLayer < len(layerList) && layers[layerList[prevTopLayer]].order != .frame {
+	if topLayer != prevTopLayer && prevTopLayer < len(layerList) {
 		index := layerList[topLayer]
 		copy(layerList[topLayer:], layerList[topLayer + 1:])
 		layerList[prevTopLayer] = index
@@ -579,12 +579,8 @@ Prepare :: proc() {
 			layer := &layers[layerIndex]
 			if VecVsRect(input.mousePoint, layer.body) {
 				hoveredLayer = layer.id
-				if MousePressed(.left) {
+				if MousePressed(.left) && layer.order >= layers[layerList[topLayer]].order {
 					topLayer = index
-				}
-			} else if .popup in layer.options {
-				if MousePressed(.left) {
-					layer.bits -= {.stayAlive}
 				}
 			}
 			if .stayAlive in layer.bits {
@@ -602,6 +598,7 @@ Prepare :: proc() {
 }
 Refresh :: proc() {
 	using ctx
+
 	cursor = .default
 
 	input.runeCount = 0
@@ -680,26 +677,16 @@ Refresh :: proc() {
 	*/
 	when ODIN_DEBUG {
 		if KeyDown(.control) && KeyPressed(.backspace) {
-			if .showDebugWindow in options {
-				options -= {.showDebugWindow}
-			} else {
-				options += {.showDebugWindow}
-			}
+			ToggleWindow("_debug")
 		}
-		if .showDebugWindow in options {
-			if window, ok := Window(); ok {
-				WithPlacement(window, {0, 0, 300, 400})
-				WithDefaultOptions(window, {.collapsable, .closable})
-				WithTitle(window, "Debug options")
-
-				Shrink(10)
-				SetSize(30)
-				CheckBoxBitSetHeader(&options, "")
-				for option in ContextOption {
-					PushId(HashIdFromInt(int(option)))
-						CheckBoxBitSet(&options, option, Format(option))
-					PopId()
-				}
+		if window, ok := Window("_debug", "Debug", {0, 0, 300, 360}, {.collapsable, .closable, .title}); ok {
+			Shrink(10)
+			SetSize(30)
+			CheckBoxBitSetHeader(&options, "")
+			for option in ContextOption {
+				PushId(HashIdFromInt(int(option)))
+					CheckBoxBitSet(&options, option, Format(option))
+				PopId()
 			}
 		}
 	}
@@ -761,6 +748,8 @@ Refresh :: proc() {
 	if input.mousePoint - input.prevMousePoint != {} {
 		keySelect = false
 	}
+
+	clipRect = fullscreenRect
 
 	// Reset input bits
 	input.prevKeyBits = input.keyBits

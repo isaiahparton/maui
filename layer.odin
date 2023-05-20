@@ -19,8 +19,8 @@ LayerBit :: enum {
 LayerBits :: bit_set[LayerBit]
 // Options
 LayerOption :: enum {
+	attached,
 	outlined,
-	popup,
 	invisible,
 	noScrollX,
 	noScrollY,
@@ -42,6 +42,7 @@ LayerOrder :: enum {
 	Each layer's data
 */
 LayerData :: struct {
+	parent: ^LayerData,
 	id: Id,
 	bits: LayerBits,
 	options: LayerOptions,
@@ -102,95 +103,77 @@ CreateLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bo
 }
 CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bool) {
 	layer, ok = ctx.layerMap[id]
-	if !ok && .popup not_in options {
+	if !ok {
 		layer, ok = CreateLayer(id, options)
 	}
 	return
 }
-OpenPopup :: proc(name: string) {
-	id := HashId(name)
-	layer, ok := ctx.layerMap[id]
-	if !ok {
-		layer, ok = CreateLayer(id, {.popup})
-	}
-}
-@(deferred_out=_Popup)
-Popup :: proc(name: string, size: Vec2) -> (layer: ^LayerData, ok: bool) {
-	layer, ok = BeginLayer(ChildRect(ctx.fullscreenRect, size, .middle, .middle), {}, HashId(name), {.popup})
-	if ok {
-		PaintRect(layer.body, GetColor(.foreground))
-		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
-	}
-	return
-}
-_Popup :: proc(layer: ^LayerData, ok: bool) {
-	if ok {
-		EndLayer(layer)
-	}
-}
-ClosePopup :: proc(layer: ^LayerData) {
-	layer.bits -= {.stayAlive}
-}
 
 // TODO: Closing layers
 @private BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bool) {
-	// Find or create layer
-	layer, ok = CreateOrGetLayer(id, options)
-	if !ok {
-		return
-	}
+	if layer, ok = CreateOrGetLayer(id, options); ok {
+		PushId(id)
 
-	// Push layer stack
-	ctx.layerStack[ctx.layerDepth] = layer
-	ctx.layerDepth += 1
+		// Push layer stack
+		ctx.layerStack[ctx.layerDepth] = layer
+		ctx.layerDepth += 1
 
-	// Update layer data
-	layer.bits += {.stayAlive}
-	layer.bits -= {.submit}
-	layer.options = options
-	layer.id = id
-	layer.commandOffset = 0
-	if rect != {} {
-		layer.body = rect
-	} else {
-		layer.body = ctx.fullscreenRect
-	}
+		// Update layer data
+		layer.bits += {.stayAlive}
+		layer.bits -= {.submit}
 
-	PushId(id)
-	if layer.body != ctx.fullscreenRect && !RectContainsRect(layer.body, layer.contentRect) {
-		layer.clipCommand = PushCommand(layer, CommandClip)
-		layer.bits += {.clipped}
-	} else {
-		layer.bits -= {.clipped}
-	}
+		layer.options = options
+		layer.id = id
+		layer.commandOffset = 0
 
-	layer.layoutSize = {
-		max(size.x, layer.body.w),
-		max(size.y, layer.body.h),
-	}
-	// Detect scrollbar necessity
-	if layer.contentRect.w > layer.body.w && layer.options < {.noScrollX} {
-		layer.bits += {.scrollX}
-		/*if layer.options < {.noScrollMarginY} {
-			layer.layoutSize.y -= SCROLL_BAR_SIZE
-		}*/
-	} else {
-		layer.bits -= {.scrollX}
-	}
-	if layer.contentRect.h > layer.body.h && layer.options < {.noScrollY} {
-		layer.bits += {.scrollY}
-		/*if layer.options < {.noScrollMarginX} {
-			layer.layoutSize.x -= SCROLL_BAR_SIZE
-		}*/
-	} else {
-		layer.bits -= {.scrollY}
-	}
+		if .attached in options && ctx.layerDepth > 1 {
+			layer.parent = ctx.layerStack[ctx.layerDepth - 2]
+		} else {
+			layer.parent = nil
+		}
 
-	// Reset content rect
-	layer.contentRect = {layer.body.x + layer.body.w, layer.body.y + layer.body.h, 0, 0}
+		if rect != {} {
+			layer.body = rect
+		} else {
+			layer.body = ctx.fullscreenRect
+		}
 
-	// Begin layout
-	PushLayout({layer.body.x - layer.scroll.x, layer.body.y - layer.scroll.y, layer.layoutSize.x, layer.layoutSize.y})
+		if layer.body != ctx.fullscreenRect && !RectContainsRect(layer.body, layer.contentRect) {
+			layer.clipCommand = PushCommand(layer, CommandClip)
+			layer.bits += {.clipped}
+		} else {
+			layer.bits -= {.clipped}
+		}
+
+		layer.layoutSize = {
+			max(size.x, layer.body.w),
+			max(size.y, layer.body.h),
+		}
+
+		// Detect scrollbar necessity
+		if layer.layoutSize.x > layer.body.w && layer.options < {.noScrollX} {
+			layer.bits += {.scrollX}
+			if layer.options < {.noScrollMarginY} {
+				layer.layoutSize.y -= SCROLL_BAR_SIZE
+			}
+		} else {
+			layer.bits -= {.scrollX}
+		}
+		if layer.layoutSize.y > layer.body.h && layer.options < {.noScrollY} {
+			layer.bits += {.scrollY}
+			if layer.options < {.noScrollMarginX} {
+				layer.layoutSize.x -= SCROLL_BAR_SIZE
+			}
+		} else {
+			layer.bits -= {.scrollY}
+		}
+
+		// Reset content rect
+		layer.contentRect = {layer.body.x + layer.body.w, layer.body.y + layer.body.h, 0, 0}
+
+		// Begin layout
+		PushLayout({layer.body.x - layer.scroll.x, layer.body.y - layer.scroll.y, layer.layoutSize.x, layer.layoutSize.y})
+	}
 	return
 }
 @private EndLayer :: proc(layer: ^LayerData) {
@@ -198,6 +181,7 @@ ClosePopup :: proc(layer: ^LayerData) {
 
 	when ODIN_DEBUG {
 		if .showLayers in options {
+			PaintRect(layer.body, {255, 0, 255, 20})
 			PaintRectLines(layer.body, 1, {255, 0, 255, 255})
 		}
 	}
@@ -213,8 +197,8 @@ ClosePopup :: proc(layer: ^LayerData) {
 		SCROLL_STEP :: 55
 
 		maxScroll: Vec2 = {
-			max(layer.contentRect.w - layer.body.w, 0),
-			max(layer.contentRect.h - layer.body.h, 0),
+			max(layer.layoutSize.x - layer.body.w, 0),
+			max(layer.layoutSize.y - layer.body.h, 0),
 		}
 
 		// Update scroll offset

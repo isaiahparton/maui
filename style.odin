@@ -3,8 +3,8 @@ package maui
 /*
 	Geometric appearance
 */
-WINDOW_ROUNDNESS :: 8
-WINDOW_TITLE_SIZE :: 40
+WINDOW_ROUNDNESS :: 5
+WINDOW_TITLE_SIZE :: 34
 
 WIDGET_TEXT_OFFSET :: 9
 
@@ -49,6 +49,7 @@ COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {
 	.foreground = {28, 28, 28, 255},
 	.foregroundHover = {28, 28, 28, 255},
 	.foregroundPress = {28, 28, 28, 255},
+
 	.backing = {18, 18, 18, 255},
 	.backingHighlight = {18, 18, 18, 255},
 

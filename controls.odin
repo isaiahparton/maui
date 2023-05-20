@@ -57,33 +57,37 @@ Control :: struct {
 BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 	using ctx
 
-	//id := UseNextId() or_else HashId(loc)
 	layer := GetCurrentLayer()
-	idx, found := layer.contents[id]
-	if !found {
-		idx = -1
+	index, found := layer.contents[id]
+	if found {
+		control = &controls[index]
+		ok = true
+	} else {
 		for i in 0 ..< MAX_CONTROLS {
 			if !controlExists[i] {
-				controlExists[i] = true
-				controls[i] = {parent = layer.id}
-				idx = i
-				layer.contents[id] = idx
+				controls[i] = {
+					parent = layer.id,
+					id = id,
+				}
+				index = i
+				layer.contents[id] = index
+				control = &controls[i]
 				break
 			}
 		}
 	}
-	ok = idx >= 0
+
+	ok = CheckClip(ctx.clipRect, control.body) != .full
+
 	if ok {
-		controlExists[idx] = true
-		control = &ctx.controls[idx]
-		control.id = id
+		controlExists[index] = true
 		control.body = rect
 		control.state = {}
 		control.bits += {.stayAlive}
 		if control.id == ctx.focusId {
-			ctx.focusIndex = idx
+			ctx.focusIndex = index
 		}
-		ctx.lastControl = idx
+		ctx.lastControl = index
 		if ctx.disabled {
 			control.bits += {.disabled}
 		} else {
@@ -1622,7 +1626,7 @@ TextEx :: proc(font: FontIndex, text: string, fit: bool, color: Color) {
 		LayoutFitControl(layout, textSize)
 	}
 	rect := LayoutNextEx(layout, textSize)
-	if CheckClip(ctx.clipRect, rect) != .none || true {
+	if CheckClip(ctx.clipRect, rect) != .full {
 		PaintString(fontData, text, {rect.x, rect.y}, color)
 	}
 	UpdateLayerContentRect(GetCurrentLayer(), rect)
@@ -1630,12 +1634,16 @@ TextEx :: proc(font: FontIndex, text: string, fit: bool, color: Color) {
 TextBox :: proc(font: FontIndex, text: string) {
 	fontData := GetFontData(font)
 	rect := LayoutNext(GetCurrentLayout())
-	PaintStringContained(fontData, text, rect, {}, GetColor(.text))
+	if CheckClip(ctx.clipRect, rect) != .full {
+		PaintStringContained(fontData, text, rect, {}, GetColor(.text))
+	}
 }
 TextBoxEx :: proc(font: FontIndex, text: string, options: StringPaintOptions, alignX, alignY: Alignment) {
 	fontData := GetFontData(font)
 	rect := LayoutNext(GetCurrentLayout())
-	PaintStringContainedEx(fontData, text, rect, options, alignX, alignY, GetColor(.text))
+	if CheckClip(ctx.clipRect, rect) != .full {
+		PaintStringContainedEx(fontData, text, rect, options, alignX, alignY, GetColor(.text))
+	}
 }
 
 GlyphIcon :: proc(font: FontIndex, icon: Icon) {
