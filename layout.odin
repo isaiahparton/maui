@@ -176,11 +176,6 @@ PushLayout :: proc(rect: Rect) -> (layout: ^LayoutData) {
 		rect = rect,
 	}
 	layoutDepth += 1
-	when ODIN_DEBUG {
-		if .showLayouts in ctx.options && layerDepth > 0 {
-			PaintRectLines(rect, 1, {255, 255, 0, 255})
-		}
-	}
 	return
 }
 PopLayout :: proc() {
@@ -258,7 +253,7 @@ LayoutNextEx :: proc(layout: ^LayoutData, size: Vec2) -> Rect {
 
 	return ChildRect(LayoutNext(layout), size, layout.alignX, layout.alignY)
 }
-LayoutFitControl :: proc(layout: ^LayoutData, size: Vec2) {
+LayoutFitWidget :: proc(layout: ^LayoutData, size: Vec2) {
 	if layout.side == .left || layout.side == .right {
 		layout.size = size.x
 	} else {

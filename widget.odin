@@ -12,23 +12,24 @@ import "core:slice"
 import rl "vendor:raylib"
 
 // General purpose booleans
-ControlBit :: enum {
+WidgetBit :: enum {
 	stayAlive,
 	active,
 	menuOpen,
 	disabled,
+	visible,
 }
-ControlBits :: bit_set[ControlBit]
+WidgetBits :: bit_set[WidgetBit]
 // Behavior options
-ControlOption :: enum {
+WidgetOption :: enum {
 	holdFocus,
 	draggable,
 	keySelect,
 	noClick,
 }
-ControlOptions :: bit_set[ControlOption]
+WidgetOptions :: bit_set[WidgetOption]
 // User input state
-ControlStatus :: enum {
+WidgetStatus :: enum {
 	leftClicked,
 	rightClicked,
 	
@@ -46,19 +47,19 @@ ControlStatus :: enum {
 
 	changed,
 }
-ControlState :: bit_set[ControlStatus]
+WidgetState :: bit_set[WidgetStatus]
 // Universal control data
-Control :: struct {
+Widget :: struct {
 	id: 		Id,
 	body: 		Rect,
-	bits: 		ControlBits,
-	options: 	ControlOptions,
-	state: 		ControlState,
+	bits: 		WidgetBits,
+	options: 	WidgetOptions,
+	state: 		WidgetState,
 	// Parent layer
 	parent: 	Id,
 }
-@(deferred_out=EndControl)
-BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
+@(deferred_out=EndWidget)
+BeginWidget :: proc(id: Id, rect: Rect) -> (control: ^Widget, ok: bool) {
 	using ctx
 
 	layer := GetCurrentLayer()
@@ -79,9 +80,8 @@ BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 				break
 			}
 		}
+		ok = true
 	}
-
-	ok = CheckClip(ctx.clipRect, control.body) != .full
 
 	if ok {
 		controlExists[index] = true
@@ -91,17 +91,22 @@ BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
 		if control.id == ctx.focusId {
 			ctx.focusIndex = index
 		}
-		ctx.lastControl = index
+		ctx.lastWidget = index
 		if ctx.disabled {
 			control.bits += {.disabled}
 		} else {
 			control.bits -= {.disabled}
 		}
+		if CheckClip(ctx.clipRect, control.body) != .full {
+			control.bits += {.visible}
+		} else {
+			control.bits -= {.visible}
+		}
 	}
 
 	return
 }
-EndControl :: proc(control: ^Control, ok: bool) {
+EndWidget :: proc(control: ^Widget, ok: bool) {
 	if ok {
 		if ctx.disabled {
 			PaintDisableShade(control.body)
@@ -148,7 +153,7 @@ EndControl :: proc(control: ^Control, ok: bool) {
 		}
 	}
 }
-UpdateControl :: proc(using control: ^Control) {
+UpdateWidget :: proc(using control: ^Widget) {
 	if !ctx.disabled {
 		// Request hover status
 		if VecVsRect(input.mousePoint, body) && ctx.hoveredLayer == GetCurrentLayer().id {
@@ -210,423 +215,7 @@ PaintDisableShade :: proc(rect: Rect) {
 	PaintRect(rect, GetColor(.foreground, 0.5))
 }
 
-// Primitives??
-//
-//	| basic text 			| editable text 		| clickable
-
-// Basic controls
-//
-// 	| button				| checkbox				| switch
-// 	| text field			| spinner				| menu
-// 	| slider				| range slider			| scroll bar
-
-// Advanced controls
-//
-// 	| calendar				| color picker
-
-/*
-	Text input
-*/
-TextInputOption :: enum {
-	readOnly,
-	multiline,
-	hidden,
-	numeric,
-	integer,
-	selectAll,
-}
-TextInputOptions :: bit_set[TextInputOption]
-TextInputFormat :: struct {
-	options: TextInputOptions,
-	align: Alignment,
-	capacity: int,
-}
-MutableTextFromBytes :: proc(font: FontData, data: []u8, rect: Rect, format: TextInputFormat, state: ControlState) -> (change: bool, newData: []u8) {
-
-	hoverIndex := 0
-	minDist: f32 = 9999
-
-	origin: Vec2 = {rect.x + WIDGET_TEXT_OFFSET, rect.y + rect.h / 2 - font.size / 2}
-	if format.align != .near {
-		textSize := MeasureString(font, string(data))
-		if format.align == .middle {
-			origin.x = rect.x + rect.w / 2 - textSize.x / 2
-		} else if format.align == .far {
-			origin.x = rect.x + rect.w - textSize.x
-		}
-	}
-	point := origin
-	size: Vec2
-	cursorStart, cursorEnd: Vec2
-
-	if .justFocused in state {
-		ctx.scribe.offset = {}
-	}
-	if .focused in state {
-		point -= ctx.scribe.offset
-	}
-	// Iterate over the bytes
-	for index := 0; index <= len(data); {
-		// Decode the next glyph
-		bytes := 1
-		glyph: rune = 0
-		if index < len(data) {
-			glyph, bytes = utf8.decode_rune_in_bytes(data[index:])
-		}
-		if .hidden in format.options {
-			glyph = '•'
-		}
-		glyphData := GetGlyphData(font, glyph)
-		glyphWidth := glyphData.advance + GLYPH_SPACING
-		// Draw cursors
-		highlight := false
-		if .focused in state && .justFocused not_in state {
-			if ctx.scribe.length == 0 && .readOnly not_in format.options {
-				if ctx.scribe.index == index && point.x >= rect.x && point.x < rect.x + rect.w {
-					PaintRect({math.floor(point.x), point.y, 1, font.size}, GetColor(.text))
-				}
-			} else if index >= ctx.scribe.index && index < ctx.scribe.index + ctx.scribe.length {
-				PaintRect({max(point.x, rect.x), point.y, min(glyphWidth, rect.w - (point.x - rect.x), (point.x + glyphWidth) - rect.x), font.size}, GetColor(.text))
-				highlight = true
-			}
-
-			if ctx.scribe.index == index {
-				cursorStart = size
-			}
-			if ctx.scribe.index + ctx.scribe.length == index {
-				cursorEnd = size
-			}
-		}
-		// Decide the hovered glyph
-		glyphPoint := point + {0, font.size / 2}
-		dist := linalg.length(glyphPoint - input.mousePoint)
-		if dist < minDist {
-			minDist = dist
-			hoverIndex = index
-		}
-		// Anything past here requires a valid glyph
-		if index == len(data) {
-			break
-		}
-		// Draw the glyph
-		if glyph == '\n' {
-			if .multiline in format.options {
-				point.x = origin.x
-				point.y += font.size
-			}
-		} else if glyph != '\t' && glyph != ' ' {
-			PaintGlyphClipped(glyphData, point, rect, GetColor(.highlightedText if highlight else .text, 1))
-		}
-		// Finished, move index and point
-		point.x += glyphData.advance + GLYPH_SPACING
-		size.x += glyphData.advance + GLYPH_SPACING
-		index += bytes
-	}
-	// Mouse
-	if state >= {.down} {
-		if hoverIndex < ctx.scribe.anchor {
-			ctx.scribe.index = hoverIndex
-			ctx.scribe.length = ctx.scribe.anchor - hoverIndex
-		} else {
-			ctx.scribe.index = ctx.scribe.anchor
-			ctx.scribe.length = hoverIndex - ctx.scribe.anchor
-		}
-		if size.x > rect.w {
-			if input.mousePoint.x < rect.x {
-				ctx.scribe.offset.x -= (rect.x - input.mousePoint.x) * 0.5
-			} else if input.mousePoint.x > rect.x + rect.w {
-				ctx.scribe.offset.x += (input.mousePoint.x - (rect.x + rect.w)) * 0.5
-			}
-		}
-	} else if state >= {.focused} {
-		// Handle view offset
-		if ctx.scribe.index < ctx.scribe.prev_index {
-			if cursorStart.x < ctx.scribe.offset.x {
-				ctx.scribe.offset.x = cursorStart.x
-			}
-		} else if ctx.scribe.index > ctx.scribe.prev_index || ctx.scribe.length > ctx.scribe.prev_length {
-			if cursorEnd.x > ctx.scribe.offset.x + (rect.w - WIDGET_TEXT_OFFSET * 2) {
-				ctx.scribe.offset.x = cursorEnd.x - rect.w + WIDGET_TEXT_OFFSET * 2
-			}
-		}
-		ctx.scribe.prev_index = ctx.scribe.index
-		ctx.scribe.prev_length = ctx.scribe.length
-	}
-	// Handle initial text selection
-	if state & {.justFocused, .pressed} != {} {
-		ctx.scribe.index = hoverIndex
-		ctx.scribe.anchor = hoverIndex
-		ctx.scribe.length = 0
-	}
-	if format.options >= {.selectAll} && state >= {.justFocused} {
-		ctx.scribe.index = 0
-		ctx.scribe.anchor = 0
-		ctx.scribe.length = len(data)
-	}
-	// Text manipulation
-	if state >= {.focused} {
-		// Bring 'index' and 'length' into scope
-		using ctx.scribe
-		// Copying
-		if KeyDown(.control) {
-			if KeyPressed(.c) {
-				if length > 0 {
-					SetClipboardString(string(data[index:index + length]))
-				} else {
-					SetClipboardString(string(data[:]))
-				}
-			}
-		}
-		// Input
-		if .readOnly not_in format.options {
-			if KeyDown(.control) {
-				if KeyPressed(.a) {
-					index = 0
-					anchor = 0
-					length = len(data)
-				}
-				if KeyPressed(.v) {
-					ScribeInsertString(GetClipboardString())
-					change = true
-				}
-			}
-			// Normal character input
-			if input.runeCount > 0 {
-				if .numeric in format.options {
-					for i in 0 ..< input.runeCount {
-						glyph := int(input.runes[i])
-						if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .integer not_in format.options) {
-							ScribeInsertRunes(input.runes[i:i+1])
-							change = true
-						}
-					}
-				} else {
-					ScribeInsertRunes(input.runes[:input.runeCount])
-					change = true
-				}
-			}
-			// Enter
-			if .multiline in format.options && KeyPressed(.enter) {
-				ScribeInsertRunes({'\n'})
-				change = true
-			}
-			// Backspacing
-			if KeyPressed(.backspace) {
-				ScribeBackspace()
-				change = true
-			}
-			// Arrowkey navigation
-			// TODO(isaiah): Implement up/down navigation for multiline text input
-			if KeyPressed(.left) {
-				delta := 0
-				// How far should the cursor move?
-				if KeyDown(.control) {
-					delta = FindLastSeperator(buffer[:index])
-				} else{
-					_, delta = utf8.decode_last_rune_in_bytes(buffer[:index + length])
-					delta = -delta
-				}
-				// Highlight or not
-				if KeyDown(.shift) {
-					if index < anchor {
-						newIndex := index + delta
-						index = max(0, newIndex)
-						length = anchor - index
-					} else {
-						newIndex := index + length + delta
-						index = min(anchor, newIndex)
-						length = max(anchor, newIndex) - index
-					}
-				} else {
-					if length == 0 {
-						index += delta
-					}
-					length = 0
-					anchor = index
-				}
-				// Clamp cursor
-				index = max(0, index)
-				length = max(0, length)
-				
-			}
-			if KeyPressed(.right) {
-				delta := 0
-				// How far should the cursor move
-				if KeyDown(.control) {
-					delta = FindNextSeperator(buffer[index + length:])
-				} else {
-					_, delta = utf8.decode_rune_in_bytes(buffer[index + length:])
-				}
-				// Highlight or not?
-				if KeyDown(.shift) {
-					if index < anchor {
-						newIndex := index + delta
-						index = newIndex
-						length = anchor - newIndex
-					} else {
-						newIndex := index + length + delta
-						index = anchor
-						length = newIndex - index
-					}
-				} else {
-					if length > 0 {
-						index += length
-					} else {
-						index += delta
-					}
-					length = 0
-					anchor = index
-				}
-				// Clamp cursor
-				if length == 0 {
-					if index > len(buffer) {
-						index = len(buffer)
-					}
-				} else {
-					if index + length > len(buffer) {
-						length = len(buffer) - index
-					}
-				}
-				index = max(0, index)
-				length = max(0, length)
-			}
-		}
-		// When the text input is clicked, resize the
-		// scribe buffer and copy the data to it
-		if .readOnly not_in format.options && .justFocused in state {
-			length := len(data)
-			if format.capacity > 0 {
-				length = min(length, format.capacity)
-			}
-			resize(&ctx.scribe.buffer, length)
-			copy(ctx.scribe.buffer[:], data[:length])
-		}
-		// Create new data slice
-		if change {
-			if ctx.groupDepth > 0 {
-				ctx.groups[ctx.groupDepth - 1].state += {.changed}
-			}
-
-			ctx.renderTime = RENDER_TIMEOUT
-
-			length := len(ctx.scribe.buffer) 
-			if format.capacity > 0 {
-				length = min(length, format.capacity)
-			}
-			newData = ctx.scribe.buffer[:length]
-		}
-		if size.x > rect.w {
-			ctx.scribe.offset.x = clamp(ctx.scribe.offset.x, 0, (size.x - rect.w) + WIDGET_TEXT_OFFSET * 2)
-		} else {
-			ctx.scribe.offset.x = 0
-		}
-	}
-	return
-}
-
-/*
-	Text input widgets
-*/
-StringInputUnsafe :: proc(text: ^string, label, placeholder: string, format: TextInputFormat, loc := #caller_location) -> bool {
-	if change, newData := TextInputBytes(transmute([]u8)text[:], label, placeholder, format, loc); change {
-		delete(text^)
-		text^ = strings.clone_from_bytes(newData)
-		return true
-	}
-	return false
-}
-TextInputBytes :: proc(data: []u8, label, placeholder: string, format: TextInputFormat, loc := #caller_location) -> (change: bool, newData: []u8) {
-	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using control
-		options += {.draggable, .keySelect}
-		UpdateControl(control)
-
-		// Animation values
-		PushId(id)
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
-		PopId()
-
-		if .hovered in state || .down in state {
-			ctx.cursor = .beam
-		}
-
-		PaintRect(body, GetColor(.foreground))
-		font := GetFontData(.default)
-		change, newData = MutableTextFromBytes(font, data, control.body, format, control.state)
-		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
-		PaintRectLines(body, 2 if state >= {.focused} else 1, outlineColor)
-
-		// Draw placeholder
-		PaintControlLabel(body, label, outlineColor, GetColor(.foreground))
-		if len(placeholder) != 0 {
-			if len(data) == 0 {
-				PaintStringAligned(font, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
-			}
-		}
-
-		body.y -= 10
-		body.h += 10
-	}
-	return
-}
-NumberInputFloat64 :: proc(value: f64, label: string, loc := #caller_location) -> (newValue: f64) {
-	return NumberInputFloat64Ex(value, label, "%.2f", loc)
-}
-NumberInputFloat64Ex :: proc(value: f64, label, format: string, loc := #caller_location) -> (newValue: f64) {
-	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using control
-
-		newValue = value
-		control.options += {.draggable, .keySelect}
-		UpdateControl(control)
-
-		// Animation values
-		PushId(id)
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
-		PopId()
-
-		if .hovered in state || .down in state {
-			ctx.cursor = .beam
-		}
-
-		PaintRect(body, GetColor(.foreground))
-		font := GetFontData(.monospace)
-
-		data := SPrintF(format, value)
-		if .justFocused in state {
-			delete(ctx.numberText)
-			ctx.numberText = slice.clone(data)
-		}
-		change, newData := MutableTextFromBytes(font, ctx.numberText if .focused in state else data, control.body, {options = {.numeric}, capacity = 15}, control.state)
-		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
-		PaintRectLines(body, 2 if state >= {.focused} else 1, outlineColor)
-		if change {
-			newValue, ok = strconv.parse_f64(string(newData))
-			delete(ctx.numberText)
-			ctx.numberText = slice.clone(newData)
-		}
-		PaintControlLabel(body, label, outlineColor, GetColor(.foreground))
-
-		body.y -= 10
-		body.h += 10
-	}
-	return
-}
-
-PaintControlLabel :: proc(rect: Rect, label: string, fillColor, backgroundColor: Color) {
-	if len(label) > 0 {
-		labelFont := GetFontData(.label)
-		textSize := MeasureString(labelFont, label)
-		PaintRect({rect.x + WIDGET_TEXT_OFFSET - 2, rect.y - 4, textSize.x + 4, 6}, backgroundColor)
-		PaintString(GetFontData(.label), label, {rect.x + WIDGET_TEXT_OFFSET, rect.y - textSize.y / 2}, fillColor)
-	}
-}
-
-/*
-	The label type
-*/
+// Labels
 Label :: union {
 	string,
 	Icon,
@@ -652,9 +241,9 @@ MeasureLabel :: proc(fontData: FontData, label: Label) -> (size: Vec2) {
 	Buttons for navigation
 */
 NavOptionEx :: proc(active: bool, icon: Icon, text: string, loc := #caller_location) -> (result: bool) {
-	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
+	if control, ok := BeginWidget(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
 		using control
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
@@ -666,148 +255,6 @@ NavOptionEx :: proc(active: bool, icon: Icon, text: string, loc := #caller_locat
 		PaintStringAligned(GetFontData(.default), text, {body.x + body.h * rl.EaseCubicInOut(stateTime, 1, 0.3, 1), body.y + body.h / 2}, GetColor(.foreground), .near, .middle)
 		
 		result = .released in state
-	}
-	return
-}
-
-// The three types of buttons
-ButtonStyle :: enum {
-	normal,
-	bright,
-	subtle,
-}
-// Standalone buttons for major actions
-PillButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) -> (result: bool) {
-	layout := GetCurrentLayout()
-	if layout.side == .left || layout.side == .right {
-		layout.size = MeasureLabel(GetFontData(.default), label).x + layout.rect.h + layout.margin * 2
-	}
-	if control, ok := BeginControl(HashId(loc), LayoutNext(layout)); ok {
-		using control
-		UpdateControl(control)
-
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.2)
-			if .released in state {
-				GetAnimation(HashIdFromInt(1))^ = 1
-			}
-		PopId()
-
-		roundness := body.h / 2
-
-		if pressTime > 0 {
-			if .down in state {
-				rect := ExpandRect(body, rl.EaseCubicOut(pressTime, 0, 4, 1))
-				PaintRoundedRect(rect, rect.h / 2, StyleGetShadeColor(1))
-			} else {
-				rect := ExpandRect(body, 4)
-				PaintRoundedRect(rect, rect.h / 2, StyleGetShadeColor(pressTime))
-			}
-		}
-		if style == .subtle {
-			PaintPillH(body, GetColor(.foreground))
-			PaintPillOutlineH(body, false, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime))
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime), .middle, .middle)
-		} else if style == .normal {
-			PaintPillH(body, BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
-		} else {
-			PaintPillH(body, BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
-		}
-		
-		result = .released in state
-	}
-	return
-}
-PillButton :: proc(label: Label, loc := #caller_location) -> bool {
-	return PillButtonEx(label, .normal, loc)
-}
-
-// Regular buttons
-ButtonEx :: proc(label: Label, align: Alignment, fit: bool, loc := #caller_location) -> (result: bool) {
-	layout := GetCurrentLayout()
-	if fit && (layout.side == .left || layout.side == .right) {
-		layout.size = MeasureLabel(GetFontData(.default), label).x + layout.rect.h / 2 + layout.margin * 2
-	}
-	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(layout)); ok {
-		using control
-		UpdateControl(control)
-
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.2)
-			if .released in state {
-				GetAnimation(HashIdFromInt(1))^ = 1
-			}
-		PopId()
-		
-		PaintRect(body, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
-		if .down not_in state {
-			PaintRectLines(body, 2, GetColor(.widgetPress, pressTime))
-		}
-
-		{
-			point: Vec2 = {0, body.y + body.h / 2}
-			switch align {
-				case .far: 		point.x = body.x + body.w - WIDGET_TEXT_OFFSET
-				case .middle: 	point.x = body.x + body.w / 2
-				case .near: 	point.x = body.x + WIDGET_TEXT_OFFSET
-			}
-			_, isIcon := label.(Icon)
-			PaintLabel(GetFontData(.header if isIcon else .default), label, point, GetColor(.text), align, .middle)
-		}
-
-		result = .released in state
-	}
-	return
-}
-Button :: proc(label: Label, loc := #caller_location) -> bool {
-	return ButtonEx(label, .middle, true, loc)
-}
-
-// Toggle buttons
-ToggleButtonEx :: proc(value: bool, label: Label, loc := #caller_location) -> (click: bool) {
-	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using control
-		UpdateControl(control)
-
-		if .released in state {
-			click = true
-		}
-
-		// Graphics
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashIdFromInt(1), value, 0.15)
-		PopId()
-
-		fillColor: Color
-		if value {
-			fillColor = GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime)
-		} else {
-			fillColor = GetColor(.foregroundPress) if .down in state else BlendColors(GetColor(.foreground), GetColor(.foregroundHover), hoverTime)
-		}
-		PaintRect(body, fillColor)
-		PaintRectLines(body, 1, GetColor(.outlineBase))
-		
-		_, isIcon := label.(Icon)
-		PaintLabel(GetFontData(.header if isIcon else .default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text if value else .outlineBase), .middle, .middle)
-	}
-	return
-}
-ToggleButton :: proc(value: bool, label: Label, loc := #caller_location) -> (newValue: bool) {
-	newValue = value
-	if ToggleButtonEx(value, label, loc) {
-		newValue = !newValue
-	}
-	return
-}
-ToggleButtonBit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #caller_location) -> (click: bool) {
-	click = ToggleButtonEx(bit in set, label, loc)
-	if click {
-		set^ ~= {bit}
 	}
 	return
 }
@@ -824,11 +271,11 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 	/*
 		Number input first
 	*/
-	if control, ok := BeginControl(HashId(loc), rect); ok {
+	if control, ok := BeginWidget(HashId(loc), rect); ok {
 		using control
 		newValue = value
 		control.options += {.draggable}
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		// Animation values
 		hoverTime := AnimateBool(id, .hovered in state, 0.1)
@@ -888,10 +335,10 @@ SliderEx :: proc(value, low, high: f32, name: string, loc := #caller_location) -
 	HALF_HEIGHT :: HEIGHT / 2
 	rect := LayoutNext(GetCurrentLayout())
 	rect = ChildRect(rect, {rect.w, SIZE}, .near, .middle)
-	if control, ok := BeginControl(HashId(loc), rect); ok {
+	if control, ok := BeginWidget(HashId(loc), rect); ok {
 		using control
 		control.options += {.draggable}
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state || .down in state, 0.1)
@@ -931,10 +378,10 @@ SliderEx :: proc(value, low, high: f32, name: string, loc := #caller_location) -
 */
 DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: int) {
 	newValue = value
-	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
+	if control, ok := BeginWidget(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
 		using control
 		control.options += {.draggable}
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state || .down in state, 0.1)
@@ -1000,7 +447,7 @@ CheckBoxStatus :: enum u8 {
 CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location) -> (change, newValue: bool) {
 	SIZE :: 22
 	HALF_SIZE :: SIZE / 2
-	if control, ok := BeginControl(HashId(loc), LayoutNextEx(GetCurrentLayout(), SIZE)); ok {
+	if control, ok := BeginWidget(HashId(loc), LayoutNextEx(GetCurrentLayout(), SIZE)); ok {
 		using control
 
 		box := body
@@ -1011,33 +458,36 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 			textSize = MeasureString(GetFontData(.default), text)
 			body.w += textSize.x + WIDGET_TEXT_OFFSET * 2
 		}
-		UpdateControl(control)
+		UpdateWidget(control)
 
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
-			stateTime := AnimateBool(HashIdFromInt(2), active, 0.1)
-		PopId()
+		if .visible in bits {
+			PushId(id) 
+				hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
+				pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
+				stateTime := AnimateBool(HashIdFromInt(2), active, 0.1)
+			PopId()
 
-		center: Vec2 = {body.x + HALF_SIZE, body.y + HALF_SIZE}
+			center: Vec2 = {body.x + HALF_SIZE, body.y + HALF_SIZE}
 
-		PaintRect(body, GetColor(.foreground))
-		if hoverTime > 0 {
-			PaintRect(body, StyleGetShadeColor(hoverTime))
-		}
+			PaintRect(body, GetColor(.foreground))
+			if hoverTime > 0 {
+				PaintRect(body, StyleGetShadeColor(hoverTime))
+			}
 
-		if stateTime < 1 {
-			PaintRectLines(box, 2 + 2 * (pressTime if !active else 1), BlendColors(GetColor(.outlineBase), GetColor(.outlineHot), hoverTime))
+			if stateTime < 1 {
+				PaintRectLines(box, 2 + 2 * (pressTime if !active else 1), BlendColors(GetColor(.outlineBase), GetColor(.outlineHot), hoverTime))
+			}
+			if stateTime > 0 {
+				PaintRect(box, Fade(BlendColors(GetColor(.outlineBase), GetColor(.outlineHot), hoverTime), stateTime))
+			}
+			if active {
+				PaintIconAligned(GetFontData(.header), .remove if status == .unknown else .check, center, GetColor(.foreground), .middle, .middle)
+			} else if stateTime == 1 {
+				PaintIconAligned(GetFontData(.header), .remove if status == .unknown else .check, center, GetColor(.foreground, stateTime), .middle, .middle)
+			}
+			PaintString(GetFontData(.default), text, {box.x + box.w + WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text))
 		}
-		if stateTime > 0 {
-			PaintRect(box, Fade(BlendColors(GetColor(.outlineBase), GetColor(.outlineHot), hoverTime), stateTime))
-		}
-		if active {
-			PaintIconAligned(GetFontData(.header), .remove if status == .unknown else .check, center, GetColor(.foreground), .middle, .middle)
-		} else if stateTime == 1 {
-			PaintIconAligned(GetFontData(.header), .remove if status == .unknown else .check, center, GetColor(.foreground, stateTime), .middle, .middle)
-		}
-		PaintString(GetFontData(.default), text, {box.x + box.w + WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text))
+		
 		if .released in state {
 			if status != .on {
 				newValue = true
@@ -1092,9 +542,9 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 */
 ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 	newValue = value
-	if control, ok := BeginControl(HashId(loc), LayoutNextEx(GetCurrentLayout(), {36, 28})); ok {
+	if control, ok := BeginWidget(HashId(loc), LayoutNextEx(GetCurrentLayout(), {36, 28})); ok {
 		using control
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		// Animation
 		PushId(id) 
@@ -1165,9 +615,9 @@ RadioButtonEx :: proc(value: bool, name: string, textSide: RectSide, loc := #cal
 		size.y = SIZE
 	}
 
-	if control, ok := BeginControl(HashId(loc), LayoutNextEx(GetCurrentLayout(), size)); ok {
+	if control, ok := BeginWidget(HashId(loc), LayoutNextEx(GetCurrentLayout(), size)); ok {
 		using control
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		// Animation
 		PushId(id) 
@@ -1221,9 +671,9 @@ RadioButtons :: proc(value: $T, side: RectSide, loc := #caller_location) -> (new
 @(deferred_out=_Collapser)
 Collapser :: proc(text: string, size: f32, loc := #caller_location) -> (active: bool) {
 	sharedId := HashId(loc)
-	if control, ok := BeginControl(sharedId, UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+	if control, ok := BeginWidget(sharedId, UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using control
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
@@ -1244,10 +694,7 @@ Collapser :: proc(text: string, size: f32, loc := #caller_location) -> (active: 
 		if stateTime > 0 {
 			rect := Cut(.top, size * stateTime)
 			layer: ^LayerData
-			layer, active = BeginLayer(rect, {0, size}, id, {.noScrollMarginX})
-			if ok {
-				layer.order = .frame
-			}
+			layer, active = BeginLayer(rect, {0, size}, id, {.attached, .noScrollMarginX})
 		}
 	}
 	return 
@@ -1266,9 +713,9 @@ Collapser :: proc(text: string, size: f32, loc := #caller_location) -> (active: 
 @(deferred_out=_Menu)
 Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: bool) {
 	sharedId := HashId(loc)
-	if control, ok := BeginControl(sharedId, UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+	if control, ok := BeginWidget(sharedId, UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using control
-		UpdateControl(control)
+		UpdateWidget(control)
 		active = .active in bits
 
 		PushId(id) 
@@ -1292,7 +739,6 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 			layer, ok = BeginLayer(AttachRectBottom(body, menuSize), {}, sharedId, {.attached})
 
 			if ok {
-				layer.order = .popup
 				layer.opacity = stateTime
 
 				if layer.bits & {.submit, .dismissed} != {} {
@@ -1322,12 +768,11 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 // Can be used for auto-complete on a text input
 @(deferred_out=_AttachMenu)
 AttachMenu :: proc(menuSize: f32, size: Vec2 = {}, options: LayerOptions = {}) -> (ok: bool) {
-	if control := GetLastControl(); control != nil {
+	if control := GetLastWidget(); control != nil {
 		if control.bits >= {.menuOpen} {
 			layer: ^LayerData
-			layer, ok = BeginLayer(AttachRectBottom(control.body, menuSize), size, control.id, options)
+			layer, ok = BeginLayer(AttachRectBottom(control.body, menuSize), size, control.id, options + {.attached})
 			if ok {
-				layer.order = .popup
 				PaintRect(layer.body, GetColor(.widgetBase))
 			}
 
@@ -1352,9 +797,9 @@ _AttachMenu :: proc(ok: bool) {
 @(deferred_out=_SubMenu)
 SubMenu :: proc(text: string, size: Vec2, loc := #caller_location) -> (active: bool) {
 	sharedId := HashId(loc)
-	if control, yes := BeginControl(sharedId, UseNextRect() or_else LayoutNext(GetCurrentLayout())); yes {
+	if control, yes := BeginWidget(sharedId, UseNextRect() or_else LayoutNext(GetCurrentLayout())); yes {
 		using control
-		UpdateControl(control)
+		UpdateWidget(control)
 		active = .active in bits
 
 		PushId(id) 
@@ -1376,12 +821,7 @@ SubMenu :: proc(text: string, size: Vec2, loc := #caller_location) -> (active: b
 			layer, ok := BeginLayer({body.x + body.w, body.y, size.x, size.y}, {}, sharedId, {.attached})
 
 			if ok {
-				layer.order = .popup
 				layer.opacity = stateTime
-
-				if ctx.hoveredLayer == layer.id {
-					layer.parent.bits += {.childHovered}
-				}
 
 				if layer.bits & {.submit, .dismissed} != {} {
 					bits -= {.active}
@@ -1409,9 +849,9 @@ _SubMenu :: proc(active: bool) {
 	}
 }
 MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (result: bool) {
-	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
+	if control, ok := BeginWidget(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
 		using control
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		PushId(id)
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
@@ -1429,7 +869,7 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 				m: int
 				for i in 0..<MAX_CONTROLS {
 					if ctx.controlExists[i] && ctx.controls[i].parent == GetCurrentLayer().id {
-						if i == int(ctx.lastControl) {
+						if i == int(ctx.lastWidget) {
 							m = len(array)
 						}
 						append(&array, i)
@@ -1490,11 +930,11 @@ BitSetMenu :: proc(set: $S/bit_set[$E;$U], optionSize: f32, loc := #caller_locat
 /*
 	Widgets are buttons that contain other controls
 */
-@(deferred_out=_Widget)
-Widget :: proc(label: string, sides: RectSides, loc := #caller_location) -> (clicked, yes: bool) {
-	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
+@(deferred_out=_Card)
+Card :: proc(label: string, sides: RectSides, loc := #caller_location) -> (clicked, yes: bool) {
+	if control, ok := BeginWidget(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
 		using control
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		PushId(id)
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
@@ -1515,7 +955,7 @@ Widget :: proc(label: string, sides: RectSides, loc := #caller_location) -> (cli
 	}
 	return
 }
-@private _Widget :: proc(clicked, yes: bool) {
+@private _Card :: proc(clicked, yes: bool) {
 	if yes {
 		PopLayout()
 	}
@@ -1575,7 +1015,7 @@ Section :: proc(label: string, sides: RectSides) -> (ok: bool) {
 */
 ScrollBar :: proc(value, low, high, thumbSize: f32, vertical: bool, loc := #caller_location) -> (change: bool, newValue: f32) {
 	newValue = value
-	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+	if control, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using control
 		i := int(vertical)
 		rect := transmute([4]f32)body
@@ -1584,7 +1024,7 @@ ScrollBar :: proc(value, low, high, thumbSize: f32, vertical: bool, loc := #call
 		valueRange := (high - low) if high > low else 1
 
 		control.options += {.draggable}
-		UpdateControl(control)
+		UpdateWidget(control)
 		PushId(id)
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
 			pressTime := AnimateBool(HashId(int(1)), .down in state, 0.1)
@@ -1627,9 +1067,9 @@ ScrollBar :: proc(value, low, high, thumbSize: f32, vertical: bool, loc := #call
 	Tabs
 */
 Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bool) {
-	if control, ok := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+	if control, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using control
-		UpdateControl(control)
+		UpdateWidget(control)
 
 		PushId(id)
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
@@ -1676,7 +1116,7 @@ TextEx :: proc(font: FontIndex, text: string, fit: bool, color: Color) {
 	layout := GetCurrentLayout()
 	textSize := MeasureString(fontData, text)
 	if fit {
-		LayoutFitControl(layout, textSize)
+		LayoutFitWidget(layout, textSize)
 	}
 	rect := LayoutNextEx(layout, textSize)
 	if CheckClip(ctx.clipRect, rect) != .full {
@@ -1724,21 +1164,25 @@ ListItemData :: struct {
 }
 @(deferred_out=_ListItem)
 ListItem :: proc(active: bool, loc := #caller_location) -> (selected, ok: bool) {
-	if control, yes := BeginControl(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); yes {
-		using control 
-		UpdateControl(control)
+	rect := LayoutNext(GetCurrentLayout())
+	if CheckClip(ctx.clipRect, rect) != .full {
+		if control, yes := BeginWidget(HashId(loc), rect); yes {
+			using control 
+			UpdateWidget(control)
 
-		hoverTime := AnimateBool(id, .hovered in state, 0.1)
+			hoverTime := AnimateBool(id, .hovered in state, 0.1)
+			if active {
+				PaintRect(body, GetColor(.widgetBase))
+			} else if hoverTime > 0 {
+				PaintRect(body, GetColor(.backingHighlight, hoverTime))
+			}
 
-		if active {
-			PaintRect(body, GetColor(.widgetBase))
-		} else if hoverTime > 0 {
-			PaintRect(body, GetColor(.backingHighlight, hoverTime))
+			selected = .released in state
+			ok = true//.visible in bits
+			if ok {
+				PushLayout(body)
+			}
 		}
-
-		selected = .released in state
-		ok = true
-		PushLayout(body)
 	}
 	return
 }
