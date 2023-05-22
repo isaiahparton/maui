@@ -51,7 +51,7 @@ _main :: proc() {
 	// set up raylib
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	rl.InitWindow(1000, 800, "Maui Demo")
-	rl.SetExitKey(.KEY_NULL)
+	rl.SetExitKey(.NULL)
 	rl.MaximizeWindow()
 	rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
 
@@ -65,127 +65,39 @@ _main :: proc() {
 
 		backend.NewFrame()
 
-		rect := ui.Cut(.right, 500)
-		if layer, ok := ui.Layer(rect, {0, 2000}, {}); ok {
-			ui.PaintRect(layer.body, ui.GetColor(.foreground, 1))
-
-			// Tabs
-			ui.SetSize(40)
-			tab = ui.EnumTabs(tab, 0)
-
-			// Apply content padding
-			ui.Shrink(20)
-
-			if tab == .text {
-				ui.SetSize(30)
-				wordwrap = ui.CheckBox(wordwrap, "Enable word wrap")
-				if ui.Layout(.top, 30) {
-					ui.SetSide(.left); ui.SetSize(120)
-					font = ui.EnumMenu(font, 30)
-				}
-				ui.SetSize(1, true)
-				ui.Space(DEFAULT_SPACING)
-				ui.TextBoxEx(font, "Lorem ipsum dolor sit amet. Et unde alias eum repellendus earum est autem error cum esse enim? Est veritatis asperiores vel fugiat unde non dolorem voluptatibus rem maiores autem? Vel facilis eveniet ea molestiae fugiat ut cupiditate corrupti. Qui consequatur earum sed explicabo iste qui dolorum iste qui dolor sapiente ex odit obcaecati aut quibusdam vitae. Eum rerum harum et laboriosam praesentium cum numquam dolores. Sed pariatur autem a atque quia et dolor numquam et animi harum et molestias ratione et amet delectus aut nemo nemo. Eum autem inventore ea ipsam harum cum architecto rerum cum incidunt quia? Eos velit deleniti cum magnam quod aut eaque eligendi vel assumenda vitae sit dolor placeat? Aut omnis perferendis eos repellendus deleniti et exercitationem molestiae ut dolorem fugit.", {.wrap, .word_wrap} if wordwrap else {}, .near, .near)
-			} else if tab == .input {
-				ui.SetSize(40)
-				ui.AlignY(.middle)
-
-				// Boolean controls
-				ui.Text(.header, "Boolean Controls", true)
-				ui.Space(HEADER_TRAILING_SPACE)
-				boolean = ui.CheckBox(boolean, "Check Box")
-				ui.Space(DEFAULT_SPACING)
-				boolean = ui.ToggleSwitch(boolean)
-
-				// Round buttons
-				ui.Space(HEADER_LEADING_SPACE)
-				ui.Text(.header, "Round Buttons", true)
-				ui.Space(HEADER_TRAILING_SPACE)
-				if ui.Layout(.top, 30) {
-					ui.SetSide(.left);
-					ui.PillButtonEx("SOLA FIDE", .subtle)
-					ui.Space(DEFAULT_SPACING)
-					ui.PillButtonEx("SOLA GRACIA", .normal)
-					ui.Space(DEFAULT_SPACING)
-					ui.PillButtonEx("SOLA SCRIPTURA", .bright)
-				}
-
-				// Regular Buttons
-				ui.Space(HEADER_LEADING_SPACE)
-				ui.Text(.header, "Default Buttons", true)
-				ui.Space(HEADER_TRAILING_SPACE)
-				if ui.Layout(.top, 30) {
-					ui.SetSize(30); ui.SetSide(.left);
-					a = ui.ToggleButton(a, ui.Icon.copy)
-					ui.Space(5)
-					b = ui.ToggleButton(b, ui.Icon.delete)
-					ui.Space(5)
-					c = ui.ToggleButton(c, ui.Icon.edit)
-					ui.Space(DEFAULT_SPACING)
-					ui.Button("\ue87d Favorites")
-					ui.Space(1)
-					ui.SetSize(30)
-					ui.ButtonEx(ui.Icon.add, .middle, false)
-				}
-
-				// Text input
-				ui.Space(HEADER_LEADING_SPACE)
-				ui.Text(.header, "Text Input", true)
-
-				ui.Space(HEADER_TRAILING_SPACE)
-				ui.SetSize(DEFAULT_TEXT_INPUT_SIZE)
-				if change, newData := ui.TextInputBytes(buffer[:], "Name", "John Doe", {}); change {
-					resize(&buffer, len(newData))
-					copy(buffer[:], newData[:])
-				}
-				if ui.AttachMenu(120) {
-					ui.SetSize(30)
-					ui.MenuOption("option", false)
-				}
-
-				ui.Space(DEFAULT_SPACING)
-				value = ui.NumberInputFloat64(value, "Enter a value")
-
-				// Single choice
-				ui.Space(HEADER_LEADING_SPACE)
-				ui.Text(.header, "Single choice", true)
-				ui.Space(HEADER_TRAILING_SPACE)
-				ui.SetSize(30)
-				choice = ui.RadioButtons(choice, .left)
-				ui.Space(DEFAULT_SPACING)
-				if ui.Layout(.top, 30) {
-					ui.SetSize(120); ui.SetSide(.left)
-					choice = ui.EnumMenu(choice, 30)
-				}
-
-				// Single choice
-				ui.Space(HEADER_LEADING_SPACE)
-				ui.Text(.header, "Multiple choice", true)
-				ui.Space(HEADER_TRAILING_SPACE)
-				ui.SetSize(30)
-				ui.CheckBoxBitSetHeader(&choices, "Choices")
-				for element in Choices {
-					ui.PushId(ui.HashId(int(element)))
-						ui.CheckBoxBitSet(&choices, element, ui.Format(element))
-					ui.PopId()
-				}
-				ui.Space(DEFAULT_SPACING)
-				if ui.Layout(.top, 30) {
-					ui.SetSize(240); ui.SetSide(.left)
-					choices = ui.BitSetMenu(choices, 30)
-				}
-			} else if tab == .table {
-				if ui.Layout(.top, 30) {
-					ui.SetSide(.left); ui.SetSize(120)
-					items = ui.Spinner(items, 0, 1000)
-				}
-				ui.Space(DEFAULT_SPACING)
-				ui.SetSize(300)
-				if layer, ok := ui.Frame({0, f32(items) * 30}, {}); ok {
-					ui.AlignY(.middle)
-					ui.SetSize(30)
-					for i in 0 ..< items {
-						ui.Text(.default, ui.StringFormat(" Item %i", i + 1), false)
+		{
+			using ui
+			rect := Cut(.right, 500)
+			if layer, ok := Layer({}, {}, {}); ok {
+				PaintRect(layer.body, GetColor(.foreground))
+				Shrink(100)
+				if Layout(.left, 200) {
+					SetSize(30)
+					if ToggleButtonEx(IsWindowOpen("1"), "Widget Gallery") {
+						ToggleWindow("1")
+					}
+					if window, ok := Window("1", "Widget Gallery", {200, 200, 400, 500}, {.title, .collapsable, .closable}); ok {
+						Shrink(30); SetSize(30)
+						if Menu("Open me!", 120) {
+							SetSize(30)
+							MenuOption("Option A", false)
+							MenuOption("Option B", false)
+							MenuOption("Option C", false)
+							if SubMenu("More Options", {200, 90}) {
+								SetSize(30)
+								MenuOption("Option D", false)
+								MenuOption("Option E", false)
+								MenuOption("Option F", false)
+							}
+						}
+					}
+					Space(10)
+					if ToggleButtonEx(IsWindowOpen("2"), "Data Table") {
+						ToggleWindow("2")
+					}
+					if window, ok := Window("2", "Data Table", {200, 200, 400, 500}, {.title, .collapsable, .closable}); ok {
+						Shrink(30); SetSize(30)
+						
 					}
 				}
 			}
@@ -213,7 +125,6 @@ _main :: proc() {
 }
 
 main :: proc() {
-
 	track: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&track, context.allocator)
 	context.allocator = mem.tracking_allocator(&track)

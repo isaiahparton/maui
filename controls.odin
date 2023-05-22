@@ -29,6 +29,9 @@ ControlOption :: enum {
 ControlOptions :: bit_set[ControlOption]
 // User input state
 ControlStatus :: enum {
+	leftClicked,
+	rightClicked,
+	
 	hovered,
 
 	justFocused,
@@ -46,12 +49,13 @@ ControlStatus :: enum {
 ControlState :: bit_set[ControlStatus]
 // Universal control data
 Control :: struct {
-	id: Id,
-	body: Rect,
-	bits: ControlBits,
-	options: ControlOptions,
-	state: ControlState,
-	parent: Id,
+	id: 		Id,
+	body: 		Rect,
+	bits: 		ControlBits,
+	options: 	ControlOptions,
+	state: 		ControlState,
+	// Parent layer
+	parent: 	Id,
 }
 @(deferred_out=EndControl)
 BeginControl :: proc(id: Id, rect: Rect) -> (control: ^Control, ok: bool) {
@@ -145,60 +149,54 @@ EndControl :: proc(control: ^Control, ok: bool) {
 	}
 }
 UpdateControl :: proc(using control: ^Control) {
-	if ctx.disabled {
-		return
-	}
-
-	// Request hover status
-	if VecVsRect(input.mousePoint, body) && ctx.hoveredLayer == GetCurrentLayer().id {
-		ctx.nextHoverId = id
-	}
-
-	// If hovered
-	if ctx.hoverId == id {
-		state += {.hovered}
-		if .noClick in options && MouseDown(.left) {
-			ctx.pressId = id
+	if !ctx.disabled {
+		// Request hover status
+		if VecVsRect(input.mousePoint, body) && ctx.hoveredLayer == GetCurrentLayer().id {
+			ctx.nextHoverId = id
 		}
-	} else if ctx.pressId == id {
-		if .draggable in options {
-			if MouseReleased(.left) {
+		// If hovered
+		if ctx.hoverId == id {
+			state += {.hovered}
+			if .noClick in options && MouseDown(.left) {
+				ctx.pressId = id
+			}
+		} else if ctx.pressId == id {
+			if .draggable in options {
+				if MouseReleased(.left) {
+					ctx.pressId = 0
+				}
+				//ctx.dragging = true
+			} else  {
 				ctx.pressId = 0
 			}
-			//ctx.dragging = true
-		} else  {
-			ctx.pressId = 0
 		}
-	}
-
-	// Press
-	if ctx.pressId == id {
-		if ctx.prevPressId != id {
-			state += {.pressed}
-			if ctx.doubleClick {
-				state += {.doubleClicked}
+		// Press
+		if ctx.pressId == id {
+			if ctx.prevPressId != id {
+				state += {.pressed}
+				if ctx.doubleClick {
+					state += {.doubleClicked}
+				}
+			}
+			if MouseReleased(.left) || (ctx.keySelect && KeyReleased(.enter)) {
+				state += {.released}
+				ctx.pressId = 0
+				GetCurrentLayer().bits += {.submit}
+			} else {
+				ctx.dragging = .draggable in options
+				state += {.down}
 			}
 		}
-		if MouseReleased(.left) || (ctx.keySelect && KeyReleased(.enter)) {
-			state += {.released}
-			ctx.pressId = 0
-			GetCurrentLayer().bits += {.submit}
-		} else {
-			ctx.dragging = .draggable in options
-			state += {.down}
+		// Focus
+		if ctx.focusId == id {
+			state += {.focused}
+			if ctx.prevFocusId != id {
+				state += {.justFocused}
+			}
+		} else if ctx.prevFocusId == id {
+			state += {.justUnfocused}
 		}
 	}
-
-	// Focus
-	if ctx.focusId == id {
-		state += {.focused}
-		if ctx.prevFocusId != id {
-			state += {.justFocused}
-		}
-	} else if ctx.prevFocusId == id {
-		state += {.justUnfocused}
-	}
-
 	return
 }
 
@@ -713,10 +711,10 @@ PillButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) 
 			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime), .middle, .middle)
 		} else if style == .normal {
 			PaintPillH(body, BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text), .middle, .middle)
+			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
 		} else {
 			PaintPillH(body, BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text), .middle, .middle)
+			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
 		}
 		
 		result = .released in state
@@ -1257,7 +1255,7 @@ Collapser :: proc(text: string, size: f32, loc := #caller_location) -> (active: 
 @private _Collapser :: proc(active: bool) {
 	if active {
 		layer := GetCurrentLayer()
-		PaintRectLines(layer.body, 1, GetColor(.foregroundPress))
+		//PaintRectLines(layer.body, 1, GetColor(.foregroundPress))
 		EndLayer(layer)
 	}
 }
@@ -1291,26 +1289,19 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 
 		if active {
 			layer: ^LayerData
-			layer, ok = BeginLayer(AttachRectBottom(body, menuSize), {}, sharedId, {.outlined})
+			layer, ok = BeginLayer(AttachRectBottom(body, menuSize), {}, sharedId, {.attached})
 
 			if ok {
 				layer.order = .popup
 				layer.opacity = stateTime
 
-				if (.hovered not_in state && ctx.hoveredLayer != layer.id && MousePressed(.left)) || KeyPressed(.escape) {
-					bits -= {.active}
-				}
-
-				if .submit in layer.bits {
+				if layer.bits & {.submit, .dismissed} != {} {
 					bits -= {.active}
 					EndLayer(layer)
 					return false
 				}
 
-				//PaintRoundedRectEx(layer.body, WIDGET_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase, 1))
 				PaintRect(layer.body, GetColor(.widgetBase))
-
-				PushLayout(layer.body)
 			}
 		}
 	}
@@ -1319,10 +1310,13 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 @private _Menu :: proc(active: bool) {
 	if active {
 		layer := GetCurrentLayer()
-		UpdateLayerContentRect(ctx.layerStack[ctx.layerDepth - 2], layer.body)
+
+		if (ctx.hoveredLayer != layer.id && .childHovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
+			layer.bits += {.dismissed}
+		}
+
 		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
 		EndLayer(layer)
-		PopLayout()
 	}
 }
 // Can be used for auto-complete on a text input
@@ -1355,6 +1349,65 @@ _AttachMenu :: proc(ok: bool) {
 	}
 }
 // Options within menus
+@(deferred_out=_SubMenu)
+SubMenu :: proc(text: string, size: Vec2, loc := #caller_location) -> (active: bool) {
+	sharedId := HashId(loc)
+	if control, yes := BeginControl(sharedId, UseNextRect() or_else LayoutNext(GetCurrentLayout())); yes {
+		using control
+		UpdateControl(control)
+		active = .active in bits
+
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
+			stateTime := AnimateBool(HashIdFromInt(2), active, 0.125)
+		PopId()
+
+		fill := BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime)
+		PaintRect(body, fill)
+		PaintFlipArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, stateTime, GetColor(.text))
+		PaintStringAligned(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
+
+		if .pressed in state {
+			bits = bits ~ {.active}
+		}
+
+		if active {
+			layer, ok := BeginLayer({body.x + body.w, body.y, size.x, size.y}, {}, sharedId, {.attached})
+
+			if ok {
+				layer.order = .popup
+				layer.opacity = stateTime
+
+				if ctx.hoveredLayer == layer.id {
+					layer.parent.bits += {.childHovered}
+				}
+
+				if layer.bits & {.submit, .dismissed} != {} {
+					bits -= {.active}
+					EndLayer(layer)
+					return false
+				}
+
+				PaintRect(layer.body, GetColor(.widgetBase))
+			}
+		}
+	}
+	return
+}
+@private
+_SubMenu :: proc(active: bool) {
+	if active {
+		layer := GetCurrentLayer()
+
+		if (ctx.hoveredLayer != layer.id && .childHovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
+			layer.bits += {.dismissed}
+		}
+
+		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
+		EndLayer(layer)
+	}
+}
 MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (result: bool) {
 	if control, ok := BeginControl(HashId(loc), LayoutNext(GetCurrentLayout())); ok {
 		using control
@@ -1421,7 +1474,7 @@ EnumMenu :: proc(value: $T, optionSize: f32, loc := #caller_location) -> (newVal
 BitSetMenu :: proc(set: $S/bit_set[$E;$U], optionSize: f32, loc := #caller_location) -> (newSet: S) {
 	newSet = set
 	
-	if layer, active := Menu(FormatBitSet(set, ", "), optionSize * len(E), loc); active {
+	if Menu(FormatBitSet(set, ", "), optionSize * len(E), loc) {
 		SetSize(optionSize)
 		for member in E {
 			PushId(HashIdFromInt(int(member)))

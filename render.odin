@@ -13,7 +13,7 @@ import "core:unicode/utf8"
 
 import rl "vendor:raylib"
 
-RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, "..")
+RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, ".")
 TEXTURE_WIDTH :: 4096
 TEXTURE_HEIGHT :: 256
 
@@ -426,9 +426,6 @@ PaintQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
 	PaintTriangle(p4, p2, p3, c)
 }
 PaintTriangle :: proc(p1, p2, p3: Vec2, color: Color) {
-	if !ctx.shouldRender {
-		return
-	}
 	layer := GetCurrentLayer()
 	cmd := PushCommand(layer, CommandTriangle)
 	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}
@@ -861,6 +858,12 @@ PaintRoundedRectOutlineEx :: proc(rect: Rect, radius: f32, thin: bool, corners: 
 		PaintRect({rect.x + rect.w - thickness, rect.y + topRight, thickness, rect.h - (topRight + bottomRight)}, color)
 	}
 }
+
+TRIANGLE_NORMALS: [3]Vec2: {
+	{-0.500, -0.866},
+	{-0.500, 0.866},
+	{1.000, 0.000},
+}
 PaintCollapseArrow :: proc(center: Vec2, size, time: f32, color: Color) {
 	if !ctx.shouldRender {
 		return
@@ -874,4 +877,22 @@ PaintCollapseArrow :: proc(center: Vec2, size, time: f32, color: Color) {
 		center + {math.cos(angle), math.sin(angle)} * size, 
 		color,
 		)
+}
+PaintFlipArrow :: proc(center: Vec2, size, time: f32, color: Color) {
+	scale: Vec2 = {1 - time * 2, 1} * size
+	if time > 0.5 {
+		PaintTriangle(
+			center + TRIANGLE_NORMALS[2] * scale,
+			center + TRIANGLE_NORMALS[1] * scale,
+			center + TRIANGLE_NORMALS[0] * scale,
+			color,
+		)
+	} else {
+		PaintTriangle(
+			center + TRIANGLE_NORMALS[0] * scale,
+			center + TRIANGLE_NORMALS[1] * scale,
+			center + TRIANGLE_NORMALS[2] * scale,
+			color,
+		)
+	}
 }

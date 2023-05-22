@@ -52,6 +52,7 @@ import "core:fmt"
 import "core:runtime"
 import "core:sort"
 import "core:slice"
+import "core:reflect"
 
 import "core:strconv"
 import "core:unicode"
@@ -101,27 +102,12 @@ ALL_CORNERS: RectCorners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
 
 DOUBLE_CLICK_TIME :: 0.25
 
-BackendGetClipboardString: proc() -> string = ---
-BackendSetClipboardString: proc(string) = ---
+Id 		:: distinct u32
 
-GetClipboardString :: proc() -> string {
-	if BackendGetClipboardString != nil {
-		return BackendGetClipboardString()
-	}
-	return {}
-}
-SetClipboardString :: proc(str: string) {
-	if BackendSetClipboardString != nil {
-		BackendSetClipboardString(str)
-	}
-}
-
-Id :: distinct u32
-
-Vec2 :: [2]f32
-Vec3 :: [3]f32
-Vec4 :: [4]f32
-Color :: [4]u8
+Vec2 	:: [2]f32
+Vec3 	:: [3]f32
+Vec4 	:: [4]f32
+Color 	:: [4]u8
 
 Animation :: struct {
 	keepAlive: bool,
@@ -159,14 +145,20 @@ Group :: struct {
 	state: ControlState,
 }
 
+@private DebugMode :: enum {
+	layers,
+	windows,
+	controls,
+}
+
 ContextOption :: enum {
 	showLayouts,
 	showLayers,
 }
 ContextOptions :: bit_set[ContextOption]
 Context :: struct {
-	allocator: runtime.Allocator,
 	options: ContextOptions,
+	debugMode: DebugMode,
 
 	groupDepth: int,
 	groups: [MAX_GROUPS]Group,
@@ -204,19 +196,19 @@ Context :: struct {
 	controlCount: int,
 
 	// Retained window data
-	windows: [MAX_WINDOWS]WindowData,
-	windowExists: [MAX_WINDOWS]bool,
-	windowMap: map[Id]^WindowData,
-	windowStack: [MAX_WINDOWS]^WindowData,
-	windowDepth: int,
+	windows: 			[MAX_WINDOWS]WindowData,
+	windowExists: 		[MAX_WINDOWS]bool,
+	windowStack: 		[MAX_WINDOWS]^WindowData,
+	windowDepth: 		int,
+	windowMap: 			map[Id]^WindowData,
 
 	// Retained layer data
-	layers: [MAX_LAYERS]LayerData,
-	layerExists: [MAX_LAYERS]bool,
+	layers: 			[MAX_LAYERS]LayerData,
+	layerExists: 		[MAX_LAYERS]bool,
+	layerMap: 			map[Id]^LayerData,
 	// Ordered list for sorting
-	layerMap: map[Id]^LayerData,
-	layerList: [dynamic]int,
-	layerStack: [MAX_LAYERS]^LayerData,
+	layerList: 			[dynamic]int,
+	layerStack: 		[MAX_LAYERS]^LayerData,
 	// Current layer on top of list
 	topLayer, prevTopLayer: int,
 	// Current layer being drawn
@@ -225,6 +217,7 @@ Context :: struct {
 	layerDepth: int,
 	// Current layer state
 	nextHoveredLayer, hoveredLayer, focusedLayer: Id,
+	debugLayer: Id,
 
 	// Used for dragging stuff
 	dragAnchor: Vec2,
@@ -252,6 +245,21 @@ Context :: struct {
 	pressId, 
 	focusId,
 	prevFocusId: Id,
+}
+
+BackendGetClipboardString: proc() -> string = ---
+BackendSetClipboardString: proc(string) = ---
+
+GetClipboardString :: proc() -> string {
+	if BackendGetClipboardString != nil {
+		return BackendGetClipboardString()
+	}
+	return {}
+}
+SetClipboardString :: proc(str: string) {
+	if BackendSetClipboardString != nil {
+		BackendSetClipboardString(str)
+	}
 }
 
 Enable :: proc(){
@@ -484,17 +492,9 @@ SetScreenSize :: proc(w, h: f32) {
 }
 
 Init :: proc() -> bool {
-	/*
-		Set up default context and set style
-	*/
 	ctx = new(Context)
-
-	//TODO(isaiah): do something with this!
 	ctx.style.colors = COLOR_SCHEME_LIGHT
-	
-	/*
-		Set up painter and load atlas
-	*/
+	// Load graphics
 	if !InitPainter() {
 		fmt.print("failed to initialize painter module\n")
 		return false
@@ -519,15 +519,78 @@ Uninit :: proc() {
 Prepare :: proc() {
 	using ctx
 
+	/*
+		Built-in debug menus
+	*/
+	when ODIN_DEBUG {
+		debugLayer = 0
+		if KeyDown(.control) && KeyPressed(.backspace) {
+			ToggleWindow("__debug")
+		}
+		if window, ok := Window("__debug", "Debug", {0, 0, 500, 700}, {.collapsable, .closable, .title, .resizable}); ok {
+			SetSize(30)
+			debugMode = EnumTabs(debugMode, 0)
+
+			Shrink(10); SetSize(30)
+			if debugMode == .layers {
+				layer_info := runtime.type_info_base(type_info_of(LayerData)).variant.(runtime.Type_Info_Struct)
+				for i in layerList {
+					layer := &layers[i]
+					PushId(layer.id)
+						if Collapser(Format(layer.id), 20 * f32(len(layer_info.names) - 1)) {
+							Cut(.left, 30); SetSize(20)
+							for name, i in layer_info.names {
+								if name == "commands" {
+									continue
+								}
+								what: any = {
+									data = rawptr(uintptr(layer) + layer_info.offsets[i]),
+									id = layer_info.types[i].id,
+								}
+								Text(.label, StringFormat("%s: %v", name, what), false)
+							}
+						}
+						if GetLastControl().state & {.focused, .hovered} != {} {
+							debugLayer = layer.id
+						}
+					PopId()
+				}
+			} else if debugMode == .windows {
+				window_info := runtime.type_info_base(type_info_of(WindowData)).variant.(runtime.Type_Info_Struct)
+				for id, window in windowMap {
+					PushId(window.id)
+						if Collapser(Format(window.id), 20 * f32(len(window_info.names) - 1)) {
+							Cut(.left, 30); SetSize(20)
+							for name, i in window_info.names {
+								if name == "layer" {
+									Text(.label, StringFormat("%s: %i", name, window.layer.id), false)
+									continue
+								}
+								what: any = {
+									data = rawptr(uintptr(window) + window_info.offsets[i]),
+									id = window_info.types[i].id,
+								}
+								Text(.label, StringFormat("%s: %v", name, what), false)
+							}
+						}
+						if GetLastControl().state & {.focused, .hovered} != {} {
+							debugLayer = window.layer.id
+						}
+					PopId()
+				}
+			}
+		}
+	}
+
 	PopLayout()
 
 	/*
 		This decides if the frame should be drawn
 	*/
-	if input.prevMousePoint != input.mousePoint || input.keyBits != {} || input.mouseBits != {} || input.mouseScroll != {} {
+	if input.prevMousePoint != input.mousePoint || input.prevKeyBits != input.keyBits|| input.prevMouseBits != input.mouseBits || input.mouseScroll != {} {
 		renderTime = RENDER_TIMEOUT
 	}
-	controlCount = 0
+
 	for i in 0..<MAX_CONTROLS {
 		if controlExists[i] {
 			control := &controls[i]
@@ -577,9 +640,10 @@ Prepare :: proc() {
 	for layerIndex, index in layerList {
 		if layerExists[layerIndex] {
 			layer := &layers[layerIndex]
+			layer.index = index
 			if VecVsRect(input.mousePoint, layer.body) {
 				hoveredLayer = layer.id
-				if MousePressed(.left) && layer.order >= layers[layerList[topLayer]].order {
+				if MousePressed(.left) {
 					topLayer = index
 				}
 			}
@@ -672,24 +736,6 @@ Refresh :: proc() {
 
 	PushLayout({0, 0, size.x, size.y})
 
-	/*
-		Built-in debug menus
-	*/
-	when ODIN_DEBUG {
-		if KeyDown(.control) && KeyPressed(.backspace) {
-			ToggleWindow("_debug")
-		}
-		if window, ok := Window("_debug", "Debug", {0, 0, 300, 360}, {.collapsable, .closable, .title}); ok {
-			Shrink(10)
-			SetSize(30)
-			CheckBoxBitSetHeader(&options, "")
-			for option in ContextOption {
-				PushId(HashIdFromInt(int(option)))
-					CheckBoxBitSet(&options, option, Format(option))
-				PopId()
-			}
-		}
-	}
 
 	if KeyPressed(.tab) && focusIndex >= 0 {
 		array: [dynamic]int

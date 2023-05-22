@@ -15,6 +15,8 @@ LayerBit :: enum {
 	submit,
 	scrollX,
 	scrollY,
+	childHovered,
+	dismissed,
 }
 LayerBits :: bit_set[LayerBit]
 // Options
@@ -94,7 +96,11 @@ CreateLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bo
 			}
 
 			ctx.layerMap[id] = layer
-			append(&ctx.layerList, i)
+			if .attached in options {
+				inject_at(&ctx.layerList, GetCurrentLayer().index + 1, i)
+			} else {
+				append(&ctx.layerList, i)
+			}
 
 			break
 		}
@@ -120,7 +126,7 @@ CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, o
 
 		// Update layer data
 		layer.bits += {.stayAlive}
-		layer.bits -= {.submit}
+		layer.bits -= {.submit, .childHovered}
 
 		layer.options = options
 		layer.id = id
@@ -153,7 +159,7 @@ CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, o
 		// Detect scrollbar necessity
 		if layer.layoutSize.x > layer.body.w && layer.options < {.noScrollX} {
 			layer.bits += {.scrollX}
-			if layer.options < {.noScrollMarginY} {
+			if .noScrollMarginY not_in layer.options {
 				layer.layoutSize.y -= SCROLL_BAR_SIZE
 			}
 		} else {
@@ -161,7 +167,7 @@ CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, o
 		}
 		if layer.layoutSize.y > layer.body.h && layer.options < {.noScrollY} {
 			layer.bits += {.scrollY}
-			if layer.options < {.noScrollMarginX} {
+			if .noScrollMarginX not_in layer.options {
 				layer.layoutSize.x -= SCROLL_BAR_SIZE
 			}
 		} else {
@@ -180,7 +186,7 @@ CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, o
 	using ctx
 
 	when ODIN_DEBUG {
-		if .showLayers in options {
+		if debugLayer == layer.id {
 			PaintRect(layer.body, {255, 0, 255, 20})
 			PaintRectLines(layer.body, 1, {255, 0, 255, 255})
 		}

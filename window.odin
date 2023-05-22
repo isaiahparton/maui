@@ -5,6 +5,12 @@ import "core:math"
 WindowBit :: enum {
 	stayAlive,
 	close,
+	initialized,
+	resizing,
+	moving,
+	shouldClose,
+	shouldCollapse,
+	collapsed,
 }
 WindowBits :: bit_set[WindowBit]
 WindowOption :: enum {
@@ -15,18 +21,11 @@ WindowOption :: enum {
 	close_on_unfocus,
 }
 WindowOptions :: bit_set[WindowOption]
-WindowStatus :: enum {
-	resizing,
-	moving,
-	shouldClose,
-	shouldCollapse,
-	collapsed,
-	initialized,
-}
-WindowState :: bit_set[WindowStatus]
 WindowData :: struct {
+	// Native stuff
+	title: string,
+	id: Id,
 	options: WindowOptions,
-	state: WindowState,
 	bits: WindowBits,
 	// for resizing
 	dragSide: RectSide,
@@ -35,9 +34,6 @@ WindowData :: struct {
 	minLayoutSize: Vec2,
 	// Inherited stuff
 	layer: ^LayerData,
-	// Native stuff
-	id: Id,
-	name: string,
 	// Current occupying rectangle
 	rect, drawRect: Rect,
 	// Collapse
@@ -55,22 +51,6 @@ Window :: proc(name, title: string, rect: Rect, options: WindowOptions) -> (wind
 _Window :: proc(window: ^WindowData, ok: bool) {
 	EndWindow(window)
 }
-WithPlacement :: proc(window: ^WindowData, rect: Rect) {
-	if .initialized not_in window.state {
-		window.rect = rect
-	}
-}
-WithDefaultOptions :: proc(window: ^WindowData, options: WindowOptions) {
-	if .initialized not_in window.state {
-		window.options = options
-	}
-}
-WithTitle :: proc(window: ^WindowData, name: string) {
-	if .initialized not_in window.state {
-		window.name = name
-		window.options += {.title}
-	}
-}
 
 /*
 	Internal window logic
@@ -81,12 +61,12 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 
 		bits += {.stayAlive}
 
-		if .initialized not_in state {
+		if .initialized not_in bits {
 			if _rect != {} {
 				rect = _rect
 			}
 			options = _options
-			name = _title
+			title = _title
 		}
 
 		layerRect := rect
@@ -98,8 +78,10 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 
 		drawRect = layerRect
 		layoutRect := rect
+		
 		// Body
-		if .collapsed not_in state {
+		PaintRoundedRect(TranslateRect(drawRect, 7), WINDOW_ROUNDNESS, GetColor(.shade, 0.15))
+		if .collapsed not_in bits {
 			PaintRoundedRect(drawRect, WINDOW_ROUNDNESS, GetColor(.foreground))
 		}
 
@@ -117,18 +99,18 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 			}
 			if MousePressed(.left) {
 				if topHover {
-					state += {.resizing}
+					bits += {.resizing}
 					dragSide = .top
 					dragAnchor = rect.y + rect.h
 				} else if leftHover {
-					state += {.resizing}
+					bits += {.resizing}
 					dragSide = .left
 					dragAnchor = rect.x + rect.w
 				} else if bottomHover {
-					state += {.resizing}
+					bits += {.resizing}
 					dragSide = .bottom
 				} else if rightHover {
-					state += {.resizing}
+					bits += {.resizing}
 					dragSide = .right
 				}
 			}
@@ -139,7 +121,7 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 			titleRect := CutRectTop(&layoutRect, WINDOW_TITLE_SIZE)
 
 			// Draw title rectangle
-			if .collapsed in state {
+			if .collapsed in bits {
 				PaintRoundedRect(titleRect, WINDOW_ROUNDNESS, GetColor(.widgetBase, 1))
 			} else {
 				PaintRoundedRectEx(titleRect, WINDOW_ROUNDNESS, {.topLeft, .topRight}, GetColor(.widgetBase, 1))
@@ -148,49 +130,49 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 			// Title bar decoration
 			baseline := titleRect.y + titleRect.h / 2
 			textOffset := titleRect.h * 0.25
-			canCollapse := .collapsable in options || .collapsed in state
+			canCollapse := .collapsable in options || .collapsed in bits
 			if canCollapse {
 				PaintCollapseArrow({titleRect.x + titleRect.h / 2, baseline}, 8, howCollapsed, GetColor(.text, 1))
 				textOffset = titleRect.h * 0.85
 			}
-			PaintStringAligned(GetFontData(.default), name, {titleRect.x + textOffset, baseline}, GetColor(.text, 1), .near, .middle)
+			PaintStringAligned(GetFontData(.default), title, {titleRect.x + textOffset, baseline}, GetColor(.text, 1), .near, .middle)
 			if .closable in options {
 				SetNextRect(ChildRect(GetRectRight(titleRect, titleRect.h), {24, 24}, .middle, .middle))
 				if Button(.close) {
 					bits += {.close}
 				}
 			}
-			if .resizing not_in state && ctx.hoveredLayer == layer.id && VecVsRect(input.mousePoint, titleRect) {
+			if .resizing not_in bits && ctx.hoveredLayer == layer.id && VecVsRect(input.mousePoint, titleRect) {
 				if ctx.hoverId == 0 && MousePressed(.left) {
-					state += {.moving}
+					bits += {.moving}
 					ctx.dragAnchor = Vec2{layer.body.x, layer.body.y} - input.mousePoint
 				}
 				if canCollapse && MousePressed(.right) {
-					if .shouldCollapse in state {
-						state -= {.shouldCollapse}
+					if .shouldCollapse in bits {
+						bits -= {.shouldCollapse}
 					} else {
-						state += {.shouldCollapse}
+						bits += {.shouldCollapse}
 					}
 				}
 			}
 		} else {
-			state -= {.shouldCollapse}
+			bits -= {.shouldCollapse}
 		}
 
 		// Interpolate collapse
-		if .shouldCollapse in state {
+		if .shouldCollapse in bits {
 			howCollapsed = min(1, howCollapsed + ctx.deltaTime * 7)
 		} else {
 			howCollapsed = max(0, howCollapsed - ctx.deltaTime * 7)
 		}
 		if howCollapsed >= 1 {
-			state += {.collapsed}
+			bits += {.collapsed}
 		} else {
-			state -= {.collapsed}
+			bits -= {.collapsed}
 		}
 
 		// Push layout if necessary
-		if .collapsed in state {
+		if .collapsed in bits {
 			ok = false
 		} else {
 			layoutRect.w = max(layoutRect.w, minLayoutSize.x)
@@ -201,55 +183,54 @@ WithTitle :: proc(window: ^WindowData, name: string) {
 	return
 }
 @private EndWindow :: proc(using window: ^WindowData) {
-	if window == nil {
-		return
-	}
+	if window != nil {
+		bits += {.initialized}
 
-	state += {.initialized}
-	// Outline
-	PaintRoundedRectOutline(drawRect, WINDOW_ROUNDNESS, true, GetColor(.text, 1))
+		// Outline
+		PaintRoundedRectOutline(drawRect, WINDOW_ROUNDNESS, true, GetColor(.text, 1))
 
-	// Drop window context
-	if .collapsed not_in state {
-		PopLayout()
-	}
-	PopId()
-	EndLayer(layer)
-
-	// Handle resizing
-	if .resizing in state {
-		switch dragSide {
-			case .bottom:
-			rect.h = input.mousePoint.y - rect.y
-			ctx.cursor = .resizeNS
-			case .left:
-			rect.x = input.mousePoint.x
-			rect.w = dragAnchor - input.mousePoint.x
-			ctx.cursor = .resizeEW
-			case .right:
-			rect.w = input.mousePoint.x - rect.x
-			ctx.cursor = .resizeEW
-			case .top:
-			rect.y = input.mousePoint.y
-			rect.h = dragAnchor - input.mousePoint.y
-			ctx.cursor = .resizeNS
+		// Handle resizing
+		if .resizing in bits {
+			switch dragSide {
+				case .bottom:
+				rect.h = input.mousePoint.y - rect.y
+				ctx.cursor = .resizeNS
+				case .left:
+				rect.x = input.mousePoint.x
+				rect.w = dragAnchor - input.mousePoint.x
+				ctx.cursor = .resizeEW
+				case .right:
+				rect.w = input.mousePoint.x - rect.x
+				ctx.cursor = .resizeEW
+				case .top:
+				rect.y = input.mousePoint.y
+				rect.h = dragAnchor - input.mousePoint.y
+				ctx.cursor = .resizeNS
+			}
+			rect.w = max(rect.w, 120)
+			rect.h = max(rect.h, 240)
+			if MouseReleased(.left) {
+				bits -= {.resizing}
+			}
 		}
-		rect.w = max(rect.w, minLayoutSize.x)
-		rect.h = max(rect.h, minLayoutSize.y)
-		if MouseReleased(.left) {
-			state -= {.resizing}
-		}
-	}
 
-	// Handle movement
-	if .moving in state {
-		ctx.cursor = .resizeAll
-		newOrigin := input.mousePoint + ctx.dragAnchor
-		rect.x = newOrigin.x
-		rect.y = newOrigin.y
-		if MouseReleased(.left) {
-			state -= {.moving}
+		// Handle movement
+		if .moving in bits {
+			ctx.cursor = .resizeAll
+			newOrigin := input.mousePoint + ctx.dragAnchor
+			rect.x = newOrigin.x
+			rect.y = newOrigin.y
+			if MouseReleased(.left) {
+				bits -= {.moving}
+			}
 		}
+
+		// Drop window context
+		if .collapsed not_in bits {
+			PopLayout()
+		}
+		PopId()
+		EndLayer(layer)
 	}
 }
 
@@ -296,6 +277,9 @@ CloseCurrentWindow :: proc() {
 	if ctx.windowDepth > 0 {
 		ctx.windowStack[ctx.windowDepth - 1].bits += {.close}
 	}
+}
+IsWindowOpen :: proc(name: string) -> bool {
+	return HashId(name) in ctx.windowMap
 }
 ToggleWindow :: proc(name: string) {
 	id := HashId(name)
