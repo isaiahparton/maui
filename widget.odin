@@ -694,7 +694,7 @@ Collapser :: proc(text: string, size: f32, loc := #caller_location) -> (active: 
 		if stateTime > 0 {
 			rect := Cut(.top, size * stateTime)
 			layer: ^LayerData
-			layer, active = BeginLayer(rect, {0, size}, id, {.attached, .noScrollMarginX})
+			layer, active = BeginLayer(rect, {0, size}, id, {.attached, .noScrollMarginX, .noScrollY})
 		}
 	}
 	return 
@@ -757,8 +757,8 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 	if active {
 		layer := CurrentLayer()
 
-		if (ctx.hoveredLayer != layer.id && .childHovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
-			layer.bits += {.dismissed}
+		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
+			//layer.bits += {.dismissed}
 		}
 
 		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
@@ -840,8 +840,8 @@ _SubMenu :: proc(active: bool) {
 	if active {
 		layer := CurrentLayer()
 
-		if (ctx.hoveredLayer != layer.id && .childHovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
-			layer.bits += {.dismissed}
+		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
+			//layer.bits += {.dismissed}
 		}
 
 		PaintRectLines(layer.body, 1, GetColor(.outlineBase))

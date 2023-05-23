@@ -15,8 +15,10 @@ LayerBit :: enum {
 	submit,
 	scrollX,
 	scrollY,
-	childHovered,
 	dismissed,
+
+	hovered,
+	focused,
 }
 LayerBits :: bit_set[LayerBit]
 // Options
@@ -86,9 +88,9 @@ CreateLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bo
 		id = id,
 		opacity = 0 if .invisible in options else 1,
 	}
+	// Append the new layer
 	append(&ctx.layers, layer)
 	ctx.layerMap[id] = layer
-	ctx.sortLayers = true
 	// Handle layer attachment
 	if ctx.layerDepth > 0 {
 		parent := CurrentLayer() if .attached in options else ctx.rootLayer
@@ -96,6 +98,8 @@ CreateLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bo
 		layer.parent = parent
 		layer.index = len(parent.children)
 	}
+	// Will sort layers this frame
+	ctx.sortLayers = true
 	ok = true
 	return
 }
@@ -126,13 +130,26 @@ BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (la
 		layer.options = options
 		// Reset stuff
 		layer.bits += {.stayAlive}
-		layer.bits -= {.submit, .childHovered}
+		layer.bits -= {.submit}
 		layer.commandOffset = 0
 		// Apply rectangle
 		if rect != {} {
 			layer.body = rect
 		} else {
 			layer.body = ctx.fullscreenRect
+		}
+		// Hovering and stuff
+		layer.bits -= {.hovered, .focused}
+		if ctx.hoveredLayer == layer.id {
+			layer.bits += {.hovered}
+		}
+		if ctx.focusedLayer == layer.id {
+			layer.bits += {.focused}
+		}
+		// Attachment
+		if .attached in options {
+			assert(layer.parent != nil)
+			layer.parent.bits += layer.bits & {.hovered, .focused}
 		}
 		// Shadows
 		if .shadow in options {

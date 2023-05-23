@@ -75,6 +75,7 @@ _main :: proc() {
 			Shrink(100)
 			if Layout(.left, 200) {
 				SetSize(30)
+				AttachTooltip("I'm a tooltip", .top)
 				windowOpen[.widgetGallery] = ToggleButton(windowOpen[.widgetGallery], "Widget Gallery")
 				if Window("Widget Gallery", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
 					Shrink(30); SetSize(30)
@@ -110,9 +111,6 @@ _main :: proc() {
 			rl.ClearBackground(transmute(rl.Color)ui.GetColor(.foreground))
 			backend.Render()
 			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
-			for layer, i in ui.ctx.layers {
-				rl.DrawText(rl.TextFormat("%i: %i, %v", layer.id, layer.index, layer.order), 0, 20 + i32(i * 20), 20, rl.BLUE)
-			}
 		}
 		rl.EndDrawing()
 

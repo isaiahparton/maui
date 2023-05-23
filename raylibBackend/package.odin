@@ -12,7 +12,6 @@ Init :: proc() {
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
 	rl.SetTextureFilter(texture, .BILINEAR)
-	ui.DoneWithAtlasImage()
 
 	ui.BackendSetClipboardString = proc(str: string) {
 		cstr := strings.clone_to_cstring(str)

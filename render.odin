@@ -250,16 +250,14 @@ InitPainter :: proc() -> bool {
 	return GenAtlas(painter)
 }
 UninitPainter :: proc() {
+	rl.UnloadImage(painter.image)
+
 	for font in &painter.fonts {
 		delete(font.glyphs)
 		delete(font.glyphMap)
 	}
 
 	free(painter)
-}
-
-DoneWithAtlasImage :: proc() {
-	rl.UnloadImage(painter.image)
 }
 
 GenAtlas :: proc(using painter: ^Painter) -> (result: bool) {

@@ -39,14 +39,14 @@ MAX_GROUPS 			:: 8
 MAX_STYLES			:: 4
 MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 8)
 MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 1024)
-MAX_LAYERS 			:: #config(MAUI_MAX_LAYERS, 16)
+MAX_LAYERS 			:: #config(MAUI_MAX_LAYERS, 32)
 MAX_WINDOWS 		:: #config(MAUI_MAX_WINDOWS, 32)
 // Maximum layout depth (times you can call PushLayout())
 MAX_LAYOUTS 		:: #config(MAUI_MAX_LAYOUTS, 32)
 // Size of each layer's command buffer
 COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 256 * 1024)
 // Size of id stack (times you can call PushId())
-ID_STACK_SIZE 		:: 8
+ID_STACK_SIZE 		:: 32
 // Repeating key press
 KEY_REPEAT_DELAY 	:: 0.5
 KEY_REPEAT_RATE 	:: 30
@@ -629,24 +629,9 @@ EndFrame :: proc() {
 				SetSize(30)
 				debugMode = EnumTabs(debugMode, 0)
 
-				Shrink(10); SetSize(30)
+				Shrink(10); SetSize(24)
 				if debugMode == .layers {
-					for layer in layers {
-						if layer.parent != nil && layer.parent.id == CurrentLayer().id {
-							continue
-						}
-						PushId(layer.id)
-							if Collapser(Format(layer.id), 20 * f32(len(layer.children))) {
-								Cut(.left, 30); SetSize(20)
-								for child in layer.children {
-									Text(.label, Format(child.id), false)
-								}
-							}
-							if GetLastWidget().state >= {.hovered} {
-								debugLayer = layer.id
-							}
-						PopId()
-					}
+					_DebugLayerWidget(ctx.rootLayer)
 				} else if debugMode == .windows {
 					for id, window in windowMap {
 						PushId(window.id)
@@ -699,9 +684,18 @@ EndFrame :: proc() {
 		layerOrderCount[layer.order] += 1
 		if VecVsRect(input.mousePoint, layer.body) {
 			hoveredLayer = layer.id
-			if MousePressed(.left) && layer.order == .floating {
-				topLayer = layer.id
-				sortedLayer = layer
+			if MousePressed(.left) {
+				// If the layer is attached, find its first parent
+				child := layer
+				for child.parent != nil {
+					topLayer = child.id
+					sortedLayer = child
+					if child.options >= {.attached} {
+						child = child.parent
+					} else {
+						break
+					}
+				}
 			}
 		}
 		if .stayAlive in layer.bits {
@@ -747,6 +741,26 @@ EndFrame :: proc() {
 	}
 	// Reset rendered layer
 	hotLayer = 0
+}
+_CountLayerChildren :: proc(layer: ^LayerData) -> int {
+	count: int
+	for child in layer.children {
+		count += 1 + _CountLayerChildren(child)
+	}
+	return count
+}
+_DebugLayerWidget :: proc(layer: ^LayerData) {
+	PushId(layer.id)
+	if Collapser(Format(layer.id), f32(_CountLayerChildren(layer)) * 24) {
+		Cut(.left, 24); SetSize(24)
+		for child in layer.children {
+			_DebugLayerWidget(child)
+		}
+	}
+	if GetLastWidget().state >= {.hovered} {
+		ctx.debugLayer = layer.id
+	}
+	PopId()
 }
 SortLayer :: proc(list: ^[dynamic]^LayerData, layer: ^LayerData) {
 	append(list, layer)
