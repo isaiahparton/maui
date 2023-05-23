@@ -156,6 +156,7 @@ Context :: struct {
 	// Current window data
 	currentWindow:		^WindowData,
 
+	rootLayer: 			^LayerData,
 	// Internal layer data
 	layers: 			[dynamic]^LayerData,
 	layerMap: 			map[Id]^LayerData,
@@ -459,7 +460,7 @@ Uninit :: proc() {
 	delete(ctx.animations)
 	delete(ctx.windowMap)
 	// Free layer data
-	for layer in &ctx.layers {
+	for layer in ctx.layers {
 		DeleteLayer(layer)
 	}
 	delete(ctx.layerMap)
@@ -470,147 +471,6 @@ Uninit :: proc() {
 	free(ctx)
 }
 
-EndFrame :: proc() {
-	using ctx
-	// Built-in debug window
-	when ODIN_DEBUG {
-		debugLayer = 0
-		if KeyDown(.control) && KeyPressed(.backspace) {
-			debugBits ~= {.showWindow}
-		}
-		if debugBits >= {.showWindow} {
-			if Window("Debug", {0, 0, 500, 700}, {.collapsable, .closable, .title, .resizable}) {
-				if CurrentWindow().bits >= {.shouldClose} {
-					debugBits -= {.showWindow}
-				}
-
-				SetSize(30)
-				debugMode = EnumTabs(debugMode, 0)
-
-				Shrink(10); SetSize(30)
-				if debugMode == .layers {
-					layer_info := runtime.type_info_base(type_info_of(LayerData)).variant.(runtime.Type_Info_Struct)
-
-					for layer in layers {
-						PushId(layer.id)
-							if Collapser(Format(layer.id), 20 * f32(len(layer_info.names) - 1)) {
-								Cut(.left, 30); SetSize(20)
-								for name, i in layer_info.names {
-									if name == "commands" {
-										continue
-									}
-									what: any = {
-										data = rawptr(uintptr(layer) + layer_info.offsets[i]),
-										id = layer_info.types[i].id,
-									}
-									if name == "parent" {
-										Text(.label, StringFormat("parent: %i", layer.parent.id if layer.parent != nil else 0), false)
-									} else {
-										Text(.label, StringFormat("%s: %v", name, what), false)
-									}
-								}
-							}
-							if GetLastWidget().state >= {.hovered} {
-								debugLayer = layer.id
-							}
-						PopId()
-					}
-				} else if debugMode == .windows {
-					window_info := runtime.type_info_base(type_info_of(WindowData)).variant.(runtime.Type_Info_Struct)
-					for id, window in windowMap {
-						PushId(window.id)
-							if Collapser(Format(window.id), 20 * f32(len(window_info.names) - 1)) {
-								Cut(.left, 30); SetSize(20)
-								Text(.label, StringFormat("index: %i", window.layer.index), false)
-							}
-							if GetLastWidget().state & {.focused, .hovered} != {} {
-								debugLayer = window.layer.id
-							}
-						PopId()
-					}
-				}
-			}
-		}
-	}
-	// End the root layout
-	PopLayout()
-	// Decide if rendering is needed next frame
-	if input.prevMousePoint != input.mousePoint || input.prevKeyBits != input.keyBits|| input.prevMouseBits != input.mouseBits || input.mouseScroll != {} {
-		renderTime = RENDER_TIMEOUT
-	}
-	// Delete unused controls
-	for i in 0..<MAX_CONTROLS {
-		if controlExists[i] {
-			control := &controls[i]
-			if .stayAlive in control.bits {
-				control.bits -= {.stayAlive}
-			} else {
-				controlExists[i] = false
-			}
-			controlCount += 1
-		}
-	}
-	// Delete unused windows
-	for window, i in windows {
-		if .stayAlive in window.bits {
-			window.bits -= {.stayAlive}
-		} else {
-			ordered_remove(&windows, i)
-			delete_key(&windowMap, window.id)
-			DeleteWindow(window)
-		}
-	}
-	// Determine hovered layer and reorder if needed
-	layerOrderCount = {}
-	hoveredLayer = 0
-	for layer, i in layers {
-		layerOrderCount[layer.order] += 1
-		if VecVsRect(input.mousePoint, layer.body) {
-			hoveredLayer = layer.id
-			if MousePressed(.left) && layer.order == .floating {
-				if layer.parent != nil {
-					topLayer = layer.parent.id
-				} else {
-					topLayer = layer.id
-				}
-				sortLayers = true
-			}
-		}
-		if .stayAlive in layer.bits {
-			layer.bits -= {.stayAlive}
-		} else {
-			ordered_remove(&layers, i)
-			delete_key(&layerMap, layer.id)
-			DeleteLayer(layer)
-		}
-	}
-	// If 'topLayer' has changed, reorder the layers
-	if topLayer != prevTopLayer {
-		for layer, i in layers {
-			if layer.order == .floating {
-				if layer.id == topLayer {
-					layer.index = layerOrderCount[.floating]
-				} else if layer.parent != nil && layer.parent.id == topLayer {
-					layer.index = layerOrderCount[.floating] + 1
-				} else {
-					layer.index -= 1
-				}
-			}
-		}
-	}
-	// Sort the layers
-	if sortLayers {
-		slice.sort_by(layers[:], proc(a, b: ^LayerData) -> bool {
-			if a.order == b.order {
-				return a.index < b.index
-			}
-			return int(a.order) < int(b.order)
-		})
-	}
-	prevTopLayer = topLayer
-	// Reset rendered layer
-	hotLayer = 0
-}
 NewFrame :: proc() {
 	using ctx
 
@@ -681,8 +541,8 @@ NewFrame :: proc() {
 
 	renderTime = max(0, renderTime - deltaTime)
 	time += deltaTime
-	// Begin root layout
-	PushLayout({0, 0, size.x, size.y})
+	// Begin root layer
+	rootLayer, _ = BeginLayer(ctx.fullscreenRect, {}, 0, {})
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
 	if KeyPressed(.tab) && focusIndex >= 0 {
@@ -751,6 +611,154 @@ NewFrame :: proc() {
 	input.prevMousePoint = input.mousePoint
 
 	shouldRender = renderTime > 0
+}
+EndFrame :: proc() {
+	using ctx
+	// Built-in debug window
+	when ODIN_DEBUG {
+		debugLayer = 0
+		if KeyDown(.control) && KeyPressed(.backspace) {
+			debugBits ~= {.showWindow}
+		}
+		if debugBits >= {.showWindow} {
+			if Window("Debug", {0, 0, 500, 700}, {.collapsable, .closable, .title, .resizable}) {
+				if CurrentWindow().bits >= {.shouldClose} {
+					debugBits -= {.showWindow}
+				}
+
+				SetSize(30)
+				debugMode = EnumTabs(debugMode, 0)
+
+				Shrink(10); SetSize(30)
+				if debugMode == .layers {
+					for layer in layers {
+						if layer.parent != nil && layer.parent.id == CurrentLayer().id {
+							continue
+						}
+						PushId(layer.id)
+							if Collapser(Format(layer.id), 20 * f32(len(layer.children))) {
+								Cut(.left, 30); SetSize(20)
+								for child in layer.children {
+									Text(.label, Format(child.id), false)
+								}
+							}
+							if GetLastWidget().state >= {.hovered} {
+								debugLayer = layer.id
+							}
+						PopId()
+					}
+				} else if debugMode == .windows {
+					for id, window in windowMap {
+						PushId(window.id)
+							if Collapser(Format(window.id), 20) {
+								Cut(.left, 30); SetSize(20)
+								Text(.label, StringFormat("index: %i", window.layer.index), false)
+							}
+							if GetLastWidget().state & {.focused, .hovered} != {} {
+								debugLayer = window.layer.id
+							}
+						PopId()
+					}
+				}
+			}
+		}
+	}
+	// End the root layer
+	EndLayer(rootLayer)
+	// Decide if rendering is needed next frame
+	if input.prevMousePoint != input.mousePoint || input.prevKeyBits != input.keyBits|| input.prevMouseBits != input.mouseBits || input.mouseScroll != {} {
+		renderTime = RENDER_TIMEOUT
+	}
+	// Delete unused controls
+	for i in 0..<MAX_CONTROLS {
+		if controlExists[i] {
+			control := &controls[i]
+			if .stayAlive in control.bits {
+				control.bits -= {.stayAlive}
+			} else {
+				controlExists[i] = false
+			}
+			controlCount += 1
+		}
+	}
+	// Delete unused windows
+	for window, i in windows {
+		if .stayAlive in window.bits {
+			window.bits -= {.stayAlive}
+		} else {
+			ordered_remove(&windows, i)
+			delete_key(&windowMap, window.id)
+			DeleteWindow(window)
+		}
+	}
+	// Determine hovered layer and reorder if needed
+	layerOrderCount = {}
+	sortedLayer: ^LayerData
+	hoveredLayer = 0
+	for layer, i in layers {
+		layerOrderCount[layer.order] += 1
+		if VecVsRect(input.mousePoint, layer.body) {
+			hoveredLayer = layer.id
+			if MousePressed(.left) && layer.order == .floating {
+				topLayer = layer.id
+				sortedLayer = layer
+			}
+		}
+		if .stayAlive in layer.bits {
+			layer.bits -= {.stayAlive}
+		} else {
+			ordered_remove(&layers, i)
+			delete_key(&layerMap, layer.id)
+			if layer.parent != nil {
+				for child, i in layer.parent.children {
+					if child == layer {
+						ordered_remove(&layer.parent.children, i)
+						break
+					}
+				}
+			}
+			DeleteLayer(layer)
+			sortLayers = true
+		}
+	}
+	// If 'topLayer' has changed, reorder the layers
+	if topLayer != prevTopLayer {
+		for child in sortedLayer.parent.children {
+			if child.order == sortedLayer.order {
+				if child.id == topLayer {
+					child.index = len(sortedLayer.parent.children)
+				} else {
+					child.index -= 1
+				}
+			}
+		}
+		sortLayers = true
+		prevTopLayer = topLayer
+	}
+	// Sort the layers
+	if sortLayers {
+		sortLayers = false
+
+		tempLayers := slice.clone(layers[:])
+		defer delete(tempLayers)
+
+		clear(&layers)
+		SortLayer(&layers, rootLayer)
+	}
+	// Reset rendered layer
+	hotLayer = 0
+}
+SortLayer :: proc(list: ^[dynamic]^LayerData, layer: ^LayerData) {
+	append(list, layer)
+	if len(layer.children) > 0 {
+		slice.sort_by(layer.children[:], proc(a, b: ^LayerData) -> bool {
+			if a.order == b.order {
+				return a.index < b.index
+			}
+			return int(a.order) < int(b.order)
+		})
+		for child in layer.children do SortLayer(list, child)
+	}
 }
 ShouldRender :: proc() -> bool {
 	return ctx.shouldRender

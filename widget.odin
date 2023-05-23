@@ -62,7 +62,7 @@ Widget :: struct {
 BeginWidget :: proc(id: Id, rect: Rect) -> (control: ^Widget, ok: bool) {
 	using ctx
 
-	layer := GetCurrentLayer()
+	layer := CurrentLayer()
 	index, found := layer.contents[id]
 	if found {
 		control = &controls[index]
@@ -112,7 +112,7 @@ EndWidget :: proc(control: ^Widget, ok: bool) {
 			PaintDisableShade(control.body)
 		}
 
-		layer := GetCurrentLayer()
+		layer := CurrentLayer()
 		UpdateLayerContentRect(layer, control.body)
 
 		if ctx.groupDepth > 0 {
@@ -156,7 +156,7 @@ EndWidget :: proc(control: ^Widget, ok: bool) {
 UpdateWidget :: proc(using control: ^Widget) {
 	if !ctx.disabled {
 		// Request hover status
-		if VecVsRect(input.mousePoint, body) && ctx.hoveredLayer == GetCurrentLayer().id {
+		if VecVsRect(input.mousePoint, body) && ctx.hoveredLayer == CurrentLayer().id {
 			ctx.nextHoverId = id
 		}
 		// If hovered
@@ -186,7 +186,7 @@ UpdateWidget :: proc(using control: ^Widget) {
 			if MouseReleased(.left) || (ctx.keySelect && KeyReleased(.enter)) {
 				state += {.released}
 				ctx.pressId = 0
-				GetCurrentLayer().bits += {.submit}
+				CurrentLayer().bits += {.submit}
 			} else {
 				ctx.dragging = .draggable in options
 				state += {.down}
@@ -701,7 +701,7 @@ Collapser :: proc(text: string, size: f32, loc := #caller_location) -> (active: 
 }
 @private _Collapser :: proc(active: bool) {
 	if active {
-		layer := GetCurrentLayer()
+		layer := CurrentLayer()
 		//PaintRectLines(layer.body, 1, GetColor(.foregroundPress))
 		EndLayer(layer)
 	}
@@ -755,7 +755,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 }
 @private _Menu :: proc(active: bool) {
 	if active {
-		layer := GetCurrentLayer()
+		layer := CurrentLayer()
 
 		if (ctx.hoveredLayer != layer.id && .childHovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
 			layer.bits += {.dismissed}
@@ -788,7 +788,7 @@ AttachMenu :: proc(menuSize: f32, size: Vec2 = {}, options: LayerOptions = {}) -
 @private 
 _AttachMenu :: proc(ok: bool) {
 	if ok {
-		layer := GetCurrentLayer()
+		layer := CurrentLayer()
 		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
 		EndLayer(layer)
 	}
@@ -838,7 +838,7 @@ SubMenu :: proc(text: string, size: Vec2, loc := #caller_location) -> (active: b
 @private
 _SubMenu :: proc(active: bool) {
 	if active {
-		layer := GetCurrentLayer()
+		layer := CurrentLayer()
 
 		if (ctx.hoveredLayer != layer.id && .childHovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
 			layer.bits += {.dismissed}
@@ -868,7 +868,7 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 				defer delete(array)
 				m: int
 				for i in 0..<MAX_CONTROLS {
-					if ctx.controlExists[i] && ctx.controls[i].parent == GetCurrentLayer().id {
+					if ctx.controlExists[i] && ctx.controls[i].parent == CurrentLayer().id {
 						if i == int(ctx.lastWidget) {
 							m = len(array)
 						}
@@ -1122,7 +1122,7 @@ TextEx :: proc(font: FontIndex, text: string, fit: bool, color: Color) {
 	if CheckClip(ctx.clipRect, rect) != .full {
 		PaintString(fontData, text, {rect.x, rect.y}, color)
 	}
-	UpdateLayerContentRect(GetCurrentLayer(), rect)
+	UpdateLayerContentRect(CurrentLayer(), rect)
 }
 TextBox :: proc(font: FontIndex, text: string) {
 	fontData := GetFontData(font)

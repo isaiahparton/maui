@@ -400,14 +400,14 @@ NextCommandIterator :: proc(pcm: ^^Command) -> (CommandVariant, bool) {
 BeginClip :: proc(rect: Rect) {
 	if ctx.shouldRender {
 		ctx.clipRect = rect
-		cmd := PushCommand(GetCurrentLayer(), CommandClip)
+		cmd := PushCommand(CurrentLayer(), CommandClip)
 		cmd.rect = rect
 	}
 }
 EndClip :: proc() {
 	if ctx.shouldRender {
 		ctx.clipRect = ctx.fullscreenRect
-		cmd := PushCommand(GetCurrentLayer(), CommandClip)
+		cmd := PushCommand(CurrentLayer(), CommandClip)
 		cmd.rect = ctx.clipRect
 	}
 }
@@ -418,7 +418,7 @@ PaintQuad :: proc(p1, p2, p3, p4: Vec2, c: Color) {
 	}
 }
 PaintTriangle :: proc(p1, p2, p3: Vec2, color: Color) {
-	layer := GetCurrentLayer()
+	layer := CurrentLayer()
 	cmd := PushCommand(layer, CommandTriangle)
 	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}
 	cmd.vertices = {p1, p2, p3}
@@ -536,7 +536,7 @@ PaintRectSweep :: proc(r: Rect, t: f32, c: Color) {
 }
 PaintTexture :: proc(src, dst: Rect, color: Color) {
 	if ctx.shouldRender {
-		layer := GetCurrentLayer()
+		layer := CurrentLayer()
 		cmd := PushCommand(layer, CommandTexture)
 		cmd.uvMin = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
 		cmd.uvMax = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}

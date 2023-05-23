@@ -27,8 +27,13 @@ Choices :: enum {
 	second,
 	third,
 }
+DemoWindow :: enum {
+	widgetGallery,
+	dataTable,
+}
 
 _main :: proc() {
+	windowOpen: [DemoWindow]bool
 
 	// Demo values
 	choices: bit_set[Choices]
@@ -61,44 +66,36 @@ _main :: proc() {
 	ui.SetScreenSize(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
 
 	for true {
-		ui.Refresh()
-
+		ui.NewFrame()
 		backend.NewFrame()
 
 		{
 			using ui
 			rect := Cut(.right, 500)
-			if layer, ok := Layer({}, {}, {}); ok {
-				PaintRect(layer.body, GetColor(.foreground))
-				Shrink(100)
-				if Layout(.left, 200) {
-					SetSize(30)
-					if ToggleButtonEx(IsWindowOpen("1"), "Widget Gallery") {
-						ToggleWindow("1")
-					}
-					if window, ok := Window("1", "Widget Gallery", {200, 200, 400, 500}, {.title, .collapsable, .closable}); ok {
-						Shrink(30); SetSize(30)
-						if Menu("Open me!", 120) {
+			Shrink(100)
+			if Layout(.left, 200) {
+				SetSize(30)
+				windowOpen[.widgetGallery] = ToggleButton(windowOpen[.widgetGallery], "Widget Gallery")
+				if Window("Widget Gallery", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
+					Shrink(30); SetSize(30)
+					if Menu("Open me!", 120) {
+						SetSize(30)
+						MenuOption("Option A", false)
+						MenuOption("Option B", false)
+						MenuOption("Option C", false)
+						if SubMenu("More Options", {200, 90}) {
 							SetSize(30)
-							MenuOption("Option A", false)
-							MenuOption("Option B", false)
-							MenuOption("Option C", false)
-							if SubMenu("More Options", {200, 90}) {
-								SetSize(30)
-								MenuOption("Option D", false)
-								MenuOption("Option E", false)
-								MenuOption("Option F", false)
-							}
+							MenuOption("Option D", false)
+							MenuOption("Option E", false)
+							MenuOption("Option F", false)
 						}
 					}
-					Space(10)
-					if ToggleButtonEx(IsWindowOpen("2"), "Data Table") {
-						ToggleWindow("2")
-					}
-					if window, ok := Window("2", "Data Table", {200, 200, 400, 500}, {.title, .collapsable, .closable}); ok {
-						Shrink(30); SetSize(30)
-						
-					}
+				}
+				Space(10)
+				windowOpen[.dataTable] = ToggleButton(windowOpen[.dataTable], "Data Table")
+				if Window("Data Table", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
+					Shrink(30); SetSize(30)
+					
 				}
 			}
 		}
@@ -106,13 +103,16 @@ _main :: proc() {
 		/*
 			Drawing happens here
 		*/
-		ui.Prepare()
+		ui.EndFrame()
 
 		rl.BeginDrawing()
 		if ui.ShouldRender() {
-			rl.ClearBackground(transmute(rl.Color)ui.GetColor(.backing))
+			rl.ClearBackground(transmute(rl.Color)ui.GetColor(.foreground))
 			backend.Render()
 			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
+			for layer, i in ui.ctx.layers {
+				rl.DrawText(rl.TextFormat("%i: %i, %v", layer.id, layer.index, layer.order), 0, 20 + i32(i * 20), 20, rl.BLUE)
+			}
 		}
 		rl.EndDrawing()
 

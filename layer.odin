@@ -49,8 +49,7 @@ LayerOrder :: enum {
 */
 LayerData :: struct {
 	parent: ^LayerData,
-	// Children are always stored directly after parent layer
-	childCount: int,
+	children: [dynamic]^LayerData,
 	// Base Data
 	id: Id,
 	bits: LayerBits,
@@ -77,14 +76,8 @@ LayerData :: struct {
 	clipCommand: ^CommandClip,
 }
 
-GetCurrentLayer :: proc() -> ^LayerData {
-	using ctx
-	return layerStack[layerDepth - 1]
-}
-GetLayer :: proc(name: string) -> (layer: ^LayerData, ok: bool) {
-	using ctx
-	layer, ok = layerMap[HashId(name)]
-	return
+CurrentLayer :: proc() -> ^LayerData {
+	return ctx.layerStack[ctx.layerDepth - 1]
 }
 CreateLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bool) {
 	// Allocate a new layer
@@ -96,27 +89,25 @@ CreateLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bo
 	append(&ctx.layers, layer)
 	ctx.layerMap[id] = layer
 	ctx.sortLayers = true
+	// Handle layer attachment
+	if ctx.layerDepth > 0 {
+		parent := CurrentLayer() if .attached in options else ctx.rootLayer
+		append(&parent.children, layer)
+		layer.parent = parent
+		layer.index = len(parent.children)
+	}
 	ok = true
 	return
 }
 DeleteLayer :: proc(layer: ^LayerData) {
 	delete(layer.contents)
+	delete(layer.children)
 	free(layer)
 }
 CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bool) {
 	layer, ok = ctx.layerMap[id]
 	if !ok {
 		layer, ok = CreateLayer(id, options)
-	}
-	if ok {
-		// Handle layer attachment
-		if .attached in options {
-			parent := GetCurrentLayer()
-			layer.parent = parent
-			layer.order = parent.order
-			layer.index = parent.index + parent.childCount
-			parent.childCount += 1
-		}
 	}
 	return
 }
@@ -137,7 +128,6 @@ BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (la
 		layer.bits += {.stayAlive}
 		layer.bits -= {.submit, .childHovered}
 		layer.commandOffset = 0
-		layer.childCount = 0
 		// Apply rectangle
 		if rect != {} {
 			layer.body = rect
