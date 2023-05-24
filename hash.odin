@@ -2,7 +2,7 @@ package maui
 
 import "core:runtime"
 
-Id :: distinct u32
+Id :: distinct u64
 
 /*
 	Unique id creation
@@ -30,13 +30,18 @@ HashIdFromUintptr :: #force_inline proc(ptr: uintptr) -> Id {
 	return HashIdFromBytes(([^]u8)(&ptr)[:size_of(ptr)])  
 }
 HashIdFromBytes :: proc(bytes: []byte) -> Id {
-	/* 32bit fnv-1a hash */
+	/* 64bit fnv-1a hash */
+	/*
 	HASH_INITIAL :: 2166136261
+	HASH_PRIME :: 16777619
+	*/
+	HASH_INITIAL :: 0xcbf29ce484222325
+	HASH_PRIME :: 0x100000001b3
 	Hash :: proc(hash: ^Id, data: []byte) {
 		size := len(data)
 		cptr := ([^]u8)(raw_data(data))
 		for ; size > 0; size -= 1 {
-			hash^ = Id(u32(hash^) ~ u32(cptr[0])) * 16777619
+			hash^ = Id(u32(hash^) ~ u32(cptr[0])) * HASH_PRIME
 			cptr = cptr[1:]
 		}
 	}

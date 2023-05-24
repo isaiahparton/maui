@@ -35,12 +35,11 @@ RENDER_TIMEOUT 		:: 0.5
 FMT_BUFFER_COUNT 	:: 16
 FMT_BUFFER_SIZE 	:: 128
 
-MAX_GROUPS 			:: 8
-MAX_STYLES			:: 4
-MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 8)
+GROUP_STACK_SIZE 	:: 32
+MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 32)
 MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 1024)
-MAX_LAYERS 			:: #config(MAUI_MAX_LAYERS, 32)
-MAX_WINDOWS 		:: #config(MAUI_MAX_WINDOWS, 32)
+LAYER_STACK_SIZE 	:: #config(MAUI_LAYER_STACK_SIZE, 32)
+WINDOW_STACK_SIZE 	:: #config(MAUI_WINDOW_STACK_SIZE, 32)
 // Maximum layout depth (times you can call PushLayout())
 MAX_LAYOUTS 		:: #config(MAUI_MAX_LAYOUTS, 32)
 // Size of each layer's command buffer
@@ -63,26 +62,6 @@ Animation :: struct {
 	keepAlive: bool,
 	value: f32,
 }
-
-Rect :: struct {
-	x, y, w, h: f32,
-}
-
-RectSide :: enum {
-	top,
-	bottom,
-	left,
-	right,
-}
-RectSides :: bit_set[RectSide;u8]
-
-RectCorner :: enum {
-	topLeft,
-	topRight,
-	bottomRight,
-	bottomLeft,
-}
-RectCorners :: bit_set[RectCorner;u8]
 
 Scribe :: struct {
 	index, length, anchor: int,
@@ -108,10 +87,9 @@ DebugBits :: bit_set[DebugBit]
 Context :: struct {
 	debugBits: DebugBits,
 	debugMode: DebugMode,
-
-	groupDepth: int,
-	groups: [MAX_GROUPS]Group,
-
+	// Widget groups collect information from widgets inside them
+	groupDepth: 	int,
+	groups: 		[GROUP_STACK_SIZE]Group,
 	// Context
 	time,
 	deltaTime,
@@ -119,52 +97,46 @@ Context :: struct {
 	disabled, dragging, shouldRender, keySelect: bool,
 	size: Vec2,
 	lastRect, fullscreenRect: Rect,
-
+	// Visual style
+	style: Style,	
+	// Values to be used by the next widget
 	attachTooltip: bool,
 	tooltipText: string,
 	tooltipSide: RectSide,
-
+	// Double click detection
 	firstClick, doubleClick: bool,
 	doubleClickTimer: f32,
-
-	// Text editing
-	//textIndex,
-	//textLength,
-	//textAnchor: int,
-	//textBuffer: [dynamic]u8,
-
-	// Each text input being edited
+	// Text editing/selecting state
 	scribe: Scribe,
+	// Temporary text buffer
 	tempBuffer: [dynamic]u8,
+	// Mouse cursor type
 	cursor: CursorType,
-	style: Style,
-
+	// Hash stack
 	idStack: [ID_STACK_SIZE]Id,
 	idCount: int,
-
+	// Retained animation values
 	animations: map[Id]Animation,
-
 	// Retained control data
 	controls: [MAX_CONTROLS]Widget,
 	controlExists: [MAX_CONTROLS]bool,
 	lastWidget: int,
 	controlCount: int,
-
 	// Internal window data
 	windows: 			[dynamic]^WindowData,
 	windowMap: 			map[Id]^WindowData,
 	// Window context stack
-	windowStack: 		[MAX_WINDOWS]^WindowData,
+	windowStack: 		[WINDOW_STACK_SIZE]^WindowData,
 	windowDepth: 		int,
 	// Current window data
 	currentWindow:		^WindowData,
-
+	// First layer
 	rootLayer: 			^LayerData,
 	// Internal layer data
 	layers: 			[dynamic]^LayerData,
 	layerMap: 			map[Id]^LayerData,
 	// Layer context stack
-	layerStack: 		[MAX_LAYERS]^LayerData,
+	layerStack: 		[LAYER_STACK_SIZE]^LayerData,
 	layerDepth: 		int,
 	// Layer ordering helpers
 	layerOrderCount: 	[LayerOrder]int,
@@ -175,34 +147,26 @@ Context :: struct {
 	// Current layer state
 	nextHoveredLayer, hoveredLayer, focusedLayer: Id,
 	debugLayer: Id,
-
 	// Used for dragging stuff
 	dragAnchor: Vec2,
-
 	// Layout
 	layouts: [MAX_LAYOUTS]LayoutData,
 	layoutDepth: int,
 	layoutExpand: bool,
-
+	// Current clip rect
 	clipRect: Rect,
-
 	// Next control options
 	nextId: Id,
 	nextRect: Rect,
 	setNextRect: bool,
-
-	focusIndex: int,
-
 	// Widget interactions
-	lastIndex: int,
-
+	focusIndex: int,
+	
 	prevHoverId, 
 	nextHoverId, 
 	hoverId, 
-
 	prevPressId, 
 	pressId, 
-
 	nextFocusId,
 	focusId,
 	prevFocusId: Id,
@@ -246,110 +210,7 @@ EndGroup :: proc() -> ^Group {
 	return &groups[groupDepth]
 }
 
-/*
-	Rectangle manipulation
-*/
-SideCorners :: proc(sides: RectSides) -> RectCorners {
-	corners: RectCorners = ALL_CORNERS
-	if .top in sides {
-		corners -= {.topLeft, .topRight}
-	}
-	if .bottom in sides {
-		corners -= {.bottomLeft, .bottomRight}
-	}
-	if .left in sides {
-		corners -= {.topLeft, .bottomLeft}
-	}
-	if .right in sides {
-		corners -= {.topRight, .bottomRight}
-	}
-	return corners
-}
-VecVsRect :: proc(v: Vec2, r: Rect) -> bool {
-	return (v.x >= r.x) && (v.x <= r.x + r.w) && (v.y >= r.y) && (v.y <= r.y + r.h)
-}
-RectVsRect :: proc(a, b: Rect) -> bool {
-	return (a.x + a.w >= b.x) && (a.x <= b.x + b.w) && (a.y + a.h >= b.y) && (a.y <= b.y + b.h)
-}
-// B is contained entirely within A
-RectContainsRect :: proc(a, b: Rect) -> bool {
-	return (b.x >= a.x) && (b.x + b.w <= a.x + a.w) && (b.y >= a.y) && (b.y + b.h <= a.y + a.h)
-}
-ExpandRect :: proc(rect: Rect, amount: f32) -> Rect {
-	return {rect.x - amount, rect.y - amount, rect.w + amount * 2, rect.h + amount * 2}
-}
-TranslateRect :: proc(r: Rect, v: Vec2) -> Rect {
-	return {r.x + v.x, r.y + v.y, r.w, r.h}
-}
 
-/*
-	Color manipulation
-*/
-NormalizeColor :: proc(color: Color) -> [4]f32 {
-    return {f32(color.r) / 255, f32(color.g) / 255, f32(color.b) / 255, f32(color.a) / 255}
-}
-SetColorBrightness :: proc(color: Color, value: f32) -> Color {
-	delta := clamp(i32(255.0 * value), -255, 255)
-	return {
-		cast(u8)clamp(i32(color.r) + delta, 0, 255),
-		cast(u8)clamp(i32(color.g) + delta, 0, 255),
-		cast(u8)clamp(i32(color.b) + delta, 0, 255),
-		color.a,
-	}
-}
-ColorToHSV :: proc(color: Color) -> Vec4 {
-	hsva := linalg.vector4_rgb_to_hsl(linalg.Vector4f32{f32(color.r) / 255.0, f32(color.g) / 255.0, f32(color.b) / 255.0, f32(color.a) / 255.0})
-	return hsva.xyzw
-}
-ColorFromHSV :: proc(hue, saturation, value: f32) -> Color {
-    rgba := linalg.vector4_hsl_to_rgb(hue, saturation, value, 1.0)
-    return {u8(rgba.r * 255.0), u8(rgba.g * 255.0), u8(rgba.b * 255.0), u8(rgba.a * 255.0)}
-}
-Fade :: proc(color: Color, alpha: f32) -> Color {
-	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
-}
-BlendColors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
-	if amount <= 0 {
-		result = bg
-	} else if amount >= 1 {
-		result = fg
-	} else {
-		result = bg + {
-			u8((f32(fg.r) - f32(bg.r)) * amount),
-			u8((f32(fg.g) - f32(bg.g)) * amount),
-			u8((f32(fg.b) - f32(bg.b)) * amount),
-			u8((f32(fg.a) - f32(bg.a)) * amount),
-		}
-	}
-	return
-}
-BlendThreeColors :: proc(first, second, third: Color, time: f32) -> (result: Color) {
-	if time <= 0 {
-		result = first
-	} else if time == 1 {
-		result = second
-	} else if time >= 2 {
-		result = third
-	} else {
-		firstTime := min(1, time)
-		result = first + {
-			u8((f32(second.r) - f32(first.r)) * firstTime),
-			u8((f32(second.g) - f32(first.g)) * firstTime),
-			u8((f32(second.b) - f32(first.b)) * firstTime),
-			u8((f32(second.a) - f32(first.a)) * firstTime),
-		}
-		if time > 1 {
-			secondTime := time - 1
-			result += {
-				u8((f32(third.r) - f32(second.r)) * secondTime),
-				u8((f32(third.g) - f32(second.g)) * secondTime),
-				u8((f32(third.b) - f32(second.b)) * secondTime),
-				u8((f32(third.a) - f32(second.a)) * secondTime),
-			}
-		}
-	}
-	return
-}
 
 /*
 	Animation management
@@ -422,7 +283,6 @@ Uninit :: proc() {
 
 	free(ctx)
 }
-
 NewFrame :: proc() {
 	using ctx
 
@@ -494,7 +354,7 @@ NewFrame :: proc() {
 	renderTime = max(0, renderTime - deltaTime)
 	time += deltaTime
 	// Begin root layer
-	rootLayer, _ = BeginLayer(ctx.fullscreenRect, {}, 0, {})
+	rootLayer, _ = BeginLayer(ctx.fullscreenRect, {}, 0, {.noPushId})
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
 	if KeyPressed(.tab) && focusIndex >= 0 {
@@ -587,19 +447,16 @@ EndFrame :: proc() {
 				} else if debugMode == .windows {
 					for id, window in windowMap {
 						PushId(window.id)
-							if Collapser(Format(window.id), 20) {
-								Cut(.left, 30); SetSize(20)
-								Text(.label, StringFormat("index: %i", window.layer.index), false)
-							}
-							if GetLastWidget().state & {.focused, .hovered} != {} {
+							ButtonEx(Format(window.id), .near, false)
+							if GetLastWidget().state >= {.hovered} {
 								debugLayer = window.layer.id
 							}
 						PopId()
 					}
 				} else if debugMode == .controls {
-					Text(.default, StringFormat("Hovered: %i", hoverId), true)
-					Text(.default, StringFormat("Focused: %i", focusId), true)
-					Text(.default, StringFormat("Pressed: %i", pressId), true)
+					Text(.monospace, StringFormat("Hovered: %i", hoverId), true)
+					Text(.monospace, StringFormat("Focused: %i", focusId), true)
+					Text(.monospace, StringFormat("Pressed: %i", pressId), true)
 				}
 			}
 		}
@@ -707,16 +564,17 @@ _CountLayerChildren :: proc(layer: ^LayerData) -> int {
 }
 _DebugLayerWidget :: proc(layer: ^LayerData) {
 	PushId(layer.id)
-	if Collapser(Format(layer.id), f32(_CountLayerChildren(layer)) * 24) {
-		Cut(.left, 24); SetSize(24)
-		for child in layer.children {
-			_DebugLayerWidget(child)
+		ButtonEx(Format(layer.id), .near, false)
+		if GetLastWidget().state >= {.hovered} {
+			ctx.debugLayer = layer.id
 		}
-	}
-	if GetLastWidget().state >= {.hovered} {
-		ctx.debugLayer = layer.id
-	}
 	PopId()
+	if len(layer.children) > 0 {
+		Cut(.left, 24); SetSize(24)
+	}
+	for child in layer.children {
+		_DebugLayerWidget(child)
+	}
 }
 SortLayer :: proc(list: ^[dynamic]^LayerData, layer: ^LayerData) {
 	append(list, layer)

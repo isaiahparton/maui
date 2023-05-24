@@ -1,7 +1,8 @@
 package maui
-
+// Core dependencies
 import "core:fmt"
 import "core:math"
+import "core:math/linalg"
 import "core:mem"
 import "core:os"
 import "core:strconv"
@@ -10,7 +11,7 @@ import "core:runtime"
 import "core:path/filepath"
 import "core:unicode"
 import "core:unicode/utf8"
-
+// For image/font processing
 import rl "vendor:raylib"
 
 RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, ".")
@@ -29,8 +30,8 @@ CIRCLE_ROWS :: MAX_CIRCLE_STROKE_SIZE + 1
 
 CIRCLE_SMOOTHING :: 1
 
-PixelFormat :: rl.PixelFormat
-Image :: rl.Image
+PixelFormat 	:: rl.PixelFormat
+Image 			:: rl.Image
 
 /*
 	NPatch dealings
@@ -90,6 +91,73 @@ FontData :: struct {
 	image: rl.Image,
 	glyphs: []GlyphData,
 	glyphMap: map[rune]i32,
+}
+
+// Color manip
+NormalizeColor :: proc(color: Color) -> [4]f32 {
+    return {f32(color.r) / 255, f32(color.g) / 255, f32(color.b) / 255, f32(color.a) / 255}
+}
+SetColorBrightness :: proc(color: Color, value: f32) -> Color {
+	delta := clamp(i32(255.0 * value), -255, 255)
+	return {
+		cast(u8)clamp(i32(color.r) + delta, 0, 255),
+		cast(u8)clamp(i32(color.g) + delta, 0, 255),
+		cast(u8)clamp(i32(color.b) + delta, 0, 255),
+		color.a,
+	}
+}
+ColorToHSV :: proc(color: Color) -> Vec4 {
+	hsva := linalg.vector4_rgb_to_hsl(linalg.Vector4f32{f32(color.r) / 255.0, f32(color.g) / 255.0, f32(color.b) / 255.0, f32(color.a) / 255.0})
+	return hsva.xyzw
+}
+ColorFromHSV :: proc(hue, saturation, value: f32) -> Color {
+    rgba := linalg.vector4_hsl_to_rgb(hue, saturation, value, 1.0)
+    return {u8(rgba.r * 255.0), u8(rgba.g * 255.0), u8(rgba.b * 255.0), u8(rgba.a * 255.0)}
+}
+Fade :: proc(color: Color, alpha: f32) -> Color {
+	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
+}
+BlendColors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
+	if amount <= 0 {
+		result = bg
+	} else if amount >= 1 {
+		result = fg
+	} else {
+		result = bg + {
+			u8((f32(fg.r) - f32(bg.r)) * amount),
+			u8((f32(fg.g) - f32(bg.g)) * amount),
+			u8((f32(fg.b) - f32(bg.b)) * amount),
+			u8((f32(fg.a) - f32(bg.a)) * amount),
+		}
+	}
+	return
+}
+BlendThreeColors :: proc(first, second, third: Color, time: f32) -> (result: Color) {
+	if time <= 0 {
+		result = first
+	} else if time == 1 {
+		result = second
+	} else if time >= 2 {
+		result = third
+	} else {
+		firstTime := min(1, time)
+		result = first + {
+			u8((f32(second.r) - f32(first.r)) * firstTime),
+			u8((f32(second.g) - f32(first.g)) * firstTime),
+			u8((f32(second.b) - f32(first.b)) * firstTime),
+			u8((f32(second.a) - f32(first.a)) * firstTime),
+		}
+		if time > 1 {
+			secondTime := time - 1
+			result += {
+				u8((f32(third.r) - f32(second.r)) * secondTime),
+				u8((f32(third.g) - f32(second.g)) * secondTime),
+				u8((f32(third.b) - f32(second.b)) * secondTime),
+				u8((f32(third.a) - f32(second.a)) * secondTime),
+			}
+		}
+	}
+	return
 }
 
 GenSmoothCircle :: proc(image: ^rl.Image, center: Vec2, radius, smooth: f32) {
@@ -230,11 +298,7 @@ GetFontData :: proc(index: FontIndex) -> FontData {
 	return painter.fonts[index]
 }
 
-/*
-	Exists for the lifetime of the program
-
-	Loads or creates the texture, keeps track of every AtlasSource to which icons, patches or font glyphs can refer
-*/
+// Context for painting graphics stuff
 Painter :: struct {
 	circles: [CIRCLE_SIZES * CIRCLE_ROWS]PatchData,
 	fonts: [FontIndex]FontData,
@@ -306,10 +370,7 @@ GenAtlas :: proc(using painter: ^Painter) -> (result: bool) {
 	result = true
 	return
 }
-
-/*
-	Draw commands
-*/
+// Draw commands
 CommandTexture :: struct {
 	using command: Command,
 	uvMin, 
@@ -336,10 +397,7 @@ Command :: struct {
 	variant: CommandVariant,
 	size: u8,
 }
-
-/*
-	Push a command to the current layer's buffer
-*/
+// Push a command to a given layer
 PushCommand :: proc(layer: ^LayerData, $Type: typeid, extra_size := 0) -> ^Type {
 	size := size_of(Type) + extra_size
 	cmd := transmute(^Type)&layer.commands[layer.commandOffset]
@@ -349,9 +407,7 @@ PushCommand :: proc(layer: ^LayerData, $Type: typeid, extra_size := 0) -> ^Type 
 	cmd.size = u8(size)
 	return cmd
 }
-/*
-	Get the next command in the current layer
-*/
+// Get the next draw command
 NextCommand :: proc(pcmd: ^^Command) -> bool {
 	// Loop through layers
 	if ctx.hotLayer >= len(ctx.layers) {
@@ -392,9 +448,7 @@ NextCommandIterator :: proc(pcm: ^^Command) -> (CommandVariant, bool) {
 	return nil, false
 }
 
-/*
-	Drawing procedures
-*/
+// Painting procs
 BeginClip :: proc(rect: Rect) {
 	if ctx.shouldRender {
 		ctx.clipRect = rect

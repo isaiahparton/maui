@@ -17,7 +17,7 @@ WindowOption :: enum {
 	resizable,
 	closable,
 	collapsable,
-	close_on_unfocus,
+	closeWhenUnfocused,
 }
 WindowOptions :: bit_set[WindowOption]
 WindowData :: struct {
@@ -62,31 +62,34 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 		window.bits += {.stayAlive}
 		// Initialize window
 		if .initialized not_in window.bits {
+			window.bits += {.initialized}
 			if rect != {} {
 				window.rect = rect
 			}
 			window.options = options
 			window.title = title
 		}
-
+		// Layer body
 		layerRect := window.rect
 		layerRect.h -= ((layerRect.h - WINDOW_TITLE_SIZE) if .title in window.options else layerRect.h) * window.howCollapsed
-
+		// Begin window layer
 		window.layer, ok = BeginLayer(layerRect, {}, id, {.shadow})
 		window.layer.order = .floating
-
+		// Visual rect
 		window.drawRect = layerRect
+		// Inner layout rect
 		layoutRect := window.rect
 		// Body
 		if .collapsed not_in window.bits {
 			PaintRoundedRect(window.drawRect, WINDOW_ROUNDNESS, GetColor(.foreground))
 		}
 		// Get resize click
-		if .resizable in options {
-			topHover := VecVsRect(input.mousePoint, {rect.x, rect.y, rect.w, 3})
-			leftHover := VecVsRect(input.mousePoint, {rect.x, rect.y, 3, rect.h})
-			bottomHover := VecVsRect(input.mousePoint, {rect.x, rect.y + rect.h - 3, rect.w, 3})
-			rightHover := VecVsRect(input.mousePoint, {rect.x + rect.w - 3, rect.y, 3, rect.h})
+		if .resizable in window.options && .collapsed not_in window.bits {
+			RESIZE_MARGIN :: 5
+			topHover 		:= VecVsRect(input.mousePoint, GetRectTop(window.rect, RESIZE_MARGIN))
+			leftHover 		:= VecVsRect(input.mousePoint, GetRectLeft(window.rect, RESIZE_MARGIN))
+			bottomHover 	:= VecVsRect(input.mousePoint, GetRectBottom(window.rect, RESIZE_MARGIN))
+			rightHover 		:= VecVsRect(input.mousePoint, GetRectRight(window.rect, RESIZE_MARGIN))
 			if topHover || bottomHover {
 				ctx.cursor = .resizeNS
 			}
@@ -97,11 +100,11 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 				if topHover {
 					window.bits += {.resizing}
 					window.dragSide = .top
-					window.dragAnchor = rect.y + rect.h
+					window.dragAnchor = window.rect.y + window.rect.h
 				} else if leftHover {
 					window.bits += {.resizing}
 					window.dragSide = .left
-					window.dragAnchor = rect.x + rect.w
+					window.dragAnchor = window.rect.x + window.rect.w
 				} else if bottomHover {
 					window.bits += {.resizing}
 					window.dragSide = .bottom
@@ -129,7 +132,7 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 				textOffset = titleRect.h * 0.85
 			}
 			PaintStringAligned(GetFontData(.default), title, {titleRect.x + textOffset, baseline}, GetColor(.text), .near, .middle)
-			if .closable in options {
+			if .closable in window.options {
 				SetNextRect(ChildRect(GetRectRight(titleRect, titleRect.h), {24, 24}, .middle, .middle))
 				if Button(.close) {
 					window.bits += {.shouldClose}
@@ -177,29 +180,29 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 @private 
 EndWindow :: proc(using window: ^WindowData) {
 	if window != nil {
-		bits += {.initialized}
 		// Outline
 		PaintRoundedRectOutline(drawRect, WINDOW_ROUNDNESS, true, GetColor(.outlineBase))
 		// Handle resizing
 		if .resizing in bits {
+			minSize: Vec2 = {180, 240}
 			switch dragSide {
 				case .bottom:
 				rect.h = input.mousePoint.y - rect.y
 				ctx.cursor = .resizeNS
 				case .left:
-				rect.x = input.mousePoint.x
+				rect.x = min(input.mousePoint.x, dragAnchor - minSize.x)
 				rect.w = dragAnchor - input.mousePoint.x
 				ctx.cursor = .resizeEW
 				case .right:
 				rect.w = input.mousePoint.x - rect.x
 				ctx.cursor = .resizeEW
 				case .top:
-				rect.y = input.mousePoint.y
+				rect.y = min(input.mousePoint.y, dragAnchor - minSize.y)
 				rect.h = dragAnchor - input.mousePoint.y
 				ctx.cursor = .resizeNS
 			}
-			rect.w = max(rect.w, 120)
-			rect.h = max(rect.h, 240)
+			rect.w = max(rect.w, minSize.x)
+			rect.h = max(rect.h, minSize.y)
 			if MouseReleased(.left) {
 				bits -= {.resizing}
 			}

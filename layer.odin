@@ -31,6 +31,7 @@ LayerOption :: enum {
 	noScrollY,
 	noScrollMarginX,
 	noScrollMarginY,
+	noPushId,
 }
 LayerOptions :: bit_set[LayerOption]
 /*
@@ -121,13 +122,15 @@ CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, o
 @private 
 BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bool) {
 	if layer, ok = CreateOrGetLayer(id, options); ok {
-		// Begin id context for layer contents
-		PushId(HashId(int(id)))
 		// Push layer stack
 		ctx.layerStack[ctx.layerDepth] = layer
 		ctx.layerDepth += 1
 		// Update user options
 		layer.options = options
+		// Begin id context for layer contents
+		if .noPushId not_in layer.options {
+			PushId(HashId(int(id)))
+		}
 		// Reset stuff
 		layer.bits += {.stayAlive}
 		layer.bits -= {.submit}
@@ -196,7 +199,7 @@ EndLayer :: proc(layer: ^LayerData) {
 	if layer != nil {
 		// Debug stuff
 		when ODIN_DEBUG {
-			if .showWindow in ctx.debugBits && ctx.debugLayer == layer.id {
+			if .showWindow in ctx.debugBits && layer.id != 0 && ctx.debugLayer == layer.id {
 				PaintRect(layer.body, {255, 0, 255, 20})
 				PaintRectLines(layer.body, 1, {255, 0, 255, 255})
 			}
@@ -255,7 +258,9 @@ EndLayer :: proc(layer: ^LayerData) {
 			PushCommand(layer, CommandClip).rect = ctx.fullscreenRect
 		}
 		// End id context
-		PopId()
+		if .noPushId not_in layer.options {
+			PopId()
+		}
 	}
 	ctx.layerDepth -= 1
 }

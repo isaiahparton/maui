@@ -94,9 +94,15 @@ _main :: proc() {
 				}
 				Space(10)
 				windowOpen[.dataTable] = ToggleButton(windowOpen[.dataTable], "Data Table")
-				if Window("Data Table", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
+				if Window("Window Options", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
 					Shrink(30); SetSize(30)
-					
+					window := CurrentWindow()
+					CheckBoxBitSetHeader(&window.options, "Options")
+					for member in WindowOption {
+						PushId(HashId(int(member)))
+							CheckBoxBitSet(&window.options, member, CapitalizeString(Format(member)))
+						PopId()
+					}
 				}
 			}
 		}
