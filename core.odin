@@ -54,8 +54,6 @@ ALL_CORNERS: RectCorners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
 
 DOUBLE_CLICK_TIME :: 0.25
 
-Id 		:: distinct u32
-
 Vec2 	:: [2]f32
 Vec3 	:: [3]f32
 Vec4 	:: [4]f32
@@ -89,7 +87,6 @@ RectCorners :: bit_set[RectCorner;u8]
 Scribe :: struct {
 	index, length, anchor: int,
 	prev_index, prev_length: int,
-	buffer: [dynamic]u8,
 	offset: Vec2,
 }
 
@@ -130,9 +127,15 @@ Context :: struct {
 	firstClick, doubleClick: bool,
 	doubleClickTimer: f32,
 
+	// Text editing
+	//textIndex,
+	//textLength,
+	//textAnchor: int,
+	//textBuffer: [dynamic]u8,
+
 	// Each text input being edited
 	scribe: Scribe,
-	numberText: []u8,
+	tempBuffer: [dynamic]u8,
 	cursor: CursorType,
 	style: Style,
 
@@ -192,11 +195,15 @@ Context :: struct {
 
 	// Widget interactions
 	lastIndex: int,
+
 	prevHoverId, 
 	nextHoverId, 
 	hoverId, 
+
 	prevPressId, 
 	pressId, 
+
+	nextFocusId,
 	focusId,
 	prevFocusId: Id,
 }
@@ -345,61 +352,6 @@ BlendThreeColors :: proc(first, second, third: Color, time: f32) -> (result: Col
 }
 
 /*
-	Unique id creation
-*/
-HashId :: proc {
-	HashIdFromString,
-	HashIdFromRawptr,
-	HashIdFromUintptr,
-	HashIdFromBytes,
-	HashIdFromLoc,
-	HashIdFromInt,
-}
-HashIdFromInt :: #force_inline proc(num: int) -> Id {
-	num := num
-	return HashIdFromBytes(([^]u8)(&num)[:size_of(num)])
-}
-HashIdFromString :: #force_inline proc(str: string) -> Id { 
-	return HashIdFromBytes(transmute([]byte)str) 
-}
-HashIdFromRawptr :: #force_inline proc(data: rawptr, size: int) -> Id { 
-	return HashIdFromBytes(([^]u8)(data)[:size])  
-}
-HashIdFromUintptr :: #force_inline proc(ptr: uintptr) -> Id { 
-	ptr := ptr
-	return HashIdFromBytes(([^]u8)(&ptr)[:size_of(ptr)])  
-}
-HashIdFromBytes :: proc(bytes: []byte) -> Id {
-	/* 32bit fnv-1a hash */
-	HASH_INITIAL :: 2166136261
-	Hash :: proc(hash: ^Id, data: []byte) {
-		size := len(data)
-		cptr := ([^]u8)(raw_data(data))
-		for ; size > 0; size -= 1 {
-			hash^ = Id(u32(hash^) ~ u32(cptr[0])) * 16777619
-			cptr = cptr[1:]
-		}
-	}
-	id := ctx.idStack[ctx.idCount - 1] if ctx.idCount > 0 else HASH_INITIAL
-	Hash(&id, bytes)
-	return id
-}
-HashIdFromLoc :: proc(loc: runtime.Source_Code_Location) -> Id {
-	loc := loc
-	LOCATION_DATA_SIZE :: size_of(runtime.Source_Code_Location) - size_of(string)
-	return HashId(rawptr(&loc), LOCATION_DATA_SIZE)
-}
-PushId :: proc(id: Id) {
-	assert(ctx.idCount < ID_STACK_SIZE, "PushId() id stack is full!")
-	ctx.idStack[ctx.idCount] = id
-	ctx.idCount += 1
-}
-PopId :: proc() {
-	assert(ctx.idCount > 0, "PopId() id stack already empty!")
-	ctx.idCount -= 1
-}
-
-/*
 	Animation management
 */
 AnimateBool :: proc(id: Id, condition: bool, duration: f32) -> f32 {
@@ -456,7 +408,7 @@ Init :: proc() -> bool {
 	return true
 }
 Uninit :: proc() {
-	delete(ctx.scribe.buffer)
+	delete(ctx.tempBuffer)
 	delete(ctx.animations)
 	delete(ctx.windowMap)
 	// Free layer data
@@ -644,6 +596,10 @@ EndFrame :: proc() {
 							}
 						PopId()
 					}
+				} else if debugMode == .controls {
+					Text(.default, StringFormat("Hovered: %i", hoverId), true)
+					Text(.default, StringFormat("Focused: %i", focusId), true)
+					Text(.default, StringFormat("Pressed: %i", pressId), true)
 				}
 			}
 		}
@@ -776,57 +732,6 @@ SortLayer :: proc(list: ^[dynamic]^LayerData, layer: ^LayerData) {
 }
 ShouldRender :: proc() -> bool {
 	return ctx.shouldRender
-}
-
-/*
-	Text input
-*/
-ScribeInsertString :: proc(str: string) {
-	using ctx.scribe
-	if length > 0 {
-		remove_range(&buffer, index, index + length)
-		length = 0
-	}
-	inject_at_elem_string(&buffer, index, str)
-	index += len(str)
-}
-ScribeInsertRunes :: proc(runes: []rune) {
-	str := utf8.runes_to_string(runes)
-	ScribeInsertString(str)
-	delete(str)
-}
-ScribeBackspace :: proc(){
-	using ctx.scribe
-	if length == 0 {
-		if index > 0 {
-			end := index
-			_, size := utf8.decode_last_rune_in_bytes(buffer[:index])
-			index -= size
-			remove_range(&buffer, index, end)
-		}
-	} else {
-		remove_range(&buffer, index, index + length)
-		length = 0
-	}
-}
-IsSeperator :: proc(glyph: u8) -> bool {
-	return glyph == ' ' || glyph == '\n' || glyph == '\t' || glyph == '\\' || glyph == '/'
-}
-FindNextSeperator :: proc(slice: []u8) -> int {
-	for i in 1 ..< len(slice) {
-		if IsSeperator(slice[i]) {
-			return i
-		}
-	}
-	return len(slice) - 1
-}
-FindLastSeperator :: proc(slice: []u8) -> int {
-	for i in len(slice) - 1 ..= 1 {
-		if IsSeperator(slice[i]) {
-			return i
-		}
-	}
-	return 0
 }
 
 //@private

@@ -122,7 +122,7 @@ CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (layer: ^LayerData, o
 BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (layer: ^LayerData, ok: bool) {
 	if layer, ok = CreateOrGetLayer(id, options); ok {
 		// Begin id context for layer contents
-		PushId(id)
+		PushId(HashId(int(id)))
 		// Push layer stack
 		ctx.layerStack[ctx.layerDepth] = layer
 		ctx.layerDepth += 1
@@ -196,7 +196,7 @@ EndLayer :: proc(layer: ^LayerData) {
 	if layer != nil {
 		// Debug stuff
 		when ODIN_DEBUG {
-			if ctx.debugLayer == layer.id {
+			if .showWindow in ctx.debugBits && ctx.debugLayer == layer.id {
 				PaintRect(layer.body, {255, 0, 255, 20})
 				PaintRectLines(layer.body, 1, {255, 0, 255, 255})
 			}

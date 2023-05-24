@@ -31,6 +31,12 @@ Format :: proc(args: ..any) -> string {
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
 }
+FormatSlice :: proc(args: ..any) -> []u8 {
+	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
+	buf := fmtBuffers[fmtBufferIndex][:len(str)]
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return buf
+}
 Join :: proc(args: []string, sep := " ") -> string {
 	size := 0
 	buffer := &fmtBuffers[fmtBufferIndex]

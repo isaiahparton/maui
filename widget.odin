@@ -156,7 +156,7 @@ EndWidget :: proc(control: ^Widget, ok: bool) {
 UpdateWidget :: proc(using control: ^Widget) {
 	if !ctx.disabled {
 		// Request hover status
-		if VecVsRect(input.mousePoint, body) && ctx.hoveredLayer == CurrentLayer().id {
+		if VecVsRect(input.mousePoint, body) && ctx.hoveredLayer == parent {
 			ctx.nextHoverId = id
 		}
 		// If hovered
@@ -170,7 +170,7 @@ UpdateWidget :: proc(using control: ^Widget) {
 				if MouseReleased(.left) {
 					ctx.pressId = 0
 				}
-				//ctx.dragging = true
+				ctx.dragging = true
 			} else  {
 				ctx.pressId = 0
 			}
@@ -271,45 +271,8 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 	/*
 		Number input first
 	*/
-	if control, ok := BeginWidget(HashId(loc), rect); ok {
-		using control
-		newValue = value
-		control.options += {.draggable}
-		UpdateWidget(control)
-
-		// Animation values
-		hoverTime := AnimateBool(id, .hovered in state, 0.1)
-
-		// Painting
-		PaintRect(body, GetColor(.backing, 1))
-
-		if .hovered in state || .down in state {
-			ctx.cursor = .beam
-		}
-
-		data := SPrintF("%i", value)
-		if .justFocused in state {
-			delete(ctx.numberText)
-			ctx.numberText = slice.clone(data)
-		}
-
-		font := GetFontData(.monospace)
-		change, newData := MutableTextFromBytes(
-			font, 
-			ctx.numberText if .focused in state else data, 
-			control.body, 
-			{ options = {.numeric, .integer}, align = .middle },
-			control.state,
-			)
-		if change {
-			newValue, ok = strconv.parse_int(string(newData))
-			newValue = clamp(newValue, low, high)
-			delete(ctx.numberText)
-			ctx.numberText = slice.clone(newData)
-		}
-		PaintRectLines(body, 2 if .focused in state else 1, GetColor(.accent, 1) if .focused in state else GetColor(.outlineBase, hoverTime))
-	}
-
+	SetNextRect(rect)
+	newValue = NumberInputInt(value, {})
 	/*
 		Buttons
 	*/
@@ -388,12 +351,12 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.1)
 		PopId()
 
-		font := GetFontData(.monospace)
+		fontData := GetFontData(.monospace)
 
 		PaintRect(body, GetColor(.backing if .active in bits else .widgetBase))
 		PaintRectLines(body, 2 if .active in bits else 1, GetColor(.accent) if .active in bits else GetColor(.outlineBase, hoverTime))
 
-		numberText := Format(value)
+		text := FormatSlice(value)
 		center: Vec2 = {body.x + body.w / 2, body.y + body.h / 2}
 
 		if .doubleClicked in state {
@@ -402,19 +365,16 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 		}
 
 		if .active in bits {
-			if change, newData := MutableTextFromBytes(
-				font, 
-				transmute([]u8)numberText[:], 
-				body, 
-				{align = .middle, options = {.selectAll}}, 
-				state,
-			); change {
-				if parsedValue, ok := strconv.parse_int(string(newData)); ok {
-					newValue = parsedValue
+			TextPro(fontData, text, body, {.align_center}, state)
+			if .focused in state {
+				if TextEdit(&ctx.tempBuffer, {.numeric, .integer}) {
+					if parsedValue, ok := strconv.parse_int(string(ctx.tempBuffer[:])); ok {
+						newValue = parsedValue
+					}
 				}
 			}
 		} else {
-			PaintStringAligned(font, numberText, center, GetColor(.text), .middle, .middle)
+			PaintStringAligned(fontData, string(text), center, GetColor(.text), .middle, .middle)
 
 			if .down in state {
 				newValue = value + int(input.mousePoint.x - input.prevMousePoint.x) + int(input.mousePoint.y - input.prevMousePoint.y)
@@ -758,7 +718,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 		layer := CurrentLayer()
 
 		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
-			//layer.bits += {.dismissed}
+			layer.bits += {.dismissed}
 		}
 
 		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
@@ -841,7 +801,7 @@ _SubMenu :: proc(active: bool) {
 		layer := CurrentLayer()
 
 		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
-			//layer.bits += {.dismissed}
+			layer.bits += {.dismissed}
 		}
 
 		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
