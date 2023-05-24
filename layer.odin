@@ -129,11 +129,10 @@ BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (la
 		layer.options = options
 		// Begin id context for layer contents
 		if .noPushId not_in layer.options {
-			PushId(HashId(int(id)))
+			//PushId(HashId(int(id)))
 		}
 		// Reset stuff
 		layer.bits += {.stayAlive}
-		layer.bits -= {.submit}
 		layer.commandOffset = 0
 		// Apply rectangle
 		if rect != {} {
@@ -197,6 +196,7 @@ BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (la
 @private 
 EndLayer :: proc(layer: ^LayerData) {
 	if layer != nil {
+		layer.bits -= {.submit}
 		// Debug stuff
 		when ODIN_DEBUG {
 			if .showWindow in ctx.debugBits && layer.id != 0 && ctx.debugLayer == layer.id {
@@ -226,6 +226,7 @@ EndLayer :: proc(layer: ^LayerData) {
 			layer.scrollTarget.y = clamp(layer.scrollTarget.y, 0, maxScroll.y)
 			layer.scroll += (layer.scrollTarget - layer.scroll) * SCROLL_SPEED * ctx.deltaTime
 			// Manifest scroll bars
+			PushId(layer.id)
 			if .scrollX in layer.bits {
 				rect := GetRectBottom(layer.body, SCROLL_BAR_SIZE)
 				if .scrollY in layer.bits {
@@ -254,12 +255,13 @@ EndLayer :: proc(layer: ^LayerData) {
 					layer.scrollTarget.y = newValue
 				}
 			}
+			PopId()
 			// Push a new clip command to end clipping
 			PushCommand(layer, CommandClip).rect = ctx.fullscreenRect
 		}
 		// End id context
 		if .noPushId not_in layer.options {
-			PopId()
+			//PopId()
 		}
 	}
 	ctx.layerDepth -= 1

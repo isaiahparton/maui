@@ -1,5 +1,7 @@
 package maui
 // Core dependencies
+import "core:fmt"
+import "core:runtime"
 import "core:strconv"
 import "core:strings"
 import "core:slice"
@@ -291,7 +293,7 @@ TextEdit :: proc(buf: ^[dynamic]u8, options: TextEditOptions, maxLength: int = 0
 // Unsafe way to edit a string directly
 // will segfault if the string is static
 StringInputUnsafe :: proc(text: ^string, label, placeholder: string, loc := #caller_location) -> (change: bool) {
-	if control, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+	if control, ok := BeginWidget(HashId(uintptr(text)), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using control
 		options += {.draggable, .keySelect}
 		UpdateWidget(control)
@@ -304,22 +306,22 @@ StringInputUnsafe :: proc(text: ^string, label, placeholder: string, loc := #cal
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
 			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
 		PopId()
-		// Copy to temp buffer if focused
-		if state >= {.justFocused} {
-			resize(&ctx.tempBuffer, len(text))
-			copy(ctx.tempBuffer[:], text[:])
-		}
 		// Paint!
 		PaintRect(body, GetColor(.foreground))
 
 		fontData := GetFontData(.default)
 		TextPro(fontData, transmute([]u8)text[:], body, {}, state)
 		if state >= {.focused} {
-			change = TextEdit(&ctx.tempBuffer, {})
+			buffer := GetTextBuffer(id)
+			if state >= {.justFocused} {
+				resize(buffer, len(text))
+				copy(buffer[:], text[:])
+			}
+			change = TextEdit(buffer, {})
 			if change {
 				ctx.renderTime = RENDER_TIMEOUT
 				delete(text^)
-				text^ = strings.clone_from_bytes(ctx.tempBuffer[:])
+				text^ = strings.clone_from_bytes(buffer[:])
 			}
 		}
 		
@@ -404,17 +406,12 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 		}
 		// Formatting
 		text := SPrintF(format, value)
-		// Copy to temp buffer if focused
-		if state >= {.justFocused} {
-			resize(&ctx.tempBuffer, len(text))
-			copy(ctx.tempBuffer[:], text[:])
-		}
 		// Painting
 		PaintRect(body, GetColor(.foreground))
 		fontData := GetFontData(.monospace)
 		TextPro(
 			fontData, 
-			ctx.tempBuffer[:] if state & {.focused, .justUnfocused} != {} else text, 
+			text, 
 			body, 
 			textProOptions, 
 			state,
@@ -424,9 +421,14 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 		PaintWidgetLabel(body, label, outlineColor, GetColor(.foreground))
 		// Update text input
 		if state >= {.focused} {
-			if TextEdit(&ctx.tempBuffer, {.numeric}, 18) {
+			buffer := GetTextBuffer(id)
+			if state >= {.justFocused} {
+				resize(buffer, len(text))
+				copy(buffer[:], text[:])
+			}
+			if TextEdit(buffer, {.numeric}, 18) {
 				ctx.renderTime = RENDER_TIMEOUT
-				str := string(ctx.tempBuffer[:])
+				str := string(buffer[:])
 				switch v in value {
 					case f64:  		
 					if temp, ok := strconv.parse_f64(str); ok {

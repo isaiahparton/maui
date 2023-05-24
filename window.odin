@@ -134,9 +134,11 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 			PaintStringAligned(GetFontData(.default), title, {titleRect.x + textOffset, baseline}, GetColor(.text), .near, .middle)
 			if .closable in window.options {
 				SetNextRect(ChildRect(GetRectRight(titleRect, titleRect.h), {24, 24}, .middle, .middle))
+				PushId(window.id)
 				if Button(.close) {
 					window.bits += {.shouldClose}
 				}
+				PopId()
 			}
 			if .resizing not_in window.bits && ctx.hoveredLayer == window.layer.id && VecVsRect(input.mousePoint, titleRect) {
 				if ctx.hoverId == 0 && MousePressed(.left) {

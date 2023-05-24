@@ -35,6 +35,7 @@ RENDER_TIMEOUT 		:: 0.5
 FMT_BUFFER_COUNT 	:: 16
 FMT_BUFFER_SIZE 	:: 128
 
+TEMP_BUFFER_COUNT 	:: 2
 GROUP_STACK_SIZE 	:: 32
 MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 32)
 MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 1024)
@@ -61,6 +62,11 @@ Color 	:: [4]u8
 Animation :: struct {
 	keepAlive: bool,
 	value: f32,
+}
+
+TextBuffer :: struct {
+	keepAlive: bool,
+	buffer: [dynamic]u8,
 }
 
 Scribe :: struct {
@@ -108,8 +114,8 @@ Context :: struct {
 	doubleClickTimer: f32,
 	// Text editing/selecting state
 	scribe: Scribe,
-	// Temporary text buffer
-	tempBuffer: [dynamic]u8,
+	// Temporary text buffers
+	textBuffers: map[Id]TextBuffer,
 	// Mouse cursor type
 	cursor: CursorType,
 	// Hash stack
@@ -210,7 +216,15 @@ EndGroup :: proc() -> ^Group {
 	return &groups[groupDepth]
 }
 
-
+GetTextBuffer :: proc(id: Id) -> ^[dynamic]u8 {
+	value, ok := &ctx.textBuffers[id]
+	if !ok {
+		value = map_insert(&ctx.textBuffers, id, TextBuffer({}))
+		ok = true
+	}
+	value.keepAlive = true
+	return &value.buffer
+}
 
 /*
 	Animation management
@@ -269,7 +283,11 @@ Init :: proc() -> bool {
 	return true
 }
 Uninit :: proc() {
-	delete(ctx.tempBuffer)
+	// Free text buffers
+	for _, value in ctx.textBuffers {
+		delete(value.buffer)
+	}
+	// Free animation pool
 	delete(ctx.animations)
 	// Free window data
 	for window in ctx.windows {
@@ -283,9 +301,9 @@ Uninit :: proc() {
 	}
 	delete(ctx.layerMap)
 	delete(ctx.layers)
-
+	//
 	UninitPainter()
-
+	//
 	free(ctx)
 }
 NewFrame :: proc() {
@@ -301,12 +319,21 @@ NewFrame :: proc() {
 	assert(idCount == 0, "You forgot to PopId()")
 	// Reset fullscreen rect
 	fullscreenRect = {0, 0, size.x, size.y}
-
+	// Delete unused animations
 	for id, animation in &animations {
 		if animation.keepAlive {
 			animation.keepAlive = false
 		} else {
 			delete_key(&animations, id)
+		}
+	}
+	// Free and delete unused text buffers
+	for key, value in &textBuffers {
+		if value.keepAlive {
+			value.keepAlive = false
+		} else {
+			delete(value.buffer)
+			delete_key(&textBuffers, key)
 		}
 	}
 
@@ -459,9 +486,13 @@ EndFrame :: proc() {
 						PopId()
 					}
 				} else if debugMode == .controls {
+					Text(.monospace, StringFormat("Layer: %i", hoveredLayer), true)
+					Space(20)
 					Text(.monospace, StringFormat("Hovered: %i", hoverId), true)
 					Text(.monospace, StringFormat("Focused: %i", focusId), true)
 					Text(.monospace, StringFormat("Pressed: %i", pressId), true)
+					Space(20)
+					Text(.monospace, StringFormat("Count: %i", controlCount), true)
 				}
 			}
 		}
@@ -473,6 +504,7 @@ EndFrame :: proc() {
 		renderTime = RENDER_TIMEOUT
 	}
 	// Delete unused controls
+	controlCount = 0
 	for i in 0..<MAX_CONTROLS {
 		if controlExists[i] {
 			control := &controls[i]
@@ -518,6 +550,11 @@ EndFrame :: proc() {
 		}
 		if .stayAlive in layer.bits {
 			layer.bits -= {.stayAlive}
+			for key, value in layer.contents {
+				if !controlExists[value] {
+					delete_key(&layer.contents, key)
+				}
+			}
 		} else {
 			ordered_remove(&layers, i)
 			delete_key(&layerMap, layer.id)

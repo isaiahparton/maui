@@ -52,26 +52,6 @@ Widget :: struct {
 	parent: 	Id,
 }
 
-// WidgetButton :: struct {
-// 	using widget: Widget,
-// 	howHovered,
-// 	howFocused: f32,
-// }
-// WidgetNumberEdit :: struct {
-// 	using widget: Widget,
-// 	howHovered,
-// 	howFocused: f32,
-// 	buffer: [dynamic]u8,
-// }
-// WidgetCheckBox :: struct {
-// 	using widget: Widget,
-// }
-
-// WidgetVariant :: union {
-// 	WidgetButton,
-// 	WidgetNumberEdit,
-// }
-
 @(deferred_out=EndWidget)
 BeginWidget :: proc(id: Id, rect: Rect) -> (widget: ^Widget, ok: bool) {
 	using ctx
@@ -84,23 +64,26 @@ BeginWidget :: proc(id: Id, rect: Rect) -> (widget: ^Widget, ok: bool) {
 	} else {
 		for i in 0 ..< MAX_CONTROLS {
 			if !controlExists[i] {
+				index = i
 				controls[i] = {
 					parent = layer.id,
 					id = id,
 				}
-				index = i
 				layer.contents[id] = index
 				widget = &controls[i]
+				ok = true
 				break
 			}
 		}
-		ok = true
 	}
 
 	if ok {
 		controlExists[index] = true
+		widget.parent = layer.id
+		widget.id = id
 		widget.body = rect
 		widget.state = {}
+		widget.options = {}
 		widget.bits += {.stayAlive}
 		if widget.id == ctx.focusId {
 			ctx.focusIndex = index
@@ -369,14 +352,15 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 			if self.state & {.down, .hovered} != {} {
 				ctx.cursor = .beam
 			}
-			TextPro(fontData, ctx.tempBuffer[:], self.body, {.align_center}, self.state)
+			buffer := GetTextBuffer(self.id)
+			TextPro(fontData, buffer[:], self.body, {.align_center}, self.state)
 			if .justFocused in self.state {
-				resize(&ctx.tempBuffer, len(text))
-				copy(ctx.tempBuffer[:], text[:])
+				resize(buffer, len(text))
+				copy(buffer[:], text[:])
 			}
 			if .focused in self.state {
-				if TextEdit(&ctx.tempBuffer, {.numeric, .integer}) {
-					if parsedValue, ok := strconv.parse_int(string(ctx.tempBuffer[:])); ok {
+				if TextEdit(buffer, {.numeric, .integer}) {
+					if parsedValue, ok := strconv.parse_int(string(buffer[:])); ok {
 						newValue = parsedValue
 					}
 					ctx.renderTime = RENDER_TIMEOUT
@@ -708,7 +692,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 			if ok {
 				layer.opacity = stateTime
 
-				if layer.bits & {.submit, .dismissed} != {} {
+				if layer.bits >= {.dismissed} {
 					bits -= {.active}
 					EndLayer(layer)
 					return false
@@ -724,7 +708,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 	if active {
 		layer := CurrentLayer()
 
-		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
+		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) || layer.bits >= {.submit} {
 			layer.bits += {.dismissed}
 		}
 
@@ -790,7 +774,7 @@ SubMenu :: proc(text: string, size: Vec2, loc := #caller_location) -> (active: b
 			if ok {
 				layer.opacity = stateTime
 
-				if layer.bits & {.submit, .dismissed} != {} {
+				if layer.bits >= {.dismissed} {
 					bits -= {.active}
 					EndLayer(layer)
 					return false
@@ -807,7 +791,7 @@ _SubMenu :: proc(active: bool) {
 	if active {
 		layer := CurrentLayer()
 
-		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
+		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) || layer.bits >= {.submit} {
 			layer.bits += {.dismissed}
 		}
 
