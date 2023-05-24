@@ -79,6 +79,13 @@ _main :: proc() {
 				windowOpen[.widgetGallery] = ToggleButton(windowOpen[.widgetGallery], "Widget Gallery")
 				if Window("Widget Gallery", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
 					Shrink(30); SetSize(30)
+					if Layout(.top, 30) {
+						SetSide(.left); SetSize(120)
+						integer = Spinner(integer, -100, 100)
+						SetSide(.right)
+						integer = DragSpinner(integer, -100, 100)
+					}
+					Space(20)
 					if Menu("Open me!", 120) {
 						SetSize(30)
 						MenuOption("Option A", false)

@@ -381,13 +381,13 @@ Number :: union {
 	int,
 }
 NumberInputFloat64 :: proc(value: f64, label: string, loc := #caller_location) -> (newValue: f64) {
-	return NumberInputEx(value, label, "%.2f", loc).(f64)
+	return NumberInputEx(value, label, "%.2f", {}, loc).(f64)
 }
 NumberInputInt :: proc(value: int, label: string, loc := #caller_location) -> (newValue: int) {
-	return NumberInputEx(value, label, "%i", loc).(int)
+	return NumberInputEx(value, label, "%i", {}, loc).(int)
 }
 @private
-NumberInputEx :: proc(value: Number, label, format: string, loc := #caller_location) -> (newValue: Number) {
+NumberInputEx :: proc(value: Number, label, format: string, textProOptions: TextProOptions, loc := #caller_location) -> (newValue: Number) {
 	newValue = value
 	if self, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using self
@@ -416,7 +416,7 @@ NumberInputEx :: proc(value: Number, label, format: string, loc := #caller_locat
 			fontData, 
 			ctx.tempBuffer[:] if state & {.focused, .justUnfocused} != {} else text, 
 			body, 
-			{}, 
+			textProOptions, 
 			state,
 			)
 		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))

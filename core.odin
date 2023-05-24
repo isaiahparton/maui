@@ -271,7 +271,12 @@ Init :: proc() -> bool {
 Uninit :: proc() {
 	delete(ctx.tempBuffer)
 	delete(ctx.animations)
+	// Free window data
+	for window in ctx.windows {
+		DeleteWindow(window)
+	}
 	delete(ctx.windowMap)
+	delete(ctx.windows)
 	// Free layer data
 	for layer in ctx.layers {
 		DeleteLayer(layer)

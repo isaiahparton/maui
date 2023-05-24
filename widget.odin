@@ -52,25 +52,25 @@ Widget :: struct {
 	parent: 	Id,
 }
 
-WidgetButton :: struct {
-	using widget: Widget,
-	howHovered,
-	howFocused: f32,
-}
-WidgetNumberEdit :: struct {
-	using widget: Widget,
-	howHovered,
-	howFocused: f32,
-	buffer: [dynamic]u8,
-}
-WidgetCheckBox :: struct {
-	using widget: Widget,
-}
+// WidgetButton :: struct {
+// 	using widget: Widget,
+// 	howHovered,
+// 	howFocused: f32,
+// }
+// WidgetNumberEdit :: struct {
+// 	using widget: Widget,
+// 	howHovered,
+// 	howFocused: f32,
+// 	buffer: [dynamic]u8,
+// }
+// WidgetCheckBox :: struct {
+// 	using widget: Widget,
+// }
 
-WidgetVariant :: union {
-	WidgetButton,
-	WidgetNumberEdit,
-}
+// WidgetVariant :: union {
+// 	WidgetButton,
+// 	WidgetNumberEdit,
+// }
 
 @(deferred_out=EndWidget)
 BeginWidget :: proc(id: Id, rect: Rect) -> (widget: ^Widget, ok: bool) {
@@ -284,7 +284,7 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 	rightButtonRect := CutRectRight(&rect, 30)
 	// Number input
 	SetNextRect(rect)
-	newValue = NumberInputInt(value, {})
+	newValue = clamp(NumberInputEx(value, {}, "%i", {.align_center}).(int), low, high)
 	// Step buttons
 	loc.column += 1
 	SetNextRect(leftButtonRect)
@@ -356,30 +356,35 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 		PopId()
 
 		fontData := GetFontData(.monospace)
-
-		PaintRect(self.body, GetColor(.backing if .active in self.bits else .widgetBase))
+		if .active not_in self.bits {
+			PaintRect(self.body, GetColor(.widgetBase))
+		}
 		PaintRectLines(self.body, 2 if .active in self.bits else 1, GetColor(.accent) if .active in self.bits else GetColor(.outlineBase, hoverTime))
-
 		text := FormatSlice(value)
-		center: Vec2 = {self.body.x + self.body.w / 2, self.body.y + self.body.h / 2}
-
 		if .doubleClicked in self.state {
 			self.bits = self.bits ~ {.active}
 			self.state += {.justFocused}
 		}
-
 		if .active in self.bits {
-			TextPro(fontData, text, self.body, {.align_center}, self.state)
+			if self.state & {.down, .hovered} != {} {
+				ctx.cursor = .beam
+			}
+			TextPro(fontData, ctx.tempBuffer[:], self.body, {.align_center}, self.state)
+			if .justFocused in self.state {
+				resize(&ctx.tempBuffer, len(text))
+				copy(ctx.tempBuffer[:], text[:])
+			}
 			if .focused in self.state {
 				if TextEdit(&ctx.tempBuffer, {.numeric, .integer}) {
 					if parsedValue, ok := strconv.parse_int(string(ctx.tempBuffer[:])); ok {
 						newValue = parsedValue
 					}
+					ctx.renderTime = RENDER_TIMEOUT
 				}
 			}
 		} else {
+			center: Vec2 = {self.body.x + self.body.w / 2, self.body.y + self.body.h / 2}
 			PaintStringAligned(fontData, string(text), center, GetColor(.text), .middle, .middle)
-
 			if .down in self.state {
 				newValue = value + int(input.mousePoint.x - input.prevMousePoint.x) + int(input.mousePoint.y - input.prevMousePoint.y)
 			}
