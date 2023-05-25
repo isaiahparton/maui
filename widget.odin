@@ -17,7 +17,7 @@ WidgetBit :: enum {
 	active,
 	menuOpen,
 	disabled,
-	visible,
+	shouldPaint,
 }
 WidgetBits :: bit_set[WidgetBit]
 // Behavior options
@@ -94,10 +94,10 @@ BeginWidget :: proc(id: Id, rect: Rect) -> (widget: ^Widget, ok: bool) {
 		} else {
 			widget.bits -= {.disabled}
 		}
-		if CheckClip(ctx.clipRect, widget.body) != .full {
-			widget.bits += {.visible}
+		if ctx.shouldRender && CheckClip(ctx.clipRect, widget.body) != .full {
+			widget.bits += {.shouldPaint}
 		} else {
-			widget.bits -= {.visible}
+			widget.bits -= {.shouldPaint}
 		}
 	}
 
@@ -183,7 +183,6 @@ UpdateWidget :: proc(using widget: ^Widget) {
 			if MouseReleased(.left) || (ctx.keySelect && KeyReleased(.enter)) {
 				state += {.released}
 				ctx.pressId = 0
-				CurrentLayer().bits += {.submit}
 			} else {
 				ctx.dragging = .draggable in options
 				state += {.down}
@@ -267,7 +266,8 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 	rightButtonRect := CutRectRight(&rect, 30)
 	// Number input
 	SetNextRect(rect)
-	newValue = clamp(NumberInputEx(value, {}, "%i", {.align_center}).(int), low, high)
+	PaintRect(rect, GetColor(.backing))
+	newValue = clamp(NumberInputCentered(value, "%i").(int), low, high)
 	// Step buttons
 	loc.column += 1
 	SetNextRect(leftButtonRect)
@@ -338,11 +338,13 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 			pressTime := AnimateBool(HashIdFromInt(1), .down in self.state, 0.1)
 		PopId()
 
-		fontData := GetFontData(.monospace)
-		if .active not_in self.bits {
-			PaintRect(self.body, GetColor(.widgetBase))
+		if self.bits >= {.shouldPaint} {
+			if .active not_in self.bits {
+				PaintRect(self.body, GetColor(.widgetBase))
+			}
+			PaintRectLines(self.body, 2 if .active in self.bits else 1, GetColor(.accent) if .active in self.bits else GetColor(.outlineBase, hoverTime))
 		}
-		PaintRectLines(self.body, 2 if .active in self.bits else 1, GetColor(.accent) if .active in self.bits else GetColor(.outlineBase, hoverTime))
+		fontData := GetFontData(.monospace)
 		text := FormatSlice(value)
 		if .doubleClicked in self.state {
 			self.bits = self.bits ~ {.active}
@@ -400,9 +402,7 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 	HALF_SIZE :: SIZE / 2
 	if control, ok := BeginWidget(HashId(loc), LayoutNextEx(GetCurrentLayout(), SIZE)); ok {
 		using control
-		
 		box := body
-
 		active := (status == .on || status == .unknown)
 		textSize: Vec2
 		if len(text) > 0 {
@@ -410,21 +410,18 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 			body.w += textSize.x + WIDGET_TEXT_OFFSET * 2
 		}
 		UpdateWidget(control)
-
-		if .visible in bits {
+		// Painting
+		if .shouldPaint in bits {
 			PushId(id) 
 				hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
 				pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
 				stateTime := AnimateBool(HashIdFromInt(2), active, 0.1)
 			PopId()
-
 			center: Vec2 = {body.x + HALF_SIZE, body.y + HALF_SIZE}
-
 			PaintRect(body, GetColor(.foreground))
 			if hoverTime > 0 {
 				PaintRect(body, StyleGetShadeColor(hoverTime))
 			}
-
 			if stateTime < 1 {
 				PaintRectLines(box, 2 + 2 * (pressTime if !active else 1), BlendColors(GetColor(.outlineBase), GetColor(.outlineHot), hoverTime))
 			}
@@ -708,7 +705,7 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 	if active {
 		layer := CurrentLayer()
 
-		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) || layer.bits >= {.submit} {
+		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
 			layer.bits += {.dismissed}
 		}
 
@@ -791,7 +788,7 @@ _SubMenu :: proc(active: bool) {
 	if active {
 		layer := CurrentLayer()
 
-		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) || layer.bits >= {.submit} {
+		if (.hovered not_in layer.bits && MousePressed(.left)) || KeyPressed(.escape) {
 			layer.bits += {.dismissed}
 		}
 
@@ -844,7 +841,15 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 			}
 		}
 
-		result = .released in state
+		if .released in state {
+			result = true
+			layer := CurrentLayer()
+			layer.bits += {.dismissed}
+			for layer.parent != nil && layer.options >= {.attached} {
+				layer = layer.parent
+				layer.bits += {.dismissed}
+			}
+		}
 	}
 	return result
 }

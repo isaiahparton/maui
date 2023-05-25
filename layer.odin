@@ -12,7 +12,6 @@ import "core:fmt"
 LayerBit :: enum {
 	stayAlive,
 	clipped,
-	submit,
 	scrollX,
 	scrollY,
 	dismissed,
@@ -196,7 +195,6 @@ BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (la
 @private 
 EndLayer :: proc(layer: ^LayerData) {
 	if layer != nil {
-		layer.bits -= {.submit}
 		// Debug stuff
 		when ODIN_DEBUG {
 			if .showWindow in ctx.debugBits && layer.id != 0 && ctx.debugLayer == layer.id {

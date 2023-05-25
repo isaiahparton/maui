@@ -326,9 +326,8 @@ StringInputUnsafe :: proc(text: ^string, label, placeholder: string, loc := #cal
 		}
 		
 		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
-		PaintRectLines(body, 2 if state >= {.focused} else 1, outlineColor)
 		// Draw placeholder
-		PaintWidgetLabel(body, label, outlineColor, GetColor(.foreground))
+		PaintLabeledWidgetFrame(body, label, 2 if state >= {.focused} else 1, outlineColor)
 		if len(placeholder) != 0 {
 			if len(text) == 0 {
 				PaintStringAligned(fontData, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
@@ -366,9 +365,8 @@ TextInputEx :: proc(buf: ^[dynamic]u8, label, placeholder: string, textOptions: 
 			}
 		}
 		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
-		PaintRectLines(body, 2 if state >= {.focused} else 1, outlineColor)
 		// Draw placeholder
-		PaintWidgetLabel(body, label, outlineColor, GetColor(.foreground))
+		PaintLabeledWidgetFrame(body, label, 2 if state >= {.focused} else 1, outlineColor)
 		if len(placeholder) != 0 {
 			if len(buf) == 0 {
 				PaintStringAligned(fontData, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
@@ -407,7 +405,6 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 		// Formatting
 		text := SPrintF(format, value)
 		// Painting
-		PaintRect(body, GetColor(.foreground))
 		fontData := GetFontData(.monospace)
 		TextPro(
 			fontData, 
@@ -417,8 +414,7 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 			state,
 			)
 		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
-		PaintRectLines(body, 2 if state >= {.focused} else 1, outlineColor)
-		PaintWidgetLabel(body, label, outlineColor, GetColor(.foreground))
+		PaintLabeledWidgetFrame(body, label, 2 if state >= {.focused} else 1, outlineColor)
 		// Update text input
 		if state >= {.focused} {
 			buffer := GetTextBuffer(id)
@@ -444,13 +440,72 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 	}
 	return
 }
+NumberInputCentered :: proc(value: Number, format: string, loc := #caller_location) -> (newValue: Number) {
+	newValue = value
+	if self, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+		using self
+		self.options += {.draggable, .keySelect}
+		UpdateWidget(self)
+		// Animation values
+		PushId(id)
+			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
+			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
+		PopId()
+		// Cursor style
+		if state & {.hovered, .down} != {} {
+			ctx.cursor = .beam
+		}
+		// Formatting
+		text := SPrintF(format, value)
+		// Painting
+		fontData := GetFontData(.monospace)
+		TextPro(
+			fontData, 
+			text, 
+			body, 
+			{.align_center}, 
+			state,
+			)
+		outlineColor := BlendColors(GetColor(.outlineBase, hoverTime), GetColor(.accentHover), stateTime)
+		PaintRectLines(body, 2 if state >= {.focused} else 1, outlineColor)
+		// Update text input
+		if state >= {.focused} {
+			buffer := GetTextBuffer(id)
+			if state >= {.justFocused} {
+				resize(buffer, len(text))
+				copy(buffer[:], text[:])
+			}
+			textEditOptions: TextEditOptions = {.numeric}
+			if _, ok := value.(int); ok {
+				textEditOptions += {.integer}
+			}
+			if TextEdit(buffer, textEditOptions, 18) {
+				ctx.renderTime = RENDER_TIMEOUT
+				str := string(buffer[:])
+				switch v in value {
+					case f64:  		
+					if temp, ok := strconv.parse_f64(str); ok {
+						newValue = temp
+					}
+					case int: 
+					if temp, ok := strconv.parse_int(str); ok {
+						newValue = temp
+					}
+				}
+			}
+		}
+	}
+	return
+}
 // Labels for text edit widgets
-PaintWidgetLabel :: proc(rect: Rect, label: string, fillColor, backgroundColor: Color) {
+PaintLabeledWidgetFrame :: proc(rect: Rect, label: string, thickness: f32, color: Color) {
 	if len(label) > 0 {
 		labelFont := GetFontData(.label)
 		textSize := MeasureString(labelFont, label)
-		PaintRect({rect.x + WIDGET_TEXT_OFFSET - 2, rect.y - 4, textSize.x + 4, 6}, backgroundColor)
-		PaintString(GetFontData(.label), label, {rect.x + WIDGET_TEXT_OFFSET, rect.y - textSize.y / 2}, fillColor)
+		PaintWidgetFrame(rect, WIDGET_TEXT_OFFSET - 2, textSize.x + 4, thickness, color)
+		PaintString(GetFontData(.label), label, {rect.x + WIDGET_TEXT_OFFSET, rect.y - textSize.y / 2}, color)
+	} else {
+		PaintRectLines(rect, thickness, color)
 	}
 }
 // Text edit helpers
