@@ -15,6 +15,7 @@ WindowBits :: bit_set[WindowBit]
 WindowOption :: enum {
 	title,
 	resizable,
+	static,
 	closable,
 	collapsable,
 	closeWhenUnfocused,
@@ -141,7 +142,7 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 				PopId()
 			}
 			if .resizing not_in window.bits && ctx.hoveredLayer == window.layer.id && VecVsRect(input.mousePoint, titleRect) {
-				if ctx.hoverId == 0 && MousePressed(.left) {
+				if .static not_in window.options && ctx.hoverId == 0 && MousePressed(.left) {
 					window.bits += {.moving}
 					ctx.dragAnchor = Vec2{window.layer.body.x, window.layer.body.y} - input.mousePoint
 				}
