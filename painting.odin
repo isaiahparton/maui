@@ -526,9 +526,9 @@ PaintRectLines :: proc(rect: Rect, thickness: f32, color: Color) {
 	PaintRect({rect.x, rect.y, thickness, rect.h}, color)
 	PaintRect({rect.x + rect.w - thickness, rect.y, thickness, rect.h}, color)	
 }
-PaintWidgetFrame :: proc(rect: Rect, gapStart, gapWidth, thickness: f32, color: Color) {
-	PaintRect({rect.x, rect.y, gapStart, thickness}, color)
-	PaintRect({rect.x + gapStart + gapWidth, rect.y, rect.w - gapWidth, thickness}, color)
+PaintWidgetFrame :: proc(rect: Rect, gapOffset, gapWidth, thickness: f32, color: Color) {
+	PaintRect({rect.x, rect.y, gapOffset, thickness}, color)
+	PaintRect({rect.x + gapOffset + gapWidth, rect.y, rect.w - gapWidth - gapOffset, thickness}, color)
 	PaintRect({rect.x, rect.y + rect.h - thickness, rect.w, thickness}, color)
 	PaintRect({rect.x, rect.y, thickness, rect.h}, color)
 	PaintRect({rect.x + rect.w - thickness, rect.y, thickness, rect.h}, color)

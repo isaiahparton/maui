@@ -54,7 +54,7 @@ Join :: proc(args: []string, sep := " ") -> string {
 }
 CapitalizeString :: proc(str: string) -> string {
 	buffer := &fmtBuffers[fmtBufferIndex]
-	copy(buffer[:len(str)], str[:])
+	copy(buffer[:], str[:])
 	buffer[0] = u8(unicode.to_upper(rune(buffer[0])))
 	str := string(buffer[:len(str)])
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
@@ -126,6 +126,8 @@ Icon :: enum rune {
 	keyboard 			= 0xEE74,
 	spreadsheet			= 0xECDE,
 	contactBook 		= 0xEBCB,
+	pin 				= 0xF038,
+	unPin 				= 0xF376,
 }
 
 StringPaintOption :: enum {

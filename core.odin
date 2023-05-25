@@ -193,11 +193,16 @@ SetClipboardString :: proc(str: string) {
 	}
 }
 
-Enable :: proc(){
-	ctx.disabled = false
+@(deferred_none=_Enabled)
+Enabled :: proc(condition: bool) -> bool {
+	if !condition {
+		ctx.disabled = true
+	}
+	return true
 }
-Disable :: proc(){
-	ctx.disabled = true
+@private
+_Enabled :: proc() {
+	ctx.disabled = false
 }
 
 GetLastWidget :: proc() -> ^Widget {

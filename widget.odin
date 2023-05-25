@@ -410,13 +410,13 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 			body.w += textSize.x + WIDGET_TEXT_OFFSET * 2
 		}
 		UpdateWidget(control)
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
+			stateTime := AnimateBool(HashIdFromInt(2), active, 0.1)
+		PopId()
 		// Painting
 		if .shouldPaint in bits {
-			PushId(id) 
-				hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
-				pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.15)
-				stateTime := AnimateBool(HashIdFromInt(2), active, 0.1)
-			PopId()
 			center: Vec2 = {body.x + HALF_SIZE, body.y + HALF_SIZE}
 			PaintRect(body, GetColor(.foreground))
 			if hoverTime > 0 {
@@ -809,7 +809,7 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 		PaintRect(body, GetColor(.widgetHover) if active else BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
 		PaintStringAligned(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
 
-		if .focused in state {
+		/*if .focused in state {
 			if KeyPressed(.down) || KeyPressed(.up) {
 				d := -1 if KeyPressed(.up) else 1
 				array: [dynamic]int
@@ -839,7 +839,7 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 					}
 				}
 			}
-		}
+		}*/
 
 		if .released in state {
 			result = true

@@ -406,13 +406,6 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 		text := SPrintF(format, value)
 		// Painting
 		fontData := GetFontData(.monospace)
-		TextPro(
-			fontData, 
-			text, 
-			body, 
-			textProOptions, 
-			state,
-			)
 		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
 		PaintLabeledWidgetFrame(body, label, 2 if state >= {.focused} else 1, outlineColor)
 		// Update text input
@@ -422,7 +415,18 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 				resize(buffer, len(text))
 				copy(buffer[:], text[:])
 			}
-			if TextEdit(buffer, {.numeric}, 18) {
+			textEditOptions: TextEditOptions = {.numeric}
+			if _, ok := value.(int); ok {
+				textEditOptions += {.integer}
+			}
+			TextPro(
+				fontData, 
+				buffer[:], 
+				body, 
+				textProOptions, 
+				state,
+				)
+			if TextEdit(buffer, textEditOptions, 18) {
 				ctx.renderTime = RENDER_TIMEOUT
 				str := string(buffer[:])
 				switch v in value {
@@ -436,6 +440,14 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 					}
 				}
 			}
+		} else {
+			TextPro(
+				fontData, 
+				text, 
+				body, 
+				textProOptions, 
+				state,
+				)
 		}
 	}
 	return
@@ -459,13 +471,6 @@ NumberInputCentered :: proc(value: Number, format: string, loc := #caller_locati
 		text := SPrintF(format, value)
 		// Painting
 		fontData := GetFontData(.monospace)
-		TextPro(
-			fontData, 
-			text, 
-			body, 
-			{.align_center}, 
-			state,
-			)
 		outlineColor := BlendColors(GetColor(.outlineBase, hoverTime), GetColor(.accentHover), stateTime)
 		PaintRectLines(body, 2 if state >= {.focused} else 1, outlineColor)
 		// Update text input
@@ -479,6 +484,13 @@ NumberInputCentered :: proc(value: Number, format: string, loc := #caller_locati
 			if _, ok := value.(int); ok {
 				textEditOptions += {.integer}
 			}
+			TextPro(
+				fontData, 
+				buffer[:], 
+				body, 
+				{.align_center}, 
+				state,
+				)
 			if TextEdit(buffer, textEditOptions, 18) {
 				ctx.renderTime = RENDER_TIMEOUT
 				str := string(buffer[:])
@@ -493,6 +505,14 @@ NumberInputCentered :: proc(value: Number, format: string, loc := #caller_locati
 					}
 				}
 			}
+		} else {
+			TextPro(
+				fontData, 
+				text, 
+				body, 
+				{.align_center}, 
+				state,
+				)
 		}
 	}
 	return
