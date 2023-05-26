@@ -18,6 +18,9 @@ RectCorner :: enum {
 }
 RectCorners :: bit_set[RectCorner;u8]
 
+RectCenter :: proc(rect: Rect) -> Vec2 {
+	return {rect.x + rect.w / 2, rect.y + rect.h / 2}
+}
 // Rect manip
 // Move the side of a rectangle
 SquishRectLeft :: proc(rect: Rect, amount: f32) -> Rect {
