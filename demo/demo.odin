@@ -102,7 +102,11 @@ _main :: proc() {
 				Space(10)
 				windowOpen[.dataTable] = ToggleButton(windowOpen[.dataTable], "Data Table")
 				if Window("Window Options", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
-					Shrink(30); SetSize(30)
+					PaintRoundedRectEx(GetCurrentLayout().rect, WINDOW_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase))
+					Shrink(10); SetSize(30)
+					tab = EnumTabs(tab, 0)
+					PaintRect(GetCurrentLayout().rect, GetColor(.foreground))
+					Shrink(30)
 					window := CurrentWindow()
 					CheckBoxBitSetHeader(&window.options, "Options")
 					for member in WindowOption {

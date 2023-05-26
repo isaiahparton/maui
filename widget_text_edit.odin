@@ -12,8 +12,8 @@ import "core:math/linalg"
 TextProOption :: enum {
 	password,
 	selectAll,
-	align_center,
-	align_right,
+	alignCenter,
+	alignRight,
 }
 TextProOptions :: bit_set[TextProOption]
 // Displays clipped, selectable text that can be copied to clipboard
@@ -24,11 +24,11 @@ TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOpti
 	minDist: f32 = math.F32_MAX
 	// Determine text origin
 	origin: Vec2 = {rect.x + WIDGET_TEXT_OFFSET, rect.y + rect.h / 2 - fontData.size / 2}
-	if options & {.align_center, .align_right} != {} {
+	if options & {.alignCenter, .alignRight} != {} {
 		textSize := MeasureString(fontData, string(data))
-		if options >= {.align_center} {
+		if options >= {.alignCenter} {
 			origin.x = rect.x + rect.w / 2 - textSize.x / 2
-		} else if options >= {.align_right} {
+		} else if options >= {.alignRight} {
 			origin.x = rect.x + rect.w - textSize.x
 		}
 	}
@@ -488,7 +488,7 @@ NumberInputCentered :: proc(value: Number, format: string, loc := #caller_locati
 				fontData, 
 				buffer[:], 
 				body, 
-				{.align_center}, 
+				{.alignCenter}, 
 				state,
 				)
 			if TextEdit(buffer, textEditOptions, 18) {
@@ -510,7 +510,7 @@ NumberInputCentered :: proc(value: Number, format: string, loc := #caller_locati
 				fontData, 
 				text, 
 				body, 
-				{.align_center}, 
+				{.alignCenter}, 
 				state,
 				)
 		}

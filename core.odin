@@ -278,38 +278,44 @@ SetScreenSize :: proc(w, h: f32) {
 }
 
 Init :: proc() -> bool {
-	ctx = new(Context)
-	ctx.style.colors = COLOR_SCHEME_LIGHT
-	// Load graphics
-	if !InitPainter() {
-		fmt.print("failed to initialize painter module\n")
-		return false
+	if ctx == nil {
+		ctx = new(Context)
+		ctx.style.colors = COLOR_SCHEME_LIGHT
+		// Load graphics
+		if !InitPainter() {
+			fmt.print("failed to initialize painter module\n")
+			return false
+		}
+		return true
 	}
-	return true
+	return false
 }
 Uninit :: proc() {
-	// Free text buffers
-	for _, value in ctx.textBuffers {
-		delete(value.buffer)
+	if ctx != nil {
+		// Free text buffers
+		for _, value in ctx.textBuffers {
+			delete(value.buffer)
+		}
+		delete(ctx.textBuffers)
+		// Free animation pool
+		delete(ctx.animations)
+		// Free window data
+		for window in ctx.windows {
+			DeleteWindow(window)
+		}
+		delete(ctx.windowMap)
+		delete(ctx.windows)
+		// Free layer data
+		for layer in ctx.layers {
+			DeleteLayer(layer)
+		}
+		delete(ctx.layerMap)
+		delete(ctx.layers)
+		//
+		UninitPainter()
+		//
+		free(ctx)
 	}
-	// Free animation pool
-	delete(ctx.animations)
-	// Free window data
-	for window in ctx.windows {
-		DeleteWindow(window)
-	}
-	delete(ctx.windowMap)
-	delete(ctx.windows)
-	// Free layer data
-	for layer in ctx.layers {
-		DeleteLayer(layer)
-	}
-	delete(ctx.layerMap)
-	delete(ctx.layers)
-	//
-	UninitPainter()
-	//
-	free(ctx)
 }
 NewFrame :: proc() {
 	using ctx

@@ -31,6 +31,7 @@ LayerOption :: enum {
 	noScrollMarginX,
 	noScrollMarginY,
 	noPushId,
+	forceClip,
 }
 LayerOptions :: bit_set[LayerOption]
 /*
@@ -127,9 +128,9 @@ BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (la
 		// Update user options
 		layer.options = options
 		// Begin id context for layer contents
-		if .noPushId not_in layer.options {
-			//PushId(HashId(int(id)))
-		}
+		// if .noPushId not_in layer.options {
+		// 	PushId(id)
+		// }
 		// Reset stuff
 		layer.bits += {.stayAlive}
 		layer.commandOffset = 0
@@ -157,7 +158,7 @@ BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (la
 			PaintRoundedRect(TranslateRect(layer.body, 7), WINDOW_ROUNDNESS, GetColor(.shade, 0.15))
 		}
 		// Update clip status
-		if layer.body != ctx.fullscreenRect && !RectContainsRect(layer.body, layer.contentRect) {
+		if layer.layoutSize.y > layer.body.h || (layer.body != ctx.fullscreenRect && !RectContainsRect(layer.body, layer.contentRect)) || .forceClip in layer.options {
 			layer.clipCommand = PushCommand(layer, CommandClip)
 			layer.bits += {.clipped}
 		} else {
@@ -207,6 +208,7 @@ EndLayer :: proc(layer: ^LayerData) {
 		// Handle content clipping
 		if .clipped in layer.bits {
 			// Since clipping is required, update the previous command to fit the layer
+			assert(layer.clipCommand != nil)
 			layer.clipCommand.rect = layer.body
 			// Scrolling constants (put these elsewhere maybe)
 			SCROLL_SPEED :: 16
@@ -258,9 +260,9 @@ EndLayer :: proc(layer: ^LayerData) {
 			PushCommand(layer, CommandClip).rect = ctx.fullscreenRect
 		}
 		// End id context
-		if .noPushId not_in layer.options {
-			//PopId()
-		}
+		// if .noPushId not_in layer.options {
+		// 	PopId()
+		// }
 	}
 	ctx.layerDepth -= 1
 }

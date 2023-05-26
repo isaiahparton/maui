@@ -74,7 +74,11 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 		layerRect := window.rect
 		layerRect.h -= ((layerRect.h - WINDOW_TITLE_SIZE) if .title in window.options else layerRect.h) * window.howCollapsed
 		// Begin window layer
-		window.layer, ok = BeginLayer(layerRect, {}, id, {.shadow})
+		layerOptions: LayerOptions = {.shadow}
+		if (window.howCollapsed > 0 && window.howCollapsed < 1) || (window.howCollapsed == 1 && .shouldCollapse not_in window.bits) {
+			layerOptions += {.forceClip}
+		}
+		window.layer, ok = BeginLayer(layerRect, {}, id, layerOptions)
 		window.layer.order = .floating
 		// Visual rect
 		window.drawRect = layerRect

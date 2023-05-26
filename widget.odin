@@ -355,7 +355,7 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 				ctx.cursor = .beam
 			}
 			buffer := GetTextBuffer(self.id)
-			TextPro(fontData, buffer[:], self.body, {.align_center}, self.state)
+			TextPro(fontData, buffer[:], self.body, {.alignCenter, .selectAll}, self.state)
 			if .justFocused in self.state {
 				resize(buffer, len(text))
 				copy(buffer[:], text[:])
@@ -1023,25 +1023,27 @@ ScrollBar :: proc(value, low, high, thumbSize: f32, vertical: bool, loc := #call
 	Tabs
 */
 Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bool) {
-	if control, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using control
-		UpdateWidget(control)
+	if self, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+		UpdateWidget(self)
 
-		PushId(id)
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
+		PushId(self.id)
+			hoverTime := AnimateBool(HashId(int(0)), .hovered in self.state, 0.1)
 			stateTime := AnimateBool(HashId(int(1)), active, 0.15)
 		PopId()
-
-		PaintRect(body, GetColor(.foreground if active else .foregroundHover))
-		center: Vec2 = {body.x + body.w / 2, body.y + body.h / 2}
-		textSize := PaintStringAligned(GetFontData(.default), label, center, GetColor(.text), .middle, .middle)
-		size := textSize.x
-		size *= stateTime
-		if stateTime > 0 {
-			PaintRect({center.x - size / 2, body.y + body.h - 4, size, 4}, GetColor(.accent, stateTime))
+		if self.bits >= {.shouldPaint} {
+			PaintRect(self.body, GetColor(.widgetBase))
+			PaintRoundedRectEx(self.body, 10, {.topLeft, .topRight}, GetColor(.foreground) if active else GetColor(.widgetHover, hoverTime))
+			//PaintRect(body, GetColor(.foreground if active else .foregroundHover))
+			center: Vec2 = {self.body.x + self.body.w / 2, self.body.y + self.body.h / 2}
+			textSize := PaintStringAligned(GetFontData(.default), label, center, GetColor(.text), .middle, .middle)
+			size := textSize.x
+			size *= stateTime
+			if stateTime > 0 {
+				PaintRect({center.x - size / 2, self.body.y + self.body.h - 4, size, 4}, GetColor(.accent, stateTime))
+			}
 		}
 
-		result = .pressed in state
+		result = .pressed in self.state
 	}
 	return
 }

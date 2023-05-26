@@ -3,7 +3,7 @@ package maui
 /*
 	Geometric appearance
 */
-WINDOW_ROUNDNESS :: 5
+WINDOW_ROUNDNESS :: 6
 WINDOW_TITLE_SIZE :: 34
 
 WIDGET_TEXT_OFFSET :: 9
@@ -89,6 +89,11 @@ ColorIndex :: enum {
 	accent,
 	accentHover,
 	accentPress,
+
+	//Shading for items on the foreground
+	//foregroundShade,
+	//Shading for items in the background
+	//backgroundShade,
 
 	shade,
 	text,
