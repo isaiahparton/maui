@@ -37,16 +37,18 @@ PillButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) 
 				PaintRoundedRect(rect, rect.h / 2, StyleGetShadeColor(pressTime))
 			}
 		}
+
+		fontData := GetFontData(.header if body.h >= 45 else .default)
 		if style == .subtle {
 			PaintPillH(body, GetColor(.foreground))
 			PaintPillOutlineH(body, false, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime))
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime), .middle, .middle)
+			PaintLabel(fontData, label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime), .middle, .middle)
 		} else if style == .normal {
 			PaintPillH(body, BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
+			PaintLabel(fontData, label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
 		} else {
 			PaintPillH(body, BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
-			PaintLabel(GetFontData(.default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
+			PaintLabel(fontData, label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
 		}
 		
 		result = .released in state
@@ -140,6 +142,26 @@ ToggleButtonBit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #call
 	click = ToggleButtonEx(bit in set, label, loc)
 	if click {
 		set^ ~= {bit}
+	}
+	return
+}
+// Smol subtle buttons
+IconButton :: proc(icon: Icon, loc := #caller_location) -> (click: bool) {
+	if self, ok := BeginWidget(HashId(loc), ChildRect(UseNextRect() or_else LayoutNext(GetCurrentLayout()), {24, 24}, .middle, .middle)); ok {
+		UpdateWidget(self)
+		PushId(self.id)
+			hoverTime := AnimateBool(HashId(int(0)), self.state >= {.hovered}, 0.1)
+			pressTime := AnimateBool(HashId(int(1)), self.state >= {.down}, 0.1)
+		PopId()
+		if self.bits >= {.shouldPaint} {
+			center := RectCenter(self.body)
+			PaintCircle(center, 24, StyleGetShadeColor(2 if self.state >= {.down} else hoverTime))
+			if .down not_in self.state {
+				PaintCircleOutline(center, 24, true, StyleGetShadeColor(pressTime))
+			}
+			PaintIconAligned(GetFontData(.header), icon, center + 1, GetColor(.text, 0.5 + hoverTime * 0.5), .middle, .middle)
+		}
+		click = .released in self.state
 	}
 	return
 }

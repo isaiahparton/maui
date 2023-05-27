@@ -418,7 +418,6 @@ CheckBoxEx :: proc(status: CheckBoxStatus, text: string, loc := #caller_location
 		// Painting
 		if .shouldPaint in bits {
 			center: Vec2 = {body.x + HALF_SIZE, body.y + HALF_SIZE}
-			PaintRect(body, GetColor(.foreground))
 			if hoverTime > 0 {
 				PaintRect(body, StyleGetShadeColor(hoverTime))
 			}
@@ -658,8 +657,8 @@ Collapser :: proc(text: string, size: f32, loc := #caller_location) -> (active: 
 /*
 	Combo box
 */
-@(deferred_out=_Menu)
-Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: bool) {
+@private 
+BeginMenu :: proc(label: Label, size: Vec2, align: Alignment, loc := #caller_location) -> (active: bool) {
 	sharedId := HashId(loc)
 	if control, ok := BeginWidget(sharedId, UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using control
@@ -676,15 +675,24 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 		PaintRect(body, fill)
 		PaintRectLines(body, 1, GetColor(.outlineBase))
 		PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
-		PaintStringAligned(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
+		PaintLabel(GetFontData(.default), label, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
 
 		if .pressed in state {
 			bits = bits ~ {.active}
 		}
 
 		if active {
+			size := size
+			size.x = max(size.x, body.w)
+			rect: Rect = {body.x, body.y + body.h, size.x, size.y}
+			if align == .middle {
+				rect.x = body.x + body.w / 2 - size.x / 2
+			} else if align == .far {
+				rect.x = body.x + body.w - size.x
+			}
+
 			layer: ^LayerData
-			layer, ok = BeginLayer(AttachRectBottom(body, menuSize), {}, sharedId, {.attached})
+			layer, ok = BeginLayer(rect, {}, sharedId, {.attached})
 
 			if ok {
 				layer.opacity = stateTime
@@ -701,7 +709,8 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 	}
 	return 
 }
-@private _Menu :: proc(active: bool) {
+@private
+EndMenu :: proc(active: bool) {
 	if active {
 		layer := CurrentLayer()
 
@@ -712,6 +721,18 @@ Menu :: proc(text: string, menuSize: f32, loc := #caller_location) -> (active: b
 		PaintRectLines(layer.body, 1, GetColor(.outlineBase))
 		EndLayer(layer)
 	}
+}
+@(deferred_out=_Menu)
+MenuEx :: proc(label: Label, size: Vec2, align: Alignment, loc := #caller_location) -> (active: bool) {
+	return BeginMenu(label, size, align)
+}
+@(deferred_out=_Menu)
+Menu :: proc(label: Label, height: f32, loc := #caller_location) -> (active: bool) {
+	return BeginMenu(label, {0, height}, .near)
+}
+@private 
+_Menu :: proc(active: bool) {
+	EndMenu(active)
 }
 // Can be used for auto-complete on a text input
 @(deferred_out=_AttachMenu)
