@@ -340,7 +340,12 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 
 		if self.bits >= {.shouldPaint} {
 			if .active not_in self.bits {
-				PaintRect(self.body, GetColor(.widgetBase))
+				if low < high {
+					PaintRect(self.body, GetColor(.backing))
+					PaintRect({self.body.x, self.body.y, self.body.w * (f32(value - low) / f32(high - low)), self.body.h}, GetColor(.widgetBase))
+				} else {
+					PaintRect(self.body, GetColor(.widgetBase))
+				}
 			}
 			PaintRectLines(self.body, 2 if .active in self.bits else 1, GetColor(.accent) if .active in self.bits else GetColor(.outlineBase, hoverTime))
 		}
@@ -372,6 +377,11 @@ DragSpinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue
 			center: Vec2 = {self.body.x + self.body.w / 2, self.body.y + self.body.h / 2}
 			PaintStringAligned(fontData, string(text), center, GetColor(.text), .middle, .middle)
 			if .down in self.state {
+				/*if low < high {
+					newValue = low + int(((input.mousePoint.x - self.body.x) / self.body.w) * f32(high - low))
+				} else {
+					newValue = value + int(input.mousePoint.x - input.prevMousePoint.x) + int(input.mousePoint.y - input.prevMousePoint.y)
+				}*/
 				newValue = value + int(input.mousePoint.x - input.prevMousePoint.x) + int(input.mousePoint.y - input.prevMousePoint.y)
 			}
 			if .hovered in self.state {
@@ -1053,7 +1063,7 @@ Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bo
 		PopId()
 		if self.bits >= {.shouldPaint} {
 			PaintRect(self.body, GetColor(.widgetBase))
-			PaintRoundedRectEx(self.body, 10, {.topLeft, .topRight}, GetColor(.foreground) if active else GetColor(.widgetHover, hoverTime))
+			PaintRoundedRectEx(self.body, 10, {.topLeft, .topRight}, GetColor(.foreground, 1 if active else 0.5 * hoverTime))
 			//PaintRect(body, GetColor(.foreground if active else .foregroundHover))
 			center: Vec2 = {self.body.x + self.body.w / 2, self.body.y + self.body.h / 2}
 			textSize := PaintStringAligned(GetFontData(.default), label, center, GetColor(.text), .middle, .middle)

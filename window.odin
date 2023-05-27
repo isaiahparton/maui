@@ -73,6 +73,17 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 		// Layer body
 		layerRect := window.rect
 		layerRect.h -= ((layerRect.h - WINDOW_TITLE_SIZE) if .title in window.options else layerRect.h) * window.howCollapsed
+		// Interpolate collapse
+		if .shouldCollapse in window.bits {
+			window.howCollapsed = min(1, window.howCollapsed + ctx.deltaTime * 7)
+		} else {
+			window.howCollapsed = max(0, window.howCollapsed - ctx.deltaTime * 7)
+		}
+		if window.howCollapsed >= 1 {
+			window.bits += {.collapsed}
+		} else {
+			window.bits -= {.collapsed}
+		}
 		// Begin window layer
 		layerOptions: LayerOptions = {.shadow}
 		if (window.howCollapsed > 0 && window.howCollapsed < 1) || (window.howCollapsed == 1 && .shouldCollapse not_in window.bits) {
@@ -161,17 +172,6 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 		} else {
 			window.bits -= {.shouldCollapse}
 		}
-		// Interpolate collapse
-		if .shouldCollapse in window.bits {
-			window.howCollapsed = min(1, window.howCollapsed + ctx.deltaTime * 7)
-		} else {
-			window.howCollapsed = max(0, window.howCollapsed - ctx.deltaTime * 7)
-		}
-		if window.howCollapsed >= 1 {
-			window.bits += {.collapsed}
-		} else {
-			window.bits -= {.collapsed}
-		}
 		// Push layout if necessary
 		if .collapsed in window.bits {
 			ok = false
@@ -190,22 +190,58 @@ EndWindow :: proc(using window: ^WindowData) {
 		// Outline
 		PaintRoundedRectOutline(drawRect, WINDOW_ROUNDNESS, true, GetColor(.outlineBase))
 		// Handle resizing
+		WINDOW_SNAP_DISTANCE :: 10
 		if .resizing in bits {
 			minSize: Vec2 = {180, 240}
 			switch dragSide {
 				case .bottom:
-				rect.h = input.mousePoint.y - rect.y
+				anchor := input.mousePoint.y
+				for other in &ctx.windows {
+					if other != window {
+						if abs(input.mousePoint.y - other.rect.y) < WINDOW_SNAP_DISTANCE {
+							anchor = other.rect.y
+						}
+					}
+				}
+				rect.h = anchor - rect.y
 				ctx.cursor = .resizeNS
+
 				case .left:
-				rect.x = min(input.mousePoint.x, dragAnchor - minSize.x)
-				rect.w = dragAnchor - input.mousePoint.x
+				anchor := input.mousePoint.x
+				for other in &ctx.windows {
+					if other != window {
+						if abs(input.mousePoint.x - (other.rect.x + other.rect.w)) < WINDOW_SNAP_DISTANCE {
+							anchor = other.rect.x + other.rect.w
+						}
+					}
+				}
+				rect.x = min(anchor, dragAnchor - minSize.x)
+				rect.w = dragAnchor - anchor
 				ctx.cursor = .resizeEW
+
 				case .right:
-				rect.w = input.mousePoint.x - rect.x
+				anchor := input.mousePoint.x
+				for other in &ctx.windows {
+					if other != window {
+						if abs(input.mousePoint.x - other.rect.x) < WINDOW_SNAP_DISTANCE {
+							anchor = other.rect.x
+						}
+					}
+				}
+				rect.w = anchor - rect.x
 				ctx.cursor = .resizeEW
+
 				case .top:
-				rect.y = min(input.mousePoint.y, dragAnchor - minSize.y)
-				rect.h = dragAnchor - input.mousePoint.y
+				anchor := input.mousePoint.y
+				for other in &ctx.windows {
+					if other != window {
+						if abs(input.mousePoint.y - (other.rect.y + other.rect.h)) < WINDOW_SNAP_DISTANCE {
+							anchor = other.rect.y + other.rect.h
+						}
+					}
+				}
+				rect.y = min(anchor, dragAnchor - minSize.y)
+				rect.h = dragAnchor - anchor
 				ctx.cursor = .resizeNS
 			}
 			rect.w = max(rect.w, minSize.x)

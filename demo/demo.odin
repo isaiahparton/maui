@@ -78,6 +78,10 @@ _main :: proc() {
 				AttachTooltip("I'm a tooltip", .top)
 				windowOpen[.widgetGallery] = ToggleButton(windowOpen[.widgetGallery], "Widget Gallery")
 				if Window("Widget Gallery", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
+					PaintRoundedRectEx(GetCurrentLayout().rect, WINDOW_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase))
+					Shrink(10); SetSize(30)
+					tab = EnumTabs(tab, 0)
+					PaintRect(GetCurrentLayout().rect, GetColor(.foreground))
 					Shrink(30); SetSize(30)
 					if Layout(.top, 30) {
 						SetSide(.left); SetSize(120)
@@ -102,12 +106,8 @@ _main :: proc() {
 				Space(10)
 				windowOpen[.dataTable] = ToggleButton(windowOpen[.dataTable], "Data Table")
 				if Window("Window Options", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
-					PaintRoundedRectEx(GetCurrentLayout().rect, WINDOW_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase))
-					Shrink(10); SetSize(30)
-					tab = EnumTabs(tab, 0)
-					PaintRect(GetCurrentLayout().rect, GetColor(.foreground))
-					Shrink(30)
 					window := CurrentWindow()
+					Shrink(30); SetSize(30)
 					CheckBoxBitSetHeader(&window.options, "Options")
 					for member in WindowOption {
 						PushId(HashId(int(member)))
