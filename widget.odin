@@ -283,7 +283,7 @@ Spinner :: proc(value, low, high: int, loc := #caller_location) -> (newValue: in
 }
 
 // Value slider
-SliderEx :: proc(value, low, high: f32, name: string, loc := #caller_location) -> (change: bool, newValue: f32) {
+SliderEx :: proc(value, low, high: f32, format: string, loc := #caller_location) -> (change: bool, newValue: f32) {
 	SIZE :: 16
 	HEIGHT :: SIZE / 2
 	HALF_HEIGHT :: HEIGHT / 2
@@ -305,16 +305,16 @@ SliderEx :: proc(value, low, high: f32, name: string, loc := #caller_location) -
 
 		range := self.body.w - HEIGHT
 		offset := range * clamp((value - low) / high, 0, 1)
-		fillColor := BlendColors(GetColor(.widgetBase), GetColor(.accent), hoverTime)
-		PaintRoundedRect({barRect.x, barRect.y, offset, barRect.h}, HALF_HEIGHT, fillColor)
+		PaintRoundedRect({barRect.x, barRect.y, offset, barRect.h}, HALF_HEIGHT, BlendColors(GetColor(.widgetBase), GetColor(.accent), hoverTime))
 
 		thumbCenter: Vec2 = {self.body.x + HALF_HEIGHT + offset, self.body.y + self.body.h / 2}
 		// TODO: Constants for these
 		thumbRadius := self.body.h
 		if hoverTime > 0 {
 			PaintCircle(thumbCenter, thumbRadius + 10 * (pressTime + hoverTime), StyleGetShadeColor(1))
+
 		}
-		PaintCircle(thumbCenter, thumbRadius, fillColor)
+		PaintCircle(thumbCenter, thumbRadius, BlendColors(GetColor(.widgetHover), GetColor(.accent), hoverTime))
 
 		if .down in self.state {
 			change = true

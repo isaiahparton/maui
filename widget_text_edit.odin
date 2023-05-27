@@ -240,6 +240,7 @@ TextEdit :: proc(buf: ^[dynamic]u8, options: TextEditOptions, maxLength: int = 0
 			state.length = 0
 			state.anchor = state.index
 		}
+		ctx.renderTime = RENDER_TIMEOUT
 		// Clamp cursor
 		state.index = max(0, state.index)
 		state.length = max(0, state.length)
@@ -282,6 +283,7 @@ TextEdit :: proc(buf: ^[dynamic]u8, options: TextEditOptions, maxLength: int = 0
 				state.length = len(buf) - state.index
 			}
 		}
+		ctx.renderTime = RENDER_TIMEOUT
 		state.index = max(0, state.index)
 		state.length = max(0, state.length)
 	}

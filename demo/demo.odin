@@ -83,24 +83,32 @@ _main :: proc() {
 					tab = EnumTabs(tab, 0)
 					PaintRect(GetCurrentLayout().rect, GetColor(.foreground))
 					Shrink(30); SetSize(30)
-					if Layout(.top, 30) {
-						SetSide(.left); SetSize(120)
-						integer = Spinner(integer, -100, 100)
-						SetSide(.right)
-						integer = DragSpinner(integer, -100, 100)
-					}
-					Space(20)
-					if Menu("Open me!", 120) {
-						SetSize(30)
-						MenuOption("Option A", false)
-						MenuOption("Option B", false)
-						MenuOption("Option C", false)
-						if SubMenu("More Options", {200, 90}) {
-							SetSize(30)
-							MenuOption("Option D", false)
-							MenuOption("Option E", false)
-							MenuOption("Option F", false)
+					if tab == .input {
+						if Layout(.top, 30) {
+							SetSide(.left); SetSize(120)
+							integer = Spinner(integer, -100, 100)
+							SetSide(.right)
+							integer = DragSpinner(integer, -100, 100)
 						}
+						Space(20)
+						if change, newValue := SliderEx(f32(value), 0, 10, "Sauce"); change {
+							value = f64(newValue)
+						}
+						Space(20)
+						if Menu("Open me!", 120) {
+							SetSize(30)
+							MenuOption("Option A", false)
+							MenuOption("Option B", false)
+							MenuOption("Option C", false)
+							if SubMenu("More Options", {200, 90}) {
+								SetSize(30)
+								MenuOption("Option D", false)
+								MenuOption("Option E", false)
+								MenuOption("Option F", false)
+							}
+						}
+					} else if tab == .text {
+						TextInput(&buffer, "Type some text", "Placeholder")
 					}
 				}
 				Space(10)
