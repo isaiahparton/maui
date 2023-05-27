@@ -133,6 +133,7 @@ Icon :: enum rune {
 StringPaintOption :: enum {
 	wrap,
 	word_wrap,
+	padding,
 }
 StringPaintOptions :: bit_set[StringPaintOption]
 PaintStringContained :: proc(font: FontData, text: string, rect: Rect, options: StringPaintOptions, color: Color) -> Vec2 {
@@ -143,6 +144,7 @@ PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options
 		return {}
 	}
 
+	rect := rect
 	point: Vec2 = {rect.x, rect.y}
 	size: Vec2
 	nextWord: int
@@ -150,14 +152,32 @@ PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options
 	totalSize: Vec2
 	if alignX != .near || alignY != .near {
 		totalSize = MeasureString(font, text)
-		#partial switch alignX {
-			case .far: point += rect.w - totalSize.x
-			case .middle: point += rect.w / 2 - totalSize.x / 2
+	}
+	#partial switch alignX {
+		case .near:
+		if .padding in options {
+			point.x += WIDGET_TEXT_OFFSET
+			rect.w -= WIDGET_TEXT_OFFSET * 2
 		}
-		#partial switch alignY {
-			case .far: point += rect.h - totalSize.y
-			case .middle: point += rect.h / 2 - totalSize.y / 2
+		case .far: 
+		point.x += rect.w - totalSize.x
+		if .padding in options {
+			point.x -= WIDGET_TEXT_OFFSET
 		}
+		case .middle: point.x += rect.w / 2 - totalSize.x / 2
+	}
+	#partial switch alignY {
+		case .near:
+		if .padding in options {
+			point.y += WIDGET_TEXT_OFFSET
+			rect.h -= WIDGET_TEXT_OFFSET * 2
+		}
+		case .far: 
+		point.y += rect.h - totalSize.y
+		if .padding in options {
+			point.y -= WIDGET_TEXT_OFFSET
+		}
+		case .middle: point.y += rect.h / 2 - totalSize.y / 2
 	}
 
 	breakSize: f32

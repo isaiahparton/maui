@@ -838,7 +838,7 @@ MenuOption :: proc(text: string, active: bool, loc := #caller_location) -> (resu
 		PopId()
 
 		PaintRect(body, GetColor(.widgetHover) if active else BlendThreeColors(GetColor(.widgetBase), GetColor(.widgetHover), GetColor(.widgetPress), hoverTime + pressTime))
-		PaintStringAligned(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, 1), .near, .middle)
+		PaintStringContainedEx(GetFontData(.default), text, body, {.padding}, .near, .middle, GetColor(.text, 1))
 
 		/*if .focused in state {
 			if KeyPressed(.down) || KeyPressed(.up) {
@@ -966,9 +966,9 @@ Divider :: proc(size: f32) {
 	layout := GetCurrentLayout()
 	rect := CutRect(&layout.rect, layout.side, size)
 	if layout.side == .left || layout.side == .right {
-		PaintRect({rect.x + rect.w / 2, rect.y, 1, rect.h}, GetColor(.foregroundPress))
+		PaintRect({rect.x + math.floor(rect.w / 2), rect.y, 1, rect.h}, GetColor(.foregroundPress))
 	} else {
-		PaintRect({rect.x, rect.y + rect.h / 2, rect.w, 1}, GetColor(.foregroundPress))
+		PaintRect({rect.x, rect.y + math.floor(rect.h / 2), rect.w, 1}, GetColor(.foregroundPress))
 	}
 }
 
@@ -1062,9 +1062,7 @@ Tab :: proc(active: bool, label: string, loc := #caller_location) -> (result: bo
 			stateTime := AnimateBool(HashId(int(1)), active, 0.15)
 		PopId()
 		if self.bits >= {.shouldPaint} {
-			PaintRect(self.body, GetColor(.widgetBase))
 			PaintRoundedRectEx(self.body, 10, {.topLeft, .topRight}, GetColor(.foreground, 1 if active else 0.5 * hoverTime))
-			//PaintRect(body, GetColor(.foreground if active else .foregroundHover))
 			center: Vec2 = {self.body.x + self.body.w / 2, self.body.y + self.body.h / 2}
 			textSize := PaintStringAligned(GetFontData(.default), label, center, GetColor(.text), .middle, .middle)
 			size := textSize.x
@@ -1124,7 +1122,7 @@ TextBoxEx :: proc(font: FontIndex, text: string, options: StringPaintOptions, al
 	fontData := GetFontData(font)
 	rect := LayoutNext(GetCurrentLayout())
 	if CheckClip(ctx.clipRect, rect) != .full {
-		PaintStringContainedEx(fontData, text, rect, options, alignX, alignY, GetColor(.text))
+		PaintStringContainedEx(fontData, text, rect, options + {.padding}, alignX, alignY, GetColor(.text))
 	}
 }
 

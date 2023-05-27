@@ -17,7 +17,7 @@ TextProOption :: enum {
 }
 TextProOptions :: bit_set[TextProOption]
 // Displays clipped, selectable text that can be copied to clipboard
-TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOptions, widgetState: WidgetState) {
+TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOptions, widgetState: WidgetState) -> Vec2 {
 	state := &ctx.scribe
 	// Hovered index
 	hoverIndex := 0
@@ -161,7 +161,7 @@ TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOpti
 	} else {
 		state.offset.x = 0
 	}
-	return
+	return size
 }
 // Standalone text editing
 TextEditOption :: enum {
@@ -383,13 +383,15 @@ Number :: union {
 	int,
 }
 NumberInputFloat64 :: proc(value: f64, label: string, loc := #caller_location) -> (newValue: f64) {
-	return NumberInputEx(value, label, "%.2f", {}, loc).(f64)
+	return NumberInputEx(value, label, "%.2f", {}, {}, loc).(f64)
+}
+NumberInputFloat64Ex :: proc(value: f64, label, suffix: string, loc := #caller_location) -> (newValue: f64) {
+	return NumberInputEx(value, label, "%.2f", suffix, {}, loc).(f64)
 }
 NumberInputInt :: proc(value: int, label: string, loc := #caller_location) -> (newValue: int) {
-	return NumberInputEx(value, label, "%i", {}, loc).(int)
+	return NumberInputEx(value, label, "%i", {}, {}, loc).(int)
 }
-@private
-NumberInputEx :: proc(value: Number, label, format: string, textProOptions: TextProOptions, loc := #caller_location) -> (newValue: Number) {
+NumberInputEx :: proc(value: Number, label, format, suffix: string, textProOptions: TextProOptions, loc := #caller_location) -> (newValue: Number) {
 	newValue = value
 	if self, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
 		using self
@@ -409,6 +411,7 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 		// Painting
 		fontData := GetFontData(.monospace)
 		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
+		PaintRect(self.body, GetColor(.foreground))
 		PaintLabeledWidgetFrame(body, label, 2 if state >= {.focused} else 1, outlineColor)
 		// Update text input
 		if state >= {.focused} {
@@ -421,13 +424,16 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 			if _, ok := value.(int); ok {
 				textEditOptions += {.integer}
 			}
-			TextPro(
+			textSize := TextPro(
 				fontData, 
 				buffer[:], 
 				body, 
 				textProOptions, 
 				state,
 				)
+			if suffix != {} {
+				PaintStringAligned(fontData, suffix, {body.x + WIDGET_TEXT_OFFSET + textSize.x, body.y + body.h / 2}, GetColor(.text, 0.5), .near, .middle)
+			}
 			if TextEdit(buffer, textEditOptions, 18) {
 				ctx.renderTime = RENDER_TIMEOUT
 				str := string(buffer[:])
@@ -441,15 +447,19 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 						newValue = temp
 					}
 				}
+				state += {.changed}
 			}
 		} else {
-			TextPro(
+			textSize := TextPro(
 				fontData, 
 				text, 
 				body, 
 				textProOptions, 
 				state,
 				)
+			if suffix != {} {
+				PaintStringAligned(fontData, suffix, {body.x + WIDGET_TEXT_OFFSET + textSize.x, body.y + body.h / 2}, GetColor(.text, 0.5), .near, .middle)
+			}
 		}
 	}
 	return
