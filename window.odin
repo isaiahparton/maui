@@ -97,7 +97,7 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 		layoutRect := window.rect
 		// Body
 		if .collapsed not_in window.bits {
-			PaintRoundedRect(window.drawRect, WINDOW_ROUNDNESS, GetColor(.foreground))
+			PaintRoundedRect(window.drawRect, WINDOW_ROUNDNESS, GetColor(.base))
 		}
 		// Get resize click
 		if .resizable in window.options && .collapsed not_in window.bits {
@@ -135,9 +135,9 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 			titleRect := CutRectTop(&layoutRect, WINDOW_TITLE_SIZE)
 			// Draw title rectangle
 			if .collapsed in window.bits {
-				PaintRoundedRect(titleRect, WINDOW_ROUNDNESS, GetColor(.widgetBase, 1))
+				PaintRoundedRect(titleRect, WINDOW_ROUNDNESS, GetColor(.widgetBackground))
 			} else {
-				PaintRoundedRectEx(titleRect, WINDOW_ROUNDNESS, {.topLeft, .topRight}, GetColor(.widgetBase, 1))
+				PaintRoundedRectEx(titleRect, WINDOW_ROUNDNESS, {.topLeft, .topRight}, GetColor(.widgetBackground))
 			}
 			// Title bar decoration
 			baseline := titleRect.y + titleRect.h / 2
@@ -145,13 +145,17 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 			canCollapse := .collapsable in window.options || .collapsed in window.bits
 			if canCollapse {
 				PaintCollapseArrow({titleRect.x + titleRect.h / 2, baseline}, 8, window.howCollapsed, GetColor(.text))
-				textOffset = titleRect.h * 0.85
+				textOffset = titleRect.h
 			}
 			PaintStringAligned(GetFontData(.default), title, {titleRect.x + textOffset, baseline}, GetColor(.text), .near, .middle)
 			if .closable in window.options {
 				SetNextRect(ChildRect(GetRectRight(titleRect, titleRect.h), {24, 24}, .middle, .middle))
 				PushId(window.id)
-				if Button(.close) {
+				if Button(
+					label = Icon.close, 
+					align = .middle, 
+					subtle = true,
+				) {
 					window.bits += {.shouldClose}
 				}
 				PopId()
@@ -188,7 +192,7 @@ BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions)
 EndWindow :: proc(using window: ^WindowData) {
 	if window != nil {
 		// Outline
-		PaintRoundedRectOutline(drawRect, WINDOW_ROUNDNESS, true, GetColor(.outlineBase))
+		PaintRoundedRectOutline(drawRect, WINDOW_ROUNDNESS, true, GetColor(.baseStroke))
 		// Handle resizing
 		WINDOW_SNAP_DISTANCE :: 10
 		if .resizing in bits {

@@ -39,7 +39,7 @@ NewFrame :: proc() {
 	ui.SetKeyBit(.left, rl.IsKeyDown(.LEFT))
 	ui.SetKeyBit(.right, rl.IsKeyDown(.RIGHT))
 	ui.SetKeyBit(.up, rl.IsKeyDown(.UP))
-	ui.SetKeyBit(.down, rl.IsKeyDown(.DOWN))
+	ui.SetKeyBit(.alt, rl.IsKeyDown(.LEFT_ALT))
 	ui.SetKeyBit(.enter, rl.IsKeyDown(.ENTER))
 	ui.SetKeyBit(.a, rl.IsKeyDown(.A))
 	ui.SetKeyBit(.x, rl.IsKeyDown(.X))

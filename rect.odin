@@ -157,21 +157,14 @@ AttachRect :: proc(rect: Rect, side: RectSide, size: f32) -> Rect {
 	}
 	return {}
 }
-SideCorners :: proc(sides: RectSides) -> RectCorners {
-	corners: RectCorners = ALL_CORNERS
-	if .top in sides {
-		corners -= {.topLeft, .topRight}
+SideCorners :: proc(side: RectSide) -> RectCorners {
+	switch side {
+		case .bottom:  	return {.topLeft, .topRight}
+		case .top:  	return {.bottomLeft, .bottomRight}
+		case .left:  	return {.topRight, .bottomRight}
+		case .right:  	return {.topLeft, .bottomLeft}
 	}
-	if .bottom in sides {
-		corners -= {.bottomLeft, .bottomRight}
-	}
-	if .left in sides {
-		corners -= {.topLeft, .bottomLeft}
-	}
-	if .right in sides {
-		corners -= {.topRight, .bottomRight}
-	}
-	return corners
+	return ALL_CORNERS
 }
 VecVsRect :: proc(v: Vec2, r: Rect) -> bool {
 	return (v.x >= r.x) && (v.x <= r.x + r.w) && (v.y >= r.y) && (v.y <= r.y + r.h)

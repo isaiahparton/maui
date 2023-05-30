@@ -70,7 +70,7 @@ LayerData :: struct {
 	// list index
 	index: int,
 	// controls on this layer
-	contents: map[Id]int,
+	contents: map[Id]^WidgetData,
 	// draw commands for this layer
 	commands: [COMMAND_BUFFER_SIZE]u8,
 	commandOffset: int,
@@ -155,7 +155,7 @@ BeginLayer :: proc(rect: Rect, size: Vec2, id: Id, options: LayerOptions) -> (la
 		}
 		// Shadows
 		if .shadow in options {
-			PaintRoundedRect(TranslateRect(layer.body, 7), WINDOW_ROUNDNESS, GetColor(.shade, 0.15))
+			PaintRoundedRect(TranslateRect(layer.body, SHADOW_OFFSET), WINDOW_ROUNDNESS, GetColor(.shadow))
 		}
 		// Update clip status
 		if layer.layoutSize.y > layer.body.h || (layer.body != ctx.fullscreenRect && !RectContainsRect(layer.body, layer.contentRect)) || .forceClip in layer.options {
@@ -236,7 +236,12 @@ EndLayer :: proc(layer: ^LayerData) {
 				rect.x += SCROLL_BAR_PADDING
 				rect.w -= SCROLL_BAR_PADDING * 2
 				SetNextRect(rect)
-				if change, newValue := ScrollBar(layer.scroll.x, 0, maxScroll.x, max(SCROLL_BAR_SIZE * 2, rect.w * layer.body.w / layer.layoutSize.x), false); change {
+				if changed, newValue := ScrollBar(
+					value = layer.scroll.x, 
+					low = 0, 
+					high = maxScroll.x, 
+					thumbSize = max(SCROLL_BAR_SIZE * 2, rect.w * layer.body.w / layer.layoutSize.x),
+				); changed {
 					layer.scroll.x = newValue
 					layer.scrollTarget.x = newValue
 				}
@@ -250,7 +255,13 @@ EndLayer :: proc(layer: ^LayerData) {
 				rect.y += SCROLL_BAR_PADDING
 				rect.h -= SCROLL_BAR_PADDING * 2
 				SetNextRect(rect)
-				if change, newValue := ScrollBar(layer.scroll.y, 0, maxScroll.y, max(SCROLL_BAR_SIZE * 2, rect.h * layer.body.h / layer.layoutSize.y), true); change {
+				if change, newValue := ScrollBar(
+					value = layer.scroll.y, 
+					low = 0, 
+					high = maxScroll.y, 
+					thumbSize = max(SCROLL_BAR_SIZE * 2, rect.h * layer.body.h / layer.layoutSize.y), 
+					vertical = true,
+				); change {
 					layer.scroll.y = newValue
 					layer.scrollTarget.y = newValue
 				}
@@ -306,9 +317,9 @@ CheckClip :: proc(clip, rect: Rect) -> Clip {
 */
 @(deferred_out=_Frame)
 Frame :: proc(size: Vec2, options: LayerOptions, loc := #caller_location) -> (layer: ^LayerData, ok: bool) {
-	layer, ok = BeginLayer(LayoutNext(GetCurrentLayout()), size, HashId(loc), options + {.attached})
+	layer, ok = BeginLayer(LayoutNext(CurrentLayout()), size, HashId(loc), options + {.attached})
 	if ok {
-		PaintRect(layer.body, GetColor(.backing))
+		PaintRect(layer.body, GetColor(.widgetBackground))
 	}
 	return
 }

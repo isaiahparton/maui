@@ -8,6 +8,10 @@ import "core:slice"
 import "core:unicode/utf8"
 import "core:math"
 import "core:math/linalg"
+TextEditResult :: struct {
+	using self: ^WidgetData,
+	changed: bool,
+}
 // Advanced interactive text
 TextProOption :: enum {
 	password,
@@ -39,7 +43,7 @@ TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOpti
 	cursorStart, 
 	cursorEnd: Vec2
 	// Reset view offset when just focused
-	if .justFocused in widgetState {
+	if .gotFocus in widgetState {
 		ctx.scribe.offset = {}
 	}
 	// Offset view when currently focused
@@ -72,7 +76,7 @@ TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOpti
 		glyphWidth := glyphData.advance + GLYPH_SPACING
 		// Draw cursors
 		highlight := false
-		if .focused in widgetState && .justFocused not_in widgetState {
+		if .focused in widgetState && .gotFocus not_in widgetState {
 			if state.length == 0 {
 				if state.index == index && point.x >= rect.x && point.x < rect.x + rect.w {
 					PaintRect({math.floor(point.x), point.y, 1, fontData.size}, GetColor(.text))
@@ -105,7 +109,7 @@ TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOpti
 			point.x = origin.x
 			point.y += fontData.size
 		} else if glyph != '\t' && glyph != ' ' {
-			PaintGlyphClipped(glyphData, point, rect, GetColor(.highlightedText if highlight else .text, 1))
+			PaintGlyphClipped(glyphData, point, rect, GetColor(.textInverted if highlight else .text, 1))
 		}
 		// Finished, move index and point
 		point.x += glyphWidth
@@ -113,7 +117,7 @@ TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOpti
 		index += bytes
 	}
 	// View offset
-	if widgetState >= {.down} {
+	if widgetState >= {.pressed} {
 		// Selection by dragging
 		if hoverIndex < ctx.scribe.anchor {
 			ctx.scribe.index = hoverIndex
@@ -144,7 +148,7 @@ TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOpti
 		ctx.scribe.prev_length = ctx.scribe.length
 	}
 	// Handle initial text selection
-	if widgetState & {.justFocused, .pressed} != {} {
+	if widgetState & {.gotFocus, .gotPress} != {} {
 		if options >= {.selectAll} {
 			ctx.scribe.index = 0
 			ctx.scribe.anchor = 0
@@ -294,61 +298,68 @@ TextEdit :: proc(buf: ^[dynamic]u8, options: TextEditOptions, maxLength: int = 0
 }
 // Unsafe way to edit a string directly
 // will segfault if the string is static
-StringInputUnsafe :: proc(text: ^string, label, placeholder: string, loc := #caller_location) -> (change: bool) {
-	if control, ok := BeginWidget(HashId(uintptr(text)), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using control
-		options += {.draggable, .keySelect}
-		UpdateWidget(control)
-
-		if state & {.hovered, .down} != {} {
+StringEdit :: proc(
+	text: ^string,
+	label: string = {},
+	placeholder: string = {},
+	loc := #caller_location,
+) -> (changed: bool) {
+	if text == nil {
+		return
+	}
+	if self, ok := Widget(HashId(uintptr(text)), UseNextRect() or_else LayoutNext(CurrentLayout()), {.draggable, .keySelect}); ok {
+		// Cursor
+		if self.state & {.hovered, .pressed} != {} {
 			ctx.cursor = .beam
 		}
 		// Animation values
-		PushId(id)
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
+		PushId(self.id)
+			hoverTime := AnimateBool(HashId(int(0)), .hovered in self.state, 0.1)
+			stateTime := AnimateBool(HashId(int(1)), .focused in self.state, 0.2)
 		PopId()
 		// Paint!
-		PaintRect(body, GetColor(.foreground))
-
-		fontData := GetFontData(.default)
-		TextPro(fontData, transmute([]u8)text[:], body, {}, state)
-		if state >= {.focused} {
-			buffer := GetTextBuffer(id)
-			if state >= {.justFocused} {
-				resize(buffer, len(text))
-				copy(buffer[:], text[:])
+		if .shouldPaint in self.bits {
+			PaintRect(self.body, GetColor(.base))
+			fontData := GetFontData(.default)
+			TextPro(fontData, transmute([]u8)text[:], self.body, {}, self.state)
+			if self.state >= {.focused} {
+				buffer := GetTextBuffer(self.id)
+				if self.state >= {.gotFocus} {
+					resize(buffer, len(text))
+					copy(buffer[:], text[:])
+				}
+				changed = TextEdit(buffer, {})
+				if changed {
+					ctx.renderFrames += 1
+					delete(text^)
+					text^ = strings.clone_from_bytes(buffer[:])
+				}
 			}
-			change = TextEdit(buffer, {})
-			if change {
-				ctx.renderTime = RENDER_TIMEOUT
-				delete(text^)
-				text^ = strings.clone_from_bytes(buffer[:])
-			}
-		}
-		
-		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
-		// Draw placeholder
-		PaintLabeledWidgetFrame(body, label, 2 if state >= {.focused} else 1, outlineColor)
-		if len(placeholder) != 0 {
-			if len(text) == 0 {
-				PaintStringAligned(fontData, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
+			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.accent), min(1, hoverTime + stateTime))
+			// Draw placeholder
+			PaintLabeledWidgetFrame(self.body, label, 2 if self.state >= {.focused} else 1, outlineColor)
+			if len(placeholder) != 0 {
+				if len(text) == 0 {
+					PaintStringAligned(fontData, placeholder, {self.body.x + WIDGET_TEXT_OFFSET, self.body.y + self.body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
+				}
 			}
 		}
 	}
 	return
 }
 // Edit a dynamic array of bytes
-TextInput :: proc(buf: ^[dynamic]u8, label, placeholder: string, loc := #caller_location) -> (change: bool) {
-	return TextInputEx(buf, label, placeholder, {}, {}, loc)
-}
-TextInputEx :: proc(buf: ^[dynamic]u8, label, placeholder: string, textOptions: TextProOptions, editOptions: TextEditOptions, loc := #caller_location) -> (change: bool) {
-	if control, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using control
-		options += {.draggable, .keySelect}
-		UpdateWidget(control)
-
-		if state & {.hovered, .down} != {} {
+TextInput :: proc(
+	buffer: 		^[dynamic]u8, 
+	label: 			string = {}, 
+	placeholder: 	string = {}, 
+	textOptions: 	TextProOptions = {}, 
+	editOptions: 	TextEditOptions = {}, 
+	loc := #caller_location,
+) -> (change: bool) {
+	if self, ok := Widget(HashId(loc), UseNextRect() or_else LayoutNext(CurrentLayout()), {.draggable, .keySelect}); ok {
+		using self
+		// Text cursor
+		if state & {.hovered, .pressed} != {} {
 			ctx.cursor = .beam
 		}
 		// Animation values
@@ -356,22 +367,26 @@ TextInputEx :: proc(buf: ^[dynamic]u8, label, placeholder: string, textOptions: 
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
 			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
 		PopId()
-		// Paint!
-		PaintRect(body, GetColor(.foreground))
-		fontData := GetFontData(.default)
-		TextPro(fontData, buf[:], body, {}, state)
+		// Text edit
 		if state >= {.focused} {
-			change = TextEdit(buf, editOptions)
+			change = TextEdit(buffer, editOptions)
 			if change {
 				ctx.renderTime = RENDER_TIMEOUT
 			}
 		}
-		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
-		// Draw placeholder
-		PaintLabeledWidgetFrame(body, label, 2 if state >= {.focused} else 1, outlineColor)
-		if len(placeholder) != 0 {
-			if len(buf) == 0 {
-				PaintStringAligned(fontData, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.widgetPress, 1), .near, .middle)
+		// Paint!
+		if .shouldPaint in bits {
+			PaintRect(body, GetColor(.base))
+			fontData := GetFontData(.default)
+			TextPro(fontData, buffer[:], body, {}, state)
+			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.accent), min(1, hoverTime + stateTime))
+			// Outline
+			PaintLabeledWidgetFrame(body, label, 2 if state >= {.focused} else 1, outlineColor)
+			// Draw placeholder
+			if len(placeholder) != 0 {
+				if len(buffer) == 0 {
+					PaintStringAligned(fontData, placeholder, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
+				}
 			}
 		}
 	}
@@ -382,38 +397,36 @@ Number :: union {
 	f64,
 	int,
 }
-NumberInputFloat64 :: proc(value: f64, label: string, loc := #caller_location) -> (newValue: f64) {
-	return NumberInputEx(value, label, "%.2f", {}, loc).(f64)
-}
-NumberInputInt :: proc(value: int, label: string, loc := #caller_location) -> (newValue: int) {
-	return NumberInputEx(value, label, "%i", {}, loc).(int)
-}
-@private
-NumberInputEx :: proc(value: Number, label, format: string, textProOptions: TextProOptions, loc := #caller_location) -> (newValue: Number) {
+NumberInput :: proc(
+	value: 				Number, 
+	label: 				string = {}, 
+	format: 			string = "%v", 
+	textOptions: 		TextProOptions = {}, 
+	editOptions: 		TextEditOptions = {}, 
+	loc := #caller_location,
+) -> (newValue: Number) {
 	newValue = value
-	if self, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
+	if self, ok := Widget(HashId(loc), UseNextRect() or_else LayoutNext(CurrentLayout()), {.draggable, .keySelect}); ok {
 		using self
-		self.options += {.draggable, .keySelect}
-		UpdateWidget(self)
 		// Animation values
 		PushId(id)
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
 			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
 		PopId()
 		// Cursor style
-		if state & {.hovered, .down} != {} {
+		if state & {.hovered, .pressed} != {} {
 			ctx.cursor = .beam
 		}
 		// Formatting
-		text := SPrintF(format, value)
+		text := TextFormatSlice(format, value)
 		// Painting
 		fontData := GetFontData(.monospace)
-		outlineColor := BlendColors(GetColor(.outlineBase), GetColor(.accentHover), min(1, hoverTime + stateTime))
+		outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.accent), min(1, hoverTime + stateTime))
 		PaintLabeledWidgetFrame(body, label, 2 if state >= {.focused} else 1, outlineColor)
 		// Update text input
 		if state >= {.focused} {
 			buffer := GetTextBuffer(id)
-			if state >= {.justFocused} {
+			if state >= {.gotFocus} {
 				resize(buffer, len(text))
 				copy(buffer[:], text[:])
 			}
@@ -425,7 +438,7 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 				fontData, 
 				buffer[:], 
 				body, 
-				textProOptions, 
+				textOptions, 
 				state,
 				)
 			if TextEdit(buffer, textEditOptions, 18) {
@@ -447,77 +460,32 @@ NumberInputEx :: proc(value: Number, label, format: string, textProOptions: Text
 				fontData, 
 				text, 
 				body, 
-				textProOptions, 
+				textOptions, 
 				state,
 				)
 		}
 	}
 	return
 }
-NumberInputCentered :: proc(value: Number, format: string, loc := #caller_location) -> (newValue: Number) {
-	newValue = value
-	if self, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using self
-		self.options += {.draggable, .keySelect}
-		UpdateWidget(self)
-		// Animation values
-		PushId(id)
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
-		PopId()
-		// Cursor style
-		if state & {.hovered, .down} != {} {
-			ctx.cursor = .beam
-		}
-		// Formatting
-		text := SPrintF(format, value)
-		// Painting
-		fontData := GetFontData(.monospace)
-		outlineColor := BlendColors(GetColor(.outlineBase, hoverTime), GetColor(.accentHover), stateTime)
-		PaintRectLines(body, 2 if state >= {.focused} else 1, outlineColor)
-		// Update text input
-		if state >= {.focused} {
-			buffer := GetTextBuffer(id)
-			if state >= {.justFocused} {
-				resize(buffer, len(text))
-				copy(buffer[:], text[:])
-			}
-			textEditOptions: TextEditOptions = {.numeric}
-			if _, ok := value.(int); ok {
-				textEditOptions += {.integer}
-			}
-			TextPro(
-				fontData, 
-				buffer[:], 
-				body, 
-				{.alignCenter}, 
-				state,
-				)
-			if TextEdit(buffer, textEditOptions, 18) {
-				ctx.renderTime = RENDER_TIMEOUT
-				str := string(buffer[:])
-				switch v in value {
-					case f64:  		
-					if temp, ok := strconv.parse_f64(str); ok {
-						newValue = temp
-					}
-					case int: 
-					if temp, ok := strconv.parse_int(str); ok {
-						newValue = temp
-					}
-				}
-			}
-		} else {
-			TextPro(
-				fontData, 
-				text, 
-				body, 
-				{.alignCenter}, 
-				state,
-				)
-		}
-	}
-	return
+NumberInputFloat64 :: proc(
+	value: 				Number, 
+	label: 				string = {}, 
+	format: 			string = "%.2f", 
+	textOptions: 		TextProOptions = {}, 
+	editOptions: 		TextEditOptions = {}, 
+	loc := #caller_location,
+) -> (newValue: f64) {
+	return NumberInput(value, label, format, textOptions, editOptions, loc).(f64)
+}
+NumberInputInt :: proc(
+	value: 				Number, 
+	label: 				string = {}, 
+	format: 			string = "%i", 
+	textOptions: 		TextProOptions = {}, 
+	editOptions: 		TextEditOptions = {}, 
+	loc := #caller_location,
+) -> (newValue: int) {
+	return NumberInput(value, label, format, textOptions, editOptions, loc).(int)
 }
 // Labels for text edit widgets
 PaintLabeledWidgetFrame :: proc(rect: Rect, label: string, thickness: f32, color: Color) {
@@ -531,7 +499,6 @@ PaintLabeledWidgetFrame :: proc(rect: Rect, label: string, thickness: f32, color
 	}
 }
 // Text edit helpers
-@private
 TextEditInsertString :: proc(buf: ^[dynamic]u8, maxLength: int, str: string) {
 	using ctx.scribe
 	if length > 0 {
@@ -545,13 +512,11 @@ TextEditInsertString :: proc(buf: ^[dynamic]u8, maxLength: int, str: string) {
 	inject_at_elem_string(buf, index, str[:n])
 	index += n
 }
-@private
 TextEditInsertRunes :: proc(buf: ^[dynamic]u8, maxLength: int, runes: []rune) {
 	str := utf8.runes_to_string(runes)
 	TextEditInsertString(buf, maxLength, str)
 	delete(str)
 }
-@private
 TextEditBackspace :: proc(buf: ^[dynamic]u8){
 	using ctx.scribe
 	if length == 0 {

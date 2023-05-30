@@ -1,103 +1,92 @@
 package maui
 
-/*
-	Geometric appearance
-*/
+//TODO(isaiah): Migrate these to values in Style
 WINDOW_ROUNDNESS :: 6
 WINDOW_TITLE_SIZE :: 34
 
 WIDGET_TEXT_OFFSET :: 9
 
+
 CHECKBOX_SIZE :: 22
 HALF_CHECKBOX_SIZE :: CHECKBOX_SIZE / 2
-
 SCROLL_BAR_SIZE :: 14
-SCROLL_BAR_PADDING :: 4
+SCROLL_BAR_PADDING :: 0
 
-/*
-	Color schemes
-*/
-COLOR_SCHEME_LIGHT: #sparse [ColorIndex]Color = {
-	.accent = {55, 125, 248, 255},
-	.accentHover = {35, 105, 250, 255},
-	.accentPress = {16, 65, 245, 255},
+GHOST_TEXT_ALPHA :: 0.6
+DIVIDER_ALPHA :: 0.45
+BASE_SHADE_ALPHA :: 0.15
+SHADOW_OFFSET :: 7
+DISABLED_SHADE_ALPHA :: 0.5
 
-	.foreground = {255, 255, 255, 255},
-	.foregroundHover = {245, 245, 245, 255},
-	.foregroundPress = {230, 230, 230, 255},
-
-	.backing = {218, 218, 218, 255},
-	.backingHighlight = {200, 200, 200, 255},
-
-	.widgetBase = {182, 185, 182, 255},
-	.widgetHover = {167, 168, 170, 255},
-	.widgetPress = {145, 145, 155, 255},
-
-	.outlineBase = {112, 113, 116, 255},
-	.outlineHot = {140, 141, 144, 255},
-	.outlineActive = {112, 113, 116, 255},
-
-	.highlightedText = {218, 218, 218, 255},
-	.text = {75, 75, 75, 255},
-	.shade = {0, 0, 0, 255},
+// Default color schemes
+DEFAULT_COLORS_LIGHT :: [ColorIndex]Color {
+	.accent 			= {45, 135, 248, 255},
+	.base 				= {255, 255, 255, 255},
+	.baseShade 			= {0, 0, 0, 255},
+	.baseStroke			= {112, 113, 116, 255},
+	.widgetBackground 	= {218, 218, 218, 255},
+	.widget	 			= {120, 155, 155, 255},
+	.widgetShade 		= {0, 8, 24, 255},
+	.widgetStroke 		= {105, 105, 105, 255},
+	.intense 			= {85, 85, 85, 255},
+	.intenseShade 		= {230, 239, 255, 255},
+	.shadow 			= {0, 0, 0, 35},
+	.textInverted 		= {218, 218, 218, 255},
+	.text 				= {45, 45, 45, 255},
+	.tooltipFill 		= {45, 45, 77, 255},
+	.tooltipStroke  	= {},
+	.tooltipText 		= {255, 255, 255, 255},
 }
-COLOR_SCHEME_DARK: #sparse [ColorIndex]Color = {
-	.accent = {53, 120, 243, 255},
-	.accentHover = {53, 120, 243, 255},
-	.accentPress = {53, 120, 243, 255},
-
-	.foreground = {28, 28, 28, 255},
-	.foregroundHover = {28, 28, 28, 255},
-	.foregroundPress = {28, 28, 28, 255},
-
-	.backing = {18, 18, 18, 255},
-	.backingHighlight = {18, 18, 18, 255},
-
-	.widgetBase = {50, 50, 50, 255},
-	.widgetHover = {61, 60, 63, 255},
-	.widgetPress = {77, 76, 79, 255},
-
-	.outlineBase = {80, 80, 80, 255},
-	.outlineHot = {80, 80, 80, 255},
-	.outlineActive = {80, 80, 80, 255},
-
-	.highlightedText = {18, 18, 18, 255},
-	.text = {200, 200, 200, 255},
-	.shade = 255,
+DEFAULT_COLORS_DARK :: [ColorIndex]Color {
+	.accent 			= {45, 135, 248, 255},
+	.base 				= {28, 28, 28, 255},
+	.baseShade 			= {255, 255, 255, 255},
+	.baseStroke			= {112, 113, 116, 255},
+	.widgetBackground 	= {54, 54, 54, 255},
+	.widget	 			= {74, 74, 74, 255},
+	.widgetShade 		= {255, 255, 255, 255},
+	.widgetStroke 		= {105, 105, 105, 255},
+	.intense 			= {178, 178, 178, 255},
+	.intenseShade 		= {0, 0, 0, 255},
+	.shadow 			= {0, 0, 0, 55},
+	.textInverted 		= {25, 25, 25, 255},
+	.text 				= {215, 215, 215, 255},
+	.tooltipFill 		= {45, 55, 68, 255},
+	.tooltipStroke  	= {50, 170, 170, 255},
+	.tooltipText 		= {170, 170, 170, 255},
 }
 
 ColorIndex :: enum {
-	foreground,
-	foregroundHover,
-	foregroundPress,
-
-	// Background of text inputs and toggle switches
-	backing,
-	backingHighlight,
-
-	// Clickable things
-	widgetBase,
-	widgetHover,
-	widgetPress,
-
-	// Outline
-	outlineBase,
-	outlineHot,
-	outlineActive,
-
-	// Some bright accent color that stands out
+	// Base color
+	base,
+	// Hover or click shading for base color
+	baseShade,
+	// Outlining for base color
+	baseStroke,
+	// Color of focused or selected widgets
 	accent,
-	accentHover,
-	accentPress,
-
-	//Shading for items on the foreground
-	//foregroundShade,
-	//Shading for items in the background
-	//backgroundShade,
-
-	shade,
+	// Background of a slider
+	widgetBackground,
+	// Base color for widgets
+	widget,
+	// How widgets are shaded when hovered or pressed
+	widgetShade,
+	// Widget outline
+	widgetStroke,
+	// Outline
+	intense,
+	// Outline shading
+	intenseShade,
+	// Shadows
+	shadow,
+	// Color of text
 	text,
-	highlightedText,
+	// Text color when highlighted
+	textInverted,
+	// Tooltips
+	tooltipFill,
+	tooltipStroke,
+	tooltipText,
 }
 
 MAX_COLOR_CHANGES :: 32
@@ -109,13 +98,17 @@ ColorChange :: struct {
 
 // Style
 Style :: struct {
-	colors: [ColorIndex]Color,
+	fontSizes: 			[FontIndex]int,
+	colors: 			[ColorIndex]Color,
+	windowRoundness,
+	tabRoundness: 		int,
+
 	changeStack: [MAX_COLOR_CHANGES]ColorChange,
 	changeCount: int,
 }
 
 PushColor :: proc(index: ColorIndex, value: Color) {
-	using ctx
+	using painter
 	style.changeStack[style.changeCount] = {
 		index = index,
 		value = style.colors[index],
@@ -124,22 +117,28 @@ PushColor :: proc(index: ColorIndex, value: Color) {
 	style.colors[index] = value
 }
 PopColor :: proc() {
-	using ctx
+	using painter
 	assert(style.changeCount > 0)
 	style.changeCount -= 1
 	style.colors[style.changeStack[style.changeCount].index] = style.changeStack[style.changeCount].value
 }
+
 GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
-	color := ctx.style.colors[index]
+	color := painter.style.colors[index]
+	if alpha == 1 {
+		return color
+	} else if alpha == 0 {
+		return {}
+	}
 	return {color.r, color.g, color.b, u8(f32(color.a) * clamp(alpha, 0, 1))}
 }
-StyleApplyShade :: proc(base: Color, amount: f32) -> Color {
-	return BlendColors(base, ctx.style.colors[.shade], amount * 0.1)
+
+StyleIntenseShaded :: proc(shadeAmount: f32) -> Color {
+	return BlendColors(painter.style.colors[.intense], painter.style.colors[.intenseShade], shadeAmount * 0.1)
 }
-StyleGetWidgetColor :: proc(base: Color, amount: f32) -> Color {
-	return BlendColors(base, 255, amount * 0.1)
+StyleWidgetShaded :: proc(shadeAmount: f32) -> Color {
+	return BlendColors(painter.style.colors[.widget], painter.style.colors[.widgetShade], shadeAmount * 0.2)
 }
-StyleGetShadeColor :: proc(alpha: f32 = 1) -> Color {
-	color := ctx.style.colors[.shade]
-	return {color.r, color.g, color.b, u8(f32(color.a) * alpha * 0.075)}
+StyleBaseShaded :: proc(shadeAmount: f32) -> Color {
+	return BlendColors(painter.style.colors[.base], painter.style.colors[.baseShade], shadeAmount * 0.1)
 }

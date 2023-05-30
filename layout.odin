@@ -1,5 +1,11 @@
 package maui
 
+Alignment :: enum {
+	near,
+	middle,
+	far,
+}
+
 LayoutData :: struct {
 	rect: Rect,
 	side: RectSide,
@@ -36,21 +42,21 @@ UseNextRect :: proc() -> (rect: Rect, ok: bool) {
 	return
 }
 Align :: proc(align: Alignment) {
-	layout := GetCurrentLayout()
+	layout := CurrentLayout()
 	layout.alignX = align
 	layout.alignY = align
 }
 AlignX :: proc(align: Alignment) {
-	GetCurrentLayout().alignX = align
+	CurrentLayout().alignX = align
 }
 AlignY :: proc(align: Alignment) {
-	GetCurrentLayout().alignY = align
+	CurrentLayout().alignY = align
 }
 SetMargin :: proc(margin: f32) {
-	GetCurrentLayout().margin = margin
+	CurrentLayout().margin = margin
 }
 SetSize :: proc(size: f32, relative := false) {
-	layout := GetCurrentLayout()
+	layout := CurrentLayout()
 	if relative {
 		if layout.side == .top || layout.side == .bottom {
 			layout.size = layout.rect.h * size
@@ -62,18 +68,18 @@ SetSize :: proc(size: f32, relative := false) {
 	layout.size = size
 }
 SetSide :: proc(side: RectSide) {
-	GetCurrentLayout().side = side
+	CurrentLayout().side = side
 }
 Space :: proc(amount: f32) {
-	layout := GetCurrentLayout()
+	layout := CurrentLayout()
 	CutRect(&layout.rect, layout.side, amount)
 }
 Shrink :: proc(amount: f32) {
-	layout := GetCurrentLayout()
+	layout := CurrentLayout()
 	layout.rect = ShrinkRect(layout.rect, amount)
 }
 
-GetCurrentLayout :: proc() -> ^LayoutData {
+CurrentLayout :: proc() -> ^LayoutData {
 	using ctx
 	return &layouts[layoutDepth - 1]
 }
@@ -101,12 +107,12 @@ LayoutFitWidget :: proc(layout: ^LayoutData, size: Vec2) {
 }
 Cut :: proc(side: RectSide, amount: f32) -> Rect {
 	assert(ctx.layoutDepth > 0)
-	layout := GetCurrentLayout()
+	layout := CurrentLayout()
 	return CutRect(&layout.rect, side, amount)
 }
 CutEx :: proc(side: RectSide, amount: f32, relative := false) -> Rect {
 	assert(ctx.layoutDepth > 0)
-	layout := GetCurrentLayout()
+	layout := CurrentLayout()
 	amount := amount
 	if relative {
 		if side == .left || side == .right {

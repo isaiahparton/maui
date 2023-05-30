@@ -5,6 +5,7 @@ import "core:runtime"
 import "core:sort"
 import "core:slice"
 import "core:reflect"
+import "core:time"
 
 import "core:strconv"
 import "core:unicode"
@@ -52,7 +53,7 @@ KEY_REPEAT_DELAY 	:: 0.5
 KEY_REPEAT_RATE 	:: 30
 ALL_CORNERS: RectCorners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
 
-DOUBLE_CLICK_TIME :: 0.25
+DOUBLE_CLICK_TIME :: time.Millisecond * 250
 
 Vec2 	:: [2]f32
 Vec3 	:: [3]f32
@@ -100,18 +101,14 @@ Context :: struct {
 	time,
 	deltaTime,
 	renderTime: f32,
+	renderFrames: int,
 	disabled, dragging, shouldRender, keySelect: bool,
 	size: Vec2,
 	lastRect, fullscreenRect: Rect,
-	// Visual style
-	style: Style,	
 	// Values to be used by the next widget
 	attachTooltip: bool,
 	tooltipText: string,
 	tooltipSide: RectSide,
-	// Double click detection
-	firstClick, doubleClick: bool,
-	doubleClickTimer: f32,
 	// Text editing/selecting state
 	scribe: Scribe,
 	// Temporary text buffers
@@ -124,10 +121,8 @@ Context :: struct {
 	// Retained animation values
 	animations: map[Id]Animation,
 	// Retained control data
-	controls: [MAX_CONTROLS]Widget,
-	controlExists: [MAX_CONTROLS]bool,
-	lastWidget: int,
-	controlCount: int,
+	widgets: 			[dynamic]^WidgetData,
+	currentWidget:  	^WidgetData,
 	// Internal window data
 	windows: 			[dynamic]^WindowData,
 	windowMap: 			map[Id]^WindowData,
@@ -145,7 +140,6 @@ Context :: struct {
 	layerStack: 		[LAYER_STACK_SIZE]^LayerData,
 	layerDepth: 		int,
 	// Layer ordering helpers
-	layerOrderCount: 	[LayerOrder]int,
 	sortLayers:			bool,
 	prevTopLayer, topLayer: Id,
 	// Current layer being drawn (used only by 'NextCommand')
@@ -166,8 +160,6 @@ Context :: struct {
 	nextRect: Rect,
 	setNextRect: bool,
 	// Widget interactions
-	focusIndex: int,
-	
 	prevHoverId, 
 	nextHoverId, 
 	hoverId, 
@@ -205,9 +197,9 @@ _Enabled :: proc() {
 	ctx.disabled = false
 }
 
-GetLastWidget :: proc() -> ^Widget {
-	using ctx
-	return &controls[lastWidget]
+CurrentWidget :: proc() -> ^WidgetData {
+	assert(ctx.currentWidget != nil, "There is no widget")
+	return ctx.currentWidget
 }
 
 BeginGroup :: proc() {
@@ -236,7 +228,9 @@ GetTextBuffer :: proc(id: Id) -> ^[dynamic]u8 {
 */
 AnimateBool :: proc(id: Id, condition: bool, duration: f32) -> f32 {
 	if id not_in ctx.animations {
-		ctx.animations[id] = {}
+		ctx.animations[id] = {
+			value = f32(int(condition)),
+		}
 	}
 	animation := &ctx.animations[id]
 	animation.keepAlive = true
@@ -280,10 +274,8 @@ SetScreenSize :: proc(w, h: f32) {
 Init :: proc() -> bool {
 	if ctx == nil {
 		ctx = new(Context)
-		ctx.style.colors = COLOR_SCHEME_LIGHT
 		// Load graphics
 		if !InitPainter() {
-			fmt.print("failed to initialize painter module\n")
 			return false
 		}
 		return true
@@ -292,6 +284,11 @@ Init :: proc() -> bool {
 }
 Uninit :: proc() {
 	if ctx != nil {
+		// Free widgets
+		for widget in &ctx.widgets {
+			free(&widget)
+		}
+		delete(ctx.widgets)
 		// Free text buffers
 		for _, value in ctx.textBuffers {
 			delete(value.buffer)
@@ -321,7 +318,7 @@ NewFrame :: proc() {
 	using ctx
 
 	cursor = .default
-
+	renderFrames = max(0, renderFrames - 1)
 	input.runeCount = 0
 	// Try tell the user what went wrong if
 	// a stack overflow occours
@@ -400,59 +397,37 @@ NewFrame :: proc() {
 	rootLayer, _ = BeginLayer(ctx.fullscreenRect, {}, 0, {.noPushId})
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
-	if KeyPressed(.tab) && focusIndex >= 0 {
-		array: [dynamic]int
+	if KeyPressed(.tab) && ctx.focusId != 0 {
+		array: [dynamic]^WidgetData
 		defer delete(array)
 
 		anchor: int
-		for i in 0..<MAX_CONTROLS {
-			if controlExists[i] {
-				if i == focusIndex {
+		for widget in &widgets {
+			if .keySelect in widget.options && .disabled not_in widget.bits {
+				if widget.id == ctx.focusId {
 					anchor = len(array)
 				}
-				if .keySelect in controls[i].options && .disabled not_in controls[i].bits {
-					append(&array, i)
-				}
+				append(&array, widget)
 			}
 		}
 
 		if len(array) > 1 {
-			slice.sort_by(array[:], proc(i, j: int) -> bool {
-				rect_i := ctx.controls[i].body
-				rect_j := ctx.controls[j].body
-				if rect_i.y == rect_j.y {
-					if rect_i.x < rect_j.x {
+			slice.sort_by(array[:], proc(a, b: ^WidgetData) -> bool {
+				if a.body.y == b.body.y {
+					if a.body.x < b.body.x {
 						return true
 					}
-				} else if rect_i.y < rect_j.y {
+				} else if a.body.y < b.body.y {
 					return true
 				}
 				return false
 			})
-			ctx.focusId = controls[array[(anchor + 1) % len(array)]].id
+			ctx.focusId = array[(anchor + 1) % len(array)].id
 			ctx.keySelect = true
 		}
 	}
-	focusIndex = -1
 
 	dragging = false
-	doubleClick = false
-	if MousePressed(.left) {
-		if firstClick {
-			doubleClick = true
-			firstClick = false
-		} else {
-			firstClick = true
-		}
-	}
-	if prevHoverId != hoverId || doubleClickTimer > DOUBLE_CLICK_TIME {
-		firstClick = false
-	}
-	if firstClick {
-		doubleClickTimer += deltaTime
-	} else {
-		doubleClickTimer = 0
-	}
 
 	if input.mousePoint - input.prevMousePoint != {} {
 		keySelect = false
@@ -490,20 +465,23 @@ EndFrame :: proc() {
 				} else if debugMode == .windows {
 					for id, window in windowMap {
 						PushId(window.id)
-							ButtonEx(Format(window.id), .near, false)
-							if GetLastWidget().state >= {.hovered} {
+							Button(
+								label = Format(window.id), 
+								align = .near,
+							)
+							if CurrentWidget().state >= {.hovered} {
 								debugLayer = window.layer.id
 							}
 						PopId()
 					}
 				} else if debugMode == .controls {
-					Text(.monospace, StringFormat("Layer: %i", hoveredLayer), true)
+					Text(.monospace, TextFormat("Layer: %i", hoveredLayer), true)
 					Space(20)
-					Text(.monospace, StringFormat("Hovered: %i", hoverId), true)
-					Text(.monospace, StringFormat("Focused: %i", focusId), true)
-					Text(.monospace, StringFormat("Pressed: %i", pressId), true)
+					Text(.monospace, TextFormat("Hovered: %i", hoverId), true)
+					Text(.monospace, TextFormat("Focused: %i", focusId), true)
+					Text(.monospace, TextFormat("Pressed: %i", pressId), true)
 					Space(20)
-					Text(.monospace, StringFormat("Count: %i", controlCount), true)
+					Text(.monospace, TextFormat("Count: %i", len(widgets)), true)
 				}
 			}
 		}
@@ -515,16 +493,17 @@ EndFrame :: proc() {
 		renderTime = RENDER_TIMEOUT
 	}
 	// Delete unused controls
-	controlCount = 0
-	for i in 0..<MAX_CONTROLS {
-		if controlExists[i] {
-			control := &controls[i]
-			if .stayAlive in control.bits {
-				control.bits -= {.stayAlive}
-			} else {
-				controlExists[i] = false
+	for widget, i in &widgets {
+		if .stayAlive in widget.bits {
+			widget.bits -= {.stayAlive}
+		} else {
+			for key, value in widget.layer.contents {
+				if key == widget.id {
+					delete_key(&widget.layer.contents, key)
+				}
 			}
-			controlCount += 1
+			free(widget)
+			ordered_remove(&widgets, i)
 		}
 	}
 	// Delete unused windows
@@ -538,11 +517,9 @@ EndFrame :: proc() {
 		}
 	}
 	// Determine hovered layer and reorder if needed
-	layerOrderCount = {}
 	sortedLayer: ^LayerData
 	hoveredLayer = 0
 	for layer, i in layers {
-		layerOrderCount[layer.order] += 1
 		if VecVsRect(input.mousePoint, layer.body) {
 			hoveredLayer = layer.id
 			if MousePressed(.left) {
@@ -561,11 +538,6 @@ EndFrame :: proc() {
 		}
 		if .stayAlive in layer.bits {
 			layer.bits -= {.stayAlive}
-			for key, value in layer.contents {
-				if !controlExists[value] {
-					delete_key(&layer.contents, key)
-				}
-			}
 		} else {
 			ordered_remove(&layers, i)
 			delete_key(&layerMap, layer.id)
@@ -617,8 +589,11 @@ _CountLayerChildren :: proc(layer: ^LayerData) -> int {
 }
 _DebugLayerWidget :: proc(layer: ^LayerData) {
 	PushId(layer.id)
-		ButtonEx(Format(layer.id), .near, false)
-		if GetLastWidget().state >= {.hovered} {
+		Button(
+			label = Format(layer.id),
+			align = .near,
+		)
+		if CurrentWidget().state >= {.hovered} {
 			ctx.debugLayer = layer.id
 		}
 	PopId()
@@ -642,7 +617,7 @@ SortLayer :: proc(list: ^[dynamic]^LayerData, layer: ^LayerData) {
 	}
 }
 ShouldRender :: proc() -> bool {
-	return ctx.shouldRender
+	return ctx.shouldRender || ctx.renderFrames > 0
 }
 
 //@private

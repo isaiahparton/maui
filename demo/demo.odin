@@ -77,21 +77,21 @@ _main :: proc() {
 				SetSize(30)
 				AttachTooltip("I'm a tooltip", .top)
 				windowOpen[.widgetGallery] = ToggleButton(windowOpen[.widgetGallery], "Widget Gallery")
-				if Window("Widget Gallery", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
-					PaintRoundedRectEx(GetCurrentLayout().rect, WINDOW_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase))
+				if Window("Widget Gallery", {700, 200, 400, 500}, {.title, .collapsable, .closable}) {
+					PaintRoundedRectEx(CurrentLayout().rect, WINDOW_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBackground))
 					Shrink(10); SetSize(30)
 					tab = EnumTabs(tab, 0)
-					PaintRect(GetCurrentLayout().rect, GetColor(.foreground))
+					PaintRect(CurrentLayout().rect, GetColor(.base))
 					Shrink(30); SetSize(30)
 					if tab == .input {
 						if Layout(.top, 30) {
 							SetSide(.left); SetSize(120)
 							integer = Spinner(integer, -100, 100)
 							SetSide(.right)
-							integer = DragSpinner(integer, -100, 100)
+							integer = RectSlider(integer, -100, 100)
 						}
 						Space(20)
-						if change, newValue := SliderEx(f32(value), 0, 10, "Sauce"); change {
+						if result := SliderFloat32(f32(value), 0, 10, "%.2f"); result.change {
 							value = f64(newValue)
 						}
 						Space(20)
@@ -100,26 +100,46 @@ _main :: proc() {
 							MenuOption("Option A", false)
 							MenuOption("Option B", false)
 							MenuOption("Option C", false)
-							if SubMenu("More Options", {200, 90}) {
-								SetSize(30)
-								MenuOption("Option D", false)
-								MenuOption("Option E", false)
-								MenuOption("Option F", false)
+							if SubMenu("Radio Buttons", {200, 90}) {
+								SetSize(30); AlignY(.middle); Cut(.left, 4)
+								choice = RadioButtons(choice, .left)
 							}
 						}
 					} else if tab == .text {
+						SetSize(36)
 						TextInput(&buffer, "Type some text", "Placeholder")
+					} else if tab == .table {
+						SetSize(1, true)
+						if layer, ok := Frame({0, 2400}, {}); ok {
+							SetSize(24)
+							for i in 0..<100 {
+								Text(.default, TextFormat("Text %i", i + 1), false)
+							}
+						}
 					}
 				}
 				Space(10)
-				windowOpen[.dataTable] = ToggleButton(windowOpen[.dataTable], "Data Table")
-				if Window("Window Options", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
+				windowOpen[.dataTable] = ToggleButton(
+					value = windowOpen[.dataTable], 
+					label = "Data Table",
+					)
+				if Window("Style", {200, 200, 600, 500}, {.title, .collapsable, .resizable, .closable}) {
 					window := CurrentWindow()
-					Shrink(30); SetSize(30)
-					CheckBoxBitSetHeader(&window.options, "Options")
-					for member in WindowOption {
-						PushId(HashId(int(member)))
-							CheckBoxBitSet(&window.options, member, CapitalizeString(Format(member)))
+					Shrink(30)
+					for member in ColorIndex {
+						PushId(int(member))
+							if Layout(.top, 30) {
+								SetSide(.right); SetSize(100)
+								painter.style.colors[member].a = u8(RectSlider(int(painter.style.colors[member].a), 0, 255))
+								painter.style.colors[member].b = u8(RectSlider(int(painter.style.colors[member].b), 0, 255))
+								painter.style.colors[member].g = u8(RectSlider(int(painter.style.colors[member].g), 0, 255))
+								painter.style.colors[member].r = u8(RectSlider(int(painter.style.colors[member].r), 0, 255))
+								SetSize(1, true)
+								TextBox(
+									font = .default, 
+									text = Format(member),
+									)
+							}
 						PopId()
 					}
 				}
@@ -133,7 +153,7 @@ _main :: proc() {
 
 		rl.BeginDrawing()
 		if ui.ShouldRender() {
-			rl.ClearBackground(transmute(rl.Color)ui.GetColor(.foreground))
+			rl.ClearBackground(transmute(rl.Color)ui.GetColor(.base))
 			backend.Render()
 			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
 		}
