@@ -142,7 +142,7 @@ PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options
 
 	totalSize: Vec2
 	if alignX != .near || alignY != .near {
-		totalSize = MeasureString(font, text)
+		//totalSize = MeasureString(font, text)
 		#partial switch alignX {
 			case .far: point += rect.w - totalSize.x
 			case .middle: point += rect.w / 2 - totalSize.x / 2
@@ -155,6 +155,7 @@ PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options
 
 	breakSize: f32
 	if options < {.wrap} {
+		//TODO(isaiah): Optimize this
 		breakSize = MeasureString(font, TEXT_BREAK).x
 	}
 
@@ -213,18 +214,22 @@ PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options
 }
 
 // Text painting
-MeasureString :: proc(font: FontData, text: string) -> Vec2 {
-	size, lineSize: Vec2
+MeasureString :: proc(font: FontData, text: string) -> (size: Vec2) {
+	lineSize: Vec2
 	lines := 1
-	for codepoint, index in text {
+	for codepoint in text {
 		glyph := GetGlyphData(font, codepoint)
 		lineSize.x += glyph.advance + GLYPH_SPACING
-		size.x = max(size.x, lineSize.x)
+		// Update the maximum width
 		if codepoint == '\n' {
+			size.x = max(size.x, lineSize.x)
 			lineSize = {}
 			lines += 1
 		}
 	}
+	// Account for the last line
+	size.x = max(size.x, lineSize.x)
+	// Height is simple
 	size.y = font.size * f32(lines)
 	return size
 }

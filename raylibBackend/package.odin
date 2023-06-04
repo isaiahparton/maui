@@ -63,6 +63,7 @@ NewFrame :: proc() {
 
 Render :: proc() {
 	using ui
+
 	if ctx.cursor == .none {
 		rl.HideCursor()
 	} else {

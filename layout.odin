@@ -12,7 +12,6 @@ LayoutData :: struct {
 	size, margin: f32,
 	// control alignment
 	alignX, alignY: Alignment,
-	grow: bool,
 }
 PushLayout :: proc(rect: Rect) -> (layout: ^LayoutData) {
 	using ctx
@@ -103,6 +102,13 @@ LayoutFitWidget :: proc(layout: ^LayoutData, size: Vec2) {
 		layout.size = size.x
 	} else {
 		layout.size = size.y
+	}
+}
+LayoutFitLabel :: proc(layout: ^LayoutData, label: Label) {
+	if layout.side == .left || layout.side == .right {
+		layout.size = MeasureLabel(label).x + layout.rect.h / 2 + layout.margin * 2
+	} else {
+		layout.size = MeasureLabel(label).y + layout.rect.h / 2 + layout.margin * 2
 	}
 }
 Cut :: proc(side: RectSide, amount: f32) -> Rect {

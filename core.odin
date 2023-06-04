@@ -53,7 +53,7 @@ KEY_REPEAT_DELAY 	:: 0.5
 KEY_REPEAT_RATE 	:: 30
 ALL_CORNERS: RectCorners = {.topLeft, .topRight, .bottomLeft, .bottomRight}
 
-DOUBLE_CLICK_TIME :: time.Millisecond * 250
+DOUBLE_CLICK_TIME :: time.Millisecond * 200
 
 Vec2 	:: [2]f32
 Vec3 	:: [3]f32
@@ -62,7 +62,8 @@ Color 	:: [4]u8
 
 Animation :: struct {
 	keepAlive: bool,
-	value: f32,
+	value,
+	prevValue: f32,
 }
 
 TextBuffer :: struct {
@@ -92,17 +93,25 @@ DebugBit :: enum {
 }
 DebugBits :: bit_set[DebugBit]
 Context :: struct {
+	// Debugification
+	frameStartTime: time.Time,
+	frameDuration: time.Duration,
 	debugBits: DebugBits,
 	debugMode: DebugMode,
 	// Widget groups collect information from widgets inside them
 	groupDepth: 	int,
 	groups: 		[GROUP_STACK_SIZE]Group,
 	// Context
-	time,
-	deltaTime,
-	renderTime: f32,
-	renderFrames: int,
-	disabled, dragging, shouldRender, keySelect: bool,
+	currentTime,
+	deltaTime: f32,
+	disabled, 
+	dragging, 
+	keySelect: bool,
+	// Should ui be repainted
+	paintLastFrame,
+	paintThisFrame, 
+	paintNextFrame: bool,
+	// Uh
 	size: Vec2,
 	lastRect, fullscreenRect: Rect,
 	// Values to be used by the next widget
@@ -227,12 +236,12 @@ GetTextBuffer :: proc(id: Id) -> ^[dynamic]u8 {
 	Animation management
 */
 AnimateBool :: proc(id: Id, condition: bool, duration: f32) -> f32 {
-	if id not_in ctx.animations {
-		ctx.animations[id] = {
+	animation, ok := &ctx.animations[id]
+	if !ok {
+		animation = map_insert(&ctx.animations, id, Animation({
 			value = f32(int(condition)),
-		}
+		}))
 	}
-	animation := &ctx.animations[id]
 	animation.keepAlive = true
 	if condition {
 		animation.value = min(1, animation.value + ctx.deltaTime / duration)
@@ -286,7 +295,7 @@ Uninit :: proc() {
 	if ctx != nil {
 		// Free widgets
 		for widget in &ctx.widgets {
-			free(&widget)
+			free(widget)
 		}
 		delete(ctx.widgets)
 		// Free text buffers
@@ -317,8 +326,33 @@ Uninit :: proc() {
 NewFrame :: proc() {
 	using ctx
 
+	// Begin frame
+	frameStartTime = time.now()
+	// Swap painting bools
+	paintThisFrame = false
+	if paintNextFrame {
+		paintThisFrame = true
+		paintNextFrame = false
+	}
+
+	// Decide if rendering is needed next frame
+	if input.prevMousePoint != input.mousePoint || input.prevKeyBits != input.keyBits|| input.prevMouseBits != input.mouseBits || input.mouseScroll != {} {
+		paintThisFrame = true
+	}
+	// Delete unused animations
+	for key, value in &animations {
+		if value.keepAlive {
+			value.keepAlive = false
+			if value.prevValue != value.value {
+				paintThisFrame = true
+				value.prevValue = value.value
+			}
+		} else {
+			delete_key(&animations, key)
+		}
+	}
+
 	cursor = .default
-	renderFrames = max(0, renderFrames - 1)
 	input.runeCount = 0
 	// Try tell the user what went wrong if
 	// a stack overflow occours
@@ -327,14 +361,6 @@ NewFrame :: proc() {
 	assert(idCount == 0, "You forgot to PopId()")
 	// Reset fullscreen rect
 	fullscreenRect = {0, 0, size.x, size.y}
-	// Delete unused animations
-	for id, animation in &animations {
-		if animation.keepAlive {
-			animation.keepAlive = false
-		} else {
-			delete_key(&animations, id)
-		}
-	}
 	// Free and delete unused text buffers
 	for key, value in &textBuffers {
 		if value.keepAlive {
@@ -391,10 +417,13 @@ NewFrame :: proc() {
 		focusId = pressId
 	}
 
-	renderTime = max(0, renderTime - deltaTime)
-	time += deltaTime
+	currentTime += deltaTime
 	// Begin root layer
-	rootLayer, _ = BeginLayer(ctx.fullscreenRect, {}, 0, {.noPushId})
+	rootLayer, _ = BeginLayer({
+		id = 0,
+		rect = ctx.fullscreenRect, 
+		options = {.noPushId},
+	})
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
 	if KeyPressed(.tab) && ctx.focusId != 0 {
@@ -439,8 +468,6 @@ NewFrame :: proc() {
 	input.prevKeyBits = input.keyBits
 	input.prevMouseBits = input.mouseBits
 	input.prevMousePoint = input.mousePoint
-
-	shouldRender = renderTime > 0
 }
 EndFrame :: proc() {
 	using ctx
@@ -451,7 +478,11 @@ EndFrame :: proc() {
 			debugBits ~= {.showWindow}
 		}
 		if debugBits >= {.showWindow} {
-			if Window("Debug", {0, 0, 500, 700}, {.collapsable, .closable, .title, .resizable}) {
+			if Window({
+				title = "Debug", 
+				rect = {0, 0, 500, 700}, 
+				options = {.collapsable, .closable, .title, .resizable},
+			}) {
 				if CurrentWindow().bits >= {.shouldClose} {
 					debugBits -= {.showWindow}
 				}
@@ -461,37 +492,43 @@ EndFrame :: proc() {
 
 				Shrink(10); SetSize(24)
 				if debugMode == .layers {
+					SetSide(.bottom); SetSize(TEXTURE_HEIGHT)
+					if layer, ok := Frame({
+						layoutSize = {TEXTURE_WIDTH, TEXTURE_HEIGHT},
+						fillColor = Color{0, 0, 0, 255},
+						options = {.noScrollMarginX, .noScrollMarginY},
+					}); ok {
+						PaintTexture({0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT}, CurrentLayout().rect, 255)
+						UpdateLayerContentRect(layer, CurrentLayout().rect)
+					}
+					SetSide(.top); SetSize(24)
 					_DebugLayerWidget(ctx.rootLayer)
 				} else if debugMode == .windows {
 					for id, window in windowMap {
 						PushId(window.id)
-							Button(
+							Button({
 								label = Format(window.id), 
 								align = .near,
-							)
+							})
 							if CurrentWidget().state >= {.hovered} {
 								debugLayer = window.layer.id
 							}
 						PopId()
 					}
 				} else if debugMode == .controls {
-					Text(.monospace, TextFormat("Layer: %i", hoveredLayer), true)
+					Text({font = .monospace, text = TextFormat("Layer: %i", hoveredLayer), fit = true})
 					Space(20)
-					Text(.monospace, TextFormat("Hovered: %i", hoverId), true)
-					Text(.monospace, TextFormat("Focused: %i", focusId), true)
-					Text(.monospace, TextFormat("Pressed: %i", pressId), true)
+					Text({font = .monospace, text = TextFormat("Hovered: %i", hoverId), fit = true})
+					Text({font = .monospace, text = TextFormat("Focused: %i", focusId), fit = true})
+					Text({font = .monospace, text = TextFormat("Pressed: %i", pressId), fit = true})
 					Space(20)
-					Text(.monospace, TextFormat("Count: %i", len(widgets)), true)
+					Text({font = .monospace, text = TextFormat("Count: %i", len(widgets)), fit = true})
 				}
 			}
 		}
 	}
 	// End the root layer
 	EndLayer(rootLayer)
-	// Decide if rendering is needed next frame
-	if input.prevMousePoint != input.mousePoint || input.prevKeyBits != input.keyBits|| input.prevMouseBits != input.mouseBits || input.mouseScroll != {} {
-		renderTime = RENDER_TIMEOUT
-	}
 	// Delete unused controls
 	for widget, i in &widgets {
 		if .stayAlive in widget.bits {
@@ -507,7 +544,7 @@ EndFrame :: proc() {
 		}
 	}
 	// Delete unused windows
-	for window, i in windows {
+	for window, i in &windows {
 		if .stayAlive in window.bits {
 			window.bits -= {.stayAlive}
 		} else {
@@ -520,7 +557,7 @@ EndFrame :: proc() {
 	sortedLayer: ^LayerData
 	hoveredLayer = 0
 	for layer, i in layers {
-		if VecVsRect(input.mousePoint, layer.body) {
+		if VecVsRect(input.mousePoint, layer.rect) {
 			hoveredLayer = layer.id
 			if MousePressed(.left) {
 				// If the layer is attached, find its first parent
@@ -579,6 +616,8 @@ EndFrame :: proc() {
 	}
 	// Reset rendered layer
 	hotLayer = 0
+	paintLastFrame = paintThisFrame
+	frameDuration = time.since(frameStartTime)
 }
 _CountLayerChildren :: proc(layer: ^LayerData) -> int {
 	count: int
@@ -589,10 +628,10 @@ _CountLayerChildren :: proc(layer: ^LayerData) -> int {
 }
 _DebugLayerWidget :: proc(layer: ^LayerData) {
 	PushId(layer.id)
-		Button(
+		Button({
 			label = Format(layer.id),
 			align = .near,
-		)
+		})
 		if CurrentWidget().state >= {.hovered} {
 			ctx.debugLayer = layer.id
 		}
@@ -617,7 +656,7 @@ SortLayer :: proc(list: ^[dynamic]^LayerData, layer: ^LayerData) {
 	}
 }
 ShouldRender :: proc() -> bool {
-	return ctx.shouldRender || ctx.renderFrames > 0
+	return ctx.paintThisFrame
 }
 
 //@private

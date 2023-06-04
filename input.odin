@@ -52,6 +52,7 @@ Input :: struct {
 	mouseBits, prevMouseBits: MouseBits,
 	lastMouseButtonPressed: MouseButton,
 	lastMouseButtonTime: [MouseButton]time.Time,
+	thisMouseButtonTime: [MouseButton]time.Time,
 
 	keyBits, prevKeyBits: KeyBits,
 	lastKey: Key,
@@ -103,7 +104,8 @@ InputAddCharPress :: proc(char: rune) {
 SetMouseBit :: proc(button: MouseButton, value: bool) {
 	if value {
 		input.mouseBits += {button}
-		input.lastMouseButtonTime[button] = time.now()
+		input.lastMouseButtonTime[button] = input.thisMouseButtonTime[button]
+		input.thisMouseButtonTime[button] = time.now()
 		input.lastMouseButtonPressed = button
 	} else {
 		input.mouseBits -= {button}

@@ -1,5 +1,5 @@
 package maui
-
+import "core:fmt"
 Rect :: struct {
 	x, y, w, h: f32,
 }
@@ -18,6 +18,15 @@ RectCorner :: enum {
 }
 RectCorners :: bit_set[RectCorner;u8]
 
+// Clamps a rect to fit inside another
+ClampRect :: proc(rect, inside: Rect) -> Rect {
+	rect := rect
+	rect.x = clamp(rect.x, inside.x, inside.x + inside.w)
+	rect.y = clamp(rect.y, inside.y, inside.y + inside.h)
+	rect.w = clamp(rect.w, 0, inside.w - (rect.x - inside.x))
+	rect.h = clamp(rect.h, 0, inside.h - (rect.y - inside.y))
+	return rect
+}
 RectCenter :: proc(rect: Rect) -> Vec2 {
 	return {rect.x + rect.w / 2, rect.y + rect.h / 2}
 }
@@ -104,21 +113,11 @@ CutRect :: proc(rect: ^Rect, side: RectSide, amount: f32) -> Rect {
 	return {}
 }
 CutLayout :: proc(using layout: ^LayoutData) -> (result: Rect) {
-	if layout.grow {
-		switch side {
-			case .bottom: 	result = AttachRectTop(rect, size)
-			case .top: 		result = AttachRectBottom(rect, size)
-			case .left: 	result = AttachRectRight(rect, size)
-			case .right: 	result = AttachRectLeft(rect, size)
-		}
-		layout.rect = result
-	} else {
-		switch side {
-			case .bottom: 	result = CutRectBottom(&rect, size)
-			case .top: 		result = CutRectTop(&rect, size)
-			case .left: 	result = CutRectLeft(&rect, size)
-			case .right: 	result = CutRectRight(&rect, size)
-		}
+	switch side {
+		case .bottom: 	result = CutRectBottom(&rect, size)
+		case .top: 		result = CutRectTop(&rect, size)
+		case .left: 	result = CutRectLeft(&rect, size)
+		case .right: 	result = CutRectRight(&rect, size)
 	}
 	return
 }
@@ -150,10 +149,10 @@ AttachRectBottom :: proc(rect: Rect, amount: f32) -> Rect {
 }
 AttachRect :: proc(rect: Rect, side: RectSide, size: f32) -> Rect {
 	switch side {
-		case .bottom: 	return AttachRectTop(rect, size)
-		case .top: 		return AttachRectBottom(rect, size)
-		case .left: 	return AttachRectRight(rect, size)
-		case .right: 	return AttachRectLeft(rect, size)
+		case .bottom: 	return AttachRectBottom(rect, size)
+		case .top: 		return AttachRectTop(rect, size)
+		case .left: 	return AttachRectLeft(rect, size)
+		case .right: 	return AttachRectRight(rect, size)
 	}
 	return {}
 }

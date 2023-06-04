@@ -14,14 +14,14 @@ SCROLL_BAR_PADDING :: 0
 
 GHOST_TEXT_ALPHA :: 0.6
 DIVIDER_ALPHA :: 0.45
-BASE_SHADE_ALPHA :: 0.15
+BASE_SHADE_ALPHA :: 0.1
 SHADOW_OFFSET :: 7
 DISABLED_SHADE_ALPHA :: 0.5
 
 // Default color schemes
 DEFAULT_COLORS_LIGHT :: [ColorIndex]Color {
 	.accent 			= {45, 135, 248, 255},
-	.base 				= {255, 255, 255, 255},
+	.base 				= {242, 242, 242, 255},
 	.baseShade 			= {0, 0, 0, 255},
 	.baseStroke			= {112, 113, 116, 255},
 	.widgetBackground 	= {218, 218, 218, 255},
@@ -36,6 +36,9 @@ DEFAULT_COLORS_LIGHT :: [ColorIndex]Color {
 	.tooltipFill 		= {45, 45, 77, 255},
 	.tooltipStroke  	= {},
 	.tooltipText 		= {255, 255, 255, 255},
+	.scrollbar  		= {255, 255, 255, 255},
+	.scrollThumb 		= {165, 185, 185, 255},
+	.scrollThumbShade   = {255, 255, 255, 255},
 }
 DEFAULT_COLORS_DARK :: [ColorIndex]Color {
 	.accent 			= {45, 135, 248, 255},
@@ -54,6 +57,9 @@ DEFAULT_COLORS_DARK :: [ColorIndex]Color {
 	.tooltipFill 		= {45, 55, 68, 255},
 	.tooltipStroke  	= {50, 170, 170, 255},
 	.tooltipText 		= {170, 170, 170, 255},
+	.scrollbar  		= {62, 62, 62, 255},
+	.scrollThumb 		= {92, 92, 92, 255},
+	.scrollThumbShade   = {255, 255, 255, 255},
 }
 
 ColorIndex :: enum {
@@ -87,6 +93,10 @@ ColorIndex :: enum {
 	tooltipFill,
 	tooltipStroke,
 	tooltipText,
+	// Scrollbars
+	scrollbar,
+	scrollThumb,
+	scrollThumbShade,
 }
 
 MAX_COLOR_CHANGES :: 32
@@ -137,7 +147,7 @@ StyleIntenseShaded :: proc(shadeAmount: f32) -> Color {
 	return BlendColors(painter.style.colors[.intense], painter.style.colors[.intenseShade], shadeAmount * 0.1)
 }
 StyleWidgetShaded :: proc(shadeAmount: f32) -> Color {
-	return BlendColors(painter.style.colors[.widget], painter.style.colors[.widgetShade], shadeAmount * 0.2)
+	return BlendColors(painter.style.colors[.widget], painter.style.colors[.widgetShade], shadeAmount * 0.125)
 }
 StyleBaseShaded :: proc(shadeAmount: f32) -> Color {
 	return BlendColors(painter.style.colors[.base], painter.style.colors[.baseShade], shadeAmount * 0.1)
