@@ -12,6 +12,8 @@ PillButtonInfo :: struct {
 	label: Label,
 	fitToLabel: bool,
 	style: Maybe(PillButtonStyle),
+	fillColor: Maybe(Color),
+	textColor: Maybe(Color),
 }
 PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: bool) {
 	layout := CurrentLayout()
@@ -39,10 +41,10 @@ PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: b
 					PaintRoundedRect(rect, rect.h / 2, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
 				}
 			}
-			switch info.style {
+			switch info.style.? or_else .filled {
 				case .filled:
-				PaintPillH(body, StyleWidgetShaded(hoverTime))
-				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.base), .middle, .middle)
+				PaintPillH(body, StyleShade(info.fillColor .? or_else GetColor(.widget), hoverTime))
+				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, info.textColor.? or_else GetColor(.base), .middle, .middle)
 				
 				case .outlined:
 				PaintPillH(body, GetColor(.base))
@@ -162,9 +164,9 @@ IconButton :: proc(
 		// Painting
 		if self.bits >= {.shouldPaint} {
 			center := RectCenter(self.body)
-			PaintCircle(center, 24, GetColor(.baseShade, (2 if self.state >= {.pressed} else hoverTime) * BASE_SHADE_ALPHA))
+			PaintCircle(center, 24, 16, GetColor(.baseShade, (2 if self.state >= {.pressed} else hoverTime) * BASE_SHADE_ALPHA))
 			if .clicked not_in self.state {
-				PaintCircleOutline(center, 24, true, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
+				PaintRing(center, 24, 15, 16, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
 			}
 			PaintIconAligned(GetFontData(.header), icon, center + 1, GetColor(.text, 0.5 + hoverTime * 0.5), .middle, .middle)
 		}

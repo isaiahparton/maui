@@ -60,6 +60,7 @@ WindowInfo :: struct {
 	layoutSize: Maybe(Vec2),
 	minSize: Maybe(Vec2),
 	options: WindowOptions,
+	layerOptions: LayerOptions,
 }
 @(deferred_out=_Window)
 Window :: proc(info: WindowInfo, loc := #caller_location) -> (ok: bool) {
@@ -159,7 +160,7 @@ Window :: proc(info: WindowInfo, loc := #caller_location) -> (ok: bool) {
 			self.bits += {.initialized}
 		}
 
-		layerOptions: LayerOptions = {.attached}
+		layerOptions := info.layerOptions + {.attached}
 		if (self.howCollapsed > 0 && self.howCollapsed < 1) || (self.howCollapsed == 1 && .shouldCollapse not_in self.bits) {
 			layerOptions += {.forceClip, .noScrollY}
 			ctx.paintNextFrame = true
@@ -180,7 +181,7 @@ Window :: proc(info: WindowInfo, loc := #caller_location) -> (ok: bool) {
 		}
 
 		// Get resize click
-		if .resizable in self.options && self.decorLayer.bits >= {.hovered} && .collapsed not_in self.bits {
+		if .resizable in self.options && self.decorLayer.state >= {.hovered} && .collapsed not_in self.bits {
 			RESIZE_MARGIN :: 5
 			topHover 		:= VecVsRect(input.mousePoint, GetRectTop(self.rect, RESIZE_MARGIN))
 			leftHover 		:= VecVsRect(input.mousePoint, GetRectLeft(self.rect, RESIZE_MARGIN))
@@ -188,9 +189,11 @@ Window :: proc(info: WindowInfo, loc := #caller_location) -> (ok: bool) {
 			rightHover 		:= VecVsRect(input.mousePoint, GetRectRight(self.rect, RESIZE_MARGIN))
 			if topHover || bottomHover {
 				ctx.cursor = .resizeNS
+				ctx.hoverId = 0
 			}
 			if leftHover || rightHover {
 				ctx.cursor = .resizeEW
+				ctx.hoverId = 0
 			}
 			if MousePressed(.left) {
 				if topHover {

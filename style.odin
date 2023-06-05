@@ -143,6 +143,9 @@ GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
 	return {color.r, color.g, color.b, u8(f32(color.a) * clamp(alpha, 0, 1))}
 }
 
+StyleShade :: proc(base: Color, shadeAmount: f32) -> Color {
+	return BlendColors(base, painter.style.colors[.widgetShade], shadeAmount * 0.1)
+}
 StyleIntenseShaded :: proc(shadeAmount: f32) -> Color {
 	return BlendColors(painter.style.colors[.intense], painter.style.colors[.intenseShade], shadeAmount * 0.1)
 }

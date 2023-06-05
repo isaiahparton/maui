@@ -151,10 +151,13 @@ Context :: struct {
 	// Layer ordering helpers
 	sortLayers:			bool,
 	prevTopLayer, topLayer: Id,
+	currentLayer: ^LayerData,
 	// Current layer being drawn (used only by 'NextCommand')
 	hotLayer: int,
 	// Current layer state
-	nextHoveredLayer, hoveredLayer, focusedLayer: Id,
+	hoveredLayer, 
+	prevHoveredLayer,
+	focusedLayer: Id,
 	debugLayer: Id,
 	// Used for dragging stuff
 	dragAnchor: Vec2,
@@ -493,15 +496,14 @@ EndFrame :: proc() {
 				Shrink(10); SetSize(24)
 				if debugMode == .layers {
 					SetSide(.bottom); SetSize(TEXTURE_HEIGHT)
-					if layer, ok := Frame({
+					if Frame({
 						layoutSize = {TEXTURE_WIDTH, TEXTURE_HEIGHT},
 						fillColor = Color{0, 0, 0, 255},
 						options = {.noScrollMarginX, .noScrollMarginY},
-					}); ok {
+					}) {
 						PaintTexture({0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT}, CurrentLayout().rect, 255)
-						UpdateLayerContentRect(layer, CurrentLayout().rect)
+						UpdateLayerContentRect(CurrentLayer(), CurrentLayout().rect)
 					}
-					SetSide(.top); SetSize(24)
 					_DebugLayerWidget(ctx.rootLayer)
 				} else if debugMode == .windows {
 					for id, window in windowMap {
@@ -555,11 +557,12 @@ EndFrame :: proc() {
 	}
 	// Determine hovered layer and reorder if needed
 	sortedLayer: ^LayerData
+	prevHoveredLayer = hoveredLayer
 	hoveredLayer = 0
 	for layer, i in layers {
 		if VecVsRect(input.mousePoint, layer.rect) {
 			hoveredLayer = layer.id
-			if MousePressed(.left) {
+			if MousePressed(.left) && .attached not_in layer.options {
 				// If the layer is attached, find its first parent
 				child := layer
 				for child.parent != nil {
@@ -576,7 +579,6 @@ EndFrame :: proc() {
 		if .stayAlive in layer.bits {
 			layer.bits -= {.stayAlive}
 		} else {
-			ordered_remove(&layers, i)
 			delete_key(&layerMap, layer.id)
 			if layer.parent != nil {
 				for child, i in layer.parent.children {
@@ -627,17 +629,23 @@ _CountLayerChildren :: proc(layer: ^LayerData) -> int {
 	return count
 }
 _DebugLayerWidget :: proc(layer: ^LayerData) {
-	PushId(layer.id)
-		Button({
-			label = Format(layer.id),
-			align = .near,
-		})
-		if CurrentWidget().state >= {.hovered} {
-			ctx.debugLayer = layer.id
-		}
-	PopId()
-	if len(layer.children) > 0 {
-		Cut(.left, 24); SetSize(24)
+	if Layout(.top, 24) {
+		PushId(layer.id)
+			n := 0
+			x := layer
+			for x.parent != nil {
+				x = x.parent
+				n += 1
+			}
+			Cut(.left, f32(n) * 24); SetSide(.left); SetSize(1, true)
+			Button({
+				label = Format(layer.id),
+				align = .near,
+			})
+			if CurrentWidget().state >= {.hovered} {
+				ctx.debugLayer = layer.id
+			}
+		PopId()
 	}
 	for child in layer.children {
 		_DebugLayerWidget(child)

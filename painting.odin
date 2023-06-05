@@ -334,15 +334,15 @@ GenAtlas :: proc(using painter: ^Painter) -> (result: bool) {
 	result = true
 	return
 }
-GetGlyphData :: proc(font: FontData, codepoint: rune) -> GlyphData {
+GetGlyphData :: proc(font: ^FontData, codepoint: rune) -> GlyphData {
 	index, ok := font.glyphMap[codepoint]
 	if ok {
 		return font.glyphs[index]
 	}
 	return {}
 }
-GetFontData :: proc(index: FontIndex) -> FontData {
-	return painter.fonts[index]
+GetFontData :: proc(index: FontIndex) -> ^FontData {
+	return &painter.fonts[index]
 }
 
 // Draw commands
@@ -506,7 +506,7 @@ PaintWidgetFrame :: proc(rect: Rect, gapOffset, gapWidth, thickness: f32, color:
 	PaintRect({rect.x, rect.y, thickness, rect.h}, color)
 	PaintRect({rect.x + rect.w - thickness, rect.y, thickness, rect.h}, color)
 }
-PaintCircleUh :: proc(center: Vec2, radius: f32, segments: i32, color: Color) {
+PaintCircle :: proc(center: Vec2, radius: f32, segments: i32, color: Color) {
 	PaintCircleSector(center, radius, 0, math.TAU, segments, color)
 }
 PaintCircleSector :: proc(center: Vec2, radius, start, end: f32, segments: i32, color: Color) {
@@ -563,16 +563,16 @@ PaintTexture :: proc(src, dst: Rect, color: Color) {
 	cmd.max = {dst.x + dst.w, dst.y + dst.h}
 	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}
 }
-PaintCircle :: proc(center: Vec2, radius: f32, color: Color) {
-	index := int(radius) - MIN_CIRCLE_SIZE
+PaintCircleTexture :: proc(center: Vec2, size: f32, color: Color) {
+	index := int(size) - MIN_CIRCLE_SIZE
 	if index < 0 || index >= CIRCLE_SIZES {
 		return
 	}
 	source := ExpandRect(painter.circles[index].source, 1)
 	PaintTexture(source, {center.x - math.floor(source.w / 2), center.y - math.floor(source.h / 2), source.w, source.h}, color)
 }
-PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) {
-	index := CIRCLE_SIZES + int(radius) - MIN_CIRCLE_SIZE
+PaintCircleOutlineTexture :: proc(center: Vec2, size: f32, thin: bool, color: Color) {
+	index := CIRCLE_SIZES + int(size) - MIN_CIRCLE_SIZE
 	if !thin {
 		index += CIRCLE_SIZES
 	}
@@ -580,7 +580,7 @@ PaintCircleOutline :: proc(center: Vec2, radius: f32, thin: bool, color: Color) 
 		return
 	}
 	source := ExpandRect(painter.circles[index].source, 1)
-	PaintTexture(source, {center.x - source.w / 2, center.y - source.h / 2, source.w, source.h}, color)
+	PaintTexture(source, {center.x - math.floor(source.w / 2), center.y - math.floor(source.h / 2), source.w, source.h}, color)
 }
 
 PaintPillH :: proc(rect: Rect, color: Color) {

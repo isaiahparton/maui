@@ -472,7 +472,7 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 // Sliding toggle switch
 ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 	newValue = value
-	if self, ok := Widget(HashId(loc), LayoutNextEx(CurrentLayout(), {36, 28})); ok {
+	if self, ok := Widget(HashId(loc), LayoutNextEx(CurrentLayout(), {40, 28})); ok {
 		using self
 		// Animation
 		PushId(id) 
@@ -488,7 +488,7 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 			move := baseRect.w - baseRect.h
 			thumbCenter := start + {move * (rl.EaseBackOut(howOn, 0, 1, 1) if value else rl.EaseBackIn(howOn, 0, 1, 1)), 0}
 
-			strokeColor := GetColor(.widget if ctx.disabled else .intense)
+			strokeColor := GetColor(.widget if ctx.disabled else .widget)
 			if howOn < 1 {
 				if !ctx.disabled {
 					PaintRoundedRect(baseRect, baseRadius, GetColor(.base))
@@ -497,23 +497,23 @@ ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
 			}
 			if howOn > 0 {
 				if howOn < 1 {
-					PaintRoundedRect({baseRect.x, baseRect.y, thumbCenter.x - baseRect.x, baseRect.h}, baseRadius, GetColor(.widget if ctx.disabled else .intense))
+					PaintRoundedRect({baseRect.x, baseRect.y, thumbCenter.x - baseRect.x, baseRect.h}, baseRadius, GetColor(.widget if ctx.disabled else .widget))
 				} else {
-					PaintRoundedRect(baseRect, baseRadius, GetColor(.widget if ctx.disabled else .intense))
+					PaintRoundedRect(baseRect, baseRadius, GetColor(.widget if ctx.disabled else .widget))
 				}
 			}
 			if hoverTime > 0 {
-				PaintCircle(thumbCenter, 32, GetColor(.baseShade, BASE_SHADE_ALPHA * hoverTime))
+				PaintCircle(thumbCenter, 18, 14, GetColor(.baseShade, BASE_SHADE_ALPHA * hoverTime))
 			}
 			if pressTime > 0 {
 				if .pressed in state {
-					PaintCircle(thumbCenter, 21 + 11 * pressTime, GetColor(.baseShade, BASE_SHADE_ALPHA))
+					PaintCircle(thumbCenter, 12 + 6 * pressTime, 14, GetColor(.baseShade, BASE_SHADE_ALPHA))
 				} else {
-					PaintCircle(thumbCenter, 32, GetColor(.baseShade, BASE_SHADE_ALPHA * pressTime))
+					PaintCircle(thumbCenter, 18, 14, GetColor(.baseShade, BASE_SHADE_ALPHA * pressTime))
 				}
 			}
-			PaintCircle(thumbCenter, 18, GetColor(.base))
-			PaintCircleOutline(thumbCenter, 21, false, strokeColor)
+			PaintCircle(thumbCenter, 11, 16, GetColor(.base))
+			PaintRing(thumbCenter, 10, 12, 16, strokeColor)
 		}
 		// Invert value on click
 		if .clicked in state {
@@ -869,7 +869,7 @@ Text :: proc(info: TextInfo) {
 		LayoutFitWidget(layout, textSize)
 	}
 	rect := LayoutNextEx(layout, textSize)
-	if CheckClip(ctx.clipRect, rect) != .full {
+	if CheckClip(ctx.currentLayer.rect, rect) != .full {
 		PaintString(fontData, info.text, {rect.x, rect.y}, info.color.? or_else GetColor(.text))
 	}
 	UpdateLayerContentRect(CurrentLayer(), rect)
@@ -886,7 +886,7 @@ TextBoxInfo :: struct {
 TextBox :: proc(info: TextBoxInfo) {
 	fontData := GetFontData(info.font.? or_else .default)
 	rect := LayoutNext(CurrentLayout())
-	if CheckClip(ctx.clipRect, rect) != .full {
+	if CheckClip(ctx.currentLayer.rect, rect) != .full {
 		PaintStringContainedEx(
 			fontData, 
 			info.text, 

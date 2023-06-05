@@ -77,20 +77,27 @@ Shrink :: proc(amount: f32) {
 	layout := CurrentLayout()
 	layout.rect = ShrinkRect(layout.rect, amount)
 }
-
 CurrentLayout :: proc() -> ^LayoutData {
 	using ctx
 	return &layouts[layoutDepth - 1]
 }
 
-LayoutNext :: proc(layout: ^LayoutData) -> Rect {
-	assert(layout != nil)
+LayoutNext :: proc(using self: ^LayoutData) -> (result: Rect) {
+	assert(self != nil)
 
-	ctx.lastRect = CutLayout(layout)
-	if layout.margin > 0 {
-		ctx.lastRect = ShrinkRect(ctx.lastRect, layout.margin)
+	switch side {
+		case .bottom: 	result = CutRectBottom(&rect, size)
+		case .top: 		result = CutRectTop(&rect, size)
+		case .left: 	result = CutRectLeft(&rect, size)
+		case .right: 	result = CutRectRight(&rect, size)
 	}
-	return ctx.lastRect
+
+	if margin > 0 {
+		result = ShrinkRect(result, margin)
+	}
+	
+	ctx.lastRect = result
+	return
 }
 LayoutNextEx :: proc(layout: ^LayoutData, size: Vec2) -> Rect {
 	assert(layout != nil)

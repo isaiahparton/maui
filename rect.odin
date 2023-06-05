@@ -112,15 +112,6 @@ CutRect :: proc(rect: ^Rect, side: RectSide, amount: f32) -> Rect {
 	}
 	return {}
 }
-CutLayout :: proc(using layout: ^LayoutData) -> (result: Rect) {
-	switch side {
-		case .bottom: 	result = CutRectBottom(&rect, size)
-		case .top: 		result = CutRectTop(&rect, size)
-		case .left: 	result = CutRectLeft(&rect, size)
-		case .right: 	result = CutRectRight(&rect, size)
-	}
-	return
-}
 // get a cut piece of a rect
 GetRectLeft :: proc(b: Rect, a: f32) -> Rect {
 	return {b.x, b.y, a, b.h}

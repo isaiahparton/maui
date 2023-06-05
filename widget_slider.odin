@@ -68,18 +68,18 @@ Slider :: proc(info: SliderInfo($T), loc := #caller_location) -> (changed: bool,
 		offset := range * clamp(f32((info.value - info.low) / info.high), 0, 1)
 		barRect: Rect = {self.body.x, self.body.y + HALF_HEIGHT, self.body.w, self.body.h - HEIGHT}
 		thumbCenter: Vec2 = {self.body.x + HALF_HEIGHT + offset, self.body.y + self.body.h / 2}
-		thumbRadius := self.body.h
-		shadeRadius := thumbRadius + 10 * (pressTime + hoverTime)
+		thumbRadius: f32 = 9
+		shadeRadius := thumbRadius + 5 * (pressTime + hoverTime)
 		if .shouldPaint in self.bits {
 			if info.value < info.high {
 				PaintRoundedRect(barRect, HALF_HEIGHT, GetColor(.widgetBackground))
 			}
 			PaintRoundedRect({barRect.x, barRect.y, offset, barRect.h}, HALF_HEIGHT, BlendColors(GetColor(.widget), GetColor(.accent), hoverTime))
-			PaintCircle(thumbCenter, shadeRadius, GetColor(.baseShade, BASE_SHADE_ALPHA * hoverTime))
-			PaintCircle(thumbCenter, thumbRadius, BlendColors(GetColor(.widget), GetColor(.accent), hoverTime))
+			PaintCircle(thumbCenter, shadeRadius, 12, GetColor(.baseShade, BASE_SHADE_ALPHA * hoverTime))
+			PaintCircle(thumbCenter, thumbRadius, 12, BlendColors(GetColor(.widget), GetColor(.accent), hoverTime))
 		}
 		if hoverTime > 0 {
-			Tooltip(self.id, TextFormat(info.format.? or_else "%v", info.value), thumbCenter + {0, -shadeRadius / 2 - 2}, .middle, .far)
+			Tooltip(self.id, TextFormat(info.format.? or_else "%v", info.value), thumbCenter + {0, -shadeRadius - 2}, .middle, .far)
 		}
 
 		if .pressed in self.state {
@@ -144,7 +144,7 @@ RectSlider :: proc(info: RectSliderInfo($T), loc := #caller_location) -> (newVal
 			PaintStringAligned(fontData, string(text), center, GetColor(.text), .middle, .middle)
 			if .pressed in self.state {
 				if info.low < info.high {
-					newValue = info.low + T(((input.mousePoint.x - self.body.x) / self.body.w) * f32(info.high - info.low))
+					newValue = T(f32(info.low) + clamp((input.mousePoint.x - self.body.x) / self.body.w, 0, 1) * f32(info.high - info.low))
 				} else {
 					newValue = info.value + T(input.mousePoint.x - input.prevMousePoint.x) + T(input.mousePoint.y - input.prevMousePoint.y)
 				}

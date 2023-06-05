@@ -46,6 +46,7 @@ _main :: proc() {
 	boolean := false
 	font: ui.FontIndex
 	tab: Tabs
+	enableSubMenu := false
 
 	a, b, c: bool
 
@@ -59,7 +60,7 @@ _main :: proc() {
 	rl.InitWindow(1000, 800, "Maui Demo")
 	rl.SetExitKey(.NULL)
 	rl.MaximizeWindow()
-	TARGET_FPS :: 60
+	TARGET_FPS :: 120
 	rl.SetTargetFPS(TARGET_FPS)
 
 	ui.Init()
@@ -73,111 +74,129 @@ _main :: proc() {
 
 		{
 			using ui
-			rect := Cut(.right, 500)
-			Shrink(100)
-			if Layout(.left, 200) {
-				SetSize(30)
-				AttachTooltip("I'm a tooltip", .top)
-				windowOpen[.widgetGallery] = ToggleButton({
-					value = windowOpen[.widgetGallery], 
-					label = "Widget Gallery",
-				})
-				if Window({
-					title = "Widget Gallery", 
-					rect = {700, 200, 400, 500}, 
-					options = {.title, .collapsable, .closable},
-				}) {
-					Shrink(10); SetSize(30)
-					tab = EnumTabs(tab, 0)
-					Shrink(30); SetSize(30)
-					if tab == .input {
-						if Layout(.top, 30) {
-							SetSide(.left); SetSize(120)
-							integer = Spinner({
-								value = integer, 
-								low = -100, 
-								high = 100,
-							})
-							SetSide(.right); SetSize(120)
-							integer = RectSlider(RectSliderInfo(int){
-								value = integer, 
-								low = -100, 
-								high = 100,
-							})
-						}
-						Space(20)
-						if change, newValue := Slider(SliderInfo(f64){
-							value = value, 
-							low = 0, 
-							high = 10, 
-							format = "%.2f",
-						}); change {
-							value = newValue
-						}
-						Space(20)
-						if Menu({
-							label = "Open me!", 
-							size = {0, 120},
-						}) {
-							SetSize(30)
-							MenuOption("Option A", false)
-							MenuOption("Option B", false)
-							MenuOption("Option C", false)
-							if SubMenu("Radio Buttons", {200, 90}) {
-								SetSize(30); AlignY(.middle); Cut(.left, 4)
-								choice = EnumRadioButtons(choice, .left)
-							}
-						}
-					} else if tab == .text {
-						SetSize(36)
-						TextInput({
-							buffer = &buffer, 
-							title = "Type some text", 
-							placeholder = "Placeholder",
+			if Window({
+				title = "Widget Gallery", 
+				rect = {700, 200, 400, 500}, 
+				options = {.title, .collapsable, .closable},
+			}) {
+				Shrink(10); SetSize(30)
+				tab = EnumTabs(tab, 0)
+				Shrink(20); SetSize(30)
+
+				if tab == .input {
+					if Layout(.top, 30) {
+						SetSide(.left); SetSize(120)
+						integer = Spinner({
+							value = integer, 
+							low = -100, 
+							high = 100,
 						})
-						Space(100)
-						SetSize(1, true)
-					} else if tab == .table {
-						SetSize(1, true)
-						if layer, ok := Frame({
-							layoutSize = {0, 2400},
-						}); ok {
-							SetSize(24)
-							for i in 0..<100 {
-								Text({text = TextFormat("Text %i", i + 1)})
+						SetSide(.right); SetSize(120)
+						integer = RectSlider(RectSliderInfo(int){
+							value = integer, 
+							low = -100, 
+							high = 100,
+						})
+					}
+					Space(20)
+					if change, newValue := Slider(SliderInfo(f64){
+						value = value, 
+						low = 0, 
+						high = 10, 
+						format = "%.2f",
+					}); change {
+						value = newValue
+					}
+					Space(20)
+					boolean = ToggleSwitch(boolean)
+					Space(20)
+
+					if Menu({
+						label = "Open me!", 
+						size = {0, 120},
+						align = .middle,
+					}) {
+						SetSize(30)
+						Option({label = "Option A"})
+						Option({label = "Option B"})
+						if Option({
+							label = "Enable Submenu", 
+							active = enableSubMenu,
+							noDismiss = true,
+						}) {
+							enableSubMenu = !enableSubMenu
+						}
+						if Enabled(enableSubMenu) {
+							if SubMenu({
+								label = "Sub Menu", 
+								size = {200, 90},
+							}) {
+								SetSize(30)
+								Option({label = "Option C"})
+								Option({label = "Option D"})
+								if SubMenu({
+									label = "Radio Buttons", 
+									side = .right,
+									size = {200, 90},
+								}) {
+									SetSize(30); AlignY(.middle); Cut(.left, 4)
+									choice = EnumRadioButtons(choice, .left)
+								}
 							}
+						}
+					}
+				} else if tab == .text {
+					SetSize(36)
+					TextInput({
+						buffer = &buffer, 
+						title = "Type some text", 
+						placeholder = "Placeholder",
+					})
+					Space(20)
+					if Layout(.top, 30) {
+						SetSide(.left)
+						PillButton({
+							label = "Pill Button",
+							fitToLabel = true,
+							fillColor = Color{25, 190, 230, 255},
+						})
+					}
+				} else if tab == .table {
+					SetSize(1, true)
+					if Frame({
+						layoutSize = {0, 2400},
+					}) {
+						SetSize(24)
+						for i in 0..<100 {
+							Text({text = TextFormat("Text %i", i + 1)})
 						}
 					}
 				}
-				Space(10)
-				windowOpen[.dataTable] = ToggleButton({
-					value = windowOpen[.dataTable], 
-					label = "Data Table",
-				})
-				if Window({
-					title = "Style", 
-					rect = {200, 200, 600, 500},
-					layoutSize = Vec2{0, f32(len(ColorIndex)) * 30 + 60},
-					options = {.title, .collapsable, .resizable, .closable},
-				}) {
-					window := CurrentWindow()
-					Shrink(30)
-					for member in ColorIndex {
-						PushId(int(member))
-							if Layout(.top, 30) {
-								SetSide(.right); SetSize(100)
-								painter.style.colors[member].a = RectSlider(RectSliderInfo(u8){painter.style.colors[member].a, 0, 255})
-								painter.style.colors[member].b = RectSlider(RectSliderInfo(u8){painter.style.colors[member].b, 0, 255})
-								painter.style.colors[member].g = RectSlider(RectSliderInfo(u8){painter.style.colors[member].g, 0, 255})
-								painter.style.colors[member].r = RectSlider(RectSliderInfo(u8){painter.style.colors[member].r, 0, 255})
-								SetSize(1, true)
-								TextBox({
-									font = .default, 
-									text = Format(member),
-								})
-							}
-						PopId()
-					}
+			}
+			if Window({
+				title = "Style", 
+				rect = {200, 200, 600, 500},
+				layoutSize = Vec2{700, f32(len(ColorIndex)) * 30 + 60},
+				options = {.title, .collapsable, .resizable, .closable},
+				layerOptions = {.noScrollMarginY},
+			}) {
+				window := CurrentWindow()
+				Shrink(30)
+				for member in ColorIndex {
+					PushId(int(member))
+						if Layout(.top, 30) {
+							SetSide(.right); SetSize(100)
+							painter.style.colors[member].a = RectSlider(RectSliderInfo(u8){painter.style.colors[member].a, 0, 255})
+							painter.style.colors[member].b = RectSlider(RectSliderInfo(u8){painter.style.colors[member].b, 0, 255})
+							painter.style.colors[member].g = RectSlider(RectSliderInfo(u8){painter.style.colors[member].g, 0, 255})
+							painter.style.colors[member].r = RectSlider(RectSliderInfo(u8){painter.style.colors[member].r, 0, 255})
+							SetSize(1, true)
+							TextBox({
+								font = .default, 
+								text = Format(member),
+							})
+						}
+					PopId()
 				}
 			}
 		}

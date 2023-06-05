@@ -131,10 +131,10 @@ StringPaintOption :: enum {
 	word_wrap,
 }
 StringPaintOptions :: bit_set[StringPaintOption]
-PaintStringContained :: proc(font: FontData, text: string, rect: Rect, options: StringPaintOptions, color: Color) -> Vec2 {
+PaintStringContained :: proc(font: ^FontData, text: string, rect: Rect, options: StringPaintOptions, color: Color) -> Vec2 {
 	return PaintStringContainedEx(font, text, rect, options, .near, .near, color)
 }
-PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options: StringPaintOptions, alignX, alignY: Alignment, color: Color) -> Vec2 {
+PaintStringContainedEx :: proc(font: ^FontData, text: string, rect: Rect, options: StringPaintOptions, alignX, alignY: Alignment, color: Color) -> Vec2 {
 
 	point: Vec2 = {rect.x, rect.y}
 	size: Vec2
@@ -214,7 +214,7 @@ PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options
 }
 
 // Text painting
-MeasureString :: proc(font: FontData, text: string) -> (size: Vec2) {
+MeasureString :: proc(font: ^FontData, text: string) -> (size: Vec2) {
 	lineSize: Vec2
 	lines := 1
 	for codepoint in text {
@@ -233,7 +233,7 @@ MeasureString :: proc(font: FontData, text: string) -> (size: Vec2) {
 	size.y = font.size * f32(lines)
 	return size
 }
-PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) -> Vec2 {
+PaintString :: proc(font: ^FontData, text: string, origin: Vec2, color: Color) -> Vec2 {
 	point := origin
 	size := Vec2{}
 	for codepoint in text {
@@ -250,7 +250,7 @@ PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) ->
 	size.y = font.size
 	return size
 }
-PaintStringAligned :: proc(font: FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
+PaintStringAligned :: proc(font: ^FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
 	origin := origin
 	if alignX == .middle {
 		origin.x -= math.trunc(MeasureString(font, text).x / 2)
@@ -282,7 +282,7 @@ PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, 
 
     return {rect.w, rect.h}
 }
-PaintIconAligned :: proc(fontData: FontData, icon: Icon, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
+PaintIconAligned :: proc(fontData: ^FontData, icon: Icon, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
 	return PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), linalg.floor(origin), color, alignX, alignY)
 }
 // Draw a glyph, mathematically clipped to 'clipRect'

@@ -22,7 +22,7 @@ TextProOption :: enum {
 }
 TextProOptions :: bit_set[TextProOption]
 // Displays clipped, selectable text that can be copied to clipboard
-TextPro :: proc(fontData: FontData, data: []u8, rect: Rect, options: TextProOptions, widget: ^WidgetData) {
+TextPro :: proc(fontData: ^FontData, data: []u8, rect: Rect, options: TextProOptions, widget: ^WidgetData) {
 	state := &ctx.scribe
 	// Hovered index
 	hoverIndex := 0
