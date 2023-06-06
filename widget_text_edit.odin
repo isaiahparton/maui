@@ -28,7 +28,7 @@ TextPro :: proc(fontData: ^FontData, data: []u8, rect: Rect, options: TextProOpt
 	hoverIndex := 0
 	minDist: f32 = math.F32_MAX
 	// Determine text origin
-	origin: Vec2 = {rect.x + WIDGET_TEXT_OFFSET, rect.y + rect.h / 2 - fontData.size / 2}
+	origin: Vec2 = {rect.x + rect.h * 0.25, rect.y + rect.h / 2 - fontData.size / 2}
 	if options & {.alignCenter, .alignRight} != {} {
 		textSize := MeasureString(fontData, string(data))
 		if options >= {.alignCenter} {
@@ -141,8 +141,8 @@ TextPro :: proc(fontData: ^FontData, data: []u8, rect: Rect, options: TextProOpt
 				ctx.scribe.offset.x = cursorStart.x
 			}
 		} else if ctx.scribe.index > ctx.scribe.prev_index || ctx.scribe.length > ctx.scribe.prev_length {
-			if cursorEnd.x > ctx.scribe.offset.x + (rect.w - WIDGET_TEXT_OFFSET * 2) {
-				ctx.scribe.offset.x = cursorEnd.x - rect.w + WIDGET_TEXT_OFFSET * 2
+			if cursorEnd.x > ctx.scribe.offset.x + (rect.w - GetRule(.widgetTextOffset) * 2) {
+				ctx.scribe.offset.x = cursorEnd.x - rect.w + GetRule(.widgetTextOffset) * 2
 			}
 		}
 		ctx.scribe.prev_index = ctx.scribe.index
@@ -169,7 +169,7 @@ TextPro :: proc(fontData: ^FontData, data: []u8, rect: Rect, options: TextProOpt
 	}
 	// Clamp view offset
 	if size.x > rect.w {
-		state.offset.x = clamp(state.offset.x, 0, (size.x - rect.w) + WIDGET_TEXT_OFFSET * 2)
+		state.offset.x = clamp(state.offset.x, 0, (size.x - rect.w) + GetRule(.widgetTextOffset) * 2)
 	} else {
 		state.offset.x = 0
 	}
@@ -347,7 +347,7 @@ StringEdit :: proc(
 			PaintLabeledWidgetFrame(self.body, label, 2 if self.state >= {.focused} else 1, outlineColor)
 			if len(placeholder) != 0 {
 				if len(text) == 0 {
-					PaintStringAligned(fontData, placeholder, {self.body.x + WIDGET_TEXT_OFFSET, self.body.y + self.body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
+					PaintStringAligned(fontData, placeholder, {self.body.x + self.body.h * 0.25, self.body.y + self.body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
 				}
 			}
 		}
@@ -392,7 +392,7 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(info.buffer) == 0 {
-					PaintStringAligned(fontData, info.placeholder.(string), {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
+					PaintStringAligned(fontData, info.placeholder.(string), {body.x + body.h * 0.25, body.y + body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
 				}
 			}
 		}
@@ -474,8 +474,8 @@ PaintLabeledWidgetFrame :: proc(rect: Rect, label: string, thickness: f32, color
 	if len(label) > 0 {
 		labelFont := GetFontData(.label)
 		textSize := MeasureString(labelFont, label)
-		PaintWidgetFrame(rect, WIDGET_TEXT_OFFSET - 2, textSize.x + 4, thickness, color)
-		PaintString(GetFontData(.label), label, {rect.x + WIDGET_TEXT_OFFSET, rect.y - textSize.y / 2}, color)
+		PaintWidgetFrame(rect, rect.h * 0.25 - 2, textSize.x + 4, thickness, color)
+		PaintString(GetFontData(.label), label, {rect.x + rect.h * 0.25, rect.y - textSize.y / 2}, color)
 	} else {
 		PaintRectLines(rect, thickness, color)
 	}

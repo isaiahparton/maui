@@ -236,7 +236,6 @@ Tooltip :: proc(id: Id, text: string, origin: Vec2, alignX, alignY: Alignment) {
 		rect = rect, 
 		id = id,
 	}); ok {
-		ctx.paintNextFrame = true
 		layer.order = .tooltip
 		//layer.opacity += (1 - layer.opacity) * 8 * ctx.deltaTime
 		PaintRect(layer.rect, GetColor(.tooltipFill))
@@ -296,13 +295,12 @@ PaintLabel :: proc(label: Label, origin: Vec2, color: Color, alignX, alignY: Ali
 PaintLabelRect :: proc(label: Label, rect: Rect, color: Color, alignX, alignY: Alignment) {
 	origin: Vec2 = {rect.x, rect.y}
 	#partial switch alignX {
-		case .near: origin.x += WIDGET_TEXT_OFFSET
-		case .far: origin.x += rect.w - WIDGET_TEXT_OFFSET
+		case .near: origin.x += rect.h * 0.25
+		case .far: origin.x += rect.w - rect.h * 25
 		case .middle: origin.x += rect.w / 2
 	}
 	#partial switch alignY {
-		case .near: origin.y += WIDGET_TEXT_OFFSET
-		case .far: origin.y += rect.h - WIDGET_TEXT_OFFSET
+		case .far: origin.y += rect.h
 		case .middle: origin.y += rect.h / 2
 	}
 	PaintLabel(label, origin, color, alignX, alignY)
@@ -341,46 +339,73 @@ NavOption :: proc(active: bool, icon: Icon, text: string, loc := #caller_locatio
 }
 
 /*
-	Checkbox
+	[SECTION] BOOLEAN CONTROLS
 */
 CheckBoxStatus :: enum u8 {
 	on,
 	off,
 	unknown,
 }
+CheckBoxState :: union {
+	bool,
+	^bool,
+	CheckBoxStatus,
+}
 CheckBoxInfo :: struct {
-	status: CheckBoxStatus,
-	text: string,
+	state: CheckBoxState,
+	text: Maybe(string),
 	textSide: Maybe(RectSide),
 }
-CheckBoxEx :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newValue: bool) {
+//#Info fields
+// - `state` Either a `bool`, a `^bool` or one of `{.on, .off, .unknown}`
+// - `text` If defined, the check box will display text on `textSide` of itself
+// - `textSide` The side on which text will appear (defaults to left)
+CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newState: bool) {
 	SIZE :: 22
 	HALF_SIZE :: SIZE / 2
+
 	// Check if there is text
-	hasText := len(info.text) > 0
+	hasText := info.text != nil
+
 	// Default orientation
 	textSide := info.textSide.? or_else .left
+
 	// Determine total size
 	size, textSize: Vec2
 	if hasText {
-		textSize = MeasureString(GetFontData(.default), info.text)
+		textSize = MeasureString(GetFontData(.default), info.text.?)
 		if textSide == .bottom || textSide == .top {
 			size.x = max(SIZE, textSize.x)
 			size.y = SIZE + textSize.y
 		} else {
-			size.x = SIZE + textSize.x + WIDGET_TEXT_OFFSET * 2
+			size.x = SIZE + textSize.x + GetRule(.widgetTextOffset) * 2
 			size.y = SIZE
 		}
 	}
+
 	// Widget
 	if self, ok := Widget(HashId(loc), UseNextRect() or_else LayoutNextEx(CurrentLayout(), size)); ok {
 		using self
-		active := info.status != .off
+
+		// Determine on state
+		active: bool
+		switch state in info.state {
+			case bool:
+			active = state
+
+			case ^bool:
+			active = state^
+
+			case CheckBoxStatus:
+			active = state == .on
+		}
+
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
-			pressTime := AnimateBool(HashIdFromInt(1), .pressed in state, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .pressed in state, 0.15) if !active else 0
 			stateTime := AnimateBool(HashIdFromInt(2), active, 0.1)
 		PopId()
+
 		// Painting
 		if .shouldPaint in bits {
 			iconRect: Rect
@@ -398,6 +423,8 @@ CheckBoxEx :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newV
 			} else {
 				iconRect = body
 			}
+
+			// Paint body
 			if hoverTime > 0 {
 				PaintRect(body, GetColor(.baseShade, hoverTime * BASE_SHADE_ALPHA))
 			}
@@ -408,27 +435,41 @@ CheckBoxEx :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newV
 				PaintRect(iconRect, Fade(StyleIntenseShaded(hoverTime), stateTime))
 			}
 			center := RectCenter(iconRect)
+
+			// Paint icon
 			if active || stateTime == 1 {
-				PaintIconAligned(GetFontData(.header), .remove if info.status == .unknown else .check, center, GetColor(.base), .middle, .middle)
+				realState := info.state.(CheckBoxStatus) or_else .on
+				PaintIconAligned(GetFontData(.header), .remove if realState == .unknown else .check, center, GetColor(.base), .middle, .middle)
 			}
-			// Draw text
+
+			// Paint text
 			if hasText {
 				switch textSide {
 					case .left: 	
-					PaintString(GetFontData(.default), info.text, {iconRect.x + iconRect.w + WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
+					PaintString(GetFontData(.default), info.text.?, {iconRect.x + iconRect.w + GetRule(.widgetTextOffset), center.y - textSize.y / 2}, GetColor(.text, 1))
 					case .right: 	
-					PaintString(GetFontData(.default), info.text, {iconRect.x - WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
+					PaintString(GetFontData(.default), info.text.?, {iconRect.x - GetRule(.widgetTextOffset), center.y - textSize.y / 2}, GetColor(.text, 1))
 					case .top: 		
-					PaintString(GetFontData(.default), info.text, {body.x, body.y}, GetColor(.text, 1))
+					PaintString(GetFontData(.default), info.text.?, {body.x, body.y}, GetColor(.text, 1))
 					case .bottom: 	
-					PaintString(GetFontData(.default), info.text, {body.x, body.y + body.h - textSize.y}, GetColor(.text, 1))
+					PaintString(GetFontData(.default), info.text.?, {body.x, body.y + body.h - textSize.y}, GetColor(.text, 1))
 				}
 			}
 		}
 		// Result
 		if .clicked in state && clickButton == .left {
-			if info.status != .on {
-				newValue = true
+			switch state in info.state {
+				case bool:
+				newState = !state
+
+				case ^bool:
+				state^ = !state^
+				newState = state^
+
+				case CheckBoxStatus:
+				if state != .on {
+					newState = true
+				}
 			}
 			change = true
 		}
@@ -469,55 +510,74 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 	return false
 }
 
+ToggleSwitchState :: union #no_nil {
+	bool,
+	^bool,
+}
+ToggleSwitchInfo :: struct {
+	state: ToggleSwitchState,
+	offIcon,
+	onIcon: Maybe(Icon),
+}
 // Sliding toggle switch
-ToggleSwitch :: proc(value: bool, loc := #caller_location) -> (newValue: bool) {
-	newValue = value
+ToggleSwitch :: proc(info: ToggleSwitchInfo, loc := #caller_location) -> (newState: bool) {
+	state := info.state.(bool) or_else info.state.(^bool)^
+	newState = state
 	if self, ok := Widget(HashId(loc), LayoutNextEx(CurrentLayout(), {40, 28})); ok {
-		using self
+
 		// Animation
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
-			pressTime := AnimateBool(HashIdFromInt(1), .pressed in state, 0.15)
-			howOn := AnimateBool(HashIdFromInt(2), value, 0.25)
+		PushId(self.id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in self.state, 0.15)
+			pressTime := AnimateBool(HashIdFromInt(1), .pressed in self.state, 0.15)
+			howOn := AnimateBool(HashIdFromInt(2), state, 0.25)
 		PopId()
+
 		// Painting
-		if .shouldPaint in bits {
-			baseRect: Rect = {body.x, body.y + 4, body.w, body.h - 8}
+		if .shouldPaint in self.bits {
+			baseRect: Rect = {self.body.x, self.body.y + 4, self.body.w, self.body.h - 8}
 			baseRadius := baseRect.h / 2
 			start: Vec2 = {baseRect.x + baseRadius, baseRect.y + baseRect.h / 2}
 			move := baseRect.w - baseRect.h
-			thumbCenter := start + {move * (rl.EaseBackOut(howOn, 0, 1, 1) if value else rl.EaseBackIn(howOn, 0, 1, 1)), 0}
+			thumbCenter := start + {move * (rl.EaseBackOut(howOn, 0, 1, 1) if state else rl.EaseBackIn(howOn, 0, 1, 1)), 0}
 
-			strokeColor := GetColor(.widget if ctx.disabled else .widget)
 			if howOn < 1 {
-				if !ctx.disabled {
-					PaintRoundedRect(baseRect, baseRadius, GetColor(.base))
-				}
-				PaintRoundedRectOutline(baseRect, baseRadius, false, strokeColor)
+				PaintRoundedRect(baseRect, baseRadius, GetColor(.base))
+				PaintRoundedRectOutline(baseRect, baseRadius, false, GetColor(.intense))
 			}
 			if howOn > 0 {
 				if howOn < 1 {
-					PaintRoundedRect({baseRect.x, baseRect.y, thumbCenter.x - baseRect.x, baseRect.h}, baseRadius, GetColor(.widget if ctx.disabled else .widget))
+					PaintRoundedRect({baseRect.x, baseRect.y, thumbCenter.x - baseRect.x, baseRect.h}, baseRadius, GetColor(.intense))
 				} else {
-					PaintRoundedRect(baseRect, baseRadius, GetColor(.widget if ctx.disabled else .widget))
+					PaintRoundedRect(baseRect, baseRadius, GetColor(.intense))
 				}
+				
 			}
+			
 			if hoverTime > 0 {
 				PaintCircle(thumbCenter, 18, 14, GetColor(.baseShade, BASE_SHADE_ALPHA * hoverTime))
 			}
 			if pressTime > 0 {
-				if .pressed in state {
+				if .pressed in self.state {
 					PaintCircle(thumbCenter, 12 + 6 * pressTime, 14, GetColor(.baseShade, BASE_SHADE_ALPHA))
 				} else {
 					PaintCircle(thumbCenter, 18, 14, GetColor(.baseShade, BASE_SHADE_ALPHA * pressTime))
 				}
 			}
-			PaintCircle(thumbCenter, 11, 16, GetColor(.base))
-			PaintRing(thumbCenter, 10, 12, 16, strokeColor)
+			PaintCircle(thumbCenter, 11, 10, GetColor(.base))
+			PaintRing(thumbCenter, 10, 12, 18, GetColor(.intense))
+			if howOn < 1 && info.offIcon != nil {
+				PaintIconAligned(GetFontData(.default), info.offIcon.?, thumbCenter, GetColor(.intense, 1 - howOn), .middle, .middle)
+			}
+			if howOn > 0 && info.onIcon != nil {
+				PaintIconAligned(GetFontData(.default), info.onIcon.?, thumbCenter, GetColor(.intense, howOn), .middle, .middle)
+			}
 		}
-		// Invert value on click
-		if .clicked in state {
-			newValue = !value
+		// Invert state on click
+		if .clicked in self.state {
+			newState = !state
+			#partial switch v in info.state {
+				case ^bool: v^ = newState
+			}
 		}
 	}
 	return
@@ -609,30 +669,37 @@ EnumRadioButtons :: proc(
 	Combo box
 */
 @(deferred_out=_Collapser)
-Collapser :: proc(
+TreeNode :: proc(
 	text: string, 
 	size: f32, 
 	loc := #caller_location,
 ) -> (active: bool) {
 	sharedId := HashId(loc)
-	if control, ok := Widget(sharedId, UseNextRect() or_else LayoutNext(CurrentLayout())); ok {
-		using control
+	if self, ok := Widget(sharedId, UseNextRect() or_else LayoutNext(CurrentLayout())); ok {
+		using self
+
+		if state & {.hovered} != {} {
+			ctx.cursor = .hand
+		}
+
 		// Animation
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
-			stateTime := AnimateBool(HashIdFromInt(2), .active in bits, 0.15)
+			stateTime := AnimateBool(HashIdFromInt(1), .active in bits, 0.15)
 		PopId()
+
 		// Paint
 		if .shouldPaint in bits {
-			PaintRect(body, StyleWidgetShaded(2 if .pressed in state else hoverTime))
-			PaintRectLines(body, 1, GetColor(.widgetStroke))
-			PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
-			PaintStringAligned(GetFontData(.default), text, {body.x + WIDGET_TEXT_OFFSET, body.y + body.h / 2}, GetColor(.text), .near, .middle)
+			color := StyleIntenseShaded(hoverTime)
+			PaintCollapseArrow({body.x + body.h / 2, body.y + body.h / 2}, 8, 1 - stateTime, color)
+			PaintStringAligned(GetFontData(.default), text, {body.x + body.h, body.y + body.h / 2}, color, .near, .middle)
 		}
+
 		// Invert state on click
-		if .pressed in state {
+		if .clicked in state {
 			bits = bits ~ {.active}
 		}
+
 		// Begin layer
 		if stateTime > 0 {
 			rect := Cut(.top, size * stateTime)
@@ -641,7 +708,7 @@ Collapser :: proc(
 				rect = rect, 
 				layoutSize = Vec2{0, size}, 
 				id = id, 
-				options = {.attached, .noScrollMarginX, .noScrollY}, 
+				options = {.attached, .clipToParent, .noScrollMarginX, .noScrollY}, 
 			})
 		}
 	}
@@ -722,8 +789,8 @@ Section :: proc(label: string, sides: RectSides) -> (ok: bool) {
 	if len(label) != 0 {
 		font := GetFontData(.default)
 		textSize := MeasureString(font, label)
-		PaintRect({rect.x + WIDGET_TEXT_OFFSET - 2, rect.y, textSize.x + 4, 1}, GetColor(.base))
-		PaintString(GetFontData(.default), label, {rect.x + WIDGET_TEXT_OFFSET, rect.y - textSize.y / 2}, GetColor(.text))
+		PaintRect({rect.x + GetRule(.widgetTextOffset) - 2, rect.y, textSize.x + 4, 1}, GetColor(.base))
+		PaintString(GetFontData(.default), label, {rect.x + GetRule(.widgetTextOffset), rect.y - textSize.y / 2}, GetColor(.text))
 	}
 
 	PushLayout(rect)

@@ -43,7 +43,7 @@ PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: b
 			}
 			switch info.style.? or_else .filled {
 				case .filled:
-				PaintPillH(body, StyleShade(info.fillColor .? or_else GetColor(.widget), hoverTime))
+				PaintPillH(body, StyleShade(info.fillColor .? or_else GetColor(.intense), hoverTime))
 				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, info.textColor.? or_else GetColor(.base), .middle, .middle)
 				
 				case .outlined:

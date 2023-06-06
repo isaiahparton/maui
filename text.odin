@@ -265,8 +265,6 @@ PaintStringAligned :: proc(font: ^FontData, text: string, origin: Vec2, color: C
 	return PaintString(font, text, origin, color)
 }
 PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
-	origin := linalg.floor(origin)
-
    	rect := glyph.source
 	switch alignX {
 		case .far: rect.x = origin.x - rect.w
@@ -283,7 +281,7 @@ PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, 
     return {rect.w, rect.h}
 }
 PaintIconAligned :: proc(fontData: ^FontData, icon: Icon, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
-	return PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), linalg.floor(origin), color, alignX, alignY)
+	return PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), origin, color, alignX, alignY)
 }
 // Draw a glyph, mathematically clipped to 'clipRect'
 PaintGlyphClipped :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {

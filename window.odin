@@ -81,9 +81,9 @@ Window :: proc(info: WindowInfo, loc := #caller_location) -> (ok: bool) {
 		self.minLayoutSize = info.layoutSize.? or_else self.minLayoutSize
 		
 		if .shouldCollapse in self.bits {
-			self.howCollapsed = min(1, self.howCollapsed + ctx.deltaTime * 4)
+			self.howCollapsed = min(1, self.howCollapsed + ctx.deltaTime * 5)
 		} else {
-			self.howCollapsed = max(0, self.howCollapsed - ctx.deltaTime * 4)
+			self.howCollapsed = max(0, self.howCollapsed - ctx.deltaTime * 5)
 		}
 		if self.howCollapsed >= 1 {
 			self.bits += {.collapsed}

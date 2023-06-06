@@ -49,13 +49,14 @@ SliderInfo :: struct($T: typeid) {
 	value,
 	low,
 	high: T,
-	markers: Maybe([]T),
+	guides: Maybe([]T),
 	format: Maybe(string),
 }
 Slider :: proc(info: SliderInfo($T), loc := #caller_location) -> (changed: bool, newValue: T) {
 	SIZE :: 16
 	HEIGHT :: SIZE / 2
 	HALF_HEIGHT :: HEIGHT / 2
+	format := info.format.? or_else "%v"
 	rect := LayoutNext(CurrentLayout())
 	rect = ChildRect(rect, {rect.w, SIZE}, .near, .middle)
 	if self, ok := Widget(HashId(loc), rect, {.draggable}); ok {
@@ -71,6 +72,15 @@ Slider :: proc(info: SliderInfo($T), loc := #caller_location) -> (changed: bool,
 		thumbRadius: f32 = 9
 		shadeRadius := thumbRadius + 5 * (pressTime + hoverTime)
 		if .shouldPaint in self.bits {
+			if info.guides != nil {
+				r := f32(info.high - info.low)
+				fontData := GetFontData(.label)
+				for entry in info.guides.? {
+					x := barRect.x + HALF_HEIGHT + range * (f32(entry - info.low) / r)
+					PaintLine({x, barRect.y}, {x, barRect.y - 10}, 1, GetColor(.widget))
+					PaintStringAligned(fontData, TextFormat(format, entry), {x, barRect.y - 12}, GetColor(.widget), .middle, .far)
+				}
+			}
 			if info.value < info.high {
 				PaintRoundedRect(barRect, HALF_HEIGHT, GetColor(.widgetBackground))
 			}
@@ -79,12 +89,22 @@ Slider :: proc(info: SliderInfo($T), loc := #caller_location) -> (changed: bool,
 			PaintCircle(thumbCenter, thumbRadius, 12, BlendColors(GetColor(.widget), GetColor(.accent), hoverTime))
 		}
 		if hoverTime > 0 {
-			Tooltip(self.id, TextFormat(info.format.? or_else "%v", info.value), thumbCenter + {0, -shadeRadius - 2}, .middle, .far)
+			Tooltip(self.id, TextFormat(format, info.value), thumbCenter + {0, -shadeRadius - 2}, .middle, .far)
 		}
 
 		if .pressed in self.state {
 			changed = true
-			newValue = clamp(info.low + T((input.mousePoint.x - self.body.x - HALF_HEIGHT) / range) * (info.high - info.low), info.low, info.high)
+			point := input.mousePoint.x
+			newValue = clamp(info.low + T((point - self.body.x - HALF_HEIGHT) / range) * (info.high - info.low), info.low, info.high)
+			if info.guides != nil {
+				r := info.high - info.low
+				for entry in info.guides.? {
+					x := self.body.x + HALF_HEIGHT + f32(entry / r) * range
+					if abs(x - point) < 10 {
+						newValue = entry
+					}
+				}
+			}
 		}
 	}
 	return

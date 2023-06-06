@@ -3,12 +3,8 @@ package maui
 //TODO(isaiah): Migrate these to values in Style
 WINDOW_ROUNDNESS :: 6
 WINDOW_TITLE_SIZE :: 34
-
 WIDGET_TEXT_OFFSET :: 9
 
-
-CHECKBOX_SIZE :: 22
-HALF_CHECKBOX_SIZE :: CHECKBOX_SIZE / 2
 SCROLL_BAR_SIZE :: 14
 SCROLL_BAR_PADDING :: 0
 
@@ -98,41 +94,72 @@ ColorIndex :: enum {
 	scrollThumb,
 	scrollThumbShade,
 }
+RuleIndex :: enum {
+	windowRoundness,
+	widgetTextOffset,
+	windowTitleSize,
+}
 
-MAX_COLOR_CHANGES :: 32
+MAX_COLOR_CHANGES :: 64
+MAX_RULE_CHANGES :: 64
 
 ColorChange :: struct {
 	index: ColorIndex,
 	value: Color,
+}
+RuleChange :: struct {
+	index: RuleIndex,
+	value: f32,
 }
 
 // Style
 Style :: struct {
 	fontSizes: 			[FontIndex]int,
 	colors: 			[ColorIndex]Color,
+	rules:				[RuleIndex]f32,
 	windowRoundness,
 	tabRoundness: 		int,
 
-	changeStack: [MAX_COLOR_CHANGES]ColorChange,
-	changeCount: int,
+	ruleChangeStack:	[MAX_RULE_CHANGES]RuleChange,
+	ruleChangeCount: 	int,
+	colorChangeStack: 	[MAX_COLOR_CHANGES]ColorChange,
+	colorChangeCount: 	int,
 }
 
 PushColor :: proc(index: ColorIndex, value: Color) {
 	using painter
-	style.changeStack[style.changeCount] = {
+	style.colorChangeStack[style.ruleChangeCount] = {
 		index = index,
 		value = style.colors[index],
 	}
-	style.changeCount += 1
+	style.ruleChangeCount += 1
 	style.colors[index] = value
 }
 PopColor :: proc() {
 	using painter
-	assert(style.changeCount > 0)
-	style.changeCount -= 1
-	style.colors[style.changeStack[style.changeCount].index] = style.changeStack[style.changeCount].value
+	assert(style.ruleChangeCount > 0)
+	style.ruleChangeCount -= 1
+	style.colors[style.colorChangeStack[style.ruleChangeCount].index] = style.colorChangeStack[style.ruleChangeCount].value
+}
+PushRule :: proc(index: RuleIndex, value: f32) {
+	using painter
+	style.ruleChangeStack[style.ruleChangeCount] = {
+		index = index,
+		value = style.rules[index],
+	}
+	style.ruleChangeCount += 1
+	style.rules[index] = value
+}
+PopRule :: proc() {
+	using painter
+	assert(style.ruleChangeCount > 0)
+	style.ruleChangeCount -= 1
+	style.rules[style.ruleChangeStack[style.ruleChangeCount].index] = style.ruleChangeStack[style.ruleChangeCount].value
 }
 
+GetRule :: proc(index: RuleIndex) -> f32 {
+	return painter.style.rules[index]
+}
 GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
 	color := painter.style.colors[index]
 	if alpha == 1 {
@@ -147,7 +174,7 @@ StyleShade :: proc(base: Color, shadeAmount: f32) -> Color {
 	return BlendColors(base, painter.style.colors[.widgetShade], shadeAmount * 0.1)
 }
 StyleIntenseShaded :: proc(shadeAmount: f32) -> Color {
-	return BlendColors(painter.style.colors[.intense], painter.style.colors[.intenseShade], shadeAmount * 0.1)
+	return BlendColors(painter.style.colors[.intense], painter.style.colors[.intenseShade], shadeAmount * 0.15)
 }
 StyleWidgetShaded :: proc(shadeAmount: f32) -> Color {
 	return BlendColors(painter.style.colors[.widget], painter.style.colors[.widgetShade], shadeAmount * 0.125)

@@ -15,7 +15,7 @@ import "core:time"
 DEFAULT_SPACING :: 10
 HEADER_LEADING_SPACE :: 24
 HEADER_TRAILING_SPACE :: 12
-DEFAULT_BUTTON_SIZE :: 36
+DEFAULT_BUTTON_SIZE :: 26
 DEFAULT_TEXT_INPUT_SIZE :: 36
 
 Tabs :: enum {
@@ -98,25 +98,41 @@ _main :: proc() {
 							high = 100,
 						})
 					}
-					Space(20)
-					if change, newValue := Slider(SliderInfo(f64){
-						value = value, 
-						low = 0, 
-						high = 10, 
-						format = "%.2f",
-					}); change {
-						value = newValue
+					Space(30)
+					if TreeNode("Slider", 100) {
+						SetSize(1, true)
+						SetMargin(20)
+						if change, newValue := Slider(SliderInfo(f64){
+							value = value, 
+							low = 0, 
+							high = 10, 
+							format = "%.2f",
+							guides = ([]f64)({
+								0,
+								5,
+								10,
+							}),
+						}); change {
+							value = newValue
+						}
+					}
+					if TreeNode("Boolean controls", 100) {
+						Cut(.left, 20)
+						ToggleSwitch({
+							state = &boolean,
+							onIcon = .check,
+							offIcon = .close,
+						})
 					}
 					Space(20)
-					boolean = ToggleSwitch(boolean)
-					Space(20)
 
+					SetSize(DEFAULT_BUTTON_SIZE)
 					if Menu({
 						label = "Open me!", 
-						size = {0, 120},
+						size = {0, DEFAULT_BUTTON_SIZE * 4},
 						align = .middle,
 					}) {
-						SetSize(30)
+						SetSize(DEFAULT_BUTTON_SIZE)
 						Option({label = "Option A"})
 						Option({label = "Option B"})
 						if Option({
@@ -129,17 +145,17 @@ _main :: proc() {
 						if Enabled(enableSubMenu) {
 							if SubMenu({
 								label = "Sub Menu", 
-								size = {200, 90},
+								size = {200, DEFAULT_BUTTON_SIZE * 3},
 							}) {
-								SetSize(30)
+								SetSize(DEFAULT_BUTTON_SIZE)
 								Option({label = "Option C"})
 								Option({label = "Option D"})
 								if SubMenu({
 									label = "Radio Buttons", 
 									side = .right,
-									size = {200, 90},
+									size = {200, DEFAULT_BUTTON_SIZE * 3},
 								}) {
-									SetSize(30); AlignY(.middle); Cut(.left, 4)
+									SetSize(26); AlignY(.middle); Cut(.left, 2)
 									choice = EnumRadioButtons(choice, .left)
 								}
 							}
@@ -158,7 +174,7 @@ _main :: proc() {
 						PillButton({
 							label = "Pill Button",
 							fitToLabel = true,
-							fillColor = Color{25, 190, 230, 255},
+							//fillColor = Color{25, 190, 230, 255},
 						})
 					}
 				} else if tab == .table {
