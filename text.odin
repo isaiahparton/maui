@@ -10,34 +10,22 @@ import "core:unicode/utf8"
 
 TEXT_BREAK :: "..."
 
-/*
-	Safe text formatting for short-term usage
-*/
+// Text formatting for short term usage
+// each string is valid until it's home buffer is reused
 @private fmtBuffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
 @private fmtBufferIndex: u8
-StringFormat :: proc(text: string, args: ..any) -> string {
+TextFormat :: proc(text: string, args: ..any) -> string {
 	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
 }
-SPrintF :: proc(text: string, args: ..any) -> []u8 {
+TextFormatSlice :: proc(text: string, args: ..any) -> []u8 {
 	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
 	slice := fmtBuffers[fmtBufferIndex][:len(str)]
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return slice
 }
-Format :: proc(args: ..any) -> string {
-	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return str
-}
-FormatSlice :: proc(args: ..any) -> []u8 {
-	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
-	buf := fmtBuffers[fmtBufferIndex][:len(str)]
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return buf
-}
-Join :: proc(args: []string, sep := " ") -> string {
+TextJoin :: proc(args: []string, sep := " ") -> string {
 	size := 0
 	buffer := &fmtBuffers[fmtBufferIndex]
 	for arg, index in args {
@@ -52,7 +40,7 @@ Join :: proc(args: []string, sep := " ") -> string {
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
 }
-CapitalizeString :: proc(str: string) -> string {
+TextCapitalize :: proc(str: string) -> string {
 	buffer := &fmtBuffers[fmtBufferIndex]
 	copy(buffer[:], str[:])
 	buffer[0] = u8(unicode.to_upper(rune(buffer[0])))
@@ -60,7 +48,18 @@ CapitalizeString :: proc(str: string) -> string {
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
 }
-
+// Format types to text
+Format :: proc(args: ..any) -> string {
+	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return str
+}
+FormatSlice :: proc(args: ..any) -> []u8 {
+	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
+	buf := fmtBuffers[fmtBufferIndex][:len(str)]
+	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	return buf
+}
 FormatBitSet :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 	size := 0
 	buffer := &fmtBuffers[fmtBufferIndex]
@@ -70,7 +69,7 @@ FormatBitSet :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 		if member not_in set {
 			continue
 		}
-		name := CapitalizeString(Format(member))
+		name := TextCapitalize(Format(member))
 		copy(buffer[size:size + len(name)], name[:])
 		size += len(name)
 		if count < max - 1 {
@@ -84,10 +83,7 @@ FormatBitSet :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 	return str
 }
 
-/*
-	These are the unicode values of the icons
-	in google's material symbols font
-*/
+// Unicode values from the remixicons set
 Icon :: enum rune {
 	check 				= 0xEB7A,
 	error 				= 0xECA0,
@@ -133,55 +129,33 @@ Icon :: enum rune {
 StringPaintOption :: enum {
 	wrap,
 	word_wrap,
-	padding,
 }
 StringPaintOptions :: bit_set[StringPaintOption]
-PaintStringContained :: proc(font: FontData, text: string, rect: Rect, options: StringPaintOptions, color: Color) -> Vec2 {
+PaintStringContained :: proc(font: ^FontData, text: string, rect: Rect, options: StringPaintOptions, color: Color) -> Vec2 {
 	return PaintStringContainedEx(font, text, rect, options, .near, .near, color)
 }
-PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options: StringPaintOptions, alignX, alignY: Alignment, color: Color) -> Vec2 {
-	if !ctx.shouldRender {
-		return {}
-	}
+PaintStringContainedEx :: proc(font: ^FontData, text: string, rect: Rect, options: StringPaintOptions, alignX, alignY: Alignment, color: Color) -> Vec2 {
 
-	rect := rect
 	point: Vec2 = {rect.x, rect.y}
 	size: Vec2
 	nextWord: int
 
 	totalSize: Vec2
 	if alignX != .near || alignY != .near {
-		totalSize = MeasureString(font, text)
-	}
-	#partial switch alignX {
-		case .near:
-		if .padding in options {
-			point.x += WIDGET_TEXT_OFFSET
-			rect.w -= WIDGET_TEXT_OFFSET * 2
+		//totalSize = MeasureString(font, text)
+		#partial switch alignX {
+			case .far: point += rect.w - totalSize.x
+			case .middle: point += rect.w / 2 - totalSize.x / 2
 		}
-		case .far: 
-		point.x += rect.w - totalSize.x
-		if .padding in options {
-			point.x -= WIDGET_TEXT_OFFSET
+		#partial switch alignY {
+			case .far: point += rect.h - totalSize.y
+			case .middle: point += rect.h / 2 - totalSize.y / 2
 		}
-		case .middle: point.x += rect.w / 2 - totalSize.x / 2
-	}
-	#partial switch alignY {
-		case .near:
-		if .padding in options {
-			point.y += WIDGET_TEXT_OFFSET
-			rect.h -= WIDGET_TEXT_OFFSET * 2
-		}
-		case .far: 
-		point.y += rect.h - totalSize.y
-		if .padding in options {
-			point.y -= WIDGET_TEXT_OFFSET
-		}
-		case .middle: point.y += rect.h / 2 - totalSize.y / 2
 	}
 
 	breakSize: f32
 	if options < {.wrap} {
+		//TODO(isaiah): Optimize this
 		breakSize = MeasureString(font, TEXT_BREAK).x
 	}
 
@@ -239,34 +213,27 @@ PaintStringContainedEx :: proc(font: FontData, text: string, rect: Rect, options
 	return size
 }
 
-/*
-	Text rendering
-*/
-Alignment :: enum {
-	near,
-	middle,
-	far,
-}
-MeasureString :: proc(font: FontData, text: string) -> Vec2 {
-	size, lineSize: Vec2
+// Text painting
+MeasureString :: proc(font: ^FontData, text: string) -> (size: Vec2) {
+	lineSize: Vec2
 	lines := 1
-	for codepoint, index in text {
+	for codepoint in text {
 		glyph := GetGlyphData(font, codepoint)
 		lineSize.x += glyph.advance + GLYPH_SPACING
-		size.x = max(size.x, lineSize.x)
+		// Update the maximum width
 		if codepoint == '\n' {
+			size.x = max(size.x, lineSize.x)
 			lineSize = {}
 			lines += 1
 		}
 	}
+	// Account for the last line
+	size.x = max(size.x, lineSize.x)
+	// Height is simple
 	size.y = font.size * f32(lines)
 	return size
 }
-PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) -> Vec2 {
-	if !ctx.shouldRender {
-		return {}
-	}
-
+PaintString :: proc(font: ^FontData, text: string, origin: Vec2, color: Color) -> Vec2 {
 	point := origin
 	size := Vec2{}
 	for codepoint in text {
@@ -283,11 +250,7 @@ PaintString :: proc(font: FontData, text: string, origin: Vec2, color: Color) ->
 	size.y = font.size
 	return size
 }
-PaintStringAligned :: proc(font: FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
-	if !ctx.shouldRender {
-		return {}
-	}
-
+PaintStringAligned :: proc(font: ^FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
 	origin := origin
 	if alignX == .middle {
 		origin.x -= math.trunc(MeasureString(font, text).x / 2)
@@ -301,14 +264,7 @@ PaintStringAligned :: proc(font: FontData, text: string, origin: Vec2, color: Co
 	}
 	return PaintString(font, text, origin, color)
 }
-
-PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, alignY: Alignment) {
-	if !ctx.shouldRender {
-		return
-	}
-
-	origin := linalg.floor(origin)
-
+PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
    	rect := glyph.source
 	switch alignX {
 		case .far: rect.x = origin.x - rect.w
@@ -321,17 +277,15 @@ PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, 
 		case .near: rect.y = origin.y
 	}
     PaintTexture(glyph.source, rect, color)
+
+    return {rect.w, rect.h}
 }
-PaintIconAligned :: proc(fontData: FontData, icon: Icon, origin: Vec2, color: Color, alignX, alignY: Alignment) {
-	PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), linalg.floor(origin), color, alignX, alignY)
+PaintIconAligned :: proc(fontData: ^FontData, icon: Icon, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
+	return PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), origin, color, alignX, alignY)
 }
 // Draw a glyph, mathematically clipped to 'clipRect'
 PaintGlyphClipped :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {
-	if !ctx.shouldRender {
-		return
-	}
-
-    src := glyph.source
+  	src := glyph.source
     dst := Rect{ 
         f32(i32(origin.x + glyph.offset.x)), 
         f32(i32(origin.y + glyph.offset.y)), 

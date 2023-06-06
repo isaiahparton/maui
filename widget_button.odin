@@ -2,166 +2,176 @@ package maui
 
 import rl "vendor:raylib"
 
-// The three types of buttons
-ButtonStyle :: enum {
-	normal,
-	bright,
+PillButtonStyle :: enum {
+	filled,
+	outlined,
 	subtle,
 }
-// Standalone buttons for major actions
-PillButtonEx :: proc(label: Label, style: ButtonStyle, loc := #caller_location) -> (result: bool) {
-	layout := GetCurrentLayout()
-	if layout.side == .left || layout.side == .right {
-		layout.size = MeasureLabel(GetFontData(.default), label).x + layout.rect.h + layout.margin * 2
+// Standalone button for major actions
+PillButtonInfo :: struct {
+	label: Label,
+	fitToLabel: bool,
+	style: Maybe(PillButtonStyle),
+	fillColor: Maybe(Color),
+	textColor: Maybe(Color),
+}
+PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: bool) {
+	layout := CurrentLayout()
+	if info.fitToLabel && (layout.side == .left || layout.side == .right) {
+		layout.size = MeasureLabel(info.label).x + layout.rect.h + layout.margin * 2
 	}
-	if control, ok := BeginWidget(HashId(loc), LayoutNext(layout)); ok {
-		using control
-		UpdateWidget(control)
-
+	if self, ok := Widget(HashId(loc), LayoutNext(layout)); ok {
+		using self
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.2)
-			if .released in state {
+			pressTime := AnimateBool(HashIdFromInt(1), .pressed in state, 0.2)
+			if .lostPress in state {
 				GetAnimation(HashIdFromInt(1))^ = 1
 			}
 		PopId()
-
-		roundness := body.h / 2
-
-		if pressTime > 0 {
-			if .down in state {
-				rect := ExpandRect(body, rl.EaseCubicOut(pressTime, 0, 4, 1))
-				PaintRoundedRect(rect, rect.h / 2, StyleGetShadeColor(1))
-			} else {
-				rect := ExpandRect(body, 4)
-				PaintRoundedRect(rect, rect.h / 2, StyleGetShadeColor(pressTime))
-			}
-		}
-
-		fontData := GetFontData(.header if body.h >= 45 else .default)
-		if style == .subtle {
-			PaintPillH(body, GetColor(.foreground))
-			PaintPillOutlineH(body, false, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime))
-			PaintLabel(fontData, label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.outlineBase), GetColor(.accentHover), hoverTime), .middle, .middle)
-		} else if style == .normal {
-			PaintPillH(body, BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
-			PaintLabel(fontData, label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
-		} else {
-			PaintPillH(body, BlendColors(GetColor(.accent), GetColor(.accentHover), hoverTime))
-			PaintLabel(fontData, label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.foreground), .middle, .middle)
-		}
-		
-		result = .released in state
-	}
-	return
-}
-PillButton :: proc(label: Label, loc := #caller_location) -> bool {
-	return PillButtonEx(label, .normal, loc)
-}
-
-// Regular buttons
-ButtonEx :: proc(label: Label, align: Alignment, fit: bool, loc := #caller_location) -> (result: bool) {
-	layout := GetCurrentLayout()
-	if fit && (layout.side == .left || layout.side == .right) {
-		layout.size = MeasureLabel(GetFontData(.default), label).x + layout.rect.h / 2 + layout.margin * 2
-	}
-	if control, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(layout)); ok {
-		using control
-		UpdateWidget(control)
-
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .down in state, 0.2)
-			if .released in state {
-				GetAnimation(HashIdFromInt(1))^ = 1
-			}
-		PopId()
-		
-		PaintRect(body, GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime))
-		if .down not_in state {
-			PaintRectLines(body, 2, GetColor(.widgetPress, pressTime))
-		}
-
-		{
-			point: Vec2 = {0, body.y + body.h / 2}
-			switch align {
-				case .far: 		point.x = body.x + body.w - WIDGET_TEXT_OFFSET
-				case .middle: 	point.x = body.x + body.w / 2
-				case .near: 	point.x = body.x + WIDGET_TEXT_OFFSET
-			}
-			_, isIcon := label.(Icon)
-			PaintLabel(GetFontData(.header if isIcon else .default), label, point, GetColor(.text), align, .middle)
-		}
-
-		result = .released in state
-	}
-	return
-}
-Button :: proc(label: Label, loc := #caller_location) -> bool {
-	return ButtonEx(label, .middle, true, loc)
-}
-
-// Toggle buttons
-ToggleButtonEx :: proc(value: bool, label: Label, loc := #caller_location) -> (click: bool) {
-	if control, ok := BeginWidget(HashId(loc), UseNextRect() or_else LayoutNext(GetCurrentLayout())); ok {
-		using control
-		UpdateWidget(control)
-
-		if .released in state {
-			click = true
-		}
-
 		// Graphics
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashIdFromInt(1), value, 0.15)
-		PopId()
-
-		fillColor: Color
-		if value {
-			fillColor = GetColor(.widgetPress) if .down in state else BlendColors(GetColor(.widgetBase), GetColor(.widgetHover), hoverTime)
-		} else {
-			fillColor = GetColor(.foregroundPress) if .down in state else BlendColors(GetColor(.foreground), GetColor(.foregroundHover), hoverTime)
+		if .shouldPaint in bits {
+			roundness := body.h / 2
+			if pressTime > 0 {
+				if .pressed in state {
+					rect := ExpandRect(body, rl.EaseCubicOut(pressTime, 0, 4, 1))
+					PaintRoundedRect(rect, rect.h / 2, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
+				} else {
+					rect := ExpandRect(body, 4)
+					PaintRoundedRect(rect, rect.h / 2, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
+				}
+			}
+			switch info.style.? or_else .filled {
+				case .filled:
+				PaintPillH(body, StyleShade(info.fillColor .? or_else GetColor(.intense), hoverTime))
+				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, info.textColor.? or_else GetColor(.base), .middle, .middle)
+				
+				case .outlined:
+				PaintPillH(body, GetColor(.base))
+				color := BlendColors(GetColor(.baseStroke), GetColor(.accent), hoverTime)
+				PaintPillOutlineH(body, false, color)
+				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, color, .middle, .middle)
+			
+				case .subtle:
+				PaintPillH(body, GetColor(.baseShade, (2 if .pressed in state else hoverTime) * BASE_SHADE_ALPHA))
+				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.baseStroke), GetColor(.accent), hoverTime), .middle, .middle)
+			}
 		}
-		PaintRect(body, fillColor)
-		PaintRectLines(body, 1, GetColor(.outlineBase))
-		
-		_, isIcon := label.(Icon)
-		PaintLabel(GetFontData(.header if isIcon else .default), label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text if value else .outlineBase), .middle, .middle)
+		// Click result
+		clicked = .clicked in state && clickButton == .left
 	}
 	return
 }
-ToggleButton :: proc(value: bool, label: Label, loc := #caller_location) -> (newValue: bool) {
-	newValue = value
-	if ToggleButtonEx(value, label, loc) {
-		newValue = !newValue
+
+// Square buttons
+ButtonInfo :: struct {
+	label: Label,
+	align: Maybe(Alignment),
+	fitToLabel: bool,
+	subtle: bool,
+}
+Button :: proc(info: ButtonInfo, loc := #caller_location) -> (clicked: bool) {
+	layout := CurrentLayout()
+	if info.fitToLabel {
+		LayoutFitLabel(layout, info.label)
+	}
+	if self, ok := Widget(HashId(loc), UseNextRect() or_else LayoutNext(layout)); ok {
+		// Animations
+		PushId(self.id) 
+			hoverTime := AnimateBool(HashId(int(0)), .hovered in self.state, 0.1)
+			pressTime := AnimateBool(HashId(int(1)), .pressed in self.state, 0.2)
+			if .lostPress in self.state {
+				GetAnimation(HashId(int(1)))^ = 1
+			}
+		PopId()
+		// Graphics
+		if .shouldPaint in self.bits {
+			if info.subtle {
+				PaintRect(self.body, GetColor(.baseShade, (2 if .pressed in self.state else hoverTime) * BASE_SHADE_ALPHA))
+				if .pressed not_in self.state {
+					PaintRectLines(self.body, 2, GetColor(.baseShade, 0.2 * pressTime))
+				}
+			} else {
+				PaintRect(self.body, StyleWidgetShaded(2 if .pressed in self.state else hoverTime))
+				if .pressed not_in self.state {
+					PaintRectLines(self.body, 2, GetColor(.widgetShade, 0.2 * pressTime))
+				}
+			}
+			PaintLabelRect(info.label, self.body, GetColor(.text), info.align.? or_else .middle, .middle)
+		}
+		// Result
+		clicked = .clicked in self.state && self.clickButton == .left
+	}
+	return
+}
+
+// Square buttons that toggle something
+ToggleButtonInfo :: struct {
+	label: Label,
+	value: bool,
+	align: Maybe(Alignment),
+	fitToLabel: bool,
+}
+ToggleButton :: proc(info: ToggleButtonInfo, loc := #caller_location) -> (newValue: bool) {
+	newValue = info.value
+	layout := CurrentLayout()
+	if info.fitToLabel {
+		LayoutFitLabel(layout, info.label)
+	}
+	if self, ok := Widget(HashId(loc), UseNextRect() or_else LayoutNext(layout)); ok {
+		// Animations
+		hoverTime := AnimateBool(self.id, .hovered in self.state, 0.1)
+		// Paintions
+		if .shouldPaint in self.bits {
+			fillColor: Color
+			if info.value {
+				fillColor = StyleBaseShaded(2 if .pressed in self.state else hoverTime)
+			} else {
+				fillColor = StyleWidgetShaded(2 if .pressed in self.state else hoverTime)
+			}
+			PaintRect(self.body, fillColor)
+			PaintRectLines(self.body, 1, GetColor(.widgetStroke if info.value else .baseStroke))
+			PaintLabel(info.label, RectCenter(self.body), GetColor(.text), info.align.? or_else .middle, .middle)
+		}
+		// Result
+		if .clicked in self.state && self.clickButton == .left {
+			newValue = !newValue
+		}
 	}
 	return
 }
 ToggleButtonBit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #caller_location) -> (click: bool) {
-	click = ToggleButtonEx(bit in set, label, loc)
+	click = ToggleButton(
+		value = bit in set, 
+		label = label, 
+		loc = loc,
+		)
 	if click {
 		set^ ~= {bit}
 	}
 	return
 }
 // Smol subtle buttons
-IconButton :: proc(icon: Icon, loc := #caller_location) -> (click: bool) {
-	if self, ok := BeginWidget(HashId(loc), ChildRect(UseNextRect() or_else LayoutNext(GetCurrentLayout()), {24, 24}, .middle, .middle)); ok {
-		UpdateWidget(self)
+IconButton :: proc(
+	icon: Icon, 
+	loc := #caller_location,
+) -> (clicked: bool) {
+	if self, ok := Widget(HashId(loc), ChildRect(UseNextRect() or_else LayoutNext(CurrentLayout()), {24, 24}, .middle, .middle)); ok {
 		PushId(self.id)
 			hoverTime := AnimateBool(HashId(int(0)), self.state >= {.hovered}, 0.1)
-			pressTime := AnimateBool(HashId(int(1)), self.state >= {.down}, 0.1)
+			pressTime := AnimateBool(HashId(int(1)), self.state >= {.pressed}, 0.1)
 		PopId()
+		// Painting
 		if self.bits >= {.shouldPaint} {
 			center := RectCenter(self.body)
-			PaintCircle(center, 24, StyleGetShadeColor(2 if self.state >= {.down} else hoverTime))
-			if .down not_in self.state {
-				PaintCircleOutline(center, 24, true, StyleGetShadeColor(pressTime))
+			PaintCircle(center, 24, 16, GetColor(.baseShade, (2 if self.state >= {.pressed} else hoverTime) * BASE_SHADE_ALPHA))
+			if .clicked not_in self.state {
+				PaintRing(center, 24, 15, 16, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
 			}
 			PaintIconAligned(GetFontData(.header), icon, center + 1, GetColor(.text, 0.5 + hoverTime * 0.5), .middle, .middle)
 		}
-		click = .released in self.state
+		// Result
+		clicked = .clicked in self.state && self.clickButton == .left
 	}
 	return
 }

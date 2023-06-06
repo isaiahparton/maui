@@ -10,15 +10,25 @@ WindowBit :: enum {
 	shouldClose,
 	shouldCollapse,
 	collapsed,
+	// If the window has an extra layer for decoration
+	decorated,
 }
 WindowBits :: bit_set[WindowBit]
 WindowOption :: enum {
+	// Removes all decoration
+	undecorated,
+	// Gives the window a title bar to move it
 	title,
+	// Lets the user resize the window
 	resizable,
+	// Disallows dragging
 	static,
+	// Shows a close button on the title bar
 	closable,
+	// Allows collapsing by right-click
 	collapsable,
-	closeWhenUnfocused,
+	// The window can't resize below its layout size
+	fitToLayout,
 }
 WindowOptions :: bit_set[WindowOption]
 WindowData :: struct {
@@ -32,224 +42,193 @@ WindowData :: struct {
 	dragAnchor: f32,
 	// minimum layout size
 	minLayoutSize: Vec2,
-	// Inherited stuff
+
+	// Main layer
 	layer: ^LayerData,
+	// Decoration layer
+	decorLayer: ^LayerData,
+
 	// Current occupying rectangle
 	rect, drawRect: Rect,
 	// Collapse
 	howCollapsed: f32,
 }
 
-/*
-	What the user uses
-*/
+WindowInfo :: struct {
+	title: string,
+	rect: Rect,
+	layoutSize: Maybe(Vec2),
+	minSize: Maybe(Vec2),
+	options: WindowOptions,
+	layerOptions: LayerOptions,
+}
 @(deferred_out=_Window)
-Window :: proc(title: string, rect: Rect, options: WindowOptions, loc := #caller_location) -> (ok: bool) {
-	return BeginWindowEx(HashId(loc), title, rect, options)
-}
-@private
-_Window :: proc(ok: bool) {
-	EndWindow(ctx.currentWindow)
-}
-
-/*
-	Internal window logic
-*/
-@private 
-BeginWindowEx :: proc(id: Id, title: string, rect: Rect, options: WindowOptions) -> (ok: bool) {
-	window: ^WindowData
-	if window, ok = CreateOrGetWindow(id); ok {
-		ctx.currentWindow = window
-		window.bits += {.stayAlive}
-		// Initialize window
-		if .initialized not_in window.bits {
-			window.bits += {.initialized}
-			if rect != {} {
-				window.rect = rect
+Window :: proc(info: WindowInfo, loc := #caller_location) -> (ok: bool) {
+	self: ^WindowData
+	id := HashId(loc)
+	if self, ok = CreateOrGetWindow(id); ok {
+		ctx.currentWindow = self
+		self.bits += {.stayAlive}
+		
+		// Initialize self
+		if .initialized not_in self.bits {
+			if info.rect != {} {
+				self.rect = info.rect
 			}
-			window.options = options
-			window.title = title
 		}
+		self.options = info.options
+		self.title = info.title
+		self.minLayoutSize = info.layoutSize.? or_else self.minLayoutSize
+		
+		if .shouldCollapse in self.bits {
+			self.howCollapsed = min(1, self.howCollapsed + ctx.deltaTime * 5)
+		} else {
+			self.howCollapsed = max(0, self.howCollapsed - ctx.deltaTime * 5)
+		}
+		if self.howCollapsed >= 1 {
+			self.bits += {.collapsed}
+		} else {
+			self.bits -= {.collapsed}
+		}
+
 		// Layer body
-		layerRect := window.rect
-		layerRect.h -= ((layerRect.h - WINDOW_TITLE_SIZE) if .title in window.options else layerRect.h) * window.howCollapsed
-		// Interpolate collapse
-		if .shouldCollapse in window.bits {
-			window.howCollapsed = min(1, window.howCollapsed + ctx.deltaTime * 7)
+		self.drawRect = self.rect
+		self.drawRect.h -= ((self.drawRect.h - WINDOW_TITLE_SIZE) if .title in self.options else self.drawRect.h) * self.howCollapsed
+
+		// Decoration layer
+		if self.decorLayer, ok = BeginLayer({
+			rect = self.drawRect,
+			id = HashId(rawptr(&self.id), size_of(Id)),
+			order = .floating,
+			options = {.shadow},
+		}); ok {
+			// Body
+			if .collapsed not_in self.bits {
+				PaintRoundedRect(self.drawRect, WINDOW_ROUNDNESS, GetColor(.base))
+			}
+			// Draw title bar and get movement dragging
+			if .title in self.options {
+				titleRect := Cut(.top, WINDOW_TITLE_SIZE)
+				// Draw title rectangle
+				if .collapsed in self.bits {
+					PaintRoundedRect(titleRect, WINDOW_ROUNDNESS, GetColor(.widgetBackground))
+				} else {
+					PaintRoundedRectEx(titleRect, WINDOW_ROUNDNESS, {.topLeft, .topRight}, GetColor(.widgetBackground))
+				}
+				// Title bar decoration
+				baseline := titleRect.y + titleRect.h / 2
+				textOffset := titleRect.h * 0.25
+				canCollapse := .collapsable in self.options || .collapsed in self.bits
+				if canCollapse {
+					PaintCollapseArrow({titleRect.x + titleRect.h / 2, baseline}, 8, self.howCollapsed, GetColor(.text))
+					textOffset = titleRect.h
+				}
+				PaintStringAligned(GetFontData(.default), self.title, {titleRect.x + textOffset, baseline}, GetColor(.text), .near, .middle)
+				if .closable in self.options {
+					SetNextRect(ChildRect(GetRectRight(titleRect, titleRect.h), {24, 24}, .middle, .middle))
+					if Button({
+						label = Icon.close, 
+						align = .middle, 
+						subtle = true,
+					}) {
+						self.bits += {.shouldClose}
+					}
+				}
+				if .resizing not_in self.bits && ctx.hoveredLayer == self.decorLayer.id && VecVsRect(input.mousePoint, titleRect) {
+					if .static not_in self.options && ctx.hoverId == 0 && MousePressed(.left) {
+						self.bits += {.moving}
+						ctx.dragAnchor = Vec2{self.decorLayer.rect.x, self.decorLayer.rect.y} - input.mousePoint
+					}
+					if canCollapse && MousePressed(.right) {
+						if .shouldCollapse in self.bits {
+							self.bits -= {.shouldCollapse}
+						} else {
+							self.bits += {.shouldCollapse}
+						}
+					}
+				}
+			} else {
+				self.bits -= {.shouldCollapse}
+			}
+		}
+		
+		innerRect := self.drawRect
+		CutRect(&innerRect, .top, WINDOW_TITLE_SIZE)
+
+		if .initialized not_in self.bits {
+			self.minLayoutSize = {innerRect.w, innerRect.h}
+			self.bits += {.initialized}
+		}
+
+		layerOptions := info.layerOptions + {.attached}
+		if (self.howCollapsed > 0 && self.howCollapsed < 1) || (self.howCollapsed == 1 && .shouldCollapse not_in self.bits) {
+			layerOptions += {.forceClip, .noScrollY}
+			ctx.paintNextFrame = true
+		}
+
+		// Push layout if necessary
+		if .collapsed in self.bits {
+			ok = false
 		} else {
-			window.howCollapsed = max(0, window.howCollapsed - ctx.deltaTime * 7)
+			self.layer, ok = BeginLayer({
+				rect = innerRect,
+				innerRect = ShrinkRect(innerRect, 10),
+				id = id, 
+				options = layerOptions,
+				layoutSize = self.minLayoutSize,
+				order = .background,
+			})
 		}
-		if window.howCollapsed >= 1 {
-			window.bits += {.collapsed}
-		} else {
-			window.bits -= {.collapsed}
-		}
-		// Begin window layer
-		layerOptions: LayerOptions = {.shadow}
-		if (window.howCollapsed > 0 && window.howCollapsed < 1) || (window.howCollapsed == 1 && .shouldCollapse not_in window.bits) {
-			layerOptions += {.forceClip}
-		}
-		window.layer, ok = BeginLayer(layerRect, {}, id, layerOptions)
-		window.layer.order = .floating
-		// Visual rect
-		window.drawRect = layerRect
-		// Inner layout rect
-		layoutRect := window.rect
-		// Body
-		if .collapsed not_in window.bits {
-			PaintRoundedRect(window.drawRect, WINDOW_ROUNDNESS, GetColor(.foreground))
-		}
+
 		// Get resize click
-		if .resizable in window.options && .collapsed not_in window.bits {
+		if .resizable in self.options && self.decorLayer.state >= {.hovered} && .collapsed not_in self.bits {
 			RESIZE_MARGIN :: 5
-			topHover 		:= VecVsRect(input.mousePoint, GetRectTop(window.rect, RESIZE_MARGIN))
-			leftHover 		:= VecVsRect(input.mousePoint, GetRectLeft(window.rect, RESIZE_MARGIN))
-			bottomHover 	:= VecVsRect(input.mousePoint, GetRectBottom(window.rect, RESIZE_MARGIN))
-			rightHover 		:= VecVsRect(input.mousePoint, GetRectRight(window.rect, RESIZE_MARGIN))
+			topHover 		:= VecVsRect(input.mousePoint, GetRectTop(self.rect, RESIZE_MARGIN))
+			leftHover 		:= VecVsRect(input.mousePoint, GetRectLeft(self.rect, RESIZE_MARGIN))
+			bottomHover 	:= VecVsRect(input.mousePoint, GetRectBottom(self.rect, RESIZE_MARGIN))
+			rightHover 		:= VecVsRect(input.mousePoint, GetRectRight(self.rect, RESIZE_MARGIN))
 			if topHover || bottomHover {
 				ctx.cursor = .resizeNS
+				ctx.hoverId = 0
 			}
 			if leftHover || rightHover {
 				ctx.cursor = .resizeEW
+				ctx.hoverId = 0
 			}
 			if MousePressed(.left) {
 				if topHover {
-					window.bits += {.resizing}
-					window.dragSide = .top
-					window.dragAnchor = window.rect.y + window.rect.h
+					self.bits += {.resizing}
+					self.dragSide = .top
+					self.dragAnchor = self.rect.y + self.rect.h
 				} else if leftHover {
-					window.bits += {.resizing}
-					window.dragSide = .left
-					window.dragAnchor = window.rect.x + window.rect.w
+					self.bits += {.resizing}
+					self.dragSide = .left
+					self.dragAnchor = self.rect.x + self.rect.w
 				} else if bottomHover {
-					window.bits += {.resizing}
-					window.dragSide = .bottom
+					self.bits += {.resizing}
+					self.dragSide = .bottom
 				} else if rightHover {
-					window.bits += {.resizing}
-					window.dragSide = .right
+					self.bits += {.resizing}
+					self.dragSide = .right
 				}
 			}
-		}
-		// Draw title bar and get movement dragging
-		if .title in window.options {
-			titleRect := CutRectTop(&layoutRect, WINDOW_TITLE_SIZE)
-			// Draw title rectangle
-			if .collapsed in window.bits {
-				PaintRoundedRect(titleRect, WINDOW_ROUNDNESS, GetColor(.widgetBase, 1))
-			} else {
-				PaintRoundedRectEx(titleRect, WINDOW_ROUNDNESS, {.topLeft, .topRight}, GetColor(.widgetBase, 1))
-			}
-			// Title bar decoration
-			baseline := titleRect.y + titleRect.h / 2
-			textOffset := titleRect.h * 0.25
-			canCollapse := .collapsable in window.options || .collapsed in window.bits
-			if canCollapse {
-				PaintCollapseArrow({titleRect.x + titleRect.h / 2, baseline}, 8, window.howCollapsed, GetColor(.text))
-				textOffset = titleRect.h * 0.85
-			}
-			PaintStringAligned(GetFontData(.default), title, {titleRect.x + textOffset, baseline}, GetColor(.text), .near, .middle)
-			if .closable in window.options {
-				SetNextRect(ChildRect(GetRectRight(titleRect, titleRect.h), {24, 24}, .middle, .middle))
-				PushId(window.id)
-				if Button(.close) {
-					window.bits += {.shouldClose}
-				}
-				PopId()
-			}
-			if .resizing not_in window.bits && ctx.hoveredLayer == window.layer.id && VecVsRect(input.mousePoint, titleRect) {
-				if .static not_in window.options && ctx.hoverId == 0 && MousePressed(.left) {
-					window.bits += {.moving}
-					ctx.dragAnchor = Vec2{window.layer.body.x, window.layer.body.y} - input.mousePoint
-				}
-				if canCollapse && MousePressed(.right) {
-					if .shouldCollapse in window.bits {
-						window.bits -= {.shouldCollapse}
-					} else {
-						window.bits += {.shouldCollapse}
-					}
-				}
-			}
-		} else {
-			window.bits -= {.shouldCollapse}
-		}
-		// Push layout if necessary
-		if .collapsed in window.bits {
-			ok = false
-		} else {
-			layoutRect.w = max(layoutRect.w, window.minLayoutSize.x)
-			layoutRect.h = max(layoutRect.h, window.minLayoutSize.y)
-			PushLayout(layoutRect)
 		}
 	}
 	return
 }
-// Called for every 'BeginWindow' call
-@private 
-EndWindow :: proc(using window: ^WindowData) {
-	if window != nil {
-		// Outline
-		PaintRoundedRectOutline(drawRect, WINDOW_ROUNDNESS, true, GetColor(.outlineBase))
-		// Handle resizing
-		WINDOW_SNAP_DISTANCE :: 10
-		if .resizing in bits {
-			minSize: Vec2 = {180, 240}
-			switch dragSide {
-				case .bottom:
-				anchor := input.mousePoint.y
-				for other in &ctx.windows {
-					if other != window {
-						if abs(input.mousePoint.y - other.rect.y) < WINDOW_SNAP_DISTANCE {
-							anchor = other.rect.y
-						}
-					}
-				}
-				rect.h = anchor - rect.y
-				ctx.cursor = .resizeNS
-
-				case .left:
-				anchor := input.mousePoint.x
-				for other in &ctx.windows {
-					if other != window {
-						if abs(input.mousePoint.x - (other.rect.x + other.rect.w)) < WINDOW_SNAP_DISTANCE {
-							anchor = other.rect.x + other.rect.w
-						}
-					}
-				}
-				rect.x = min(anchor, dragAnchor - minSize.x)
-				rect.w = dragAnchor - anchor
-				ctx.cursor = .resizeEW
-
-				case .right:
-				anchor := input.mousePoint.x
-				for other in &ctx.windows {
-					if other != window {
-						if abs(input.mousePoint.x - other.rect.x) < WINDOW_SNAP_DISTANCE {
-							anchor = other.rect.x
-						}
-					}
-				}
-				rect.w = anchor - rect.x
-				ctx.cursor = .resizeEW
-
-				case .top:
-				anchor := input.mousePoint.y
-				for other in &ctx.windows {
-					if other != window {
-						if abs(input.mousePoint.y - (other.rect.y + other.rect.h)) < WINDOW_SNAP_DISTANCE {
-							anchor = other.rect.y + other.rect.h
-						}
-					}
-				}
-				rect.y = min(anchor, dragAnchor - minSize.y)
-				rect.h = dragAnchor - anchor
-				ctx.cursor = .resizeNS
-			}
-			rect.w = max(rect.w, minSize.x)
-			rect.h = max(rect.h, minSize.y)
-			if MouseReleased(.left) {
-				bits -= {.resizing}
-			}
+@private
+_Window :: proc(ok: bool) {
+	if true {
+		using self := ctx.currentWindow
+		// End main layer
+		if .collapsed not_in bits {
+			// Outline
+			PaintRoundedRectOutline(self.drawRect, WINDOW_ROUNDNESS, true, GetColor(.baseStroke))
+			EndLayer(layer)
 		}
+		PaintRoundedRectOutline(self.drawRect, WINDOW_ROUNDNESS, true, GetColor(.baseStroke))
+		// End decor layer
+		EndLayer(decorLayer)
 		// Handle movement
 		if .moving in bits {
 			ctx.cursor = .resizeAll
@@ -260,35 +239,91 @@ EndWindow :: proc(using window: ^WindowData) {
 				bits -= {.moving}
 			}
 		}
-		// End window body layout
-		if .collapsed not_in bits {
-			PopLayout()
+		// Handle resizing
+		WINDOW_SNAP_DISTANCE :: 10
+		if .resizing in bits {
+			minSize: Vec2 = self.minLayoutSize if .fitToLayout in self.options else {180, 240}
+			switch dragSide {
+				case .bottom:
+				anchor := input.mousePoint.y
+				for other in &ctx.windows {
+					if other != self {
+						if abs(input.mousePoint.y - other.rect.y) < WINDOW_SNAP_DISTANCE {
+							anchor = other.rect.y
+						}
+					}
+				}
+				self.rect.h = anchor - rect.y
+				ctx.cursor = .resizeNS
+
+				case .left:
+				anchor := input.mousePoint.x
+				for other in &ctx.windows {
+					if other != self {
+						if abs(input.mousePoint.x - (other.rect.x + other.rect.w)) < WINDOW_SNAP_DISTANCE {
+							anchor = other.rect.x + other.rect.w
+						}
+					}
+				}
+				self.rect.x = min(anchor, self.dragAnchor - minSize.x)
+				self.rect.w = self.dragAnchor - anchor
+				ctx.cursor = .resizeEW
+
+				case .right:
+				anchor := input.mousePoint.x
+				for other in &ctx.windows {
+					if other != self {
+						if abs(input.mousePoint.x - other.rect.x) < WINDOW_SNAP_DISTANCE {
+							anchor = other.rect.x
+						}
+					}
+				}
+				self.rect.w = anchor - rect.x
+				ctx.cursor = .resizeEW
+
+				case .top:
+				anchor := input.mousePoint.y
+				for other in &ctx.windows {
+					if other != self {
+						if abs(input.mousePoint.y - (other.rect.y + other.rect.h)) < WINDOW_SNAP_DISTANCE {
+							anchor = other.rect.y + other.rect.h
+						}
+					}
+				}
+				self.rect.y = min(anchor, self.dragAnchor - minSize.y)
+				self.rect.h = self.dragAnchor - anchor
+				ctx.cursor = .resizeNS
+			}
+			self.rect.w = max(self.rect.w, minSize.x)
+			self.rect.h = max(self.rect.h, minSize.y)
+			if MouseReleased(.left) {
+				self.bits -= {.resizing}
+			}
 		}
-		// End layer
-		EndLayer(layer)
 	}
 }
+
 
 CurrentWindow :: proc() -> ^WindowData {
 	return ctx.currentWindow
 }
-CreateOrGetWindow :: proc(id: Id) -> (window: ^WindowData, ok: bool) {
-	window, ok = ctx.windowMap[id]
+CreateOrGetWindow :: proc(id: Id) -> (self: ^WindowData, ok: bool) {
+	self, ok = ctx.windowMap[id]
 	if !ok {
-		window, ok = CreateWindow(id)
+		self, ok = CreateWindow(id)
 	}
 	return
 }
-CreateWindow :: proc(id: Id) -> (window: ^WindowData, ok: bool) {
-	window = new(WindowData)
-	window^ = {
+CreateWindow :: proc(id: Id) -> (self: ^WindowData, ok: bool) {
+	self = new(WindowData)
+	self^ = {
 		id = id,
 	}
-	append(&ctx.windows, window)
-	ctx.windowMap[id] = window
+	append(&ctx.windows, self)
+	ctx.windowMap[id] = self
 	ok = true
 	return
 }
-DeleteWindow :: proc(window: ^WindowData) {
-	free(window)
+DeleteWindow :: proc(self: ^WindowData) {
+	free(self)
 }

@@ -9,12 +9,13 @@ import "core:fmt"
 import "core:math"
 import "core:slice"
 import "core:mem"
+import "core:time"
 
 // Set up your own layout values
 DEFAULT_SPACING :: 10
 HEADER_LEADING_SPACE :: 24
 HEADER_TRAILING_SPACE :: 12
-DEFAULT_BUTTON_SIZE :: 36
+DEFAULT_BUTTON_SIZE :: 26
 DEFAULT_TEXT_INPUT_SIZE :: 36
 
 Tabs :: enum {
@@ -45,6 +46,7 @@ _main :: proc() {
 	boolean := false
 	font: ui.FontIndex
 	tab: Tabs
+	enableSubMenu := false
 
 	a, b, c: bool
 
@@ -58,7 +60,8 @@ _main :: proc() {
 	rl.InitWindow(1000, 800, "Maui Demo")
 	rl.SetExitKey(.NULL)
 	rl.MaximizeWindow()
-	rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
+	TARGET_FPS :: 120
+	rl.SetTargetFPS(TARGET_FPS)
 
 	ui.Init()
 	backend.Init()
@@ -71,57 +74,145 @@ _main :: proc() {
 
 		{
 			using ui
-			rect := Cut(.right, 500)
-			Shrink(100)
-			if Layout(.left, 200) {
-				SetSize(30)
-				AttachTooltip("I'm a tooltip", .top)
-				windowOpen[.widgetGallery] = ToggleButton(windowOpen[.widgetGallery], "Widget Gallery")
-				if Window("Widget Gallery", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
-					PaintRoundedRectEx(GetCurrentLayout().rect, WINDOW_ROUNDNESS, {.bottomLeft, .bottomRight}, GetColor(.widgetBase))
-					Shrink(10); SetSize(30)
-					tab = EnumTabs(tab, 0)
-					PaintRect(GetCurrentLayout().rect, GetColor(.foreground))
-					Shrink(30); SetSize(30)
-					if tab == .input {
-						if Layout(.top, 30) {
-							SetSide(.left); SetSize(120)
-							integer = Spinner(integer, -100, 100)
-							SetSide(.right)
-							integer = DragSpinner(integer, -100, 100)
+			if Window({
+				title = "Widget Gallery", 
+				rect = {700, 200, 400, 500}, 
+				options = {.title, .collapsable, .closable},
+			}) {
+				Shrink(10); SetSize(30)
+				tab = EnumTabs(tab, 0)
+				Shrink(20); SetSize(30)
+
+				if tab == .input {
+					if Layout(.top, 30) {
+						SetSide(.left); SetSize(120)
+						integer = Spinner({
+							value = integer, 
+							low = -100, 
+							high = 100,
+						})
+						SetSide(.right); SetSize(120)
+						integer = RectSlider(RectSliderInfo(int){
+							value = integer, 
+							low = -100, 
+							high = 100,
+						})
+					}
+					Space(30)
+					if TreeNode("Slider", 100) {
+						SetSize(1, true)
+						SetMargin(20)
+						if change, newValue := Slider(SliderInfo(f64){
+							value = value, 
+							low = 0, 
+							high = 10, 
+							format = "%.2f",
+							guides = ([]f64)({
+								0,
+								5,
+								10,
+							}),
+						}); change {
+							value = newValue
 						}
-						Space(20)
-						if change, newValue := SliderEx(f32(value), 0, 10, "Sauce"); change {
-							value = f64(newValue)
+					}
+					if TreeNode("Boolean controls", 100) {
+						Cut(.left, 20)
+						ToggleSwitch({
+							state = &boolean,
+							onIcon = .check,
+							offIcon = .close,
+						})
+					}
+					Space(20)
+
+					SetSize(DEFAULT_BUTTON_SIZE)
+					if Menu({
+						label = "Open me!", 
+						size = {0, DEFAULT_BUTTON_SIZE * 4},
+						align = .middle,
+					}) {
+						SetSize(DEFAULT_BUTTON_SIZE)
+						Option({label = "Option A"})
+						Option({label = "Option B"})
+						if Option({
+							label = "Enable Submenu", 
+							active = enableSubMenu,
+							noDismiss = true,
+						}) {
+							enableSubMenu = !enableSubMenu
 						}
-						Space(20)
-						if Menu("Open me!", 120) {
-							SetSize(30)
-							MenuOption("Option A", false)
-							MenuOption("Option B", false)
-							MenuOption("Option C", false)
-							if SubMenu("More Options", {200, 90}) {
-								SetSize(30)
-								MenuOption("Option D", false)
-								MenuOption("Option E", false)
-								MenuOption("Option F", false)
+						if Enabled(enableSubMenu) {
+							if SubMenu({
+								label = "Sub Menu", 
+								size = {200, DEFAULT_BUTTON_SIZE * 3},
+							}) {
+								SetSize(DEFAULT_BUTTON_SIZE)
+								Option({label = "Option C"})
+								Option({label = "Option D"})
+								if SubMenu({
+									label = "Radio Buttons", 
+									side = .right,
+									size = {200, DEFAULT_BUTTON_SIZE * 3},
+								}) {
+									SetSize(26); AlignY(.middle); Cut(.left, 2)
+									choice = EnumRadioButtons(choice, .left)
+								}
 							}
 						}
-					} else if tab == .text {
-						TextInput(&buffer, "Type some text", "Placeholder")
+					}
+				} else if tab == .text {
+					SetSize(36)
+					TextInput({
+						buffer = &buffer, 
+						title = "Type some text", 
+						placeholder = "Placeholder",
+					})
+					Space(20)
+					if Layout(.top, 30) {
+						SetSide(.left)
+						PillButton({
+							label = "Pill Button",
+							fitToLabel = true,
+							//fillColor = Color{25, 190, 230, 255},
+						})
+					}
+				} else if tab == .table {
+					SetSize(1, true)
+					if Frame({
+						layoutSize = {0, 2400},
+					}) {
+						SetSize(24)
+						for i in 0..<100 {
+							Text({text = TextFormat("Text %i", i + 1)})
+						}
 					}
 				}
-				Space(10)
-				windowOpen[.dataTable] = ToggleButton(windowOpen[.dataTable], "Data Table")
-				if Window("Window Options", {200, 200, 400, 500}, {.title, .collapsable, .closable}) {
-					window := CurrentWindow()
-					Shrink(30); SetSize(30)
-					CheckBoxBitSetHeader(&window.options, "Options")
-					for member in WindowOption {
-						PushId(HashId(int(member)))
-							CheckBoxBitSet(&window.options, member, CapitalizeString(Format(member)))
-						PopId()
-					}
+			}
+			if Window({
+				title = "Style", 
+				rect = {200, 200, 600, 500},
+				layoutSize = Vec2{700, f32(len(ColorIndex)) * 30 + 60},
+				options = {.title, .collapsable, .resizable, .closable},
+				layerOptions = {.noScrollMarginY},
+			}) {
+				window := CurrentWindow()
+				Shrink(30)
+				for member in ColorIndex {
+					PushId(int(member))
+						if Layout(.top, 30) {
+							SetSide(.right); SetSize(100)
+							painter.style.colors[member].a = RectSlider(RectSliderInfo(u8){painter.style.colors[member].a, 0, 255})
+							painter.style.colors[member].b = RectSlider(RectSliderInfo(u8){painter.style.colors[member].b, 0, 255})
+							painter.style.colors[member].g = RectSlider(RectSliderInfo(u8){painter.style.colors[member].g, 0, 255})
+							painter.style.colors[member].r = RectSlider(RectSliderInfo(u8){painter.style.colors[member].r, 0, 255})
+							SetSize(1, true)
+							TextBox({
+								font = .default, 
+								text = Format(member),
+							})
+						}
+					PopId()
 				}
 			}
 		}
@@ -130,14 +221,18 @@ _main :: proc() {
 			Drawing happens here
 		*/
 		ui.EndFrame()
-
+		duration := time.duration_milliseconds(ui.ctx.frameDuration)
+		
 		rl.BeginDrawing()
 		if ui.ShouldRender() {
-			rl.ClearBackground(transmute(rl.Color)ui.GetColor(.foreground))
+			rl.ClearBackground(transmute(rl.Color)ui.GetColor(.base))
 			backend.Render()
-			rl.DrawText(rl.TextFormat("FPS: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
+			rl.DrawText(rl.TextFormat("fps: %i", rl.GetFPS()), 0, 0, 20, rl.BLACK)
+			rl.DrawText(rl.TextFormat("time: %f", rl.GetTime()), 0, 20, 20, rl.BLACK)
+			rl.DrawText(rl.TextFormat("%fms", duration), 0, 40, 20, rl.BLACK)
 		}
 		rl.EndDrawing()
+
 
 		if rl.WindowShouldClose() || close {
 			break

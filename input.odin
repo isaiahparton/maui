@@ -1,13 +1,33 @@
 package maui
 
+import "core:time"
+
+// Text input que size
 MAX_INPUT_RUNES :: 32
+// Max compound clicks
+MAX_CLICK_COUNT :: 3
 
 MouseButton :: enum {
 	left,
-	right,
 	middle,
+	right,
 }
 MouseBits :: bit_set[MouseButton]
+MouseButtonState :: enum {
+	// Just pressed down (was not down before)
+	pressed,
+	// Is down
+	down,
+	// Just released (unpressed) (not down anymore)
+	released,
+	// Pressed and released over the widget
+	clicked,
+}
+ClickState :: struct {
+	buttonState: MouseButtonState,
+	clickCount: int,
+}
+
 Key :: enum {
 	alt,
 	escape,
@@ -30,6 +50,10 @@ KeyBits :: bit_set[Key]
 Input :: struct {
 	prevMousePoint, mousePoint, mouseScroll: Vec2,
 	mouseBits, prevMouseBits: MouseBits,
+	lastMouseButtonPressed: MouseButton,
+	lastMouseButtonTime: [MouseButton]time.Time,
+	thisMouseButtonTime: [MouseButton]time.Time,
+
 	keyBits, prevKeyBits: KeyBits,
 	lastKey: Key,
 
@@ -66,6 +90,7 @@ KeyDown :: proc(key: Key) -> bool {
 	return key in keyBits
 }
 
+// Backend use
 SetMouseScroll :: proc(x, y: f32) {
 	input.mouseScroll = {x, y}
 }
@@ -79,6 +104,9 @@ InputAddCharPress :: proc(char: rune) {
 SetMouseBit :: proc(button: MouseButton, value: bool) {
 	if value {
 		input.mouseBits += {button}
+		input.lastMouseButtonTime[button] = input.thisMouseButtonTime[button]
+		input.thisMouseButtonTime[button] = time.now()
+		input.lastMouseButtonPressed = button
 	} else {
 		input.mouseBits -= {button}
 	}
