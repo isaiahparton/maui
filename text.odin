@@ -54,7 +54,7 @@ Format :: proc(args: ..any) -> string {
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
 }
-FormatSlice :: proc(args: ..any) -> []u8 {
+FormatToSlice :: proc(args: ..any) -> []u8 {
 	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
 	buf := fmtBuffers[fmtBufferIndex][:len(str)]
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
@@ -124,6 +124,8 @@ Icon :: enum rune {
 	contactBook 		= 0xEBCB,
 	pin 				= 0xF038,
 	unPin 				= 0xF376,
+	filter 				= 0xED26,
+	filterOff 			= 0xED28,
 }
 
 StringPaintOption :: enum {
@@ -142,14 +144,14 @@ PaintStringContainedEx :: proc(font: ^FontData, text: string, rect: Rect, option
 
 	totalSize: Vec2
 	if alignX != .near || alignY != .near {
-		//totalSize = MeasureString(font, text)
+		totalSize = MeasureString(font, text)
 		#partial switch alignX {
-			case .far: point += rect.w - totalSize.x
-			case .middle: point += rect.w / 2 - totalSize.x / 2
+			case .far: point.x += rect.w - totalSize.x
+			case .middle: point.x += rect.w / 2 - totalSize.x / 2
 		}
 		#partial switch alignY {
-			case .far: point += rect.h - totalSize.y
-			case .middle: point += rect.h / 2 - totalSize.y / 2
+			case .far: point.y += rect.h - totalSize.y
+			case .middle: point.y += rect.h / 2 - totalSize.y / 2
 		}
 	}
 

@@ -51,15 +51,15 @@ BeginAttachedLayer :: proc(info: AttachedLayerInfo) -> (result: AttachedLayerRes
 
 	result.self = layer
 
+	// Paint the fill color
+	if info.fillColor != nil {
+		PaintRect(layer.rect, info.fillColor.?)
+	}
+
 	// Check if the layer was dismissed by input
 	if layer.bits >= {.dismissed} {
 		result.dismissed = true
 		return
-	}
-
-	// Paint the fill color
-	if info.fillColor != nil {
-		PaintRect(layer.rect, info.fillColor.?)
 	}
 
 	return
@@ -67,7 +67,7 @@ BeginAttachedLayer :: proc(info: AttachedLayerInfo) -> (result: AttachedLayerRes
 @private
 EndAttachedLayer :: proc(info: AttachedLayerInfo) {
 	layer := CurrentLayer()
-	if (.hovered not_in layer.state && MousePressed(.left)) || KeyPressed(.escape) {
+	if (.hovered not_in layer.state && .hovered not_in layer.parent.state && MousePressed(.left)) || KeyPressed(.escape) {
 		layer.bits += {.dismissed}
 	}
 
@@ -119,6 +119,7 @@ Menu :: proc(info: MenuInfo, loc := #caller_location) -> (active: bool) {
 			bits = bits ~ {.active}
 		}
 
+
 		// Begin layer if expanded
 		if active {
 			layerResult := BeginAttachedLayer({
@@ -130,6 +131,9 @@ Menu :: proc(info: MenuInfo, loc := #caller_location) -> (active: bool) {
 				align = info.menuAlign,
 			})
 			if layerResult.dismissed {
+				//bits -= {.active}
+			}
+			if layerResult.self.state & {.hovered, .focused} == {} && .focused not_in state {
 				bits -= {.active}
 			}
 			PushColor(.base, GetColor(.widget))
@@ -165,9 +169,10 @@ SubMenu :: proc(info: MenuInfo, loc := #caller_location) -> (active: bool) {
 			PaintLabelRect(info.label, body, GetColor(.text), info.align.? or_else .near, .middle)
 		}
 		// Swap state when clicked
-		bits -= {.active}
 		if state & {.hovered, .lostHover} != {} {
 			bits += {.active}
+		} else if .hovered in self.layer.state && .gotHover not_in self.layer.state {
+			bits -= {.active}
 		}
 		// Begin layer
 		if active {
@@ -279,7 +284,7 @@ EnumMenuOptions :: proc(
 	newValue = value
 	for member in T {
 		PushId(HashIdFromInt(int(member)))
-			if MenuOption(TextCapitalize(Format(member)), false) {
+			if Option({label = TextCapitalize(Format(member))}) {
 				newValue = member
 			}
 		PopId()
@@ -290,7 +295,7 @@ BitSetMenuOptions :: proc(set: $S/bit_set[$E;$U], loc := #caller_location) -> (n
 	newSet = set
 	for member in E {
 		PushId(HashIdFromInt(int(member)))
-			if MenuOption(TextCapitalize(Format(member)), member in set) {
+			if Option({label = TextCapitalize(Format(member)), active = member in set}) {
 				newSet = newSet ~ {member}
 			}
 		PopId()

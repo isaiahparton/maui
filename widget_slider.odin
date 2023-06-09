@@ -136,7 +136,7 @@ RectSlider :: proc(info: RectSliderInfo($T), loc := #caller_location) -> (newVal
 			PaintRectLines(self.body, 2 if .active in self.bits else 1, GetColor(.accent) if .active in self.bits else GetColor(.widgetStroke, hoverTime))
 		}
 		fontData := GetFontData(.monospace)
-		text := FormatSlice(info.value)
+		text := FormatToSlice(info.value)
 		if WidgetClicked(self, .left, 1) {
 			self.bits += {.active}
 			self.state += {.gotFocus}

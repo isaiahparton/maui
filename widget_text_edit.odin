@@ -355,8 +355,12 @@ StringEdit :: proc(
 	return
 }
 // Edit a dynamic array of bytes
+TextInputData :: union {
+	^[dynamic]u8,
+	^string,
+}
 TextInputInfo :: struct {
-	buffer: ^[dynamic]u8,
+	data: TextInputData,
 	title: Maybe(string),
 	placeholder: Maybe(string),
 	textOptions: TextProOptions,
@@ -374,24 +378,43 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
 			focusTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
 		PopId()
+
+		buffer := info.data.(^[dynamic]u8) or_else GetTextBuffer(self.id)
+
 		// Text edit
 		if state >= {.focused} {
-			change = TextEdit(info.buffer, info.editOptions)
+			change = TextEdit(buffer, info.editOptions)
 			if change {
 				ctx.paintNextFrame = true
+				if value, ok := info.data.(^string); ok {
+					delete(value^)
+					value^ = strings.clone_from_bytes(buffer[:])
+				}
+			}
+		}
+		if state >= {.gotFocus} {
+			if text, ok := info.data.(^string); ok {
+				resize(buffer, len(text))
+				copy(buffer[:], text[:])
 			}
 		}
 		// Paint!
 		PaintRect(body, GetColor(.base))
 		fontData := GetFontData(.default)
-		TextPro(fontData, info.buffer[:], body, {}, self)
+		switch type in info.data {
+			case ^string:
+			TextPro(fontData, transmute([]u8)type[:], body, {}, self)
+
+			case ^[dynamic]u8:
+			TextPro(fontData, type[:], body, {}, self)
+		}
 		if .shouldPaint in bits {
 			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.accent), min(1, hoverTime + focusTime))
 			// Outline
-			PaintLabeledWidgetFrame(body, info.title.?, 1 + focusTime, outlineColor)
+			PaintLabeledWidgetFrame(body, info.title, 1 + focusTime, outlineColor)
 			// Draw placeholder
 			if info.placeholder != nil {
-				if len(info.buffer) == 0 {
+				if len(buffer) == 0 {
 					PaintStringAligned(fontData, info.placeholder.(string), {body.x + body.h * 0.25, body.y + body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
 				}
 			}
@@ -424,7 +447,7 @@ NumberInput :: proc(info: NumberInputInfo($T), loc := #caller_location) -> (newV
 		// Painting
 		fontData := GetFontData(.monospace)
 		outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.accent), min(1, hoverTime + stateTime))
-		PaintLabeledWidgetFrame(body, info.title.? or_else {}, 2 if state >= {.focused} else 1, outlineColor)
+		PaintLabeledWidgetFrame(body, info.title, 2 if state >= {.focused} else 1, outlineColor)
 		// Update text input
 		if state >= {.focused} {
 			buffer := GetTextBuffer(id)
@@ -470,12 +493,12 @@ NumberInput :: proc(info: NumberInputInfo($T), loc := #caller_location) -> (newV
 	return
 }
 // Labels for text edit widgets
-PaintLabeledWidgetFrame :: proc(rect: Rect, label: string, thickness: f32, color: Color) {
-	if len(label) > 0 {
+PaintLabeledWidgetFrame :: proc(rect: Rect, text: Maybe(string), thickness: f32, color: Color) {
+	if text != nil {
 		labelFont := GetFontData(.label)
-		textSize := MeasureString(labelFont, label)
+		textSize := MeasureString(labelFont, text.?)
 		PaintWidgetFrame(rect, rect.h * 0.25 - 2, textSize.x + 4, thickness, color)
-		PaintString(GetFontData(.label), label, {rect.x + rect.h * 0.25, rect.y - textSize.y / 2}, color)
+		PaintString(GetFontData(.label), text.?, {rect.x + rect.h * 0.25, rect.y - textSize.y / 2}, color)
 	} else {
 		PaintRectLines(rect, thickness, color)
 	}

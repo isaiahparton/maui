@@ -165,12 +165,15 @@ FrameInfo :: struct {
 	layoutSize: Vec2,
 	options: LayerOptions,
 	fillColor: Maybe(Color),
+	scrollbarPadding: Maybe(f32),
 }
 @(deferred_out=_Frame)
 Frame :: proc(info: FrameInfo, loc := #caller_location) -> (ok: bool) {
 	self: ^LayerData
+	rect := LayoutNext(CurrentLayout())
 	self, ok = BeginLayer({
-		rect = LayoutNext(CurrentLayout()), 
+		rect = rect, 
+		innerRect = ShrinkRect(rect, info.scrollbarPadding.? or_else 0)
 		layoutSize = info.layoutSize, 
 		id = HashId(loc), 
 		options = info.options + {.clipToParent, .attached},
