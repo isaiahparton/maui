@@ -560,24 +560,15 @@ EndFrame :: proc() {
 	prevHoveredLayer = hoveredLayer
 	hoveredLayer = 0
 	for layer, i in layers {
-		if VecVsRect(input.mousePoint, layer.rect) {
-			hoveredLayer = layer.id
-			if MousePressed(.left) && .attached not_in layer.options {
-				// If the layer is attached, find its first parent
-				child := layer
-				for child.parent != nil {
-					topLayer = child.id
-					sortedLayer = child
-					if child.options >= {.attached} {
-						child = child.parent
-					} else {
-						break
-					}
-				}
-			}
-		}
 		if .stayAlive in layer.bits {
 			layer.bits -= {.stayAlive}
+			if VecVsRect(input.mousePoint, layer.rect) {
+				hoveredLayer = layer.id
+				if MousePressed(.left) {
+					focusedLayer = layer.id
+					sortedLayer = layer
+				}
+			}
 		} else {
 			delete_key(&layerMap, layer.id)
 			if layer.parent != nil {
@@ -592,7 +583,20 @@ EndFrame :: proc() {
 			sortLayers = true
 		}
 	}
-	// If 'topLayer' has changed, reorder the layers
+	// If a sorted layer was selected, then find it's root attached parent
+	if sortedLayer != nil {
+		child := sortedLayer
+		for child.parent != nil {
+			topLayer = child.id
+			sortedLayer = child
+			if child.options >= {.attached} {
+				child = child.parent
+			} else {
+				break
+			}
+		}
+	}
+	// Then reorder it with it's siblings
 	if topLayer != prevTopLayer {
 		for child in sortedLayer.parent.children {
 			if child.order == sortedLayer.order {
@@ -609,9 +613,6 @@ EndFrame :: proc() {
 	// Sort the layers
 	if sortLayers {
 		sortLayers = false
-
-		tempLayers := slice.clone(layers[:])
-		defer delete(tempLayers)
 
 		clear(&layers)
 		SortLayer(&layers, rootLayer)

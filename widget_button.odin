@@ -10,14 +10,14 @@ PillButtonStyle :: enum {
 // Standalone button for major actions
 PillButtonInfo :: struct {
 	label: Label,
-	fitToLabel: bool,
+	fitToLabel: Maybe(bool),
 	style: Maybe(PillButtonStyle),
 	fillColor: Maybe(Color),
 	textColor: Maybe(Color),
 }
 PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: bool) {
 	layout := CurrentLayout()
-	if info.fitToLabel && (layout.side == .left || layout.side == .right) {
+	if (info.fitToLabel.? or_else true) && (layout.side == .left || layout.side == .right) {
 		layout.size = MeasureLabel(info.label).x + layout.rect.h + layout.margin * 2
 	}
 	if self, ok := Widget(HashId(loc), LayoutNext(layout)); ok {
@@ -53,7 +53,7 @@ PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: b
 				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, color, .middle, .middle)
 			
 				case .subtle:
-				PaintPillH(body, GetColor(.baseShade, (2 if .pressed in state else hoverTime) * BASE_SHADE_ALPHA))
+				PaintPillH(body, GetColor(.baseShade, hoverTime * BASE_SHADE_ALPHA))
 				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.baseStroke), GetColor(.accent), hoverTime), .middle, .middle)
 			}
 		}

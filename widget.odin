@@ -124,7 +124,10 @@ Widget :: proc(id: Id, rect: Rect, options: WidgetOptions = {}) -> (^WidgetData,
 			// Just pressed buttons, I ❤️ bitset math
 			pressedButtons := input.mouseBits - input.prevMouseBits
 			if pressedButtons != {} {
-				if clickButton == input.lastMouseButtonPressed && time.since(input.lastMouseButtonTime[clickButton]) <= DOUBLE_CLICK_TIME {
+				if clickCount == 0 {
+					clickButton = input.lastMouseButtonPressed
+					clickCount = 1
+				} else if clickButton == input.lastMouseButtonPressed && time.since(input.lastMouseButtonTime[clickButton]) <= DOUBLE_CLICK_TIME {
 					clickCount = (clickCount + 1) % MAX_CLICK_COUNT
 				} else {
 					clickCount = 0
@@ -208,6 +211,9 @@ _Widget :: proc(self: ^WidgetData, ok: bool) {
 }
 
 // Helper functions
+LastWidget :: proc() -> ^WidgetData {
+	return ctx.currentWidget
+}
 WidgetClicked :: proc(using self: ^WidgetData, button: MouseButton, times: int = 1) -> bool {
 	return .clicked in state && clickButton == button && clickCount == times
 }
@@ -381,6 +387,8 @@ CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newSta
 			size.x = SIZE + textSize.x + GetRule(.widgetTextOffset) * 2
 			size.y = SIZE
 		}
+	} else {
+		size = SIZE
 	}
 
 	// Widget
@@ -480,7 +488,10 @@ CheckBoxBitSet :: proc(set: ^$S/bit_set[$E;$U], bit: E, text: string, loc := #ca
 	if set == nil {
 		return false
 	}
-	if change, _ := CheckBoxEx(.on if bit in set else .off, text, loc); change {
+	if change, _ := CheckBox({
+		state = .on if bit in set else .off, 
+		text = text,
+	}, loc); change {
 		set^ = set^ ~ {bit}
 		return true
 	}
@@ -497,7 +508,7 @@ CheckBoxBitSetHeader :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #call
 	} else if elementCount > 0 {
 		state = .unknown
 	}
-	if change, newValue := CheckBoxEx(state, text, loc); change {
+	if change, newValue := CheckBox({state = state, text = text}, loc); change {
 		if newValue {
 			for element in E {
 				incl(set, element)
@@ -668,12 +679,12 @@ EnumRadioButtons :: proc(
 /*
 	Combo box
 */
+TreeNodeInfo :: struct{
+	text: string,
+	size: f32,
+}
 @(deferred_out=_Collapser)
-TreeNode :: proc(
-	text: string, 
-	size: f32, 
-	loc := #caller_location,
-) -> (active: bool) {
+TreeNode :: proc(info: TreeNodeInfo, loc := #caller_location) -> (active: bool) {
 	sharedId := HashId(loc)
 	if self, ok := Widget(sharedId, UseNextRect() or_else LayoutNext(CurrentLayout())); ok {
 		using self
@@ -692,7 +703,7 @@ TreeNode :: proc(
 		if .shouldPaint in bits {
 			color := StyleIntenseShaded(hoverTime)
 			PaintCollapseArrow({body.x + body.h / 2, body.y + body.h / 2}, 8, 1 - stateTime, color)
-			PaintStringAligned(GetFontData(.default), text, {body.x + body.h, body.y + body.h / 2}, color, .near, .middle)
+			PaintStringAligned(GetFontData(.default), info.text, {body.x + body.h, body.y + body.h / 2}, color, .near, .middle)
 		}
 
 		// Invert state on click
@@ -702,11 +713,11 @@ TreeNode :: proc(
 
 		// Begin layer
 		if stateTime > 0 {
-			rect := Cut(.top, size * stateTime)
+			rect := Cut(.top, info.size * stateTime)
 			layer: ^LayerData
 			layer, active = BeginLayer({
 				rect = rect, 
-				layoutSize = Vec2{0, size}, 
+				layoutSize = Vec2{0, info.size}, 
 				id = id, 
 				options = {.attached, .clipToParent, .noScrollMarginX, .noScrollY}, 
 			})
@@ -750,7 +761,8 @@ Card :: proc(
 	}
 	return
 }
-@private _Card :: proc(clicked, ok: bool) {
+@private 
+_Card :: proc(clicked, ok: bool) {
 	if ok {
 		PopLayout()
 	}
@@ -957,7 +969,7 @@ TextBox :: proc(info: TextBoxInfo) {
 		PaintStringContainedEx(
 			fontData, 
 			info.text, 
-			rect, 
+			{rect.x + rect.h * 0.25, rect.y, rect.w - rect.h * 0.5, rect.h}, 
 			info.options, 
 			info.alignX.? or_else .near, 
 			info.alignY.? or_else .near, 
@@ -1001,7 +1013,7 @@ ListItem :: proc(active: bool, loc := #caller_location) -> (clicked, ok: bool) {
 			clicked = .clicked in self.state && self.clickButton == .left
 			ok = true//.visible in bits
 			if ok {
-				PushLayout(self.body)
+				PushLayout(self.body).side = .left
 			}
 		}
 	}
