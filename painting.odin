@@ -397,9 +397,7 @@ NextCommand :: proc(pcmd: ^^Command) -> bool {
 	} else {
 		cmd = (^Command)(&layer.commands[0])
 	}
-	InvalidCommand :: #force_inline proc(using layer: ^LayerData) -> ^Command {
-		return (^Command)(&layer.commands[commandOffset])
-	}
+
 	clip, ok := cmd.variant.(^CommandClip)
 	if ok {
 		if clip.rect == ctx.clipRect {
@@ -408,7 +406,7 @@ NextCommand :: proc(pcmd: ^^Command) -> bool {
 			ctx.clipRect = clip.rect
 		}
 	}
-	if cmd == InvalidCommand(layer) {
+	if cmd == (^Command)(&layer.commands[layer.commandOffset]) || cmd.size == 0 {
 		// At end of command buffer so reset `cmd` and go to next layer
 		ctx.hotLayer += 1
 		cmd = nil

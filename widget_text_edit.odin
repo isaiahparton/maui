@@ -45,6 +45,7 @@ TextPro :: proc(fontData: ^FontData, data: []u8, rect: Rect, options: TextProOpt
 	cursorEnd: Vec2
 	// Reset view offset when just focused
 	if .gotFocus in widget.state {
+		ctx.scribe.index = 0
 		ctx.scribe.offset = {}
 	}
 	// Offset view when currently focused
@@ -117,6 +118,25 @@ TextPro :: proc(fontData: ^FontData, data: []u8, rect: Rect, options: TextProOpt
 		size.x += glyphWidth
 		index += bytes
 	}
+	// Handle initial text selection
+	if .selectAll in options {
+		if .gotFocus in widget.state {
+			ctx.scribe.index = 0
+			ctx.scribe.anchor = 0
+			ctx.scribe.length = len(data)
+		}
+	}
+	if .gotPress in widget.state {
+		if widget.clickCount == 1 {
+			ctx.scribe.index = 0
+			ctx.scribe.anchor = 0
+			ctx.scribe.length = len(data)
+		} else {
+			ctx.scribe.index = hoverIndex
+			ctx.scribe.anchor = hoverIndex
+			ctx.scribe.length = 0
+		}
+	}
 	// View offset
 	if widget.state >= {.pressed} && widget.clickCount != 1 {
 		// Selection by dragging
@@ -147,25 +167,6 @@ TextPro :: proc(fontData: ^FontData, data: []u8, rect: Rect, options: TextProOpt
 		}
 		ctx.scribe.prev_index = ctx.scribe.index
 		ctx.scribe.prev_length = ctx.scribe.length
-	}
-	// Handle initial text selection
-	if .selectAll in options {
-		if .gotFocus in widget.state {
-			ctx.scribe.index = 0
-			ctx.scribe.anchor = 0
-			ctx.scribe.length = len(data)
-		}
-	}
-	if .gotPress in widget.state {
-		if widget.clickCount == 1 {
-			ctx.scribe.index = 0
-			ctx.scribe.anchor = 0
-			ctx.scribe.length = len(data)
-		} else {
-			ctx.scribe.index = hoverIndex
-			ctx.scribe.anchor = hoverIndex
-			ctx.scribe.length = 0
-		}
 	}
 	// Clamp view offset
 	if size.x > rect.w {
@@ -301,56 +302,6 @@ TextEdit :: proc(buf: ^[dynamic]u8, options: TextEditOptions, maxLength: int = 0
 	}
 	if change {
 		state.length = min(state.length, len(buf) - state.index)
-	}
-	return
-}
-// Unsafe way to edit a string directly
-// will segfault if the string is static
-StringEdit :: proc(
-	text: ^string,
-	label: string = {},
-	placeholder: string = {},
-	loc := #caller_location,
-) -> (changed: bool) {
-	if text == nil {
-		return
-	}
-	if self, ok := Widget(HashId(uintptr(text)), UseNextRect() or_else LayoutNext(CurrentLayout()), {.draggable, .keySelect}); ok {
-		// Cursor
-		if self.state & {.hovered, .pressed} != {} {
-			ctx.cursor = .beam
-		}
-		// Animation values
-		PushId(self.id)
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in self.state, 0.1)
-		PopId()
-		// Paint!
-		if .shouldPaint in self.bits {
-			PaintRect(self.body, GetColor(.base))
-			fontData := GetFontData(.default)
-			TextPro(fontData, transmute([]u8)text[:], self.body, {}, self)
-			if self.state >= {.focused} {
-				buffer := GetTextBuffer(self.id)
-				if self.state >= {.gotFocus} {
-					resize(buffer, len(text))
-					copy(buffer[:], text[:])
-				}
-				changed = TextEdit(buffer, {})
-				if changed {
-					ctx.paintThisFrame = true
-					delete(text^)
-					text^ = strings.clone_from_bytes(buffer[:])
-				}
-			}
-			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.accent), 1 if .focused in self.state else hoverTime)
-			// Draw placeholder
-			PaintLabeledWidgetFrame(self.body, label, 2 if self.state >= {.focused} else 1, outlineColor)
-			if len(placeholder) != 0 {
-				if len(text) == 0 {
-					PaintStringAligned(fontData, placeholder, {self.body.x + self.body.h * 0.25, self.body.y + self.body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
-				}
-			}
-		}
 	}
 	return
 }

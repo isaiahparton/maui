@@ -126,8 +126,8 @@ Widget :: proc(id: Id, rect: Rect, options: WidgetOptions = {}) -> (^WidgetData,
 			if pressedButtons != {} {
 				if clickCount == 0 {
 					clickButton = input.lastMouseButtonPressed
-					clickCount = 1
-				} else if clickButton == input.lastMouseButtonPressed && time.since(input.lastMouseButtonTime[clickButton]) <= DOUBLE_CLICK_TIME {
+				}
+				if clickButton == input.lastMouseButtonPressed && time.since(input.lastMouseButtonTime[clickButton]) <= DOUBLE_CLICK_TIME {
 					clickCount = (clickCount + 1) % MAX_CLICK_COUNT
 				} else {
 					clickCount = 0
@@ -215,7 +215,7 @@ LastWidget :: proc() -> ^WidgetData {
 	return ctx.currentWidget
 }
 WidgetClicked :: proc(using self: ^WidgetData, button: MouseButton, times: int = 1) -> bool {
-	return .clicked in state && clickButton == button && clickCount == times
+	return .clicked in state && clickButton == button && clickCount == times - 1
 }
 AttachTooltip :: proc(text: string, side: RectSide) {
 	ctx.attachTooltip = true

@@ -1,5 +1,6 @@
 package maui
 
+import "core:math/linalg"
 import rl "vendor:raylib"
 
 PillButtonStyle :: enum {
@@ -108,12 +109,11 @@ Button :: proc(info: ButtonInfo, loc := #caller_location) -> (clicked: bool) {
 // Square buttons that toggle something
 ToggleButtonInfo :: struct {
 	label: Label,
-	value: bool,
+	state: bool,
 	align: Maybe(Alignment),
 	fitToLabel: bool,
 }
-ToggleButton :: proc(info: ToggleButtonInfo, loc := #caller_location) -> (newValue: bool) {
-	newValue = info.value
+ToggleButton :: proc(info: ToggleButtonInfo, loc := #caller_location) -> (clicked: bool) {
 	layout := CurrentLayout()
 	if info.fitToLabel {
 		LayoutFitLabel(layout, info.label)
@@ -124,18 +124,18 @@ ToggleButton :: proc(info: ToggleButtonInfo, loc := #caller_location) -> (newVal
 		// Paintions
 		if .shouldPaint in self.bits {
 			fillColor: Color
-			if info.value {
-				fillColor = StyleBaseShaded(2 if .pressed in self.state else hoverTime)
-			} else {
+			if info.state {
 				fillColor = StyleWidgetShaded(2 if .pressed in self.state else hoverTime)
+			} else {
+				fillColor = StyleBaseShaded(2 if .pressed in self.state else hoverTime)
 			}
 			PaintRect(self.body, fillColor)
-			PaintRectLines(self.body, 1, GetColor(.widgetStroke if info.value else .baseStroke))
+			PaintRectLines(self.body, 1, GetColor(.widgetStroke if info.state else .baseStroke))
 			PaintLabel(info.label, RectCenter(self.body), GetColor(.text), info.align.? or_else .middle, .middle)
 		}
 		// Result
 		if .clicked in self.state && self.clickButton == .left {
-			newValue = !newValue
+			clicked = true
 		}
 	}
 	return
@@ -163,12 +163,12 @@ IconButton :: proc(
 		PopId()
 		// Painting
 		if self.bits >= {.shouldPaint} {
-			center := RectCenter(self.body)
-			PaintCircle(center, 24, 16, GetColor(.baseShade, (2 if self.state >= {.pressed} else hoverTime) * BASE_SHADE_ALPHA))
+			center := linalg.floor(RectCenter(self.body))
+			PaintCircle(center, 12, 14, GetColor(.baseShade, (2 if self.state >= {.pressed} else hoverTime) * BASE_SHADE_ALPHA))
 			if .clicked not_in self.state {
-				PaintRing(center, 24, 15, 16, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
+				PaintRing(center, 10, 12, 14, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
 			}
-			PaintIconAligned(GetFontData(.header), icon, center + 1, GetColor(.text, 0.5 + hoverTime * 0.5), .middle, .middle)
+			PaintIconAligned(GetFontData(.header), icon, center, GetColor(.text, 0.5 + hoverTime * 0.5), .middle, .middle)
 		}
 		// Result
 		clicked = .clicked in self.state && self.clickButton == .left
