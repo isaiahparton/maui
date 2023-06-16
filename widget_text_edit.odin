@@ -327,7 +327,7 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 		// Animation values
 		PushId(id)
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
-			focusTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
+			//focusTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
 		PopId()
 
 		buffer := info.data.(^[dynamic]u8) or_else GetTextBuffer(self.id)
@@ -350,7 +350,7 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 			}
 		}
 		// Paint!
-		PaintRect(body, GetColor(.base))
+		PaintRect(body, GetColor(.widgetBackground))
 		fontData := GetFontData(.default)
 		switch type in info.data {
 			case ^string:
@@ -360,9 +360,9 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 			TextPro(fontData, type[:], body, {}, self)
 		}
 		if .shouldPaint in bits {
-			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.accent), min(1, hoverTime + focusTime))
+			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
 			// Outline
-			PaintLabeledWidgetFrame(body, info.title, 1 + focusTime, outlineColor)
+			PaintLabeledWidgetFrame(body, info.title, 2 if .focused in state else 1, outlineColor)
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(buffer) == 0 {

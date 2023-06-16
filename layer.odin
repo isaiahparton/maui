@@ -173,13 +173,13 @@ Frame :: proc(info: FrameInfo, loc := #caller_location) -> (ok: bool) {
 	rect := LayoutNext(CurrentLayout())
 	self, ok = BeginLayer({
 		rect = rect, 
-		innerRect = ShrinkRect(rect, info.scrollbarPadding.? or_else 0)
+		innerRect = ShrinkRect(rect, info.scrollbarPadding.? or_else 0),
 		layoutSize = info.layoutSize, 
 		id = HashId(loc), 
 		options = info.options + {.clipToParent, .attached},
 	})
-	if ok && info.fillColor != nil {
-		PaintRect(self.rect, info.fillColor.?)
+	if ok {
+		PaintRect(self.rect, info.fillColor.? or_else GetColor(.widgetBackground))
 	}
 	return
 }
@@ -210,12 +210,12 @@ _Layer :: proc(self: ^LayerData, ok: bool) {
 		EndLayer(self)
 	}
 }
-// Begins a new self, the self is created if it doesn't exist
+// Begins a new layer, the layer is created if it doesn't exist
 // and is managed internally
 @private 
 BeginLayer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^LayerData, ok: bool) {
 	if self, ok = CreateOrGetLayer(info.id.? or_else panic("Must define a self id", loc), info.options); ok {
-		// Push self stack
+		// Push layer stack
 		ctx.layerStack[ctx.layerDepth] = self
 		ctx.layerDepth += 1
 		ctx.currentLayer = self
@@ -225,7 +225,7 @@ BeginLayer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^LayerDat
 		// Update user options
 		self.options = info.options
 
-		// Begin id context for self contents
+		// Begin id context for layer contents
 		if .noPushId not_in self.options {
 			PushId(self.id)
 			self.bits += {.pushedId}
@@ -432,7 +432,9 @@ EndLayer :: proc(self: ^LayerData) {
 		}
 	}
 	ctx.layerDepth -= 1
-	ctx.currentLayer = ctx.layerStack[ctx.layerDepth]
+	if ctx.layerDepth > 0 {
+		ctx.currentLayer = ctx.layerStack[ctx.layerDepth - 1]
+	}
 }
 UpdateLayerContentRect :: proc(self: ^LayerData, rect: Rect) {
 	self.contentRect.x = min(self.contentRect.x, rect.x)

@@ -335,7 +335,7 @@ NavOption :: proc(active: bool, icon: Icon, text: string, loc := #caller_locatio
 
 		if .shouldPaint in self.bits {
 			PaintRect(self.body, Fade(255, min(hoverTime + stateTime, 1) * 0.25))
-			PaintIconAligned(GetFontData(.header), icon, {self.body.x + self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.base), .middle, .middle)
+			PaintIconAligned(GetFontData(.default), icon, {self.body.x + self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.base), .middle, .middle)
 			PaintStringAligned(GetFontData(.default), text, {self.body.x + self.body.h * rl.EaseCubicInOut(stateTime, 1, 0.3, 1), self.body.y + self.body.h / 2}, GetColor(.base), .near, .middle)
 		}
 		
@@ -369,6 +369,7 @@ CheckBoxInfo :: struct {
 CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newState: bool) {
 	SIZE :: 22
 	HALF_SIZE :: SIZE / 2
+	TEXT_OFFSET :: 5
 
 	// Check if there is text
 	hasText := info.text != nil
@@ -384,7 +385,7 @@ CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newSta
 			size.x = max(SIZE, textSize.x)
 			size.y = SIZE + textSize.y
 		} else {
-			size.x = SIZE + textSize.x + GetRule(.widgetTextOffset) * 2
+			size.x = SIZE + textSize.x + TEXT_OFFSET * 2
 			size.y = SIZE
 		}
 	} else {
@@ -454,9 +455,9 @@ CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newSta
 			if hasText {
 				switch textSide {
 					case .left: 	
-					PaintString(GetFontData(.default), info.text.?, {iconRect.x + iconRect.w + GetRule(.widgetTextOffset), center.y - textSize.y / 2}, GetColor(.text, 1))
+					PaintString(GetFontData(.default), info.text.?, {iconRect.x + iconRect.w + TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
 					case .right: 	
-					PaintString(GetFontData(.default), info.text.?, {iconRect.x - GetRule(.widgetTextOffset), center.y - textSize.y / 2}, GetColor(.text, 1))
+					PaintString(GetFontData(.default), info.text.?, {iconRect.x - TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
 					case .top: 		
 					PaintString(GetFontData(.default), info.text.?, {body.x, body.y}, GetColor(.text, 1))
 					case .bottom: 	
@@ -871,6 +872,44 @@ ScrollBar :: proc(info: ScrollBarInfo, loc := #caller_location) -> (changed: boo
 	return
 }
 
+ChipInfo :: struct {
+	text: string,
+	state: bool,
+	fillColor: Maybe(Color),
+	textColor: Maybe(Color),
+}
+Chip :: proc(info: ChipInfo, loc := #caller_location) -> (clicked: bool) {
+	layout := CurrentLayout()
+	fontData := GetFontData(.label)
+	if layout.side == .left || layout.side == .right {
+		layout.size = MeasureString(fontData, info.text).x + layout.rect.h + layout.margin * 2
+	}
+	if self, ok := Widget(HashId(loc), LayoutNext(layout)); ok {
+		using self
+		PushId(id) 
+			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
+			pressTime := AnimateBool(HashIdFromInt(1), .pressed in state, 0.2)
+			if .lostPress in state {
+				GetAnimation(HashIdFromInt(1))^ = 1
+			}
+		PopId()
+		// Graphics
+		if .shouldPaint in bits {
+			if !info.state {
+				PaintPillH(body, GetColor(.base))
+				color := BlendColors(GetColor(.baseStroke), GetColor(.accent), hoverTime)
+				PaintPillOutlineH(body, true, color)
+				PaintStringAligned(fontData, info.text, {body.x + body.w / 2, body.y + body.h / 2}, color, .middle, .middle)
+			} else {
+				PaintPillH(body, StyleShade(info.fillColor.? or_else GetColor(.widget), hoverTime))
+				PaintStringAligned(fontData, info.text, {body.x + body.w / 2, body.y + body.h / 2}, info.textColor.? or_else GetColor(.base), .middle, .middle)
+			}
+		}
+		clicked = .clicked in state && clickButton == .left
+	}
+	return
+}
+
 // Navigation tabs
 TabInfo :: struct {
 	active: bool,
@@ -1024,4 +1063,3 @@ ListItem :: proc(active: bool, loc := #caller_location) -> (clicked, ok: bool) {
 		PopLayout()
 	}
 }
-

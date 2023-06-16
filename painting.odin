@@ -80,7 +80,7 @@ InitPainter :: proc() -> bool {
 		painter.style.colors = DEFAULT_COLORS_LIGHT
 		painter.style.fontSizes = {
 			.label = 16,
-			.default = 22,
+			.default = 20,
 			.header = 32,
 			.monospace = 20,
 		}

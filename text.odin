@@ -126,6 +126,7 @@ Icon :: enum rune {
 	unPin 				= 0xF376,
 	filter 				= 0xED26,
 	filterOff 			= 0xED28,
+	search 				= 0xF0D1,
 }
 
 StringPaintOption :: enum {

@@ -204,31 +204,74 @@ _SubMenu :: proc(active: bool) {
 	}
 }
 
+AttachedMenuInfo :: struct {
+	parent: ^WidgetData,
+	size: Vec2,
+	align: Alignment,
+	side: RectSide,
+	layerOptions: LayerOptions,
+	showArrow: bool,
+}
 // Attach a menu to a widget (opens when focused)
 @(deferred_out=_AttachMenu)
-AttachMenu :: proc(
-	widget: ^WidgetData, 
-	menuSize: f32, 
-	size: Vec2 = {}, 
-	options: LayerOptions = {},
-) -> (ok: bool) {
-	if widget != nil {
-		if widget.bits >= {.menuOpen} {
+AttachMenu :: proc(info: AttachedMenuInfo) -> (ok: bool) {
+	if info.parent != nil {
+		if info.parent.bits >= {.menuOpen} {
+
+			horizontal := info.side == .left || info.side == .right
+			rect: Rect = AttachRect(info.parent.body, info.side, info.size.x if horizontal else info.size.y)
+
+			rect.w = info.size.x
+			rect.h = info.size.y
+
+			if horizontal {
+				if info.align == .middle {
+					rect.y = info.parent.body.y + info.parent.body.h / 2 - info.size.y / 2
+				} else if info.align == .far {
+					rect.y = info.parent.body.y + info.parent.body.h - info.size.y
+				}
+			} else {
+				if info.align == .middle {
+					rect.x = info.parent.body.x + info.parent.body.w / 2 - info.size.x / 2
+				} else if info.align == .far {
+					rect.x = info.parent.body.x + info.parent.body.w - info.size.x
+				}	
+			}
+
+			// Begin the new layer
 			layer: ^LayerData
 			layer, ok = BeginLayer({
-				rect = AttachRectBottom(widget.body, menuSize), 
-				layoutSize = size, 
-				id = widget.id, 
-				options = options + {.attached}, 
+				rect = rect, 
+				id = info.parent.id, 
+				layoutSize = info.size,
+				options = info.layerOptions + {.attached},
 			})
+			
 			if ok {
-				PaintRect(layer.rect, GetColor(.base))
+				if info.showArrow {
+					Cut(.top, 20)
+				}
+				layoutRect := CurrentLayout().rect
+				PaintRect(layoutRect, GetColor(.base))
+				PaintRectLines(CurrentLayout().rect, 1, GetColor(.baseStroke))
+				if info.showArrow {
+					center := RectCenter(info.parent.body)
+					switch info.side {
+						case .bottom:
+						a, b, c: Vec2 = {center.x, layoutRect.y - 15}, {center.x - 12, layoutRect.y + 1}, {center.x + 12, layoutRect.y + 1}
+						PaintTriangle(a, b, c, GetColor(.base))
+						PaintLine(a, b, 1, GetColor(.baseStroke))
+						PaintLine(c, a, 1, GetColor(.baseStroke))
+						case .left, .right, .top:
+					}
+				}
+				PushLayout(layoutRect)
 			}
-			if ctx.focusId != ctx.prevFocusId && ctx.focusId != widget.id && ctx.focusId not_in layer.contents {
-				widget.bits -= {.menuOpen}
+			if ctx.focusId != ctx.prevFocusId && ctx.focusId != info.parent.id && ctx.focusId not_in layer.contents {
+				info.parent.bits -= {.menuOpen}
 			}
-		} else if widget.state >= {.gotFocus} {
-			widget.bits += {.menuOpen}
+		} else if info.parent.state >= {.gotFocus} {
+			info.parent.bits += {.menuOpen}
 		}
 	}
 	return 
@@ -237,7 +280,7 @@ AttachMenu :: proc(
 _AttachMenu :: proc(ok: bool) {
 	if ok {
 		layer := CurrentLayer()
-		PaintRectLines(layer.rect, 1, GetColor(.baseStroke))
+		PopLayout()
 		EndLayer(layer)
 	}
 }
