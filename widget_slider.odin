@@ -137,7 +137,7 @@ RectSlider :: proc(info: RectSliderInfo($T), loc := #caller_location) -> (newVal
 		}
 		fontData := GetFontData(.monospace)
 		text := FormatToSlice(info.value)
-		if WidgetClicked(self, .left, 1) {
+		if WidgetClicked(self, .left, 2) {
 			self.bits += {.active}
 			self.state += {.gotFocus}
 		}

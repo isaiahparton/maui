@@ -99,7 +99,7 @@ _main :: proc() {
 						})
 					}
 					Space(30)
-					if TreeNode("Slider", 100) {
+					if TreeNode({text = "Slider", size = 100}) {
 						SetSize(1, true)
 						SetMargin(20)
 						if change, newValue := Slider(SliderInfo(f64){
@@ -116,7 +116,7 @@ _main :: proc() {
 							value = newValue
 						}
 					}
-					if TreeNode("Boolean controls", 100) {
+					if TreeNode({text = "Boolean controls", size = 100}) {
 						Cut(.left, 20)
 						ToggleSwitch({
 							state = &boolean,
@@ -164,7 +164,7 @@ _main :: proc() {
 				} else if tab == .text {
 					SetSize(36)
 					TextInput({
-						buffer = &buffer, 
+						data = &buffer, 
 						title = "Type some text", 
 						placeholder = "Placeholder",
 					})
@@ -177,10 +177,42 @@ _main :: proc() {
 							//fillColor = Color{25, 190, 230, 255},
 						})
 					}
+					Space(20)
+					if Layout(.top, 20) {
+						SetSide(.left)
+						if Chip({state = a, text = "\uEB7AChip A" if a else "Chip A"}) {
+							a = !a
+						}
+						Space(10)
+						if Chip({state = b, text = "\uEB7AChip B" if b else "Chip B"}) {
+							b = !b
+						}
+						Space(10)
+						if Chip({state = true, text = "+ Add"}) {
+
+						}
+						Space(10)
+						SetSize(20)
+						if IconButton(.edit) {
+
+						}
+						if AttachMenu({
+							parent = LastWidget(),
+							showArrow = true,
+							side = .right,
+							align = .far,
+							size = {200, 300},
+						}) {
+
+						}
+					}
+					Space(20)
+					CheckBox({state = &c, text = "Checkbox"})
 				} else if tab == .table {
 					SetSize(1, true)
 					if Frame({
 						layoutSize = {0, 2400},
+						scrollbarPadding = 4,
 					}) {
 						SetSize(24)
 						for i in 0..<100 {

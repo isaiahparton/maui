@@ -249,7 +249,11 @@ AttachMenu :: proc(info: AttachedMenuInfo) -> (ok: bool) {
 			
 			if ok {
 				if info.showArrow {
-					Cut(.top, 20)
+					switch info.side {
+						case .bottom: Cut(.top, 15)
+						case .right: Cut(.left, 15)
+						case .left, .top:
+					}
 				}
 				layoutRect := CurrentLayout().rect
 				PaintRect(layoutRect, GetColor(.base))
@@ -258,11 +262,16 @@ AttachMenu :: proc(info: AttachedMenuInfo) -> (ok: bool) {
 					center := RectCenter(info.parent.body)
 					switch info.side {
 						case .bottom:
-						a, b, c: Vec2 = {center.x, layoutRect.y - 15}, {center.x - 12, layoutRect.y + 1}, {center.x + 12, layoutRect.y + 1}
+						a, b, c: Vec2 = {center.x, layoutRect.y - 9}, {center.x - 8, layoutRect.y + 1}, {center.x + 8, layoutRect.y + 1}
 						PaintTriangle(a, b, c, GetColor(.base))
 						PaintLine(a, b, 1, GetColor(.baseStroke))
 						PaintLine(c, a, 1, GetColor(.baseStroke))
-						case .left, .right, .top:
+						case .right:
+						a, b, c: Vec2 = {layoutRect.x - 9, center.y}, {layoutRect.x + 1, center.y - 8}, {layoutRect.x - 1, center.y + 8}
+						PaintTriangle(a, b, c, GetColor(.base))
+						PaintLine(a, b, 1, GetColor(.baseStroke))
+						PaintLine(c, a, 1, GetColor(.baseStroke))
+						case .left, .top:
 					}
 				}
 				PushLayout(layoutRect)

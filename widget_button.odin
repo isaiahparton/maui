@@ -163,12 +163,13 @@ IconButton :: proc(
 		PopId()
 		// Painting
 		if self.bits >= {.shouldPaint} {
-			center := linalg.floor(RectCenter(self.body))
+			center := linalg.round(RectCenter(self.body))
 			PaintCircle(center, 12, 14, GetColor(.baseShade, (2 if self.state >= {.pressed} else hoverTime) * BASE_SHADE_ALPHA))
 			if .clicked not_in self.state {
-				PaintRing(center, 10, 12, 14, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
+				PaintRing(center, 10, 12, 10, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
 			}
-			PaintIconAligned(GetFontData(.header), icon, center, GetColor(.text, 0.5 + hoverTime * 0.5), .middle, .middle)
+			PaintIconAligned(GetFontData(.default), icon, center, GetColor(.text, 0.5 + hoverTime * 0.5), .middle, .middle)
+			PaintRing(center, 11, 12, 18, GetColor(.baseStroke))
 		}
 		// Result
 		clicked = .clicked in self.state && self.clickButton == .left

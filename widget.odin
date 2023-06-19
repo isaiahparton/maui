@@ -438,7 +438,7 @@ CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newSta
 				PaintRect(body, GetColor(.baseShade, hoverTime * BASE_SHADE_ALPHA))
 			}
 			if stateTime < 1 {
-				PaintRectLines(iconRect, 2 + 2 * (pressTime if !active else 1), StyleIntenseShaded(hoverTime))
+				PaintRectLines(iconRect, 1, StyleIntenseShaded(hoverTime))
 			}
 			if stateTime > 0 {
 				PaintRect(iconRect, Fade(StyleIntenseShaded(hoverTime), stateTime))
@@ -872,6 +872,7 @@ ScrollBar :: proc(info: ScrollBarInfo, loc := #caller_location) -> (changed: boo
 	return
 }
 
+
 ChipInfo :: struct {
 	text: string,
 	state: bool,
@@ -895,15 +896,15 @@ Chip :: proc(info: ChipInfo, loc := #caller_location) -> (clicked: bool) {
 		PopId()
 		// Graphics
 		if .shouldPaint in bits {
-			if !info.state {
-				PaintPillH(body, GetColor(.base))
-				color := BlendColors(GetColor(.baseStroke), GetColor(.accent), hoverTime)
-				PaintPillOutlineH(body, true, color)
-				PaintStringAligned(fontData, info.text, {body.x + body.w / 2, body.y + body.h / 2}, color, .middle, .middle)
+			fillColor: Color
+			if info.state {
+				fillColor = StyleWidgetShaded(2 if .pressed in self.state else hoverTime)
 			} else {
-				PaintPillH(body, StyleShade(info.fillColor.? or_else GetColor(.widget), hoverTime))
-				PaintStringAligned(fontData, info.text, {body.x + body.w / 2, body.y + body.h / 2}, info.textColor.? or_else GetColor(.base), .middle, .middle)
+				fillColor = StyleBaseShaded(2 if .pressed in self.state else hoverTime)
 			}
+			PaintPillH(self.body, fillColor)
+			PaintPillOutlineH(self.body, true, GetColor(.widgetStroke if info.state else .baseStroke))
+			PaintStringAligned(fontData, info.text, {body.x + body.w / 2, body.y + body.h / 2}, info.textColor.? or_else GetColor(.text), .middle, .middle) 
 		}
 		clicked = .clicked in state && clickButton == .left
 	}

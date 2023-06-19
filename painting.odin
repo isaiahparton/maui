@@ -314,7 +314,7 @@ GenAtlas :: proc(using painter: ^Painter) -> (result: bool) {
 	offset: f32 = 0
 	for index in FontIndex {
 		file := MONOSPACE_FONT if index == .monospace else DEFAULT_FONT
-		font, success := GenFont({circleSpace.x + offset, 0}, TextFormat("%s/fonts/%s", RESOURCES_PATH, file), i32(style.fontSizes[index]), codepoints[:firstIconIndex] if index == .monospace || index == .label else codepoints)
+		font, success := GenFont({circleSpace.x + offset, 0}, TextFormat("%s/fonts/%s", RESOURCES_PATH, file), i32(style.fontSizes[index]), codepoints[:firstIconIndex] if index == .monospace else codepoints)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
 			result = false
