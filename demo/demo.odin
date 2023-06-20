@@ -212,31 +212,11 @@ _main :: proc() {
 							style = .subtle,
 						})
 					}
-					Space(20)
-					if Layout(.top, 20) {
-						SetSide(.left)
-						if ToggleChip({state = a, text = "Chip A"}) {
-							a = !a
-						}
-						Space(10)
-						ToggleChip({text = "Chip B"})
-						Space(10)
-						SetSize(20)
-						if IconButton(.edit) {
-
-						}
-						if AttachMenu({
-							parent = LastWidget(),
-							showArrow = true,
-							side = .right,
-							align = .far,
-							size = {200, 300},
-						}) {
-
-						}
-					}
+					SetSize(30)
 					Space(20)
 					CheckBox({state = &c, text = "Checkbox"})
+					Space(20)
+					choice = EnumRadioButtons(choice)
 				} else if tab == .table {
 					SetSize(1, true)
 					if Frame({

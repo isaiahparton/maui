@@ -411,8 +411,7 @@ CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newSta
 
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
-			pressTime := AnimateBool(HashIdFromInt(1), .pressed in state, 0.15) if !active else 0
-			stateTime := AnimateBool(HashIdFromInt(2), active, 0.1)
+			stateTime := AnimateBool(HashIdFromInt(1), active, 0.20)
 		PopId()
 
 		// Painting
@@ -618,8 +617,7 @@ RadioButton :: proc(info: RadioButtonInfo, loc := #caller_location) -> (clicked:
 		// Animation
 		PushId(self.id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in self.state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .pressed in self.state && !info.on, 0.1)
-			stateTime := AnimateBool(HashIdFromInt(2), info.on, 0.2)
+			stateTime := AnimateBool(HashIdFromInt(1), info.on, 0.24)
 		PopId()
 		// Graphics
 		if .shouldPaint in self.bits {
@@ -635,9 +633,15 @@ RadioButton :: proc(info: RadioButtonInfo, loc := #caller_location) -> (clicked:
 				center = {self.body.x + self.body.w / 2, self.body.y + HALF_SIZE}
 			}
 			if hoverTime > 0 {
-				PaintRoundedRect(self.body, HALF_SIZE, GetColor(.baseShade, hoverTime * BASE_SHADE_ALPHA))
+				PaintRoundedRect(self.body, HALF_SIZE, GetColor(.baseShade, hoverTime * 0.1))
 			}
-			PaintRing(center, HALF_SIZE - rl.EaseQuadOut(stateTime, 2 + 2 * pressTime, 4, 1), HALF_SIZE, 16, StyleIntenseShaded(hoverTime))
+			PaintCircleTexture(center, SIZE, BlendColors(AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.1 if .pressed in self.state else 0), AlphaBlend(GetColor(.intense), GetColor(.intenseShade), 0.2 if .pressed in self.state else hoverTime * 0.1), stateTime))
+			if info.on {
+				PaintCircleTexture(center, rl.EaseQuadInOut(stateTime, 0, 12, 1), GetColor(.widgetBackground, stateTime))
+			}
+			if stateTime < 1 {
+				PaintCircleOutlineTexture(center, SIZE, true, GetColor(.widgetStroke, 0.5 + 0.5 * hoverTime))
+			}
 			switch textSide {
 				case .left: 	
 				PaintString(GetFontData(.default), info.text, {self.body.x + SIZE + WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
