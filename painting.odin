@@ -80,9 +80,9 @@ InitPainter :: proc() -> bool {
 		painter.style.colors = DEFAULT_COLORS_LIGHT
 		painter.style.fontSizes = {
 			.label = 16,
-			.default = 20,
-			.header = 32,
-			.monospace = 20,
+			.default = 18,
+			.header = 28,
+			.monospace = 18,
 		}
 		return GenAtlas(painter)
 	}
@@ -139,6 +139,9 @@ BlendColors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
 		}
 	}
 	return
+}
+AlphaBlend :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
+	return rl.ColorAlphaBlend(bg, fg, rl.Fade(rl.WHITE, amount))
 }
 BlendThreeColors :: proc(first, second, third: Color, time: f32) -> (result: Color) {
 	if time <= 0 {

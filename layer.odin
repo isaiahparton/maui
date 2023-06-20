@@ -69,6 +69,7 @@ LayerOrder :: enum {
 	Each self's data
 */
 LayerData :: struct {
+	reserved: bool,
 	parent: ^LayerData,
 	children: [dynamic]^LayerData,
 
@@ -123,12 +124,20 @@ LayerData :: struct {
 }
 
 CurrentLayer :: proc() -> ^LayerData {
+	assert(ctx.layerDepth > 0)
 	return ctx.layerStack[ctx.layerDepth - 1]
 }
 CreateLayer :: proc(id: Id, options: LayerOptions) -> (self: ^LayerData, ok: bool) {
 	// Allocate a new self
-	self = new(LayerData)
+	for i in 0..<LAYER_ARENA_SIZE {
+		if !ctx.layerArena[i].reserved {
+			self = &ctx.layerArena[i]
+			break
+		}
+	}
+	//self = new(LayerData)
 	self^ = {
+		reserved = true
 		id = id,
 		opacity = 0 if .invisible in options else 1,
 	}
@@ -150,7 +159,7 @@ CreateLayer :: proc(id: Id, options: LayerOptions) -> (self: ^LayerData, ok: boo
 DeleteLayer :: proc(self: ^LayerData) {
 	delete(self.contents)
 	delete(self.children)
-	free(self)
+	self.reserved = false
 }
 CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (self: ^LayerData, ok: bool) {
 	self, ok = ctx.layerMap[id]
@@ -172,20 +181,18 @@ Frame :: proc(info: FrameInfo, loc := #caller_location) -> (ok: bool) {
 	self: ^LayerData
 	rect := LayoutNext(CurrentLayout())
 	self, ok = BeginLayer({
-		rect = rect, 
+		rect = rect,
 		innerRect = ShrinkRect(rect, info.scrollbarPadding.? or_else 0),
 		layoutSize = info.layoutSize, 
 		id = HashId(loc), 
 		options = info.options + {.clipToParent, .attached},
 	})
-	if ok {
-		PaintRect(self.rect, info.fillColor.? or_else GetColor(.widgetBackground))
-	}
 	return
 }
 @private
 _Frame :: proc(ok: bool) {
 	if ok {
+		PaintRectLines(ctx.currentLayer.rect, 1, GetColor(.baseStroke))
 		EndLayer(ctx.currentLayer)
 	}
 }
@@ -215,6 +222,8 @@ _Layer :: proc(self: ^LayerData, ok: bool) {
 @private 
 BeginLayer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^LayerData, ok: bool) {
 	if self, ok = CreateOrGetLayer(info.id.? or_else panic("Must define a self id", loc), info.options); ok {
+		assert(self != nil)
+
 		// Push layer stack
 		ctx.layerStack[ctx.layerDepth] = self
 		ctx.layerDepth += 1

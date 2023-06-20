@@ -48,7 +48,7 @@ BeginAttachedLayer :: proc(info: AttachedLayerInfo) -> (result: AttachedLayerRes
 		layoutSize = info.layoutSize.? or_else {},
 		options = info.layerOptions + {.attached},
 	})
-
+	assert(layer != nil)
 	result.self = layer
 
 	// Paint the fill color
@@ -99,27 +99,22 @@ Menu :: proc(info: MenuInfo, loc := #caller_location) -> (active: bool) {
 	if self, ok := Widget(sharedId, UseNextRect() or_else LayoutNext(CurrentLayout())); ok {
 		using self
 		active = .active in bits
-
 		// Animation
 		PushId(id) 
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
 			stateTime := AnimateBool(HashIdFromInt(2), active, 0.125)
 		PopId()
-
 		// Painting
 		if .shouldPaint in bits {
-			PaintRect(body, StyleWidgetShaded(2 if .pressed in state else hoverTime))
-			PaintRectLines(body, 1, GetColor(.widgetStroke))
+			PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in state else hoverTime * 0.1))
+			PaintRectLines(body, 1, GetColor(.baseStroke))
 			PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
 			PaintLabelRect(info.label, body, GetColor(.text), info.align.? or_else .near, .middle)
 		}
-
 		// Expand/collapse on click
 		if .gotPress in state {
 			bits = bits ~ {.active}
 		}
-
-
 		// Begin layer if expanded
 		if active {
 			layerResult := BeginAttachedLayer({
@@ -131,12 +126,11 @@ Menu :: proc(info: MenuInfo, loc := #caller_location) -> (active: bool) {
 				align = info.menuAlign,
 			})
 			if layerResult.dismissed {
-				//bits -= {.active}
-			}
-			if layerResult.self.state & {.hovered, .focused} == {} && .focused not_in state {
+				bits -= {.active}
+			} else if layerResult.self.state & {.hovered, .focused} == {} && .focused not_in state {
 				bits -= {.active}
 			}
-			PushColor(.base, GetColor(.widget))
+			PushColor(.base, GetColor(.widgetBackground))
 		}
 	}
 	return
@@ -159,12 +153,10 @@ SubMenu :: proc(info: MenuInfo, loc := #caller_location) -> (active: bool) {
 		using self
 		active = .active in bits
 		// Animation
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state || active, 0.15)
-		PopId()
+		hoverTime := AnimateBool(self.id, .hovered in state || active, 0.15)
 		// Paint
 		if .shouldPaint in bits {
-			PaintRect(body, StyleWidgetShaded(hoverTime))
+			PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in state else hoverTime * 0.1))
 			PaintFlipArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, 0, GetColor(.text))
 			PaintLabelRect(info.label, body, GetColor(.text), info.align.? or_else .near, .middle)
 		}
@@ -183,7 +175,7 @@ SubMenu :: proc(info: MenuInfo, loc := #caller_location) -> (active: bool) {
 				size = info.size,
 				layoutSize = info.layoutSize,
 				align = info.menuAlign,
-				fillColor = GetColor(.widget),
+				fillColor = GetColor(.widgetBackground),
 			})
 			if layerResult.self.state & {.hovered, .lostHover} != {} {
 				bits += {.active}
@@ -303,12 +295,10 @@ OptionInfo :: struct {
 Option :: proc(info: OptionInfo, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := Widget(HashId(loc), LayoutNext(CurrentLayout())); ok {
 		// Animation
-		PushId(self.id)
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in self.state, 0.1)
-		PopId()
+		hoverTime := AnimateBool(self.id, .hovered in self.state, 0.1)
 		// Painting
 		if .shouldPaint in self.bits {
-			PaintRect(self.body, StyleWidgetShaded(2 if .pressed in self.state else hoverTime))
+			PaintRect(self.body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
 			PaintLabelRect(info.label, self.body, GetColor(.text), info.align.? or_else .near, .middle)
 			if info.active {
 				PaintIconAligned(GetFontData(.header), .check, {self.body.x + self.body.w - self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.text), .middle, .middle)

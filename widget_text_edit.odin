@@ -327,7 +327,6 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 		// Animation values
 		PushId(id)
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
-			//focusTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
 		PopId()
 
 		buffer := info.data.(^[dynamic]u8) or_else GetTextBuffer(self.id)
@@ -350,7 +349,7 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 			}
 		}
 		// Paint!
-		PaintRect(body, GetColor(.widgetBackground))
+		PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), hoverTime * 0.05))
 		fontData := GetFontData(.default)
 		switch type in info.data {
 			case ^string:
@@ -366,7 +365,7 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
-					PaintStringAligned(fontData, info.placeholder.(string), {body.x + body.h * 0.25, body.y + body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
+					PaintStringAligned(fontData, info.placeholder.?, {body.x + body.h * 0.25, body.y + body.h / 2}, GetColor(.text, GHOST_TEXT_ALPHA), .near, .middle)
 				}
 			}
 		}
@@ -379,6 +378,7 @@ NumberInputInfo :: struct($T: typeid) where intrinsics.type_is_float(T) || intri
 	title,
 	format: Maybe(string),
 	textOptions: TextProOptions,
+	noOutline: bool,
 }
 NumberInput :: proc(info: NumberInputInfo($T), loc := #caller_location) -> (newValue: T) {
 	newValue = info.value
@@ -387,7 +387,6 @@ NumberInput :: proc(info: NumberInputInfo($T), loc := #caller_location) -> (newV
 		// Animation values
 		PushId(id)
 			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
-			stateTime := AnimateBool(HashId(int(1)), .focused in state, 0.2)
 		PopId()
 		// Cursor style
 		if state & {.hovered, .pressed} != {} {
@@ -397,8 +396,11 @@ NumberInput :: proc(info: NumberInputInfo($T), loc := #caller_location) -> (newV
 		text := TextFormatSlice(info.format.? or_else "%v", info.value)
 		// Painting
 		fontData := GetFontData(.monospace)
-		outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.accent), min(1, hoverTime + stateTime))
-		PaintLabeledWidgetFrame(body, info.title, 2 if state >= {.focused} else 1, outlineColor)
+		PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), hoverTime * 0.05))
+		if !info.noOutline {
+			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
+			PaintLabeledWidgetFrame(body, info.title, 2 if state >= {.focused} else 1, outlineColor)
+		}
 		// Update text input
 		if state >= {.focused} {
 			buffer := GetTextBuffer(id)
@@ -430,6 +432,7 @@ NumberInput :: proc(info: NumberInputInfo($T), loc := #caller_location) -> (newV
 						newValue = T(temp)
 					}
 				}
+				state += {.changed}
 			}
 		} else {
 			TextPro(
@@ -463,7 +466,7 @@ TextEditInsertString :: proc(buf: ^[dynamic]u8, maxLength: int, str: string) {
 	}
 	n := len(str)
 	if maxLength > 0 {
-		length = min(n, maxLength - len(buf))
+		n = min(n, maxLength - len(buf))
 	}
 	inject_at_elem_string(buf, index, str[:n])
 	index += n

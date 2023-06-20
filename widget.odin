@@ -294,7 +294,7 @@ PaintLabel :: proc(label: Label, origin: Vec2, color: Color, alignX, alignY: Ali
 		return PaintStringAligned(GetFontData(.default), variant, origin, color, alignX, alignY)
 
 		case Icon: 		
-		return PaintGlyphAligned(GetGlyphData(GetFontData(.header), rune(variant)), origin, color, alignX, alignY)
+		return PaintGlyphAligned(GetGlyphData(GetFontData(.header), rune(variant)), linalg.floor(origin), color, alignX, alignY)
 	}
 	return {}
 }
@@ -367,7 +367,7 @@ CheckBoxInfo :: struct {
 // - `text` If defined, the check box will display text on `textSide` of itself
 // - `textSide` The side on which text will appear (defaults to left)
 CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newState: bool) {
-	SIZE :: 22
+	SIZE :: 20
 	HALF_SIZE :: SIZE / 2
 	TEXT_OFFSET :: 5
 
@@ -406,7 +406,7 @@ CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newSta
 			active = state^
 
 			case CheckBoxStatus:
-			active = state == .on
+			active = state != .off
 		}
 
 		PushId(id) 
@@ -434,21 +434,19 @@ CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newSta
 			}
 
 			// Paint body
-			if hoverTime > 0 {
-				PaintRect(body, GetColor(.baseShade, hoverTime * BASE_SHADE_ALPHA))
-			}
-			if stateTime < 1 {
-				PaintRectLines(iconRect, 1, StyleIntenseShaded(hoverTime))
-			}
-			if stateTime > 0 {
-				PaintRect(iconRect, Fade(StyleIntenseShaded(hoverTime), stateTime))
+			PaintRoundedRect(body, 3, GetColor(.baseShade, 0.1 * hoverTime))
+			if active {
+				PaintRoundedRect(iconRect, 3, AlphaBlend(GetColor(.intense), GetColor(.intenseShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
+			} else {
+				PaintRoundedRect(iconRect, 3, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.1 if .pressed in self.state else 0))
+				PaintRoundedRectOutline(iconRect, 3, true, GetColor(.widgetStroke, 0.5 + 0.5 * hoverTime))
 			}
 			center := RectCenter(iconRect)
 
 			// Paint icon
 			if active || stateTime == 1 {
 				realState := info.state.(CheckBoxStatus) or_else .on
-				PaintIconAligned(GetFontData(.header), .remove if realState == .unknown else .check, center, GetColor(.base), .middle, .middle)
+				PaintIconAlignedEx(GetFontData(.default), .remove if realState == .unknown else .check, center, stateTime, GetColor(.buttonText), .middle, .middle)
 			}
 
 			// Paint text
@@ -553,7 +551,7 @@ ToggleSwitch :: proc(info: ToggleSwitchInfo, loc := #caller_location) -> (newSta
 			thumbCenter := start + {move * (rl.EaseBackOut(howOn, 0, 1, 1) if state else rl.EaseBackIn(howOn, 0, 1, 1)), 0}
 
 			if howOn < 1 {
-				PaintRoundedRect(baseRect, baseRadius, GetColor(.base))
+				PaintRoundedRect(baseRect, baseRadius, GetColor(.widgetBackground))
 				PaintRoundedRectOutline(baseRect, baseRadius, false, GetColor(.intense))
 			}
 			if howOn > 0 {
@@ -602,7 +600,7 @@ RadioButtonInfo :: struct {
 	textSide: Maybe(RectSide),
 }
 RadioButton :: proc(info: RadioButtonInfo, loc := #caller_location) -> (clicked: bool) {
-	SIZE :: 22
+	SIZE :: 20
 	HALF_SIZE :: SIZE / 2
 	// Determine total size
 	textSide := info.textSide.? or_else .left
@@ -639,7 +637,7 @@ RadioButton :: proc(info: RadioButtonInfo, loc := #caller_location) -> (clicked:
 			if hoverTime > 0 {
 				PaintRoundedRect(self.body, HALF_SIZE, GetColor(.baseShade, hoverTime * BASE_SHADE_ALPHA))
 			}
-			PaintRing(center, HALF_SIZE - rl.EaseQuadOut(stateTime, 2 + 3 * pressTime, 5, 1), HALF_SIZE, 16, StyleIntenseShaded(hoverTime))
+			PaintRing(center, HALF_SIZE - rl.EaseQuadOut(stateTime, 2 + 2 * pressTime, 4, 1), HALF_SIZE, 16, StyleIntenseShaded(hoverTime))
 			switch textSide {
 				case .left: 	
 				PaintString(GetFontData(.default), info.text, {self.body.x + SIZE + WIDGET_TEXT_OFFSET, center.y - textSize.y / 2}, GetColor(.text, 1))
@@ -846,8 +844,9 @@ ScrollBar :: proc(info: ScrollBarInfo, loc := #caller_location) -> (changed: boo
 		// Painting
 		if .shouldPaint in bits {
 			ROUNDNESS :: 4
-			PaintRoundedRect(transmute(Rect)rect, ROUNDNESS, GetColor(.scrollbar))
-			PaintRoundedRect(ShrinkRect(transmute(Rect)thumbRect, 1), ROUNDNESS, BlendColors(GetColor(.scrollThumb), GetColor(.scrollThumbShade), (2 if .pressed in state else hoverTime) * 0.1))
+			PaintRect(transmute(Rect)rect, GetColor(.scrollbar))
+			PaintRect(ShrinkRect(transmute(Rect)thumbRect, 1), BlendColors(GetColor(.scrollThumb), GetColor(.scrollThumbShade), (2 if .pressed in state else hoverTime) * 0.1))
+			PaintRectLines(transmute(Rect)rect, 1, GetColor(.baseStroke))
 		}
 		// Dragging
 		if .gotPress in state {
@@ -875,9 +874,6 @@ ScrollBar :: proc(info: ScrollBarInfo, loc := #caller_location) -> (changed: boo
 
 ChipInfo :: struct {
 	text: string,
-	state: bool,
-	fillColor: Maybe(Color),
-	textColor: Maybe(Color),
 }
 Chip :: proc(info: ChipInfo, loc := #caller_location) -> (clicked: bool) {
 	layout := CurrentLayout()
@@ -887,24 +883,56 @@ Chip :: proc(info: ChipInfo, loc := #caller_location) -> (clicked: bool) {
 	}
 	if self, ok := Widget(HashId(loc), LayoutNext(layout)); ok {
 		using self
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .pressed in state, 0.2)
-			if .lostPress in state {
-				GetAnimation(HashIdFromInt(1))^ = 1
-			}
-		PopId()
+		hoverTime := AnimateBool(self.id, .hovered in state, 0.1)
 		// Graphics
 		if .shouldPaint in bits {
 			fillColor: Color
-			if info.state {
-				fillColor = StyleWidgetShaded(2 if .pressed in self.state else hoverTime)
-			} else {
-				fillColor = StyleBaseShaded(2 if .pressed in self.state else hoverTime)
-			}
+			fillColor = StyleWidgetShaded(2 if .pressed in self.state else hoverTime)
 			PaintPillH(self.body, fillColor)
-			PaintPillOutlineH(self.body, true, GetColor(.widgetStroke if info.state else .baseStroke))
-			PaintStringAligned(fontData, info.text, {body.x + body.w / 2, body.y + body.h / 2}, info.textColor.? or_else GetColor(.text), .middle, .middle) 
+			PaintStringAligned(fontData, info.text, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.text), .middle, .middle) 
+		}
+		clicked = .clicked in state && clickButton == .left
+	}
+	return
+}
+
+ToggleChipInfo :: struct {
+	text: string,
+	state: bool,
+}
+ToggleChip :: proc(info: ToggleChipInfo, loc := #caller_location) -> (clicked: bool) {
+	layout := CurrentLayout()
+	fontData := GetFontData(.label)
+	if layout.side == .left || layout.side == .right {
+		minSize := MeasureString(fontData, info.text).x + layout.rect.h + layout.margin * 2
+		if info.state {
+			minSize += fontData.size
+		}
+		if minSize > layout.rect.w {
+			PopLayout()
+			PushLayout(Cut(.top, CurrentLayout().rect.h))
+			SetSide(.left)
+		}
+		SetSize(minSize)
+	}
+	if self, ok := Widget(HashId(loc), LayoutNext(layout)); ok {
+		using self
+		hoverTime := AnimateBool(self.id, .hovered in state, 0.1)
+		// Graphics
+		if .shouldPaint in bits {
+			color := GetColor(.accent if info.state else .widgetStroke)
+			if info.state {
+				PaintPillH(self.body, GetColor(.accent, 0.2 if .pressed in state else 0.1))
+			} else {
+				PaintPillH(self.body, GetColor(.baseShade, 0.2 if .pressed in state else 0.1 * hoverTime))
+			}
+			PaintPillOutlineH(self.body, !info.state, color)
+			if info.state {
+				PaintIconAligned(fontData, .check, {body.x + body.h / 2, body.y + body.h / 2}, color, .near, .middle)
+				PaintStringAligned(fontData, info.text, {body.x + body.w - body.h / 2, body.y + body.h / 2}, color, .far, .middle) 
+			} else {
+				PaintStringAligned(fontData, info.text, {body.x + body.w / 2, body.y + body.h / 2}, color, .middle, .middle) 
+			}
 		}
 		clicked = .clicked in state && clickButton == .left
 	}

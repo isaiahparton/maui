@@ -38,6 +38,7 @@ FMT_BUFFER_SIZE 	:: 128
 
 TEMP_BUFFER_COUNT 	:: 2
 GROUP_STACK_SIZE 	:: 32
+LAYER_ARENA_SIZE 	:: 128
 MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 32)
 MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 1024)
 LAYER_STACK_SIZE 	:: #config(MAUI_LAYER_STACK_SIZE, 32)
@@ -142,6 +143,9 @@ Context :: struct {
 	currentWindow:		^WindowData,
 	// First layer
 	rootLayer: 			^LayerData,
+	// Fixed storage for layers
+	layerArena:  		[LAYER_ARENA_SIZE]LayerData,
+	layerReserved: 		[LAYER_ARENA_SIZE]bool,
 	// Internal layer data
 	layers: 			[dynamic]^LayerData,
 	layerMap: 			map[Id]^LayerData,
@@ -572,9 +576,9 @@ EndFrame :: proc() {
 		} else {
 			delete_key(&layerMap, layer.id)
 			if layer.parent != nil {
-				for child, i in layer.parent.children {
+				for child, j in layer.parent.children {
 					if child == layer {
-						ordered_remove(&layer.parent.children, i)
+						ordered_remove(&layer.parent.children, j)
 						break
 					}
 				}

@@ -111,25 +111,24 @@ Window :: proc(info: WindowInfo, loc := #caller_location) -> (ok: bool) {
 				titleRect := Cut(.top, WINDOW_TITLE_SIZE)
 				// Draw title rectangle
 				if .collapsed in self.bits {
-					PaintRoundedRect(titleRect, WINDOW_ROUNDNESS, GetColor(.widgetBackground))
+					PaintRoundedRect(titleRect, WINDOW_ROUNDNESS, GetColor(.intense))
 				} else {
-					PaintRoundedRectEx(titleRect, WINDOW_ROUNDNESS, {.topLeft, .topRight}, GetColor(.widgetBackground))
+					PaintRoundedRectEx(titleRect, WINDOW_ROUNDNESS, {.topLeft, .topRight}, GetColor(.intense))
 				}
 				// Title bar decoration
 				baseline := titleRect.y + titleRect.h / 2
 				textOffset := titleRect.h * 0.25
 				canCollapse := .collapsable in self.options || .collapsed in self.bits
 				if canCollapse {
-					PaintCollapseArrow({titleRect.x + titleRect.h / 2, baseline}, 8, self.howCollapsed, GetColor(.text))
+					PaintCollapseArrow({titleRect.x + titleRect.h / 2, baseline}, 8, self.howCollapsed, GetColor(.base))
 					textOffset = titleRect.h
 				}
-				PaintStringAligned(GetFontData(.default), self.title, {titleRect.x + textOffset, baseline}, GetColor(.text), .near, .middle)
+				PaintStringAligned(GetFontData(.default), self.title, {titleRect.x + textOffset, baseline}, GetColor(.base), .near, .middle)
 				if .closable in self.options {
 					SetNextRect(ChildRect(GetRectRight(titleRect, titleRect.h), {24, 24}, .middle, .middle))
 					if Button({
 						label = Icon.close, 
-						align = .middle, 
-						subtle = true,
+						align = .middle,
 					}) {
 						self.bits += {.shouldClose}
 					}

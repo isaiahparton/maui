@@ -89,9 +89,11 @@ Icon :: enum rune {
 	error 				= 0xECA0,
 	close 				= 0xEB98,
 	heart 				= 0xEE0E,
+	alert 				= 0xEA20,
 	edit 				= 0xEFDF,
 	home 				= 0xEE18,
 	add 				= 0xEA12,
+	undo 				= 0xEA58,
 	shoppingCart 		= 0xF11D,
 	attachFile			= 0xEA84,
 	remove 				= 0xF1AE,
@@ -111,7 +113,7 @@ Icon :: enum rune {
 	receipt 			= 0xEAC2,
 	inventory 			= 0xF1C6,
 	history 			= 0xEE17,
-	copy 				= 0xECD5,
+	copy 				= 0xECD2,
 	checkBoxMultiple	= 0xEB88,
 	eye 				= 0xECB4,
 	eyeOff 				= 0xECB6,
@@ -271,6 +273,28 @@ PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, 
    	rect := glyph.source
 	switch alignX {
 		case .far: rect.x = origin.x - rect.w
+		case .middle: rect.x = origin.x - math.floor(rect.w / 2)
+		case .near: rect.x = origin.x
+	}
+	switch alignY {
+		case .far: rect.y = origin.y - rect.h
+		case .middle: rect.y = origin.y - math.floor(rect.h / 2)
+		case .near: rect.y = origin.y
+	}
+    PaintTexture(glyph.source, rect, color)
+
+    return {rect.w, rect.h}
+}
+PaintIconAligned :: proc(fontData: ^FontData, icon: Icon, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
+	return PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), origin, color, alignX, alignY)
+}
+PaintIconAlignedEx :: proc(fontData: ^FontData, icon: Icon, origin: Vec2, size: f32, color: Color, alignX, alignY: Alignment) -> Vec2 {
+	glyph := GetGlyphData(fontData, rune(icon))
+	rect := glyph.source
+	rect.w *= size
+	rect.h *= size
+	switch alignX {
+		case .far: rect.x = origin.x - rect.w
 		case .middle: rect.x = origin.x - rect.w / 2
 		case .near: rect.x = origin.x
 	}
@@ -280,11 +304,7 @@ PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, 
 		case .near: rect.y = origin.y
 	}
     PaintTexture(glyph.source, rect, color)
-
     return {rect.w, rect.h}
-}
-PaintIconAligned :: proc(fontData: ^FontData, icon: Icon, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
-	return PaintGlyphAligned(GetGlyphData(fontData, rune(icon)), origin, color, alignX, alignY)
 }
 // Draw a glyph, mathematically clipped to 'clipRect'
 PaintGlyphClipped :: proc(glyph: GlyphData, origin: Vec2, clipRect: Rect, color: Color) {

@@ -58,7 +58,7 @@ _main :: proc() {
 	// set up raylib
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	rl.InitWindow(1000, 800, "Maui Demo")
-	rl.SetExitKey(.NULL)
+	rl.SetExitKey(.KEY_NULL)
 	rl.MaximizeWindow()
 	TARGET_FPS :: 120
 	rl.SetTargetFPS(TARGET_FPS)
@@ -76,7 +76,7 @@ _main :: proc() {
 			using ui
 			if Window({
 				title = "Widget Gallery", 
-				rect = {700, 200, 400, 500}, 
+				rect = {800, 200, 500, 500}, 
 				options = {.title, .collapsable, .closable},
 			}) {
 				Shrink(10); SetSize(30)
@@ -169,28 +169,57 @@ _main :: proc() {
 						placeholder = "Placeholder",
 					})
 					Space(20)
+					value = NumberInput(NumberInputInfo(f64){
+						value = value,
+					})
+					Space(20)
+					if Layout(.top, 30) {
+						SetSide(.left)
+						Button({
+							label = "Filled",
+							fitToLabel = true,
+						})
+						Space(10)
+						Button({
+							label = "Outlined",
+							fitToLabel = true,
+							style = .outlined,
+						})
+						Space(10)
+						Button({
+							label = "Subtle",
+							fitToLabel = true,
+							style = .subtle,
+						})
+					}
+					Space(10)
 					if Layout(.top, 30) {
 						SetSide(.left)
 						PillButton({
-							label = "Pill Button",
+							label = "Filled",
 							fitToLabel = true,
-							//fillColor = Color{25, 190, 230, 255},
+						})
+						Space(10)
+						PillButton({
+							label = "Outlined",
+							fitToLabel = true,
+							style = .outlined,
+						})
+						Space(10)
+						PillButton({
+							label = "Subtle",
+							fitToLabel = true,
+							style = .subtle,
 						})
 					}
 					Space(20)
 					if Layout(.top, 20) {
 						SetSide(.left)
-						if Chip({state = a, text = "\uEB7AChip A" if a else "Chip A"}) {
+						if ToggleChip({state = a, text = "Chip A"}) {
 							a = !a
 						}
 						Space(10)
-						if Chip({state = b, text = "\uEB7AChip B" if b else "Chip B"}) {
-							b = !b
-						}
-						Space(10)
-						if Chip({state = true, text = "+ Add"}) {
-
-						}
+						ToggleChip({text = "Chip B"})
 						Space(10)
 						SetSize(20)
 						if IconButton(.edit) {
@@ -212,7 +241,6 @@ _main :: proc() {
 					SetSize(1, true)
 					if Frame({
 						layoutSize = {0, 2400},
-						scrollbarPadding = 4,
 					}) {
 						SetSize(24)
 						for i in 0..<100 {
@@ -232,7 +260,7 @@ _main :: proc() {
 				Shrink(30)
 				for member in ColorIndex {
 					PushId(int(member))
-						if Layout(.top, 30) {
+						if Layout(.top, 24) {
 							SetSide(.right); SetSize(100)
 							painter.style.colors[member].a = RectSlider(RectSliderInfo(u8){painter.style.colors[member].a, 0, 255})
 							painter.style.colors[member].b = RectSlider(RectSliderInfo(u8){painter.style.colors[member].b, 0, 255})

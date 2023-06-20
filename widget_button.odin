@@ -3,7 +3,7 @@ package maui
 import "core:math/linalg"
 import rl "vendor:raylib"
 
-PillButtonStyle :: enum {
+ButtonStyle :: enum {
 	filled,
 	outlined,
 	subtle,
@@ -12,7 +12,7 @@ PillButtonStyle :: enum {
 PillButtonInfo :: struct {
 	label: Label,
 	fitToLabel: Maybe(bool),
-	style: Maybe(PillButtonStyle),
+	style: Maybe(ButtonStyle),
 	fillColor: Maybe(Color),
 	textColor: Maybe(Color),
 }
@@ -23,39 +23,26 @@ PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: b
 	}
 	if self, ok := Widget(HashId(loc), LayoutNext(layout)); ok {
 		using self
-		PushId(id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .pressed in state, 0.2)
-			if .lostPress in state {
-				GetAnimation(HashIdFromInt(1))^ = 1
-			}
-		PopId()
+		hoverTime := AnimateBool(self.id, .hovered in state, 0.1)
+		if .hovered in self.state {
+			ctx.cursor = .hand
+		}
 		// Graphics
 		if .shouldPaint in bits {
 			roundness := body.h / 2
-			if pressTime > 0 {
-				if .pressed in state {
-					rect := ExpandRect(body, rl.EaseCubicOut(pressTime, 0, 4, 1))
-					PaintRoundedRect(rect, rect.h / 2, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
-				} else {
-					rect := ExpandRect(body, 4)
-					PaintRoundedRect(rect, rect.h / 2, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
-				}
-			}
 			switch info.style.? or_else .filled {
 				case .filled:
-				PaintPillH(body, StyleShade(info.fillColor .? or_else GetColor(.intense), hoverTime))
-				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, info.textColor.? or_else GetColor(.base), .middle, .middle)
+				PaintPillH(self.body, AlphaBlend(GetColor(.buttonBase), GetColor(.buttonShade), 0.3 if .pressed in self.state else hoverTime * 0.15))
+				PaintLabelRect(info.label, self.body, GetColor(.buttonText), .middle, .middle)
 				
 				case .outlined:
-				PaintPillH(body, GetColor(.base))
-				color := BlendColors(GetColor(.baseStroke), GetColor(.accent), hoverTime)
-				PaintPillOutlineH(body, false, color)
-				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, color, .middle, .middle)
+				PaintPillH(self.body, GetColor(.buttonBase, 0.2 if .pressed in self.state else hoverTime * 0.1))
+				PaintPillOutlineH(self.body, true, GetColor(.buttonBase))
+				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.buttonBase), .middle, .middle)
 			
 				case .subtle:
-				PaintPillH(body, GetColor(.baseShade, hoverTime * BASE_SHADE_ALPHA))
-				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, BlendColors(GetColor(.baseStroke), GetColor(.accent), hoverTime), .middle, .middle)
+				PaintPillH(self.body, GetColor(.buttonBase, 0.2 if .pressed in self.state else hoverTime * 0.1))
+				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.buttonBase), .middle, .middle)
 			}
 		}
 		// Click result
@@ -68,8 +55,10 @@ PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: b
 ButtonInfo :: struct {
 	label: Label,
 	align: Maybe(Alignment),
+	join: RectSides,
 	fitToLabel: bool,
-	subtle: bool,
+	color: Maybe(Color),
+	style: ButtonStyle,
 }
 Button :: proc(info: ButtonInfo, loc := #caller_location) -> (clicked: bool) {
 	layout := CurrentLayout()
@@ -78,27 +67,40 @@ Button :: proc(info: ButtonInfo, loc := #caller_location) -> (clicked: bool) {
 	}
 	if self, ok := Widget(HashId(loc), UseNextRect() or_else LayoutNext(layout)); ok {
 		// Animations
-		PushId(self.id) 
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in self.state, 0.1)
-			pressTime := AnimateBool(HashId(int(1)), .pressed in self.state, 0.2)
-			if .lostPress in self.state {
-				GetAnimation(HashId(int(1)))^ = 1
-			}
-		PopId()
+		hoverTime := AnimateBool(self.id, .hovered in self.state, 0.1)
+		// Cursor
+		if .hovered in self.state {
+			ctx.cursor = .hand
+		}
 		// Graphics
 		if .shouldPaint in self.bits {
-			if info.subtle {
-				PaintRect(self.body, GetColor(.baseShade, (2 if .pressed in self.state else hoverTime) * BASE_SHADE_ALPHA))
-				if .pressed not_in self.state {
-					PaintRectLines(self.body, 2, GetColor(.baseShade, 0.2 * pressTime))
+			color := info.color.? or_else GetColor(.buttonBase)
+			switch info.style {
+				case .filled:
+				PaintRect(self.body, AlphaBlend(color, GetColor(.buttonShade), 0.3 if .pressed in self.state else hoverTime * 0.15))
+				PaintLabelRect(info.label, self.body, GetColor(.buttonText), info.align.? or_else .middle, .middle)
+
+				case .outlined:
+				PaintRect(self.body, Fade(color, 0.2 if .pressed in self.state else hoverTime * 0.1))
+				if .left in info.join {
+					PaintRect({self.body.x, self.body.y, 1, self.body.h}, color)
+				} else {
+					PaintRect({self.body.x, self.body.y, 2, self.body.h}, color)
 				}
-			} else {
-				PaintRect(self.body, StyleWidgetShaded(2 if .pressed in self.state else hoverTime))
-				if .pressed not_in self.state {
-					PaintRectLines(self.body, 2, GetColor(.widgetShade, 0.2 * pressTime))
+				if .right in info.join {
+					PaintRect({self.body.x + self.body.w - 1, self.body.y, 1, self.body.h}, color)
+				} else {
+					PaintRect({self.body.x + self.body.w - 2, self.body.y, 2, self.body.h}, color)
 				}
+				PaintRect({self.body.x, self.body.y, self.body.w, 2}, color)
+				PaintRect({self.body.x, self.body.y + self.body.h - 2, self.body.w, 2}, color)
+				
+				PaintLabelRect(info.label, self.body, color, info.align.? or_else .middle, .middle)
+
+				case .subtle:
+				PaintRect(self.body, GetColor(.buttonBase, 0.2 if .pressed in self.state else hoverTime * 0.1))
+				PaintLabelRect(info.label, self.body, color, info.align.? or_else .middle, .middle)
 			}
-			PaintLabelRect(info.label, self.body, GetColor(.text), info.align.? or_else .middle, .middle)
 		}
 		// Result
 		clicked = .clicked in self.state && self.clickButton == .left
@@ -165,11 +167,8 @@ IconButton :: proc(
 		if self.bits >= {.shouldPaint} {
 			center := linalg.round(RectCenter(self.body))
 			PaintCircle(center, 12, 14, GetColor(.baseShade, (2 if self.state >= {.pressed} else hoverTime) * BASE_SHADE_ALPHA))
-			if .clicked not_in self.state {
-				PaintRing(center, 10, 12, 10, GetColor(.baseShade, pressTime * BASE_SHADE_ALPHA))
-			}
 			PaintIconAligned(GetFontData(.default), icon, center, GetColor(.text, 0.5 + hoverTime * 0.5), .middle, .middle)
-			PaintRing(center, 11, 12, 18, GetColor(.baseStroke))
+			PaintCircleOutlineTexture(center, 20, true, GetColor(.baseStroke))
 		}
 		// Result
 		clicked = .clicked in self.state && self.clickButton == .left

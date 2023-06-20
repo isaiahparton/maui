@@ -23,6 +23,7 @@ Spinner :: proc(info: SpinnerInfo, loc := #caller_location) -> (newValue: int) {
 	newValue = clamp(NumberInput(NumberInputInfo(int){
 		value = info.value,
 		textOptions = {.alignCenter},
+		noOutline = true,
 	}), info.low, info.high)
 	// Step buttons
 	loc.column += 1
@@ -128,12 +129,13 @@ RectSlider :: proc(info: RectSliderInfo($T), loc := #caller_location) -> (newVal
 			PaintRect(self.body, GetColor(.widgetBackground))
 			if .active not_in self.bits {
 				if info.low < info.high {
-					PaintRect({self.body.x, self.body.y, self.body.w * (f32(info.value - info.low) / f32(info.high - info.low)), self.body.h}, BlendColors(GetColor(.widget), GetColor(.accent), pressTime))
+					PaintRect({self.body.x, self.body.y, self.body.w * (f32(info.value - info.low) / f32(info.high - info.low)), self.body.h}, AlphaBlend(GetColor(.widget), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
 				} else {
 					PaintRect(self.body, GetColor(.widget))
 				}
+			} else {
+				PaintRectLines(self.body, 2, GetColor(.accent))
 			}
-			PaintRectLines(self.body, 2 if .active in self.bits else 1, GetColor(.accent) if .active in self.bits else GetColor(.widgetStroke, hoverTime))
 		}
 		fontData := GetFontData(.monospace)
 		text := FormatToSlice(info.value)

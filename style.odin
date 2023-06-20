@@ -16,15 +16,15 @@ DISABLED_SHADE_ALPHA :: 0.5
 
 // Default color schemes
 DEFAULT_COLORS_LIGHT :: [ColorIndex]Color {
-	.accent 			= {45, 135, 248, 255},
-	.base 				= {242, 242, 242, 255},
+	.accent 			= {45, 105, 238, 255},
+	.base 				= {230, 230, 235, 255},
 	.baseShade 			= {0, 0, 0, 255},
 	.baseStroke			= {112, 113, 116, 255},
-	.widgetBackground 	= {218, 218, 218, 255},
-	.widget	 			= {120, 155, 155, 255},
-	.widgetShade 		= {0, 8, 24, 255},
+	.widgetBackground 	= {255, 255, 255, 255},
+	.widget	 			= {165, 165, 175, 255},
+	.widgetShade 		= {0, 0, 15, 255},
 	.widgetStroke 		= {105, 105, 105, 255},
-	.intense 			= {85, 85, 85, 255},
+	.intense 			= {62, 62, 67, 255},
 	.intenseShade 		= {230, 239, 255, 255},
 	.shadow 			= {0, 0, 0, 35},
 	.textInverted 		= {218, 218, 218, 255},
@@ -35,8 +35,12 @@ DEFAULT_COLORS_LIGHT :: [ColorIndex]Color {
 	.scrollbar  		= {255, 255, 255, 255},
 	.scrollThumb 		= {165, 185, 185, 255},
 	.scrollThumbShade   = {255, 255, 255, 255},
+
+	.buttonBase 		= {82, 82, 92, 255},
+	.buttonShade		= {0, 0, 0, 255},
+	.buttonText 		= {255, 255, 255, 255},
 }
-DEFAULT_COLORS_DARK :: [ColorIndex]Color {
+/*DEFAULT_COLORS_DARK :: [ColorIndex]Color {
 	.accent 			= {45, 135, 248, 255},
 	.base 				= {28, 28, 28, 255},
 	.baseShade 			= {255, 255, 255, 255},
@@ -56,7 +60,7 @@ DEFAULT_COLORS_DARK :: [ColorIndex]Color {
 	.scrollbar  		= {62, 62, 62, 255},
 	.scrollThumb 		= {92, 92, 92, 255},
 	.scrollThumbShade   = {255, 255, 255, 255},
-}
+}*/
 
 ColorIndex :: enum {
 	// Base color
@@ -93,6 +97,10 @@ ColorIndex :: enum {
 	scrollbar,
 	scrollThumb,
 	scrollThumbShade,
+
+	buttonBase,
+	buttonShade,
+	buttonText,
 }
 RuleIndex :: enum {
 	windowRoundness,
@@ -171,14 +179,14 @@ GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
 }
 
 StyleShade :: proc(base: Color, shadeAmount: f32) -> Color {
-	return BlendColors(base, painter.style.colors[.widgetShade], shadeAmount * 0.1)
+	return AlphaBlend(base, painter.style.colors[.widgetShade], shadeAmount * 0.1)
 }
 StyleIntenseShaded :: proc(shadeAmount: f32) -> Color {
-	return BlendColors(painter.style.colors[.intense], painter.style.colors[.intenseShade], shadeAmount * 0.15)
+	return AlphaBlend(painter.style.colors[.intense], painter.style.colors[.intenseShade], shadeAmount * 0.15)
 }
 StyleWidgetShaded :: proc(shadeAmount: f32) -> Color {
-	return BlendColors(painter.style.colors[.widget], painter.style.colors[.widgetShade], shadeAmount * 0.125)
+	return AlphaBlend(painter.style.colors[.widget], painter.style.colors[.widgetShade], shadeAmount * 0.1)
 }
 StyleBaseShaded :: proc(shadeAmount: f32) -> Color {
-	return BlendColors(painter.style.colors[.base], painter.style.colors[.baseShade], shadeAmount * 0.1)
+	return AlphaBlend(painter.style.colors[.base], painter.style.colors[.baseShade], shadeAmount * 0.1)
 }
