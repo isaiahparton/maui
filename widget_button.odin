@@ -19,7 +19,7 @@ PillButtonInfo :: struct {
 PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: bool) {
 	layout := CurrentLayout()
 	if (info.fitToLabel.? or_else true) && (layout.side == .left || layout.side == .right) {
-		layout.size = MeasureLabel(info.label).x + layout.rect.h + layout.margin * 2
+		layout.size = MeasureLabel(info.label).x + layout.rect.h
 	}
 	if self, ok := Widget(HashId(loc), LayoutNext(layout)); ok {
 		using self
@@ -83,17 +83,17 @@ Button :: proc(info: ButtonInfo, loc := #caller_location) -> (clicked: bool) {
 				case .outlined:
 				PaintRect(self.body, Fade(color, 0.2 if .pressed in self.state else hoverTime * 0.1))
 				if .left in info.join {
-					PaintRect({self.body.x, self.body.y, 1, self.body.h}, color)
+					//PaintRect({self.body.x, self.body.y, 1, self.body.h}, color)
 				} else {
-					PaintRect({self.body.x, self.body.y, 2, self.body.h}, color)
+					PaintRect({self.body.x, self.body.y, 1, self.body.h}, color)
 				}
 				if .right in info.join {
-					PaintRect({self.body.x + self.body.w - 1, self.body.y, 1, self.body.h}, color)
+					//PaintRect({self.body.x + self.body.w - 1, self.body.y, 1, self.body.h}, color)
 				} else {
-					PaintRect({self.body.x + self.body.w - 2, self.body.y, 2, self.body.h}, color)
+					PaintRect({self.body.x + self.body.w - 1, self.body.y, 1, self.body.h}, color)
 				}
-				PaintRect({self.body.x, self.body.y, self.body.w, 2}, color)
-				PaintRect({self.body.x, self.body.y + self.body.h - 2, self.body.w, 2}, color)
+				PaintRect({self.body.x, self.body.y, self.body.w, 1}, color)
+				PaintRect({self.body.x, self.body.y + self.body.h - 1, self.body.w, 1}, color)
 				
 				PaintLabelRect(info.label, self.body, color, info.align.? or_else .middle, .middle)
 

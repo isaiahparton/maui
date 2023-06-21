@@ -903,36 +903,42 @@ Chip :: proc(info: ChipInfo, loc := #caller_location) -> (clicked: bool) {
 ToggleChipInfo :: struct {
 	text: string,
 	state: bool,
+	rowSpacing: Maybe(f32),
 }
 ToggleChip :: proc(info: ToggleChipInfo, loc := #caller_location) -> (clicked: bool) {
 	layout := CurrentLayout()
 	fontData := GetFontData(.label)
+	id := HashId(loc)
+	stateTime := AnimateBool(id, info.state, 0.15)
 	if layout.side == .left || layout.side == .right {
 		minSize := MeasureString(fontData, info.text).x + layout.rect.h + layout.margin * 2
-		if info.state {
-			minSize += fontData.size
-		}
+		minSize += fontData.size * stateTime
 		if minSize > layout.rect.w {
 			PopLayout()
-			PushLayout(Cut(.top, CurrentLayout().rect.h))
+			if info.rowSpacing != nil {
+				Cut(.top, info.rowSpacing.?)
+			}
+			PushLayout(Cut(.top, layout.rect.h))
 			SetSide(.left)
 		}
 		SetSize(minSize)
 	}
-	if self, ok := Widget(HashId(loc), LayoutNext(layout)); ok {
+	if self, ok := Widget(id, LayoutNext(layout)); ok {
 		using self
-		hoverTime := AnimateBool(self.id, .hovered in state, 0.1)
+		PushId(self.id)
+			hoverTime := AnimateBool(HashId(int(1)), .hovered in state, 0.1)
+		PopId()
 		// Graphics
 		if .shouldPaint in bits {
-			color := GetColor(.accent if info.state else .widgetStroke)
+			color := BlendColors(GetColor(.widgetStroke), GetColor(.accent), stateTime)
 			if info.state {
 				PaintPillH(self.body, GetColor(.accent, 0.2 if .pressed in state else 0.1))
 			} else {
 				PaintPillH(self.body, GetColor(.baseShade, 0.2 if .pressed in state else 0.1 * hoverTime))
 			}
 			PaintPillOutlineH(self.body, !info.state, color)
-			if info.state {
-				PaintIconAligned(fontData, .check, {body.x + body.h / 2, body.y + body.h / 2}, color, .near, .middle)
+			if stateTime > 0 {
+				PaintIconAligned(fontData, .check, {body.x + body.h / 2, body.y + body.h / 2}, Fade(color, stateTime), .near, .middle)
 				PaintStringAligned(fontData, info.text, {body.x + body.w - body.h / 2, body.y + body.h / 2}, color, .far, .middle) 
 			} else {
 				PaintStringAligned(fontData, info.text, {body.x + body.w / 2, body.y + body.h / 2}, color, .middle, .middle) 

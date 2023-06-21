@@ -47,6 +47,7 @@ _main :: proc() {
 	font: ui.FontIndex
 	tab: Tabs
 	enableSubMenu := false
+	chips: [10]bool
 
 	a, b, c: bool
 
@@ -162,16 +163,18 @@ _main :: proc() {
 						}
 					}
 				} else if tab == .text {
-					SetSize(36)
-					TextInput({
-						data = &buffer, 
-						title = "Type some text", 
-						placeholder = "Placeholder",
-					})
-					Space(20)
-					value = NumberInput(NumberInputInfo(f64){
-						value = value,
-					})
+					SetSize(20)
+					if Layout(.top, 20) {
+						SetSide(.left)
+						for i in 0..<10 {
+							PushId(i)
+								if ToggleChip({state = chips[i], rowSpacing = 10, text = TextFormat("Chip %i", i + 1)}) {
+									chips[i] = !chips[i]
+								}
+								Space(10)
+							PopId()
+						}
+					}
 					Space(20)
 					if Layout(.top, 30) {
 						SetSide(.left)

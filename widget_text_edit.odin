@@ -359,9 +359,8 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 			TextPro(fontData, type[:], body, {}, self)
 		}
 		if .shouldPaint in bits {
-			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
-			// Outline
-			PaintLabeledWidgetFrame(body, info.title, 2 if .focused in state else 1, outlineColor)
+			outlineColor := GetColor(.accent) if .focused in self.state else BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
+			PaintLabeledWidgetFrame(body, info.title, 1, outlineColor)
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
@@ -385,9 +384,7 @@ NumberInput :: proc(info: NumberInputInfo($T), loc := #caller_location) -> (newV
 	if self, ok := Widget(HashId(loc), UseNextRect() or_else LayoutNext(CurrentLayout()), {.draggable, .keySelect}); ok {
 		using self
 		// Animation values
-		PushId(id)
-			hoverTime := AnimateBool(HashId(int(0)), .hovered in state, 0.1)
-		PopId()
+		hoverTime := AnimateBool(self.id, .hovered in state, 0.1)
 		// Cursor style
 		if state & {.hovered, .pressed} != {} {
 			ctx.cursor = .beam
@@ -398,8 +395,8 @@ NumberInput :: proc(info: NumberInputInfo($T), loc := #caller_location) -> (newV
 		fontData := GetFontData(.monospace)
 		PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), hoverTime * 0.05))
 		if !info.noOutline {
-			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
-			PaintLabeledWidgetFrame(body, info.title, 2 if state >= {.focused} else 1, outlineColor)
+			outlineColor := GetColor(.accent) if .focused in self.state else BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
+			PaintLabeledWidgetFrame(body, info.title, 1, outlineColor)
 		}
 		// Update text input
 		if state >= {.focused} {
