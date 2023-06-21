@@ -111,6 +111,7 @@ Icon :: enum rune {
 	shoppingBasket 		= 0xF11A,
 	shoppingBag 		= 0xF115,
 	receipt 			= 0xEAC2,
+	calendar 			= 0xEB20,
 	inventory 			= 0xF1C6,
 	history 			= 0xEE17,
 	copy 				= 0xECD2,

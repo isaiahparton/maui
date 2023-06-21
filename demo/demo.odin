@@ -48,6 +48,8 @@ _main :: proc() {
 	tab: Tabs
 	enableSubMenu := false
 	chips: [10]bool
+	tm: time.Time = time.now()
+	date_picker_state: ui.DatePickerState
 
 	a, b, c: bool
 
@@ -163,6 +165,12 @@ _main :: proc() {
 						}
 					}
 				} else if tab == .text {
+					SetSize(30)
+					DatePicker({
+						value = &tm,
+						state = &date_picker_state,
+					})
+					Space(20)
 					SetSize(20)
 					if Layout(.top, 20) {
 						SetSide(.left)
