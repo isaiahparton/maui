@@ -215,7 +215,7 @@ LastWidget :: proc() -> ^WidgetData {
 	return ctx.currentWidget
 }
 WidgetClicked :: proc(using self: ^WidgetData, button: MouseButton, times: int = 1) -> bool {
-	return .clicked in state && clickButton == button && clickCount == times - 1
+	return .clicked in state && clickButton == button && clickCount >= times - 1
 }
 AttachTooltip :: proc(text: string, side: RectSide) {
 	ctx.attachTooltip = true

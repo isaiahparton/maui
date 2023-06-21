@@ -82,14 +82,10 @@ Button :: proc(info: ButtonInfo, loc := #caller_location) -> (clicked: bool) {
 
 				case .outlined:
 				PaintRect(self.body, Fade(color, 0.2 if .pressed in self.state else hoverTime * 0.1))
-				if .left in info.join {
-					//PaintRect({self.body.x, self.body.y, 1, self.body.h}, color)
-				} else {
+				if .left not_in info.join {
 					PaintRect({self.body.x, self.body.y, 1, self.body.h}, color)
 				}
-				if .right in info.join {
-					//PaintRect({self.body.x + self.body.w - 1, self.body.y, 1, self.body.h}, color)
-				} else {
+				if .right not_in info.join {
 					PaintRect({self.body.x + self.body.w - 1, self.body.y, 1, self.body.h}, color)
 				}
 				PaintRect({self.body.x, self.body.y, self.body.w, 1}, color)
