@@ -47,19 +47,6 @@ _main :: proc() {
 	font: ui.FontIndex
 	tab: Tabs
 	enableSubMenu := false
-	chips: [10]bool
-	chip_names: [10]string = {
-		"Banana Boat",
-		"Lunar Salad",
-		"Grapeberries",
-		"Buttermelon",
-		"Pineapricot",
-		"Peanutjam",
-		"Strawgrapes",
-		"Mint Tree",
-		"Coffee Bushes",
-		"Chocolate Ore",
-	}
 	tm: time.Time = time.now()
 	temp_tm: time.Time
 
@@ -186,14 +173,16 @@ _main :: proc() {
 					SetSize(20)
 					if Layout(.top, 20) {
 						SetSide(.left)
-						for i in 0..<10 {
-							PushId(i)
-								if ToggleChip({state = chips[i], rowSpacing = 10, text = chip_names[i]}) {
-									chips[i] = !chips[i]
+						newChoice := choice
+						for member in Choices {
+							PushId(int(member))
+								if ToggleChip({state = choice == member, rowSpacing = 10, text = Format(member)}) {
+									newChoice = member
 								}
 								Space(10)
 							PopId()
 						}
+						choice = newChoice
 					}
 					Space(20)
 					if Layout(.top, 30) {
@@ -240,6 +229,11 @@ _main :: proc() {
 					CheckBox({state = &c, text = "Checkbox"})
 					Space(20)
 					choice = EnumRadioButtons(choice)
+
+					if layout, ok := LayoutEx(GetRectBottom(CurrentLayout().rect, 40)); ok {
+						SetSize(40); SetSide(.right)
+						FloatingButton({icon = .calendar})
+					}
 				} else if tab == .table {
 					SetSize(1, true)
 					if Frame({

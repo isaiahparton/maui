@@ -150,21 +150,18 @@ ToggleButtonBit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #call
 	return
 }
 // Smol subtle buttons
-IconButton :: proc(
-	icon: Icon, 
-	loc := #caller_location,
-) -> (clicked: bool) {
-	if self, ok := Widget(HashId(loc), ChildRect(UseNextRect() or_else LayoutNext(CurrentLayout()), {24, 24}, .middle, .middle)); ok {
-		PushId(self.id)
-			hoverTime := AnimateBool(HashId(int(0)), self.state >= {.hovered}, 0.1)
-			pressTime := AnimateBool(HashId(int(1)), self.state >= {.pressed}, 0.1)
-		PopId()
+FloatingButtonInfo :: struct {
+	icon: Icon,
+}
+FloatingButton :: proc(info: FloatingButtonInfo, loc := #caller_location) -> (clicked: bool) {
+	if self, ok := Widget(HashId(loc), ChildRect(UseNextRect() or_else LayoutNext(CurrentLayout()), {40, 40}, .middle, .middle)); ok {
+		hoverTime := AnimateBool(self.id, self.state >= {.hovered}, 0.1)
 		// Painting
 		if self.bits >= {.shouldPaint} {
 			center := linalg.round(RectCenter(self.body))
-			PaintCircle(center, 12, 14, GetColor(.baseShade, (2 if self.state >= {.pressed} else hoverTime) * BASE_SHADE_ALPHA))
-			PaintIconAligned(GetFontData(.default), icon, center, GetColor(.text, 0.5 + hoverTime * 0.5), .middle, .middle)
-			PaintCircleOutlineTexture(center, 20, true, GetColor(.baseStroke))
+			PaintCircleTexture(center + {0, 5}, 40, GetColor(.baseShade, 0.2))
+			PaintCircleTexture(center, 40, AlphaBlend(GetColor(.buttonBase), GetColor(.buttonShade), (2 if self.state >= {.pressed} else hoverTime) * 0.1))
+			PaintIconAligned(GetFontData(.header), info.icon, center, GetColor(.buttonText), .middle, .middle)
 		}
 		// Result
 		clicked = .clicked in self.state && self.clickButton == .left

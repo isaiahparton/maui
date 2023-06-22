@@ -18,7 +18,7 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 		if .shouldPaint in self.bits {
 			PaintRect(self.body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
 			PaintRectLines(self.body, 1, GetColor(.buttonBase))
-			PaintLabelRect(TextFormat("%2i-%2i-%4i", int(month), day, year), self.body, GetColor(.buttonBase), .near, .middle)
+			PaintLabelRect(TextFormat("%2i-%2i-%4i", day, int(month), year), self.body, GetColor(.buttonBase), .near, .middle)
 			PaintIconAligned(GetFontData(.default), .calendar, {self.body.x + self.body.w - self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.buttonBase), .middle, .middle)
 		}
 
@@ -39,10 +39,9 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 				PaintRoundedRect(layer.rect, WINDOW_ROUNDNESS, GetColor(.widgetBackground))
 				Shrink(10)
 				if Layout(.top, 20) {
-					SetSide(.left); SetSize(140); Align(.middle)
-					Text({text = Format(year)})
-					Text({text = Format(month)})
-					Text({text = Format(day)})
+					SetSide(.left); SetSize(1, true); Align(.middle)
+					//DAY_SUFFIXES : []string = {"th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th"}
+					Text({text = TextFormat("%i %v %i", day, month, year)})
 				}
 				if Layout(.top, 20) {
 					SetSide(.left); SetSize(70)
@@ -130,6 +129,10 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 				}
 				// Stroke
 				PaintRoundedRectOutline(layer.rect, WINDOW_ROUNDNESS, true, GetColor(.baseStroke))
+
+				if .focused not_in self.state && .focused not_in layer.state {
+					self.bits -= {.active}
+				}
 			}
 		}
 
