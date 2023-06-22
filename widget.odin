@@ -850,6 +850,7 @@ ScrollBar :: proc(info: ScrollBarInfo, loc := #caller_location) -> (changed: boo
 			ROUNDNESS :: 4
 			PaintRect(transmute(Rect)rect, GetColor(.scrollbar))
 			PaintRect(ShrinkRect(transmute(Rect)thumbRect, 1), BlendColors(GetColor(.scrollThumb), GetColor(.scrollThumbShade), (2 if .pressed in state else hoverTime) * 0.1))
+			PaintRectLines(transmute(Rect)thumbRect, 1, GetColor(.baseStroke))
 			PaintRectLines(transmute(Rect)rect, 1, GetColor(.baseStroke))
 		}
 		// Dragging

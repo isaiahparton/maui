@@ -137,7 +137,7 @@ CreateLayer :: proc(id: Id, options: LayerOptions) -> (self: ^LayerData, ok: boo
 	}
 	//self = new(LayerData)
 	self^ = {
-		reserved = true
+		reserved = true,
 		id = id,
 		opacity = 0 if .invisible in options else 1,
 	}

@@ -141,7 +141,7 @@ BlendColors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
 	return
 }
 AlphaBlend :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
-	return rl.ColorAlphaBlend(bg, fg, rl.Fade(rl.WHITE, amount))
+	return transmute(Color)rl.ColorAlphaBlend(transmute(rl.Color)bg, transmute(rl.Color)fg, rl.Fade(rl.WHITE, amount))
 }
 BlendThreeColors :: proc(first, second, third: Color, time: f32) -> (result: Color) {
 	if time <= 0 {

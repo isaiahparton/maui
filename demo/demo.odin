@@ -48,8 +48,20 @@ _main :: proc() {
 	tab: Tabs
 	enableSubMenu := false
 	chips: [10]bool
+	chip_names: [10]string = {
+		"Banana Boat",
+		"Lunar Salad",
+		"Grapeberries",
+		"Buttermelon",
+		"Pineapricot",
+		"Peanutjam",
+		"Strawgrapes",
+		"Mint Tree",
+		"Coffee Bushes",
+		"Chocolate Ore",
+	}
 	tm: time.Time = time.now()
-	date_picker_state: ui.DatePickerState
+	temp_tm: time.Time
 
 	a, b, c: bool
 
@@ -61,7 +73,7 @@ _main :: proc() {
 	// set up raylib
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	rl.InitWindow(1000, 800, "Maui Demo")
-	rl.SetExitKey(.KEY_NULL)
+	rl.SetExitKey(.NULL)
 	rl.MaximizeWindow()
 	TARGET_FPS :: 120
 	rl.SetTargetFPS(TARGET_FPS)
@@ -168,7 +180,7 @@ _main :: proc() {
 					SetSize(30)
 					DatePicker({
 						value = &tm,
-						state = &date_picker_state,
+						tempValue = &temp_tm,
 					})
 					Space(20)
 					SetSize(20)
@@ -176,7 +188,7 @@ _main :: proc() {
 						SetSide(.left)
 						for i in 0..<10 {
 							PushId(i)
-								if ToggleChip({state = chips[i], rowSpacing = 10, text = TextFormat("Chip %i", i + 1)}) {
+								if ToggleChip({state = chips[i], rowSpacing = 10, text = chip_names[i]}) {
 									chips[i] = !chips[i]
 								}
 								Space(10)
