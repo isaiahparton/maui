@@ -60,7 +60,7 @@ _main :: proc() {
 	// set up raylib
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	rl.InitWindow(1000, 800, "Maui Demo")
-	rl.SetExitKey(.NULL)
+	rl.SetExitKey(.KEY_NULL)
 	rl.MaximizeWindow()
 	TARGET_FPS :: 120
 	rl.SetTargetFPS(TARGET_FPS)
@@ -210,6 +210,7 @@ _main :: proc() {
 						PillButton({
 							label = "Filled",
 							fitToLabel = true,
+							loading = c,
 						})
 						Space(10)
 						PillButton({

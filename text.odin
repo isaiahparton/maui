@@ -93,6 +93,8 @@ Icon :: enum rune {
 	edit 				= 0xEFDF,
 	home 				= 0xEE18,
 	add 				= 0xEA12,
+	bulletList 			= 0xEEBA,
+	listFile 			= 0xECEC,
 	undo 				= 0xEA58,
 	shoppingCart 		= 0xF11D,
 	attachFile			= 0xEA84,
@@ -131,6 +133,8 @@ Icon :: enum rune {
 	filterOff 			= 0xED28,
 	search 				= 0xF0D1,
 	printer 			= 0xF028,
+	table 				= 0xF1DD,
+	layout 				= 0xEE8E,
 }
 
 StringPaintOption :: enum {
@@ -193,7 +197,7 @@ PaintStringContainedEx :: proc(font: ^FontData, text: string, rect: Rect, option
 					point.y += font.size
 				}
 			}
-		} else if point.x + totalAdvance + breakSize >= rect.x + rect.w {
+		} else if point.x + space > rect.x + rect.w {
 			PaintString(font, TEXT_BREAK, point, color)
 			break
 		}
@@ -260,16 +264,16 @@ PaintString :: proc(font: ^FontData, text: string, origin: Vec2, color: Color) -
 PaintStringAligned :: proc(font: ^FontData, text: string, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
 	origin := origin
 	if alignX == .middle {
-		origin.x -= math.trunc(MeasureString(font, text).x / 2)
+		origin.x -= math.floor(MeasureString(font, text).x / 2)
 	} else if alignX == .far {
 		origin.x -= MeasureString(font, text).x
 	}
 	if alignY == .middle {
-		origin.y -= MeasureString(font, text).y / 2
+		origin.y -= math.floor(MeasureString(font, text).y / 2)
 	} else if alignY == .far {
 		origin.y -= MeasureString(font, text).y
 	}
-	return PaintString(font, text, origin, color)
+	return PaintString(font, text, linalg.floor(origin), color)
 }
 PaintGlyphAligned :: proc(glyph: GlyphData, origin: Vec2, color: Color, alignX, alignY: Alignment) -> Vec2 {
    	rect := glyph.source

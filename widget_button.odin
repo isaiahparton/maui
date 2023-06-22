@@ -11,6 +11,7 @@ ButtonStyle :: enum {
 // Standalone button for major actions
 PillButtonInfo :: struct {
 	label: Label,
+	loading: bool,
 	fitToLabel: Maybe(bool),
 	style: Maybe(ButtonStyle),
 	fillColor: Maybe(Color),
@@ -20,6 +21,9 @@ PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: b
 	layout := CurrentLayout()
 	if (info.fitToLabel.? or_else true) && (layout.side == .left || layout.side == .right) {
 		layout.size = MeasureLabel(info.label).x + layout.rect.h
+		if info.loading {
+			layout.size += layout.rect.h * 0.75
+		}
 	}
 	if self, ok := Widget(HashId(loc), LayoutNext(layout)); ok {
 		using self
@@ -33,16 +37,31 @@ PillButton :: proc(info: PillButtonInfo, loc := #caller_location) -> (clicked: b
 			switch info.style.? or_else .filled {
 				case .filled:
 				PaintPillH(self.body, AlphaBlend(GetColor(.buttonBase), GetColor(.buttonShade), 0.3 if .pressed in self.state else hoverTime * 0.15))
-				PaintLabelRect(info.label, self.body, GetColor(.buttonText), .middle, .middle)
+				if info.loading {
+					PaintLoader({self.body.x + self.body.h * 0.75, self.body.y + self.body.h / 2}, self.body.h * 0.25, ctx.currentTime, GetColor(.buttonText, 0.5))
+					PaintLabelRect(info.label, SquishRectRight(self.body, self.body.h * 0.5), GetColor(.buttonText, 0.5), .far, .middle)
+				} else {
+					PaintLabelRect(info.label, self.body, GetColor(.buttonText), .middle, .middle)
+				}
 				
 				case .outlined:
 				PaintPillH(self.body, GetColor(.buttonBase, 0.2 if .pressed in self.state else hoverTime * 0.1))
 				PaintPillOutlineH(self.body, true, GetColor(.buttonBase))
-				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.buttonBase), .middle, .middle)
+				if info.loading {
+					PaintLoader({self.body.x + self.body.h * 0.75, self.body.y + self.body.h / 2}, self.body.h * 0.25, ctx.currentTime, GetColor(.buttonBase, 0.5))
+					PaintLabelRect(info.label, SquishRectRight(self.body, self.body.h * 0.5), GetColor(.buttonBase, 0.5), .far, .middle)
+				} else {
+					PaintLabelRect(info.label, self.body, GetColor(.buttonBase), .middle, .middle)
+				}
 			
 				case .subtle:
 				PaintPillH(self.body, GetColor(.buttonBase, 0.2 if .pressed in self.state else hoverTime * 0.1))
-				PaintLabel(info.label, {body.x + body.w / 2, body.y + body.h / 2}, GetColor(.buttonBase), .middle, .middle)
+				if info.loading {
+					PaintLoader({self.body.x + self.body.h * 0.75, self.body.y + self.body.h / 2}, self.body.h * 0.25, ctx.currentTime, GetColor(.buttonBase, 0.5))
+					PaintLabelRect(info.label, SquishRectRight(self.body, self.body.h * 0.5), GetColor(.buttonBase, 0.5), .far, .middle)
+				} else {
+					PaintLabelRect(info.label, self.body, GetColor(.buttonBase), .middle, .middle)
+				}
 			}
 		}
 		// Click result
@@ -78,7 +97,7 @@ Button :: proc(info: ButtonInfo, loc := #caller_location) -> (clicked: bool) {
 			switch info.style {
 				case .filled:
 				PaintRect(self.body, AlphaBlend(color, GetColor(.buttonShade), 0.3 if .pressed in self.state else hoverTime * 0.15))
-				PaintLabelRect(info.label, self.body, GetColor(.buttonText), info.align.? or_else .middle, .middle)
+				PaintLabelRect(info.label, ShrinkRectX(self.body, self.body.h * 0.25), GetColor(.buttonText), info.align.? or_else .middle, .middle)
 
 				case .outlined:
 				PaintRect(self.body, Fade(color, 0.2 if .pressed in self.state else hoverTime * 0.1))
@@ -91,11 +110,11 @@ Button :: proc(info: ButtonInfo, loc := #caller_location) -> (clicked: bool) {
 				PaintRect({self.body.x, self.body.y, self.body.w, 1}, color)
 				PaintRect({self.body.x, self.body.y + self.body.h - 1, self.body.w, 1}, color)
 				
-				PaintLabelRect(info.label, self.body, color, info.align.? or_else .middle, .middle)
+				PaintLabelRect(info.label, ShrinkRectX(self.body, self.body.h * 0.25), color, info.align.? or_else .middle, .middle)
 
 				case .subtle:
 				PaintRect(self.body, GetColor(.buttonBase, 0.2 if .pressed in self.state else hoverTime * 0.1))
-				PaintLabelRect(info.label, self.body, color, info.align.? or_else .middle, .middle)
+				PaintLabelRect(info.label, ShrinkRectX(self.body, self.body.h * 0.25), color, info.align.? or_else .middle, .middle)
 			}
 		}
 		// Result
@@ -119,6 +138,9 @@ ToggleButton :: proc(info: ToggleButtonInfo, loc := #caller_location) -> (clicke
 	if self, ok := Widget(HashId(loc), UseNextRect() or_else LayoutNext(layout)); ok {
 		// Animations
 		hoverTime := AnimateBool(self.id, .hovered in self.state, 0.1)
+		if .hovered in self.state {
+			ctx.cursor = .hand
+		}
 		// Paintions
 		if .shouldPaint in self.bits {
 			fillColor: Color
@@ -156,6 +178,9 @@ FloatingButtonInfo :: struct {
 FloatingButton :: proc(info: FloatingButtonInfo, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := Widget(HashId(loc), ChildRect(UseNextRect() or_else LayoutNext(CurrentLayout()), {40, 40}, .middle, .middle)); ok {
 		hoverTime := AnimateBool(self.id, self.state >= {.hovered}, 0.1)
+		if .hovered in self.state {
+			ctx.cursor = .hand
+		}
 		// Painting
 		if self.bits >= {.shouldPaint} {
 			center := linalg.round(RectCenter(self.body))

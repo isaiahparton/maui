@@ -314,6 +314,7 @@ TextInputInfo :: struct {
 	data: TextInputData,
 	title: Maybe(string),
 	placeholder: Maybe(string),
+	readOnly: bool,
 	textOptions: TextProOptions,
 	editOptions: TextEditOptions,
 }
@@ -332,7 +333,7 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 		buffer := info.data.(^[dynamic]u8) or_else GetTextBuffer(self.id)
 
 		// Text edit
-		if state >= {.focused} {
+		if state >= {.focused} && !info.readOnly {
 			change = TextEdit(buffer, info.editOptions)
 			if change {
 				ctx.paintNextFrame = true
@@ -349,7 +350,9 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 			}
 		}
 		// Paint!
-		PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), hoverTime * 0.05))
+		if !info.readOnly {
+			PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), hoverTime * 0.05))
+		}
 		fontData := GetFontData(.default)
 		switch type in info.data {
 			case ^string:
@@ -359,7 +362,7 @@ TextInput :: proc(info: TextInputInfo, loc := #caller_location) -> (change: bool
 			TextPro(fontData, type[:], body, {}, self)
 		}
 		if .shouldPaint in bits {
-			outlineColor := GetColor(.accent) if .focused in self.state else BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
+			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
 			PaintLabeledWidgetFrame(body, info.title, 1, outlineColor)
 			// Draw placeholder
 			if info.placeholder != nil {
@@ -395,7 +398,7 @@ NumberInput :: proc(info: NumberInputInfo($T), loc := #caller_location) -> (newV
 		fontData := GetFontData(.monospace)
 		PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), hoverTime * 0.05))
 		if !info.noOutline {
-			outlineColor := GetColor(.accent) if .focused in self.state else BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
+			outlineColor := BlendColors(GetColor(.baseStroke), GetColor(.text), hoverTime)
 			PaintLabeledWidgetFrame(body, info.title, 1, outlineColor)
 		}
 		// Update text input

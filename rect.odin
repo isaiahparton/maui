@@ -76,6 +76,9 @@ ChildRect :: proc(parent: Rect, size: Vec2, alignX, alignY: Alignment) -> Rect {
 ShrinkRect :: proc(b: Rect, a: f32) -> Rect {
 	return {b.x + a, b.y + a, b.w - a * 2, b.h - a * 2}
 }
+ShrinkRectX :: proc(b: Rect, a: f32) -> Rect {
+	return {b.x + a, b.y, b.w - a * 2, b.h}
+}
 // cut a rect and return the cut piece
 CutRectLeft :: proc(rect: ^Rect, amount: f32) -> (result: Rect) {
 	amount := min(rect.w, amount)

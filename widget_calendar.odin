@@ -3,13 +3,13 @@ package maui
 import "core:time"
 
 CALENDAR_WIDTH :: 440
-CALENDAR_HEIGHT :: 240
+CALENDAR_HEIGHT :: 250
 
 DatePickerInfo :: struct {
 	value: ^time.Time,
 	tempValue: ^time.Time,
 }
-DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
+DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) -> (changed: bool) {
 	if self, ok := Widget(HashId(loc), LayoutNext(CurrentLayout()), {}); ok {
 
 		hoverTime := AnimateBool(self.id, .hovered in self.state, 0.1)
@@ -18,7 +18,7 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 		if .shouldPaint in self.bits {
 			PaintRect(self.body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
 			PaintRectLines(self.body, 1, GetColor(.buttonBase))
-			PaintLabelRect(TextFormat("%2i-%2i-%4i", day, int(month), year), self.body, GetColor(.buttonBase), .near, .middle)
+			PaintLabelRect(TextFormat("%2i-%2i-%4i", day, int(month), year), SquishRectLeft(self.body, self.body.h * 0.25), GetColor(.buttonBase), .near, .middle)
 			PaintIconAligned(GetFontData(.default), .calendar, {self.body.x + self.body.w - self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.buttonBase), .middle, .middle)
 		}
 
@@ -27,6 +27,7 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 			rect.x = self.body.x + self.body.w / 2 - rect.w / 2
 			rect.y = self.body.y + self.body.h
 			if layer, ok := Layer({
+				id = self.id,
 				rect = rect,
 				order = .background,
 				options = {.shadow, .attached},
@@ -39,10 +40,48 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 				PaintRoundedRect(layer.rect, WINDOW_ROUNDNESS, GetColor(.widgetBackground))
 				Shrink(10)
 				if Layout(.top, 20) {
-					SetSide(.left); SetSize(1, true); Align(.middle)
-					//DAY_SUFFIXES : []string = {"th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th"}
-					Text({text = TextFormat("%i %v %i", day, month, year)})
+					SetSide(.left); SetSize(135); Align(.middle)
+					month_days := int(time.days_before[int(month)])
+					if int(month) > 0 {
+						month_days -= int(time.days_before[int(month) - 1])
+					}
+					if Menu({label = Format(day), size = {0, 120}, layoutSize = Vec2{0, f32(month_days) * 20}}) {
+						SetSize(20)
+						for i in 1..=month_days {
+							PushId(i)
+								if Option({label = Format(i)}) {
+									day = i
+									info.tempValue^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+								}
+							PopId()
+						}
+					}
+					Space(10)
+					if Menu({label = Format(month), size = {0, 120}, layoutSize = Vec2{0, 240}}) {
+						SetSize(20)
+						for member in time.Month {
+							PushId(int(member))
+								if Option({label = Format(member)}) {
+									month = member
+									info.tempValue^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+								}
+							PopId()
+						}
+					}
+					Space(10)
+					if Menu({label = Format(year), size = {0, 120}, layoutSize = Vec2{0, 180}}) {
+						SetSize(20)
+						for i in (year - 4)..=(year + 4) {
+							PushId(i)
+								if Option({label = Format(i)}) {
+									year = i
+									info.tempValue^, _ = time.datetime_to_time(i, int(month), day, 0, 0, 0, 0)
+								}
+							PopId()
+						}
+					}
 				}
+				Cut(.top, 10)
 				if Layout(.top, 20) {
 					SetSide(.left); SetSize(70)
 					// Subtract one year
@@ -121,6 +160,7 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 					if Button({label = "Save"}) {
 						info.value^ = info.tempValue^
 						self.bits -= {.active}
+						changed = true
 					}
 					SetSide(.left); SetSize(60)
 					if Button({label = "Today", style = .outlined}) {
@@ -129,10 +169,6 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 				}
 				// Stroke
 				PaintRoundedRectOutline(layer.rect, WINDOW_ROUNDNESS, true, GetColor(.baseStroke))
-
-				if .focused not_in self.state && .focused not_in layer.state {
-					self.bits -= {.active}
-				}
 			}
 		}
 
@@ -143,4 +179,5 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 			}
 		}
 	}
+	return
 }

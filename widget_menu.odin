@@ -108,8 +108,8 @@ Menu :: proc(info: MenuInfo, loc := #caller_location) -> (active: bool) {
 		if .shouldPaint in bits {
 			PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in state else hoverTime * 0.1))
 			PaintRectLines(body, 1, GetColor(.baseStroke))
-			PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, -1 + stateTime, GetColor(.text))
-			PaintLabelRect(info.label, body, GetColor(.text), info.align.? or_else .near, .middle)
+			PaintCollapseArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 6, -1 + stateTime, GetColor(.text))
+			PaintLabelRect(info.label, ShrinkRectX(body, body.h * 0.25), GetColor(.text), info.align.? or_else .near, .middle)
 		}
 		// Expand/collapse on click
 		if .gotPress in state {
@@ -157,8 +157,8 @@ SubMenu :: proc(info: MenuInfo, loc := #caller_location) -> (active: bool) {
 		// Paint
 		if .shouldPaint in bits {
 			PaintRect(body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in state else hoverTime * 0.1))
-			PaintFlipArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 8, 0, GetColor(.text))
-			PaintLabelRect(info.label, body, GetColor(.text), info.align.? or_else .near, .middle)
+			PaintFlipArrow({body.x + body.w - body.h / 2, body.y + body.h / 2}, 6, 0, GetColor(.text))
+			PaintLabelRect(info.label, ShrinkRectX(body, body.h * 0.25), GetColor(.text), info.align.? or_else .near, .middle)
 		}
 		// Swap state when clicked
 		if state & {.hovered, .lostHover} != {} {
@@ -299,7 +299,7 @@ Option :: proc(info: OptionInfo, loc := #caller_location) -> (clicked: bool) {
 		// Painting
 		if .shouldPaint in self.bits {
 			PaintRect(self.body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
-			PaintLabelRect(info.label, self.body, GetColor(.text), info.align.? or_else .near, .middle)
+			PaintLabelRect(info.label, ShrinkRectX(self.body, self.body.h * 0.25), GetColor(.text), info.align.? or_else .near, .middle)
 			if info.active {
 				PaintIconAligned(GetFontData(.header), .check, {self.body.x + self.body.w - self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.text), .middle, .middle)
 			}

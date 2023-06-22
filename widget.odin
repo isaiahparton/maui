@@ -301,8 +301,7 @@ PaintLabel :: proc(label: Label, origin: Vec2, color: Color, alignX, alignY: Ali
 PaintLabelRect :: proc(label: Label, rect: Rect, color: Color, alignX, alignY: Alignment) {
 	origin: Vec2 = {rect.x, rect.y}
 	#partial switch alignX {
-		case .near: origin.x += rect.h * 0.25
-		case .far: origin.x += rect.w - rect.h * 25
+		case .far: origin.x += rect.w
 		case .middle: origin.x += rect.w / 2
 	}
 	#partial switch alignY {
@@ -321,6 +320,11 @@ MeasureLabel :: proc(label: Label) -> (size: Vec2) {
 		size = {glyph.source.w, glyph.source.h}
 	}
 	return
+}
+PaintLoader :: proc(center: Vec2, radius, time: f32, color: Color) {
+	start := time * math.TAU
+	PaintRingSector(center, radius - 3, radius, start, start + 2.2 + math.sin(time * 4) * 0.8, 24, color)
+	ctx.paintNextFrame = true
 }
 
 /*
@@ -413,6 +417,10 @@ CheckBox :: proc(info: CheckBoxInfo, loc := #caller_location) -> (change, newSta
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in state, 0.15)
 			stateTime := AnimateBool(HashIdFromInt(1), active, 0.20)
 		PopId()
+
+		if .hovered in self.state {
+			ctx.cursor = .hand
+		}
 
 		// Painting
 		if .shouldPaint in bits {
@@ -541,6 +549,10 @@ ToggleSwitch :: proc(info: ToggleSwitchInfo, loc := #caller_location) -> (newSta
 			howOn := AnimateBool(HashIdFromInt(2), state, 0.25)
 		PopId()
 
+		if .hovered in self.state {
+			ctx.cursor = .hand
+		}
+
 		// Painting
 		if .shouldPaint in self.bits {
 			baseRect: Rect = {self.body.x, self.body.y + 4, self.body.w, self.body.h - 8}
@@ -551,7 +563,7 @@ ToggleSwitch :: proc(info: ToggleSwitchInfo, loc := #caller_location) -> (newSta
 
 			if howOn < 1 {
 				PaintRoundedRect(baseRect, baseRadius, GetColor(.widgetBackground))
-				PaintRoundedRectOutline(baseRect, baseRadius, false, GetColor(.intense))
+				PaintRoundedRectOutline(baseRect, baseRadius, true, GetColor(.widgetStroke, 0.5))
 			}
 			if howOn > 0 {
 				if howOn < 1 {
@@ -572,8 +584,8 @@ ToggleSwitch :: proc(info: ToggleSwitchInfo, loc := #caller_location) -> (newSta
 					PaintCircle(thumbCenter, 18, 14, GetColor(.baseShade, BASE_SHADE_ALPHA * pressTime))
 				}
 			}
-			PaintCircle(thumbCenter, 11, 10, GetColor(.base))
-			PaintRing(thumbCenter, 10, 12, 18, GetColor(.intense))
+			PaintCircle(thumbCenter, 11, 10, GetColor(.widgetBackground))
+			PaintCircleOutlineTexture(thumbCenter, 21, true, BlendColors(GetColor(.widgetStroke, 0.5 + 0.5 * hoverTime), GetColor(.intense), howOn))
 			if howOn < 1 && info.offIcon != nil {
 				PaintIconAligned(GetFontData(.default), info.offIcon.?, thumbCenter, GetColor(.intense, 1 - howOn), .middle, .middle)
 			}
@@ -619,6 +631,9 @@ RadioButton :: proc(info: RadioButtonInfo, loc := #caller_location) -> (clicked:
 			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in self.state, 0.1)
 			stateTime := AnimateBool(HashIdFromInt(1), info.on, 0.24)
 		PopId()
+		if .hovered in self.state {
+			ctx.cursor = .hand
+		}
 		// Graphics
 		if .shouldPaint in self.bits {
 			center: Vec2
