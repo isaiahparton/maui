@@ -339,7 +339,7 @@ NavOption :: proc(active: bool, icon: Icon, text: string, loc := #caller_locatio
 
 		if .shouldPaint in self.bits {
 			PaintRect(self.body, Fade(255, min(hoverTime + stateTime, 1) * 0.25))
-			PaintIconAligned(GetFontData(.default), icon, {self.body.x + self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.base), .middle, .middle)
+			PaintIconAligned(GetFontData(.header), icon, {self.body.x + self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.base), .middle, .middle)
 			PaintStringAligned(GetFontData(.default), text, {self.body.x + self.body.h * rl.EaseCubicInOut(stateTime, 1, 0.3, 1), self.body.y + self.body.h / 2}, GetColor(.base), .near, .middle)
 		}
 		

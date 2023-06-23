@@ -135,6 +135,8 @@ Icon :: enum rune {
 	printer 			= 0xF028,
 	table 				= 0xF1DD,
 	layout 				= 0xEE8E,
+	draft 				= 0xEC5C,
+	filePaper 			= 0xECF8,
 }
 
 StringPaintOption :: enum {
