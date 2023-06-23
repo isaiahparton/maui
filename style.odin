@@ -15,160 +15,159 @@ SHADOW_OFFSET :: 7
 DISABLED_SHADE_ALPHA :: 0.5
 
 // Default color schemes
-DEFAULT_COLORS_LIGHT :: [ColorIndex]Color {
+DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.accent 			= {45, 105, 238, 255},
 	.base 				= {230, 230, 235, 255},
-	.baseShade 			= {0, 0, 0, 255},
-	.baseStroke			= {112, 113, 116, 255},
-	.widgetBackground 	= {255, 255, 255, 255},
+	.base_shade 		= {0, 0, 0, 255},
+	.base_stroke		= {112, 113, 116, 255},
+	.widget_bg 			= {255, 255, 255, 255},
 	.widget	 			= {165, 165, 175, 255},
-	.widgetShade 		= {0, 0, 15, 255},
-	.widgetStroke 		= {105, 105, 105, 255},
+	.widget_shade 		= {0, 0, 15, 255},
+	.widget_stroke 		= {105, 105, 105, 255},
 	.intense 			= {62, 62, 67, 255},
-	.intenseShade 		= {230, 239, 255, 255},
+	.intense_shade 		= {230, 239, 255, 255},
 	.shadow 			= {0, 0, 0, 35},
-	.textInverted 		= {218, 218, 218, 255},
+	.text_inverted 		= {218, 218, 218, 255},
 	.text 				= {45, 45, 45, 255},
-	.tooltipFill 		= {45, 45, 77, 255},
-	.tooltipStroke  	= {},
-	.tooltipText 		= {255, 255, 255, 255},
+	.tooltip_fill 		= {45, 45, 77, 255},
+	.tooltip_stroke  	= {},
+	.tooltip_text 		= {255, 255, 255, 255},
 	.scrollbar  		= {255, 255, 255, 255},
-	.scrollThumb 		= {165, 185, 185, 255},
-	.scrollThumbShade   = {255, 255, 255, 255},
+	.scroll_thumb 		= {165, 185, 185, 255},
+	.scroll_thumb_shade = {255, 255, 255, 255},
 
-	.buttonBase 		= {82, 82, 92, 255},
-	.buttonShade		= {0, 0, 0, 255},
-	.buttonText 		= {255, 255, 255, 255},
+	.button_base 		= {82, 82, 92, 255},
+	.button_shade		= {0, 0, 0, 255},
+	.button_text 		= {255, 255, 255, 255},
 }
-/*DEFAULT_COLORS_DARK :: [ColorIndex]Color {
+/*DEFAULT_COLORS_DARK :: [Color_Index]Color {
 	.accent 			= {45, 135, 248, 255},
 	.base 				= {28, 28, 28, 255},
-	.baseShade 			= {255, 255, 255, 255},
-	.baseStroke			= {112, 113, 116, 255},
-	.widgetBackground 	= {54, 54, 54, 255},
+	.base_shade 			= {255, 255, 255, 255},
+	.base_stroke			= {112, 113, 116, 255},
+	.widget_bg 	= {54, 54, 54, 255},
 	.widget	 			= {74, 74, 74, 255},
-	.widgetShade 		= {255, 255, 255, 255},
-	.widgetStroke 		= {105, 105, 105, 255},
+	.widget_shade 		= {255, 255, 255, 255},
+	.widget_stroke 		= {105, 105, 105, 255},
 	.intense 			= {178, 178, 178, 255},
-	.intenseShade 		= {0, 0, 0, 255},
+	.intense_shade 		= {0, 0, 0, 255},
 	.shadow 			= {0, 0, 0, 55},
-	.textInverted 		= {25, 25, 25, 255},
+	.text_inverted 		= {25, 25, 25, 255},
 	.text 				= {215, 215, 215, 255},
-	.tooltipFill 		= {45, 55, 68, 255},
-	.tooltipStroke  	= {50, 170, 170, 255},
-	.tooltipText 		= {170, 170, 170, 255},
+	.tooltip_fill 		= {45, 55, 68, 255},
+	.tooltip_stroke  	= {50, 170, 170, 255},
+	.tooltip_text 		= {170, 170, 170, 255},
 	.scrollbar  		= {62, 62, 62, 255},
-	.scrollThumb 		= {92, 92, 92, 255},
-	.scrollThumbShade   = {255, 255, 255, 255},
+	.scroll_thumb 		= {92, 92, 92, 255},
+	.scroll_thumbShade   = {255, 255, 255, 255},
 }*/
 
-ColorIndex :: enum {
+Color_Index :: enum {
 	// Base color
 	base,
 	// Hover or click shading for base color
-	baseShade,
+	base_shade,
 	// Outlining for base color
-	baseStroke,
+	base_stroke,
 	// Color of focused or selected widgets
 	accent,
 	// Background of a slider
-	widgetBackground,
+	widget_bg,
 	// Base color for widgets
 	widget,
 	// How widgets are shaded when hovered or pressed
-	widgetShade,
+	widget_shade,
 	// Widget outline
-	widgetStroke,
+	widget_stroke,
 	// Outline
 	intense,
 	// Outline shading
-	intenseShade,
+	intense_shade,
 	// Shadows
 	shadow,
 	// Color of text
 	text,
 	// Text color when highlighted
-	textInverted,
+	text_inverted,
 	// Tooltips
-	tooltipFill,
-	tooltipStroke,
-	tooltipText,
+	tooltip_fill,
+	tooltip_stroke,
+	tooltip_text,
 	// Scrollbars
 	scrollbar,
-	scrollThumb,
-	scrollThumbShade,
+	scroll_thumb,
+	scroll_thumb_shade,
 
-	buttonBase,
-	buttonShade,
-	buttonText,
+	button_base,
+	button_shade,
+	button_text,
 }
-RuleIndex :: enum {
-	windowRoundness,
-	widgetTextOffset,
-	windowTitleSize,
+Rule_Index :: enum {
+	window_roundness,
+	tab_roundness,
+	widget_text_offset,
+	window_title_size,
 }
 
 MAX_COLOR_CHANGES :: 64
 MAX_RULE_CHANGES :: 64
 
-ColorChange :: struct {
-	index: ColorIndex,
+Color_Change :: struct {
+	index: Color_Index,
 	value: Color,
 }
-RuleChange :: struct {
-	index: RuleIndex,
+Rule_Change :: struct {
+	index: Rule_Index,
 	value: f32,
 }
 
 // Style
 Style :: struct {
-	fontSizes: 			[FontIndex]int,
-	colors: 			[ColorIndex]Color,
-	rules:				[RuleIndex]f32,
-	windowRoundness,
-	tabRoundness: 		int,
+	fontSizes: 			[Font_Index]int,
+	colors: 			[Color_Index]Color,
+	rules:				[Rule_Index]f32,
 
-	ruleChangeStack:	[MAX_RULE_CHANGES]RuleChange,
-	ruleChangeCount: 	int,
-	colorChangeStack: 	[MAX_COLOR_CHANGES]ColorChange,
-	colorChangeCount: 	int,
+	rule_change_stack:	[MAX_RULE_CHANGES]Rule_Change,
+	rule_change_count: 	int,
+	color_change_stack: [MAX_COLOR_CHANGES]Color_Change,
+	color_change_count: int,
 }
 
-PushColor :: proc(index: ColorIndex, value: Color) {
+push_color :: proc(index: Color_Index, value: Color) {
 	using painter
-	style.colorChangeStack[style.ruleChangeCount] = {
+	style.color_change_stack[style.rule_change_count] = {
 		index = index,
 		value = style.colors[index],
 	}
-	style.ruleChangeCount += 1
+	style.rule_change_count += 1
 	style.colors[index] = value
 }
-PopColor :: proc() {
+pop_color :: proc() {
 	using painter
-	assert(style.ruleChangeCount > 0)
-	style.ruleChangeCount -= 1
-	style.colors[style.colorChangeStack[style.ruleChangeCount].index] = style.colorChangeStack[style.ruleChangeCount].value
+	assert(style.rule_change_count > 0)
+	style.rule_change_count -= 1
+	style.colors[style.color_change_stack[style.rule_change_count].index] = style.color_change_stack[style.rule_change_count].value
 }
-PushRule :: proc(index: RuleIndex, value: f32) {
+push_rule :: proc(index: Rule_Index, value: f32) {
 	using painter
-	style.ruleChangeStack[style.ruleChangeCount] = {
+	style.rule_change_stack[style.rule_change_count] = {
 		index = index,
 		value = style.rules[index],
 	}
-	style.ruleChangeCount += 1
+	style.rule_change_count += 1
 	style.rules[index] = value
 }
-PopRule :: proc() {
+pop_rule :: proc() {
 	using painter
-	assert(style.ruleChangeCount > 0)
-	style.ruleChangeCount -= 1
-	style.rules[style.ruleChangeStack[style.ruleChangeCount].index] = style.ruleChangeStack[style.ruleChangeCount].value
+	assert(style.rule_change_count > 0)
+	style.rule_change_count -= 1
+	style.rules[style.rule_change_stack[style.rule_change_count].index] = style.rule_change_stack[style.rule_change_count].value
 }
 
-GetRule :: proc(index: RuleIndex) -> f32 {
+get_rule :: proc(index: Rule_Index) -> f32 {
 	return painter.style.rules[index]
 }
-GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
+get_color :: proc(index: Color_Index, alpha: f32 = 1) -> Color {
 	color := painter.style.colors[index]
 	if alpha == 1 {
 		return color
@@ -178,15 +177,15 @@ GetColor :: proc(index: ColorIndex, alpha: f32 = 1) -> Color {
 	return {color.r, color.g, color.b, u8(f32(color.a) * clamp(alpha, 0, 1))}
 }
 
-StyleShade :: proc(base: Color, shadeAmount: f32) -> Color {
-	return AlphaBlend(base, painter.style.colors[.widgetShade], shadeAmount * 0.1)
+style_shade :: proc(base: Color, shadeAmount: f32) -> Color {
+	return AlphaBlend(base, painter.style.colors[.widget_shade], shadeAmount * 0.1)
 }
-StyleIntenseShaded :: proc(shadeAmount: f32) -> Color {
-	return AlphaBlend(painter.style.colors[.intense], painter.style.colors[.intenseShade], shadeAmount * 0.15)
+style_intense_shaded :: proc(shadeAmount: f32) -> Color {
+	return AlphaBlend(painter.style.colors[.intense], painter.style.colors[.intense_shade], shadeAmount * 0.15)
 }
-StyleWidgetShaded :: proc(shadeAmount: f32) -> Color {
-	return AlphaBlend(painter.style.colors[.widget], painter.style.colors[.widgetShade], shadeAmount * 0.1)
+style_widget_shaded :: proc(shadeAmount: f32) -> Color {
+	return AlphaBlend(painter.style.colors[.widget], painter.style.colors[.widget_shade], shadeAmount * 0.1)
 }
-StyleBaseShaded :: proc(shadeAmount: f32) -> Color {
-	return AlphaBlend(painter.style.colors[.base], painter.style.colors[.baseShade], shadeAmount * 0.1)
+style_base_shaded :: proc(shadeAmount: f32) -> Color {
+	return AlphaBlend(painter.style.colors[.base], painter.style.colors[.base_shade], shadeAmount * 0.1)
 }

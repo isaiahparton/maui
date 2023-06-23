@@ -6,14 +6,14 @@ Alignment :: enum {
 	far,
 }
 
-LayoutData :: struct {
-	rect: Rect,
-	side: RectSide,
+Layout :: struct {
+	box: Box,
+	side: Box_Side,
 	size, margin: f32,
 	// control alignment
-	alignX, alignY: Alignment,
+	align: [2]Alignment,
 }
-PushLayout :: proc(rect: Rect) -> (layout: ^LayoutData) {
+push_layout :: proc(rect: Box) -> (layout: ^Layout) {
 	using ctx
 	layout = &layouts[layoutDepth]
 	layout^ = {
@@ -22,7 +22,7 @@ PushLayout :: proc(rect: Rect) -> (layout: ^LayoutData) {
 	layoutDepth += 1
 	return
 }
-PopLayout :: proc() {
+pop_layout :: proc() {
 	using ctx
 	layoutDepth -= 1
 }
@@ -30,32 +30,32 @@ PopLayout :: proc() {
 /*
 	Current layout control
 */
-SetNextRect :: proc(rect: Rect) {
-	ctx.setNextRect = true
-	ctx.nextRect = rect
+set_next_box :: proc(rect: Box) {
+	core.setNextBox = true
+	core.nextBox = rect
 }
-UseNextRect :: proc() -> (rect: Rect, ok: bool) {
-	rect = ctx.nextRect
-	ok = ctx.setNextRect
-	ctx.setNextRect = false
+use_next_box :: proc() -> (rect: Box, ok: bool) {
+	rect = core.nextBox
+	ok = core.setNextBox
+	core.setNextBox = false
 	return
 }
-Align :: proc(align: Alignment) {
-	layout := CurrentLayout()
+set_align :: proc(align: Alignment) {
+	layout := current_layout()
 	layout.alignX = align
 	layout.alignY = align
 }
-AlignX :: proc(align: Alignment) {
-	CurrentLayout().alignX = align
+set_align_x :: proc(align: Alignment) {
+	current_layout().alignX = align
 }
-AlignY :: proc(align: Alignment) {
-	CurrentLayout().alignY = align
+set_align_y :: proc(align: Alignment) {
+	current_layout().alignY = align
 }
-SetMargin :: proc(margin: f32) {
-	CurrentLayout().margin = margin
+set_margin :: proc(margin: f32) {
+	current_layout().margin = margin
 }
-SetSize :: proc(size: f32, relative := false) {
-	layout := CurrentLayout()
+set_size :: proc(size: f32, relative := false) {
+	layout := current_layout()
 	if relative {
 		if layout.side == .top || layout.side == .bottom {
 			layout.size = layout.rect.h * size
@@ -66,66 +66,59 @@ SetSize :: proc(size: f32, relative := false) {
 	}
 	layout.size = size
 }
-SetSide :: proc(side: RectSide) {
-	CurrentLayout().side = side
+set_side :: proc(side: Box_Side) {
+	current_layout().side = side
 }
-Space :: proc(amount: f32) {
-	layout := CurrentLayout()
-	CutRect(&layout.rect, layout.side, amount)
+space :: proc(amount: f32) {
+	layout := current_layout()
+	box_cut(&layout.rect, layout.side, amount)
 }
-Shrink :: proc(amount: f32) {
-	layout := CurrentLayout()
-	layout.rect = ShrinkRect(layout.rect, amount)
+shrink :: proc(amount: f32) {
+	layout := current_layout()
+	layout.rect = ShrinkBox(layout.rect, amount)
 }
-CurrentLayout :: proc() -> ^LayoutData {
+current_layout :: proc() -> ^Layout {
 	using ctx
 	return &layouts[layoutDepth - 1]
 }
 
-LayoutNext :: proc(using self: ^LayoutData) -> (result: Rect) {
+layout_next :: proc(using self: ^Layout) -> (result: Box) {
 	assert(self != nil)
-
 	switch side {
-		case .bottom: 	result = CutRectBottom(&rect, size)
-		case .top: 		result = CutRectTop(&rect, size)
-		case .left: 	result = CutRectLeft(&rect, size)
-		case .right: 	result = CutRectRight(&rect, size)
+		case .bottom: 	result = box_cutBottom(&rect, size)
+		case .top: 		result = box_cutTop(&rect, size)
+		case .left: 	result = box_cutLeft(&rect, size)
+		case .right: 	result = box_cutRight(&rect, size)
 	}
 
 	if margin > 0 {
-		result = ShrinkRect(result, margin)
+		result = ShrinkBox(result, margin)
 	}
 	
-	ctx.lastRect = result
+	core.lastBox = result
 	return
 }
-LayoutNextEx :: proc(layout: ^LayoutData, size: Vec2) -> Rect {
-	assert(layout != nil)
-
-	return ChildRect(LayoutNext(layout), size, layout.alignX, layout.alignY)
+layout_next_child :: proc(using self: ^Layout, size: [2]f32) -> Box {
+	assert(self != nil)
+	return ChildBox(LayoutNext(self), size, alignX, alignY)
 }
-LayoutFitWidget :: proc(layout: ^LayoutData, size: Vec2) {
+layout_fit :: proc(layout: ^Layout, size: [2]f32) {
 	if layout.side == .left || layout.side == .right {
 		layout.size = size.x
 	} else {
 		layout.size = size.y
 	}
 }
-LayoutFitLabel :: proc(layout: ^LayoutData, label: Label) {
-	if layout.side == .left || layout.side == .right {
-		layout.size = MeasureLabel(label).x + layout.rect.h / 2 + layout.margin * 2
+layout_fit_label :: proc(using self: ^Layout, label: Label) {
+	if side == .left || side == .right {
+		size = measure_label(label).x + rect.h / 2 + margin * 2
 	} else {
-		layout.size = MeasureLabel(label).y + layout.rect.h / 2 + layout.margin * 2
+		size = measure_label(label).y + rect.h / 2 + margin * 2
 	}
 }
-Cut :: proc(side: RectSide, amount: f32) -> Rect {
-	assert(ctx.layoutDepth > 0)
-	layout := CurrentLayout()
-	return CutRect(&layout.rect, side, amount)
-}
-CutEx :: proc(side: RectSide, amount: f32, relative := false) -> Rect {
-	assert(ctx.layoutDepth > 0)
-	layout := CurrentLayout()
+cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
+	assert(core.layoutDepth > 0)
+	layout := current_layout()
 	amount := amount
 	if relative {
 		if side == .left || side == .right {
@@ -134,30 +127,24 @@ CutEx :: proc(side: RectSide, amount: f32, relative := false) -> Rect {
 			amount *= layout.rect.h
 		}
 	}
-	return CutRect(&layout.rect, side, amount)
+	return box_cut(&layout.rect, side, amount)
 }
 
 // User procs
-@(deferred_out=_Layout)
-Layout :: proc(side: RectSide, size: f32, relative := false) -> (ok: bool) {
-	rect := CutEx(side, size, relative)
-	PushLayout(rect)
-	ok = true
-	return
+@(deferred_out=_layout)
+layout :: proc(side: Box_Side, size: f32, relative := false) -> (ok: bool) {
+	rect := cut(side, size, relative)
+	push_layout(rect)
+	return true
 }
-@private _Layout :: proc(ok: bool) {
+@(deferred_out=_layout)
+layout_box :: proc(box: Box) -> (ok: bool) {
+	push_layout(box)
+	return true
+}
+@private 
+_layout :: proc(ok: bool) {
 	if ok {
-		PopLayout()
-	}
-}
-@(deferred_out=_LayoutEx)
-LayoutEx :: proc(rect: Rect) -> (layout: ^LayoutData, ok: bool) {
-	layout = PushLayout(rect)
-	ok = layout != {}
-	return
-}
-@private _LayoutEx :: proc(_: ^LayoutData, ok: bool) {
-	if ok {
-		PopLayout()
+		pop_layout()
 	}
 }

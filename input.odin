@@ -7,13 +7,13 @@ MAX_INPUT_RUNES :: 32
 // Max compound clicks
 MAX_CLICK_COUNT :: 3
 
-MouseButton :: enum {
+Mouse_Button :: enum {
 	left,
 	middle,
 	right,
 }
-MouseBits :: bit_set[MouseButton]
-MouseButtonState :: enum {
+Mouse_Bits :: bit_set[Mouse_Button]
+Mouse_Button_State :: enum {
 	// Just pressed down (was not down before)
 	pressed,
 	// Is down
@@ -23,9 +23,9 @@ MouseButtonState :: enum {
 	// Pressed and released over the widget
 	clicked,
 }
-ClickState :: struct {
-	buttonState: MouseButtonState,
-	clickCount: int,
+Click_State :: struct {
+	button_state: Mouse_Button_State,
+	click_count: int,
 }
 
 Key :: enum {
@@ -45,77 +45,77 @@ Key :: enum {
 	c,
 	v,
 }
-KeyBits :: bit_set[Key]
+Key_Bits :: bit_set[Key]
 
 Input :: struct {
-	prevMousePoint, mousePoint, mouseScroll: Vec2,
-	mouseBits, prevMouseBits: MouseBits,
-	lastMouseButtonPressed: MouseButton,
-	lastMouseButtonTime: [MouseButton]time.Time,
-	thisMouseButtonTime: [MouseButton]time.Time,
+	last_mouse_point, mouse_point, mouse_scroll: [2]f32,
+	mouse_bits, last_mouse_bits: Mouse_Bits,
+	last_mouse_button: Mouse_Button,
+	last_click_time: [Mouse_Button]time.Time,
+	this_click_time: [Mouse_Button]time.Time,
 
-	keyBits, prevKeyBits: KeyBits,
-	lastKey: Key,
+	key_bits, last_key_bits: KeyBits,
+	last_key: Key,
 
 	runes: [MAX_INPUT_RUNES]rune,
-	runeCount: int,
+	rune_count: int,
 
-	keyHoldTimer,
-	keyPulseTimer: f32,
-	keyPulse: bool,
+	key_hold_timer,
+	key_pulse_timer: f32,
+	key_pulse: bool,
 }
 
-MousePressed :: proc(button: MouseButton) -> bool {
+mouse_pressed :: proc(button: Mouse_Button) -> bool {
 	using input
-	return (button in mouseBits) && (button not_in prevMouseBits)
+	return (button in mouse_bits) && (button not_in last_mouse_bits)
 }
-MouseReleased :: proc(button: MouseButton) -> bool {
+mouse_released :: proc(button: Mouse_Button) -> bool {
 	using input
-	return (button not_in mouseBits) && (button in prevMouseBits)
+	return (button not_in mouse_bits) && (button in last_mouse_bits)
 }
-MouseDown :: proc(button: MouseButton) -> bool {
+mouse_down :: proc(button: Mouse_Button) -> bool {
 	using input
-	return button in mouseBits
+	return button in mouse_bits
 }
-KeyPressed :: proc(key: Key) -> bool {
+key_pressed :: proc(key: Key) -> bool {
 	using input
-	return (key in keyBits) && ((key not_in prevKeyBits) || (lastKey == key && keyPulse))
+	return (key in key_bits) && ((key not_in last_key_bits) || (last_key == key && key_pulse))
 }
-KeyReleased :: proc(key: Key) -> bool {
+key_released :: proc(key: Key) -> bool {
 	using input
-	return (key not_in keyBits) && (key in prevKeyBits)
+	return (key not_in key_bits) && (key in last_key_bits)
 }
-KeyDown :: proc(key: Key) -> bool {
+key_down :: proc(key: Key) -> bool {
 	using input
-	return key in keyBits
+	return key in key_bits
 }
 
 // Backend use
-SetMouseScroll :: proc(x, y: f32) {
-	input.mouseScroll = {x, y}
+set_mouse_scroll :: proc(x, y: f32) {
+	input.mouse_scroll = {x, y}
 }
-SetMousePosition :: proc(x, y: f32) {
-	input.mousePoint = {x, y}
+set_mouse_point :: proc(x, y: f32) {
+	input.mouse_point = {x, y}
 }
-InputAddCharPress :: proc(char: rune) {
-	input.runes[input.runeCount] = char
-	input.runeCount += 1
+input_add_char :: proc(char: rune) {
+	input.runes[input.rune_count] = char
+	input.rune_count += 1
 }
-SetMouseBit :: proc(button: MouseButton, value: bool) {
+set_mouse_bit :: proc(button: Mouse_Button, value: bool) {
 	if value {
-		input.mouseBits += {button}
-		input.lastMouseButtonTime[button] = input.thisMouseButtonTime[button]
-		input.thisMouseButtonTime[button] = time.now()
-		input.lastMouseButtonPressed = button
+		input.mouse_bits += {button}
+		input.last_click_time[button] = input.this_click_time[button]
+		input.this_click_time[button] = time.now()
+		input.last_mouse_button = button
 	} else {
-		input.mouseBits -= {button}
+		input.mouse_bits -= {button}
 	}
 }
-SetKeyBit :: proc(key: Key, value: bool) {
+set_key_bit :: proc(key: Key, value: bool) {
 	if value {
-		input.keyBits += {key}
+		input.key_bits += {key}
 	} else {
-		input.keyBits -= {key}
+		input.key_bits -= {key}
 	}
 }
 

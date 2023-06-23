@@ -25,60 +25,60 @@ fnv32a :: proc(data: []byte, seed: u32) -> u32 {
 /*
 	Unique id creation
 */
-HashId :: proc {
-	HashIdFromString,
-	HashIdFromRawptr,
-	HashIdFromUintptr,
-	HashIdFromBytes,
-	HashIdFromLoc,
-	HashIdFromInt,
+hash :: proc {
+	hash_string,
+	hash_rawptr,
+	hash_uintptr,
+	hash_bytes,
+	hash_loc,
+	hash_int,
 }
-HashIdFromInt :: #force_inline proc(num: int) -> Id {
-	hash := ctx.idStack[ctx.idCount - 1] if ctx.idCount > 0 else FNV1A32_OFFSET_BASIS
+hash_int :: #force_inline proc(num: int) -> Id {
+	hash := core.id_stack[core.id_count - 1] if core.id_count > 0 else FNV1A32_OFFSET_BASIS
 	return hash ~ (Id(num) * FNV1A32_PRIME)
 }
-HashIdFromString :: #force_inline proc(str: string) -> Id { 
-	return HashIdFromBytes(transmute([]byte)str) 
+hash_string :: #force_inline proc(str: string) -> Id { 
+	return hashFromBytes(transmute([]byte)str) 
 }
-HashIdFromRawptr :: #force_inline proc(data: rawptr, size: int) -> Id { 
-	return HashIdFromBytes(([^]u8)(data)[:size])  
+hash_rawptr :: #force_inline proc(data: rawptr, size: int) -> Id { 
+	return hashFromBytes(([^]u8)(data)[:size])  
 }
-HashIdFromUintptr :: #force_inline proc(ptr: uintptr) -> Id { 
+hash_uintptr :: #force_inline proc(ptr: uintptr) -> Id { 
 	ptr := ptr
-	return HashIdFromBytes(([^]u8)(&ptr)[:size_of(ptr)])  
+	return hashFromBytes(([^]u8)(&ptr)[:size_of(ptr)])  
 }
-HashIdFromBytes :: proc(bytes: []byte) -> Id {
-	return fnv32a(bytes, ctx.idStack[ctx.idCount - 1] if ctx.idCount > 0 else FNV1A32_OFFSET_BASIS)
+hash_bytes :: proc(bytes: []byte) -> Id {
+	return fnv32a(bytes, core.id_stack[core.id_count - 1] if core.id_count > 0 else FNV1A32_OFFSET_BASIS)
 }
-HashIdFromLoc :: proc(loc: runtime.Source_Code_Location) -> Id {
-	hash := HashIdFromBytes(transmute([]byte)loc.file_path)
+hash_loc :: proc(loc: runtime.Source_Code_Location) -> Id {
+	hash := hashFromBytes(transmute([]byte)loc.file_path)
 	hash = hash ~ (Id(loc.line) * FNV1A32_PRIME)
 	hash = hash ~ (Id(loc.column) * FNV1A32_PRIME)
 	return hash
 }
 
 @private
-_PushId :: proc(id: Id) {
-	assert(ctx.idCount < ID_STACK_SIZE, "PushId() id stack is full!")
-	ctx.idStack[ctx.idCount] = id
-	ctx.idCount += 1
+_push_id :: proc(id: Id) {
+	assert(core.id_count < ID_STACK_SIZE, "_push_id() id stack is full!")
+	core.id_stack[core.id_count] = id
+	core.id_count += 1
 }
-PushIdFromInt :: proc(num: int) {
-	_PushId(HashIdFromInt(num))
+push_id_int :: proc(num: int) {
+	_push_id(hash_int(num))
 }
-PushIdFromString :: proc(str: string) {
-	_PushId(HashIdFromString(str))
+push_id_string :: proc(str: string) {
+	_push_id(hash_string(str))
 }
-PushIdFromOtherId :: proc(id: Id) {
-	_PushId(HashIdFromInt(int(id)))
+push_id_other :: proc(id: Id) {
+	_push_id(id)
 }
-PushId :: proc {
-	PushIdFromInt,
-	PushIdFromString,
-	PushIdFromOtherId,
+push_id :: proc {
+	push_id_int,
+	push_id_string,
+	push_id_other,
 }
 
-PopId :: proc() {
-	assert(ctx.idCount > 0, "PopId() id stack already empty!")
-	ctx.idCount -= 1
+pop_id :: proc() {
+	assert(core.id_count > 0, "PopId() id stack already empty!")
+	core.id_count -= 1
 }

@@ -14,12 +14,12 @@ Spinner :: proc(info: SpinnerInfo, loc := #caller_location) -> (newValue: int) {
 	loc := loc
 	newValue = info.value
 	// Sub-widget rectangles
-	rect := LayoutNext(CurrentLayout())
-	leftButtonRect := CutRectLeft(&rect, 30)
-	rightButtonRect := CutRectRight(&rect, 30)
+	rect := LayoutNext(current_layout())
+	leftButtonBox := box_cutLeft(&rect, 30)
+	rightButtonBox := box_cutRight(&rect, 30)
 	// Number input
-	SetNextRect(rect)
-	PaintRect(rect, GetColor(.widgetBackground))
+	SetNextBox(rect)
+	PaintBox(rect, GetColor(.widgetBackground))
 	newValue = clamp(NumberInput(NumberInputInfo(int){
 		value = info.value,
 		textOptions = {.alignCenter},
@@ -27,7 +27,7 @@ Spinner :: proc(info: SpinnerInfo, loc := #caller_location) -> (newValue: int) {
 	}), info.low, info.high)
 	// Step buttons
 	loc.column += 1
-	SetNextRect(leftButtonRect)
+	SetNextBox(leftButtonBox)
 	if Button({
 		label = Icon.remove, 
 		align = .middle,
@@ -35,7 +35,7 @@ Spinner :: proc(info: SpinnerInfo, loc := #caller_location) -> (newValue: int) {
 		newValue = max(info.low, info.value - 1)
 	}
 	loc.column += 1
-	SetNextRect(rightButtonRect)
+	SetNextBox(rightButtonBox)
 	if Button({
 		label = Icon.add, 
 		align = .middle,
@@ -58,18 +58,18 @@ Slider :: proc(info: SliderInfo($T), loc := #caller_location) -> (changed: bool,
 	HEIGHT :: SIZE / 2
 	HALF_HEIGHT :: HEIGHT / 2
 	format := info.format.? or_else "%v"
-	rect := LayoutNext(CurrentLayout())
-	rect = ChildRect(rect, {rect.w, SIZE}, .near, .middle)
-	if self, ok := Widget(HashId(loc), rect, {.draggable}); ok {
+	rect := LayoutNext(current_layout())
+	rect = ChildBox(rect, {rect.w, SIZE}, .near, .middle)
+	if self, ok := Widget(hash(loc), rect, {.draggable}); ok {
 		PushId(self.id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), self.state & {.hovered, .pressed} != {}, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .pressed in self.state, 0.1)
+			hoverTime := AnimateBool(hashFromInt(0), self.state & {.hovered, .pressed} != {}, 0.1)
+			pressTime := AnimateBool(hashFromInt(1), .pressed in self.state, 0.1)
 		PopId()
 
 		range := self.body.w - HEIGHT
 		offset := range * clamp(f32((info.value - info.low) / info.high), 0, 1)
-		barRect: Rect = {self.body.x, self.body.y + HALF_HEIGHT, self.body.w, self.body.h - HEIGHT}
-		thumbCenter: Vec2 = {self.body.x + HALF_HEIGHT + offset, self.body.y + self.body.h / 2}
+		barBox: Box = {self.body.x, self.body.y + HALF_HEIGHT, self.body.w, self.body.h - HEIGHT}
+		thumbCenter: [2]f32 = {self.body.x + HALF_HEIGHT + offset, self.body.y + self.body.h / 2}
 		thumbRadius: f32 = 9
 		shadeRadius := thumbRadius + 5 * (pressTime + hoverTime)
 		if .shouldPaint in self.bits {
@@ -77,15 +77,15 @@ Slider :: proc(info: SliderInfo($T), loc := #caller_location) -> (changed: bool,
 				r := f32(info.high - info.low)
 				fontData := GetFontData(.label)
 				for entry in info.guides.? {
-					x := barRect.x + HALF_HEIGHT + range * (f32(entry - info.low) / r)
-					PaintLine({x, barRect.y}, {x, barRect.y - 10}, 1, GetColor(.widget))
-					PaintStringAligned(fontData, TextFormat(format, entry), {x, barRect.y - 12}, GetColor(.widget), .middle, .far)
+					x := barBox.x + HALF_HEIGHT + range * (f32(entry - info.low) / r)
+					PaintLine({x, barBox.y}, {x, barBox.y - 10}, 1, GetColor(.widget))
+					PaintStringAligned(fontData, TextFormat(format, entry), {x, barBox.y - 12}, GetColor(.widget), .middle, .far)
 				}
 			}
 			if info.value < info.high {
-				PaintRoundedRect(barRect, HALF_HEIGHT, GetColor(.widgetBackground))
+				PaintRoundedBox(barBox, HALF_HEIGHT, GetColor(.widgetBackground))
 			}
-			PaintRoundedRect({barRect.x, barRect.y, offset, barRect.h}, HALF_HEIGHT, BlendColors(GetColor(.widget), GetColor(.accent), hoverTime))
+			PaintRoundedBox({barBox.x, barBox.y, offset, barBox.h}, HALF_HEIGHT, BlendColors(GetColor(.widget), GetColor(.accent), hoverTime))
 			PaintCircle(thumbCenter, shadeRadius, 12, GetColor(.baseShade, BASE_SHADE_ALPHA * hoverTime))
 			PaintCircle(thumbCenter, thumbRadius, 12, BlendColors(GetColor(.widget), GetColor(.accent), hoverTime))
 		}
@@ -111,30 +111,30 @@ Slider :: proc(info: SliderInfo($T), loc := #caller_location) -> (changed: bool,
 	return
 }
 
-// Rectangle slider with text edit
-RectSliderInfo :: struct($T: typeid) {
+// Boxangle slider with text edit
+BoxSliderInfo :: struct($T: typeid) {
 	value,
 	low,
 	high: T,
 }
-RectSlider :: proc(info: RectSliderInfo($T), loc := #caller_location) -> (newValue: T) where intrinsics.type_is_integer(T) {
+BoxSlider :: proc(info: BoxSliderInfo($T), loc := #caller_location) -> (newValue: T) where intrinsics.type_is_integer(T) {
 	newValue = info.value
-	if self, ok := Widget(HashId(loc), LayoutNext(CurrentLayout()), {.draggable}); ok {
+	if self, ok := Widget(hash(loc), LayoutNext(current_layout()), {.draggable}); ok {
 		PushId(self.id) 
-			hoverTime := AnimateBool(HashIdFromInt(0), .hovered in self.state, 0.1)
-			pressTime := AnimateBool(HashIdFromInt(1), .pressed in self.state, 0.1)
+			hoverTime := AnimateBool(hashFromInt(0), .hovered in self.state, 0.1)
+			pressTime := AnimateBool(hashFromInt(1), .pressed in self.state, 0.1)
 		PopId()
 
 		if self.bits >= {.shouldPaint} {
-			PaintRect(self.body, GetColor(.widgetBackground))
+			PaintBox(self.body, GetColor(.widgetBackground))
 			if .active not_in self.bits {
 				if info.low < info.high {
-					PaintRect({self.body.x, self.body.y, self.body.w * (f32(info.value - info.low) / f32(info.high - info.low)), self.body.h}, AlphaBlend(GetColor(.widget), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
+					PaintBox({self.body.x, self.body.y, self.body.w * (f32(info.value - info.low) / f32(info.high - info.low)), self.body.h}, AlphaBlend(GetColor(.widget), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
 				} else {
-					PaintRect(self.body, GetColor(.widget))
+					PaintBox(self.body, GetColor(.widget))
 				}
 			} else {
-				PaintRectLines(self.body, 2, GetColor(.accent))
+				PaintBoxLines(self.body, 2, GetColor(.accent))
 			}
 		}
 		fontData := GetFontData(.monospace)
@@ -145,7 +145,7 @@ RectSlider :: proc(info: RectSliderInfo($T), loc := #caller_location) -> (newVal
 		}
 		if .active in self.bits {
 			if self.state & {.pressed, .hovered} != {} {
-				ctx.cursor = .beam
+				core.cursor = .beam
 			}
 			buffer := GetTextBuffer(self.id)
 			TextPro(fontData, buffer[:], self.body, {.alignCenter, .selectAll}, self)
@@ -158,11 +158,11 @@ RectSlider :: proc(info: RectSliderInfo($T), loc := #caller_location) -> (newVal
 					if parsedValue, ok := strconv.parse_int(string(buffer[:])); ok {
 						newValue = T(parsedValue)
 					}
-					ctx.paintThisFrame = true
+					core.paintThisFrame = true
 				}
 			}
 		} else {
-			center: Vec2 = {self.body.x + self.body.w / 2, self.body.y + self.body.h / 2}
+			center: [2]f32 = {self.body.x + self.body.w / 2, self.body.y + self.body.h / 2}
 			PaintStringAligned(fontData, string(text), center, GetColor(.text), .middle, .middle)
 			if .pressed in self.state {
 				if info.low < info.high {
@@ -172,7 +172,7 @@ RectSlider :: proc(info: RectSliderInfo($T), loc := #caller_location) -> (newVal
 				}
 			}
 			if .hovered in self.state {
-				ctx.cursor = .resizeEW
+				core.cursor = .resizeEW
 			}
 		}
 

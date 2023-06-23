@@ -8,30 +8,30 @@ import "core:math/linalg"
 */
 
 // Layer interaction state
-LayerStatus :: enum {
-	gotHover,
+Layer_Status :: enum {
+	got_hover,
 	hovered,
-	lostHover,
+	lost_hover,
 	focused,
 }
-LayerState :: bit_set[LayerStatus]
+Layer_State :: bit_set[Layer_Status]
 // General purpose booleans
-LayerBit :: enum {
+Layer_Bit :: enum {
 	// If the layer should stay alive
-	stayAlive,
+	stay_alive,
 	// If the layer requires clipping
 	clipped,
 	// If the layer requires scrollbars on either axis
-	scrollX,
-	scrollY,
+	scroll_x,
+	scroll_y,
 	// If the layer was dismissed by an input
 	dismissed,
 	// If the layer pushed to the id stack this frame
-	pushedId,
+	did_push_id,
 }
-LayerBits :: bit_set[LayerBit]
+Layer_Bits :: bit_set[Layer_Bit]
 // Options
-LayerOption :: enum {
+Layer_Option :: enum {
 	// If the layer is attached (fixed) to it's parent
 	attached,
 	// Shadows for windows (must be drawn before clip command)
@@ -39,23 +39,23 @@ LayerOption :: enum {
 	// If the layer is spawned with 0 or 1 opacity
 	invisible,
 	// Disallow scrolling on either axis
-	noScrollX,
-	noScrollY,
+	no_scroll_x,
+	no_scroll_y,
 	// Scroll bars won't affect layout size
-	noScrollMarginX,
-	noScrollMarginY,
+	no_scroll_margin_x,
+	no_scroll_margin_y,
 	// Doesn't push the self's id to the stack
-	noPushId,
-	// Forces the self to clip its contents
-	forceClip,
+	no_id,
+	// Forces the self to always clip its contents
+	force_clip,
 	// Forces the self to fit inside its parent
-	clipToParent,
+	clip_to_parent,
 }
-LayerOptions :: bit_set[LayerOption]
+Layer_Options :: bit_set[Layer_Option]
 /*
 	Layers for layers
 */
-LayerOrder :: enum {
+Layer_Order :: enum {
 	// Allways in the background, fixed order
 	background,
 	// Free floating layers, dynamic order
@@ -68,166 +68,166 @@ LayerOrder :: enum {
 /*
 	Each self's data
 */
-LayerData :: struct {
+Layer :: struct {
 	reserved: bool,
-	parent: ^LayerData,
-	children: [dynamic]^LayerData,
+	parent: ^Layer,
+	children: [dynamic]^Layer,
 
 	// Base Data
 	id: Id,
 	// Internal state
-	bits: LayerBits,
+	bits: Layer_Bits,
 	// User options
-	options: LayerOptions,
+	options: Layer_Options,
 	// The layer's own state
 	state,
-	nextState: LayerState,
+	next_state: Layer_State,
 
 	// The painting opacity of all the layer's paint commands
 	opacity: f32,
 
 	// Viewport rectangle
-	rect: Rect,
+	rect: Box,
 
-	// Rectangle on which scrollbars are anchored
-	innerRect: Rect,
+	// Boxangle on which scrollbars are anchored
+	innerBox: Box,
 
 	// Inner layout size
-	layoutSize: Vec2,
+	layout_size: [2]f32,
 
 	// Content bounding box
-	contentRect: Rect,
+	content_box: Box,
 
 	// Negative content offset
-	scroll, scrollTarget: Vec2,
+	scroll, scroll_target: [2]f32,
 
 	// draw order
-	order: LayerOrder,
+	order: Layer_Order,
 
 	// list index
 	index: int,
 
 	// controls on this self
-	contents: map[Id]^WidgetData,
+	contents: map[Id]^Widget,
 
 	// draw commands for this self
 	commands: [COMMAND_BUFFER_SIZE]u8,
-	commandOffset: int,
+	command_offset: int,
 
 	// Clip command stored for use after
 	// contents are already drawn
-	clipCommand: ^CommandClip,
+	clip_command: ^CommandClip,
 
 	// Scroll bars
-	xScrollTime,
-	yScrollTime: f32,
+	x_scroll_time,
+	y_scroll_time: f32,
 }
 
-CurrentLayer :: proc() -> ^LayerData {
-	assert(ctx.layerDepth > 0)
-	return ctx.layerStack[ctx.layerDepth - 1]
+current_layer :: proc() -> ^Layer {
+	assert(core.layer_depth > 0)
+	return core.layer_stack[core.layer_depth - 1]
 }
-CreateLayer :: proc(id: Id, options: LayerOptions) -> (self: ^LayerData, ok: bool) {
+create_layer :: proc(id: Id, options: Layer_Options) -> (self: ^Layer, ok: bool) {
 	// Allocate a new self
 	for i in 0..<LAYER_ARENA_SIZE {
-		if !ctx.layerArena[i].reserved {
-			self = &ctx.layerArena[i]
+		if !core.layer_arena[i].reserved {
+			self = &core.layer_arena[i]
 			break
 		}
 	}
-	//self = new(LayerData)
+	//self = new(Layer)
 	self^ = {
 		reserved = true,
 		id = id,
 		opacity = 0 if .invisible in options else 1,
 	}
 	// Append the new self
-	append(&ctx.layers, self)
-	ctx.layerMap[id] = self
+	append(&core.layers, self)
+	core.layer_map[id] = self
 	// Handle self attachment
-	if ctx.layerDepth > 0 {
-		parent := CurrentLayer() if .attached in options else ctx.rootLayer
+	if core.layer_depth > 0 {
+		parent := current_layer() if .attached in options else core.root_layer
 		append(&parent.children, self)
 		self.parent = parent
 		self.index = len(parent.children)
 	}
 	// Will sort layers this frame
-	ctx.sortLayers = true
+	core.should_sort_layers = true
 	ok = true
 	return
 }
-DeleteLayer :: proc(self: ^LayerData) {
+delete_layer :: proc(self: ^Layer) {
 	delete(self.contents)
 	delete(self.children)
 	self.reserved = false
 }
-CreateOrGetLayer :: proc(id: Id, options: LayerOptions) -> (self: ^LayerData, ok: bool) {
-	self, ok = ctx.layerMap[id]
+create_or_get_layer :: proc(id: Id, options: Layer_Options) -> (self: ^Layer, ok: bool) {
+	self, ok = core.layerMap[id]
 	if !ok {
-		self, ok = CreateLayer(id, options)
+		self, ok = create_layer(id, options)
 	}
 	return
 }
 
 // Frame info
-FrameInfo :: struct {
-	layoutSize: Vec2,
-	options: LayerOptions,
-	fillColor: Maybe(Color),
-	scrollbarPadding: Maybe(f32),
+Frame_Info :: struct {
+	layout_size: [2]f32,
+	options: Layer_Options,
+	fill_color: Maybe(Color),
+	scrollbar_padding: Maybe(f32),
 }
-@(deferred_out=_Frame)
-Frame :: proc(info: FrameInfo, loc := #caller_location) -> (ok: bool) {
-	self: ^LayerData
-	rect := LayoutNext(CurrentLayout())
-	self, ok = BeginLayer({
+@(deferred_out=_frame)
+frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
+	self: ^Layer
+	rect := layout_next(current_layout())
+	self, ok = begin_layer({
 		rect = rect,
-		innerRect = ShrinkRect(rect, info.scrollbarPadding.? or_else 0),
-		layoutSize = info.layoutSize, 
-		id = HashId(loc), 
-		options = info.options + {.clipToParent, .attached},
+		inner_box = shrink_box(rect, info.scrollbar_padding.? or_else 0),
+		layout_size = info.layout_size, 
+		id = hash(loc), 
+		options = info.options + {.clip_to_parent, .attached},
 	})
 	return
 }
 @private
-_Frame :: proc(ok: bool) {
+_frame :: proc(ok: bool) {
 	if ok {
-		PaintRectLines(ctx.currentLayer.rect, 1, GetColor(.baseStroke))
-		EndLayer(ctx.currentLayer)
+		paint_box_stroke(core.currentLayer.rect, 1, get_color(.baseStroke))
+		end_layer(core.currentLayer)
 	}
 }
 
-LayerInfo :: struct {
-	rect: Maybe(Rect),
-	innerRect: Maybe(Rect),
-	layoutSize: Maybe(Vec2),
-	order: Maybe(LayerOrder),
-	options: LayerOptions,
+Layer_Info :: struct {
+	rect: Maybe(Box),
+	inner_box: Maybe(Box),
+	layout_size: Maybe([2]f32),
+	order: Maybe(Layer_Order),
+	options: Layer_Options,
 	id: Maybe(Id),
 }
-@(deferred_out=_Layer)
-Layer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^LayerData, ok: bool) {
+@(deferred_out=_layer)
+layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	info := info
-	info.id = info.id.? or_else HashId(loc)
-	return BeginLayer(info)
+	info.id = info.id.? or_else hash(loc)
+	return begin_layer(info)
 }
 @private
-_Layer :: proc(self: ^LayerData, ok: bool) {
+_layer :: proc(self: ^Layer, ok: bool) {
 	if ok {
-		EndLayer(self)
+		end_layer(self)
 	}
 }
 // Begins a new layer, the layer is created if it doesn't exist
 // and is managed internally
 @private 
-BeginLayer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^LayerData, ok: bool) {
-	if self, ok = CreateOrGetLayer(info.id.? or_else panic("Must define a self id", loc), info.options); ok {
+begin_layer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^Layer, ok: bool) {
+	if self, ok = create_or_get_layer(info.id.? or_else panic("Must define a layer id", loc), info.options); ok {
 		assert(self != nil)
 
 		// Push layer stack
-		ctx.layerStack[ctx.layerDepth] = self
-		ctx.layerDepth += 1
-		ctx.currentLayer = self
+		core.layer_stack[core.layer_depth] = self
+		core.layer_depth += 1
+		core.current_layer = self
 
 		self.order = info.order.? or_else self.order
 
@@ -235,33 +235,33 @@ BeginLayer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^LayerDat
 		self.options = info.options
 
 		// Begin id context for layer contents
-		if .noPushId not_in self.options {
-			PushId(self.id)
-			self.bits += {.pushedId}
+		if .no_id not_in self.options {
+			push_id(self.id)
+			self.bits += {.did_push_id}
 		} else {
-			self.bits -= {.pushedId}
+			self.bits -= {.did_push_id}
 		}
 
 		// Reset stuff
 		self.bits += {.stayAlive}
-		self.commandOffset = 0
+		self.command_offset = 0
 
 		// Get rect
-		self.rect = info.rect.? or_else self.rect
-		self.innerRect = info.innerRect.? or_else self.rect
+		self.box = info.box.? or_else self.box
+		self.inner_box = info.inner_box.? or_else self.box
 
 		// Hovering and stuff
-		self.state = self.nextState
-		self.nextState = {}
-		if ctx.hoveredLayer == self.id {
+		self.state = self.next_state
+		self.next_state = {}
+		if core.hovered_layer == self.id {
 			self.state += {.hovered}
-			if ctx.prevHoveredLayer != self.id {
-				self.state += {.gotHover}
+			if core.last_hovered_layer != self.id {
+				self.state += {.got_hover}
 			}
-		} else if ctx.prevHoveredLayer == self.id {
+		} else if core.last_hovered_layer == self.id {
 			self.state += {.lostHover}
 		}
-		if ctx.focusedLayer == self.id {
+		if core.focusedLayer == self.id {
 			self.state += {.focused}
 		}
 
@@ -270,7 +270,7 @@ BeginLayer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^LayerDat
 			assert(self.parent != nil)
 			parent := self.parent
 			for parent != nil {
-				parent.nextState += self.state
+				parent.next_state += self.state
 				if .attached not_in parent.options {
 					break
 				}
@@ -280,176 +280,178 @@ BeginLayer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^LayerDat
 
 		// Update clip status
 		self.bits -= {.clipped}
-		if .clipToParent in self.options && self.parent != nil && !RectContainsRect(self.parent.rect, self.rect) {
-			self.rect = ClampRect(self.rect, self.parent.rect)
+		if .clip_to_parent in self.options && self.parent != nil && !box_contains(self.parent.box, self.box) {
+			self.box = clamp_box(self.box, self.parent.box)
 		}
 
 		// Shadows
 		if .shadow in self.options {
-			PaintRoundedRect(TranslateRect(self.rect, SHADOW_OFFSET), WINDOW_ROUNDNESS, GetColor(.shadow))
+			paint_rounded_box_fill(move_box(self.box, SHADOW_OFFSET), WINDOW_ROUNDNESS, GetColor(.shadow))
 		}
-		self.clipCommand = PushCommand(self, CommandClip)
-		self.clipCommand.rect = ctx.fullscreenRect
+		self.clip_command = push_command(self, CommandClip)
+		self.clip_command.rect = core.fullscreen_box
 
 		// Get layout size
-		self.layoutSize = info.layoutSize.? or_else {}
-		self.layoutSize = {
-			max(self.layoutSize.x, self.rect.w),
-			max(self.layoutSize.y, self.rect.h),
+		self.layout_size = info.layout_size.? or_else {}
+		self.layout_size = {
+			max(self.layout_size.x, self.box.w),
+			max(self.layout_size.y, self.box.h),
 		}
 
 		// Detect scrollbar necessity
 		SCROLL_LERP_SPEED :: 7
 
 		// Horizontal scrolling
-		if self.layoutSize.x > self.rect.w && .noScrollX not_in self.options {
+		if self.layout_size.x > self.box.w && .no_scroll_x not_in self.options {
 			self.bits += {.scrollX}
-			self.xScrollTime = min(1, self.xScrollTime + ctx.deltaTime * SCROLL_LERP_SPEED)
+			self.x_scroll_time = min(1, self.x_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.scrollX}
-			self.xScrollTime = max(0, self.xScrollTime - ctx.deltaTime * SCROLL_LERP_SPEED)
+			self.x_scroll_time = max(0, self.x_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
 		}
-		if .noScrollMarginY not_in self.options && self.layoutSize.y <= self.rect.h {
-			self.layoutSize.y -= self.xScrollTime * SCROLL_BAR_SIZE
+		if .no_scroll_margin_y not_in self.options && self.layout_size.y <= self.box.h {
+			self.layout_size.y -= self.x_scroll_time * SCROLL_BAR_SIZE
 		}
-		if self.xScrollTime > 0 && self.xScrollTime < 1 {
-			ctx.paintNextFrame = true
+		if self.x_scroll_time > 0 && self.x_scroll_time < 1 {
+			core.paint_next_frame = true
 		}
 
 		// Vertical scrolling
-		if self.layoutSize.y > self.rect.h && .noScrollY not_in self.options {
+		if self.layout_size.y > self.box.h && .no_scroll_y not_in self.options {
 			self.bits += {.scrollY}
-			self.yScrollTime = min(1, self.yScrollTime + ctx.deltaTime * SCROLL_LERP_SPEED)
+			self.y_scroll_time = min(1, self.y_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.scrollY}
-			self.yScrollTime = max(0, self.yScrollTime - ctx.deltaTime * SCROLL_LERP_SPEED)
+			self.y_scroll_time = max(0, self.y_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
 		}
-		if .noScrollMarginX not_in self.options && self.layoutSize.x <= self.rect.w {
-			self.layoutSize.x -= self.yScrollTime * SCROLL_BAR_SIZE
+		if .no_scroll_margin_x not_in self.options && self.layout_size.x <= self.box.w {
+			self.layout_size.x -= self.y_scroll_time * SCROLL_BAR_SIZE
 		}
-		if self.yScrollTime > 0 && self.yScrollTime < 1 {
-			ctx.paintNextFrame = true
+		if self.y_scroll_time > 0 && self.y_scroll_time < 1 {
+			core.paint_next_frame = true
 		}
-		self.contentRect = {self.rect.x + self.rect.w, self.rect.y + self.rect.h, 0, 0}
+		self.content_box = {self.box.x + self.box.w, self.box.y + self.box.h, 0, 0}
 
 		// Layers currently have their own layouts, but this is subject to change
-		layoutRect: Rect = {
-			self.rect.x - self.scroll.x,
-			self.rect.y - self.scroll.y,
-			self.layoutSize.x,
-			self.layoutSize.y,
+		layout_box: Box = {
+			self.box.x - self.scroll.x,
+			self.box.y - self.scroll.y,
+			self.layout_size.x,
+			self.layout_size.y,
 		}
-		PushLayout(layoutRect)
+		push_layout(layout_box)
 	}
 	return
 }
 // Called for every 'BeginLayer' that is called
 @private 
-EndLayer :: proc(self: ^LayerData) {
+end_layer :: proc(self: ^Layer) {
 	if self != nil {
 		// Debug stuff
 		when ODIN_DEBUG {
-			if .showWindow in ctx.debugBits && self.id != 0 && ctx.debugLayer == self.id {
-				PaintRect(self.rect, {255, 0, 255, 20})
-				PaintRectLines(self.rect, 1, {255, 0, 255, 255})
+			if .show_window in core.debug_bits && self.id != 0 && core.debug_layer == self.id {
+				paint_box_fill(self.box, {255, 0, 255, 20})
+				paint_box_stroke(self.box, 1, {255, 0, 255, 255})
 			}
 		}
 
 		// Detect clipping
-		if (self.rect != ctx.fullscreenRect && !RectContainsRect(self.rect, self.contentRect)) || .forceClip in self.options {
+		if (self.box != core.fullscreen_box && !box_contains(self.box, self.content_box)) || .force_clip in self.options {
 			self.bits += {.clipped}
 		}
 
 		// End layout
-		PopLayout()
+		pop_layout()
 
 		// Handle scrolling
 		SCROLL_SPEED :: 16
 		SCROLL_STEP :: 55
 
 		// Maximum scroll offset
-		maxScroll: Vec2 = {
-			max(self.layoutSize.x - self.rect.w, 0),
-			max(self.layoutSize.y - self.rect.h, 0),
+		max_scroll: [2]f32 = {
+			max(self.layout_size.x - self.box.w, 0),
+			max(self.layout_size.y - self.box.h, 0),
 		}
 
 		// Update scroll offset
-		if ctx.hoveredLayer == self.id {
-			self.scrollTarget -= input.mouseScroll * SCROLL_STEP
+		if core.hovered_layer == self.id {
+			self.scroll_target -= input.mouse_scroll * SCROLL_STEP
 		}
-		self.scrollTarget.x = clamp(self.scrollTarget.x, 0, maxScroll.x)
-		self.scrollTarget.y = clamp(self.scrollTarget.y, 0, maxScroll.y)
-		if linalg.floor(self.scrollTarget - self.scroll) != {} {
-			ctx.paintNextFrame = true
+		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
+		self.scroll_target.y = clamp(self.scroll_target.y, 0, max_scroll.y)
+		if linalg.floor(self.scroll_target - self.scroll) != {} {
+			core.paint_next_frame = true
 		}
-		self.scroll += (self.scrollTarget - self.scroll) * SCROLL_SPEED * ctx.deltaTime
+		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * core.delta_time
 
 		// Manifest scroll bars
-		if self.xScrollTime > 0 {
-			rect := GetRectBottom(self.innerRect, self.xScrollTime * SCROLL_BAR_SIZE)
-			rect.w -= self.yScrollTime * SCROLL_BAR_SIZE
+		if self.x_scroll_time > 0 {
+			rect := get_box_bottom(self.innerBox, self.x_scroll_time * SCROLL_BAR_SIZE)
+			rect.w -= self.y_scroll_time * SCROLL_BAR_SIZE
 			rect.h -= SCROLL_BAR_PADDING
 			rect.x += SCROLL_BAR_PADDING
 			rect.w -= SCROLL_BAR_PADDING * 2
-			SetNextRect(rect)
-			if changed, newValue := ScrollBar({
+			set_next_box(rect)
+			if changed, new_value := scrollbar({
 				value = self.scroll.x, 
 				low = 0, 
 				high = maxScroll.x, 
-				thumbSize = max(SCROLL_BAR_SIZE * 2, rect.w * self.rect.w / self.layoutSize.x),
+				thumb_size = max(SCROLL_BAR_SIZE * 2, rect.w * self.box.w / self.layout_size.x),
 			}); changed {
-				self.scroll.x = newValue
-				self.scrollTarget.x = newValue
+				self.scroll.x = new_value
+				self.scroll_target.x = new_value
 			}
 		}
-		if self.yScrollTime > 0 {
-			rect := GetRectRight(self.innerRect, self.yScrollTime * SCROLL_BAR_SIZE)
-			rect.h -= self.xScrollTime * SCROLL_BAR_SIZE
+		if self.y_scroll_time > 0 {
+			rect := get_box_right(self.innerBox, self.y_scroll_time * SCROLL_BAR_SIZE)
+			rect.h -= self.x_scroll_time * SCROLL_BAR_SIZE
 			rect.w -= SCROLL_BAR_PADDING
 			rect.y += SCROLL_BAR_PADDING
 			rect.h -= SCROLL_BAR_PADDING * 2
-			SetNextRect(rect)
-			if change, newValue := ScrollBar({
+			set_next_box(rect)
+			if change, new_value := scrollbar({
 				value = self.scroll.y, 
 				low = 0, 
 				high = maxScroll.y, 
-				thumbSize = max(SCROLL_BAR_SIZE * 2, rect.h * self.rect.h / self.layoutSize.y), 
+				thumb_size = max(SCROLL_BAR_SIZE * 2, rect.h * self.box.h / self.layout_size.y), 
 				vertical = true,
 			}); change {
-				self.scroll.y = newValue
-				self.scrollTarget.y = newValue
+				self.scroll.y = new_value
+				self.scroll_target.y = new_value
 			}
 		}
 
 		// Handle content clipping
 		if .clipped in self.bits {
 			// Apply clipping
-			assert(self.clipCommand != nil)
-			self.rect.h = max(0, self.rect.h)
-			self.clipCommand.rect = self.rect
+			assert(self.clip_command != nil)
+			self.box.h = max(0, self.box.h)
+			self.clip_command.rect = self.box
 		}
 		// Push a new clip command to end clipping
-		PushCommand(self, CommandClip).rect = ctx.fullscreenRect
+		push_command(self, Command_Clip).rect = core.fullscreen_box
 		
 		if .attached in self.options {
-			UpdateLayerContentRect(self.parent, self.innerRect)
+			self.parent.content_box = update_bounding_box(self.parent.content_box, self.inner_box)
 		}
 		
 		// End id context
-		if .pushedId in self.bits {
-			PopId()
+		if .did_push_id in self.bits {
+			pop_id()
 		}
 	}
-	ctx.layerDepth -= 1
-	if ctx.layerDepth > 0 {
-		ctx.currentLayer = ctx.layerStack[ctx.layerDepth - 1]
+	core.layer_depth -= 1
+	if core.layer_depth > 0 {
+		core.current_layer = core.layer_stack[core.layer_depth - 1]
 	}
 }
-UpdateLayerContentRect :: proc(self: ^LayerData, rect: Rect) {
-	self.contentRect.x = min(self.contentRect.x, rect.x)
-	self.contentRect.y = min(self.contentRect.y, rect.y)
-	self.contentRect.w = max(self.contentRect.w, (rect.x + rect.w) - self.contentRect.x)
-	self.contentRect.h = max(self.contentRect.h, (rect.y + rect.h) - self.contentRect.y)
+update_bounding_box :: proc(bounds, subject: Box) -> Box {
+	bounds := bounds
+	bounds.x = min(bounds.x, subject.x)
+	bounds.y = min(bounds.y, subject.y)
+	bounds.w = max(bounds.w, (subject.x + subject.w) - bounds.x)
+	bounds.h = max(bounds.h, (subject.y + subject.h) - bounds.y)
+	return bounds
 }
 
 Clip :: enum {
@@ -457,13 +459,13 @@ Clip :: enum {
 	partial,	// partially visible
 	full,		// hidden
 }
-CheckClip :: proc(clip, rect: Rect) -> Clip {
-	if rect.x > clip.x + clip.w || rect.x + rect.w < clip.x ||
-	   rect.y > clip.y + clip.h || rect.y + rect.h < clip.y { 
+get_clip :: proc(clip, subject: Box) -> Clip {
+	if subject.x > clip.x + clip.w || subject.x + subject.w < clip.x ||
+	   subject.y > clip.y + clip.h || subject.y + subject.h < clip.y { 
 		return .full 
 	}
-	if rect.x >= clip.x && rect.x + rect.w <= clip.x + clip.w &&
-	   rect.y >= clip.y && rect.y + rect.h <= clip.y + clip.h { 
+	if subject.x >= clip.x && subject.x + subject.w <= clip.x + clip.w &&
+	   subject.y >= clip.y && subject.y + subject.h <= clip.y + clip.h { 
 		return .none
 	}
 	return .partial

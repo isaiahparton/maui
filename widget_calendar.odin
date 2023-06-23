@@ -10,20 +10,20 @@ DatePickerInfo :: struct {
 	tempValue: ^time.Time,
 }
 DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
-	if self, ok := Widget(HashId(loc), LayoutNext(CurrentLayout()), {}); ok {
+	if self, ok := Widget(hash(loc), LayoutNext(current_layout()), {}); ok {
 
 		hoverTime := AnimateBool(self.id, .hovered in self.state, 0.1)
 
 		year, month, day := time.date(info.value^)
 		if .shouldPaint in self.bits {
-			PaintRect(self.body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
-			PaintRectLines(self.body, 1, GetColor(.buttonBase))
-			PaintLabelRect(TextFormat("%2i-%2i-%4i", day, int(month), year), self.body, GetColor(.buttonBase), .near, .middle)
+			PaintBox(self.body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
+			PaintBoxLines(self.body, 1, GetColor(.buttonBase))
+			PaintLabelBox(TextFormat("%2i-%2i-%4i", day, int(month), year), self.body, GetColor(.buttonBase), .near, .middle)
 			PaintIconAligned(GetFontData(.default), .calendar, {self.body.x + self.body.w - self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.buttonBase), .middle, .middle)
 		}
 
 		if .active in self.bits {
-			rect: Rect = {0, 0, CALENDAR_WIDTH, CALENDAR_HEIGHT}
+			rect: Box = {0, 0, CALENDAR_WIDTH, CALENDAR_HEIGHT}
 			rect.x = self.body.x + self.body.w / 2 - rect.w / 2
 			rect.y = self.body.y + self.body.h
 			if layer, ok := Layer({
@@ -36,7 +36,7 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 				year, month, day := time.date(info.tempValue^)
 
 				// Fill
-				PaintRoundedRect(layer.rect, WINDOW_ROUNDNESS, GetColor(.widgetBackground))
+				PaintRoundedBox(layer.rect, WINDOW_ROUNDNESS, GetColor(.widgetBackground))
 				Shrink(10)
 				if Layout(.top, 20) {
 					SetSide(.left); SetSize(1, true); Align(.middle)
@@ -98,8 +98,8 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 					SetSide(.left); SetSize(60)
 					for i in 0..<42 {
 						if (i > 0) && (i % 7 == 0) {
-							PopLayout()
-							PushLayout(Cut(.top, 20))
+							pop_layout()
+							push_layout(Cut(.top, 20))
 							SetSide(.left); SetSize(60)
 						}
 						_, _month, _day := time.date(transmute(time.Time)day_time)
@@ -128,7 +128,7 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 					}
 				}
 				// Stroke
-				PaintRoundedRectOutline(layer.rect, WINDOW_ROUNDNESS, true, GetColor(.baseStroke))
+				PaintRoundedBoxOutline(layer.rect, WINDOW_ROUNDNESS, true, GetColor(.baseStroke))
 
 				if .focused not_in self.state && .focused not_in layer.state {
 					self.bits -= {.active}
