@@ -85,6 +85,7 @@ format_bit_set :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 
 // Unicode values from the remixicons set
 Icon :: enum rune {
+	github 				= 0xedca,
 	check 				= 0xEB7A,
 	error 				= 0xECA0,
 	close 				= 0xEB98,

@@ -138,6 +138,15 @@ get_box_right :: proc(b: Box, a: f32) -> Box {
 get_box_bottom :: proc(b: Box, a: f32) -> Box {
 	return {b.x, b.y + b.h - a, b.w, a}
 }
+get_box_cut :: proc(box: Box, side: Box_Side, amount: f32) -> Box {
+	switch side {
+		case .bottom: 	return get_box_bottom(box, amount)
+		case .top: 		return get_box_top(box, amount)
+		case .left: 	return get_box_left(box, amount)
+		case .right: 	return get_box_right(box, amount)
+	}
+	return {}
+}
 // attach a box
 attach_box_left :: proc(box: Box, amount: f32) -> Box {
 	return {box.x - amount, box.y, amount, box.h}

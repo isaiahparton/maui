@@ -11,6 +11,7 @@ Button_Style :: enum {
 // Standalone button for major actions
 Pill_Button_Info :: struct {
 	label: Label,
+	loading: bool,
 	fit_to_label: Maybe(bool),
 	style: Maybe(Button_Style),
 	fill_color: Maybe(Color),
@@ -20,6 +21,9 @@ pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked
 	layout := current_layout()
 	if (info.fit_to_label.? or_else true) && (layout.side == .left || layout.side == .right) {
 		layout.size = measure_label(info.label).x + layout.box.h
+		if info.loading {
+			layout.size += layout.box.h * 0.75
+		}
 	}
 	if self, ok := widget(hash(loc), layout_next(layout)); ok {
 		using self
@@ -33,16 +37,35 @@ pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked
 			switch info.style.? or_else .filled {
 				case .filled:
 				paint_pill_fill_h(self.box, alpha_blend_colors(get_color(.button_base), get_color(.button_shade), 0.3 if .pressed in self.state else hover_time * 0.15))
-				paint_label_box(info.label, self.box, get_color(.button_text), {.middle, .middle})
+				if info.loading {
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, core.current_time, get_color(.button_text, 0.5))
+					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.button_text, 0.5), {.far, .middle})
+				} else {
+					paint_label_box(info.label, self.box, get_color(.button_text), {.middle, .middle})
+				}
 				
 				case .outlined:
 				paint_pill_fill_h(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
 				paint_pill_stroke_h(self.box, true, get_color(.button_base))
-				paint_label(info.label, {box.x + box.w / 2, box.y + box.h / 2}, get_color(.button_base), {.middle, .middle})
+				if info.loading {
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, core.current_time, get_color(.button_base, 0.5))
+					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.button_base, 0.5), {.far, .middle})
+				} else {
+					paint_label_box(info.label, self.box, get_color(.button_base), {.middle, .middle})
+				}
 			
 				case .subtle:
 				paint_pill_fill_h(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
-				paint_label(info.label, {box.x + box.w / 2, box.y + box.h / 2}, get_color(.button_base), {.middle, .middle})
+				if info.loading {
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, core.current_time, get_color(.button_base, 0.5))
+					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.button_base, 0.5), {.far, .middle})
+				} else {
+					paint_label_box(info.label, self.box, get_color(.button_base), {.middle, .middle})
+				}
+			}
+
+			if info.loading {
+				core.paint_next_frame = true
 			}
 		}
 		// Click result

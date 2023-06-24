@@ -85,8 +85,10 @@ slider :: proc(info: Slider_Info($T), loc := #caller_location) -> (changed: bool
 				paint_rounded_box_fill(bar_box, HALF_HEIGHT, get_color(.widget_bg))
 			}
 			paint_rounded_box_fill({bar_box.x, bar_box.y, offset, bar_box.h}, HALF_HEIGHT, blend_colors(get_color(.widget), get_color(.accent), hover_time))
+			paint_rounded_box_stroke(bar_box, HALF_HEIGHT, true, get_color(.widget_stroke, 0.5))
 			paint_circle_fill(thumb_center, shade_radius, 12, get_color(.base_shade, BASE_SHADE_ALPHA * hover_time))
-			paint_circle_fill_texture(thumb_center, thumb_radius * 2, blend_colors(get_color(.widget), get_color(.accent), hover_time))
+			paint_circle_fill_texture(thumb_center, thumb_radius * 2, blend_colors(get_color(.widget_bg), get_color(.accent), hover_time))
+			paint_circle_stroke_texture(thumb_center, thumb_radius * 2, true, get_color(.widget_stroke, 0.5))
 		}
 		if hover_time > 0 {
 			tooltip(self.id, text_format(format, info.value), thumb_center + {0, -shade_radius - 2}, {.middle, .far})

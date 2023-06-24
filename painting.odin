@@ -818,3 +818,8 @@ paint_flipping_arrow :: proc(center: [2]f32, size, time: f32, color: Color) {
 		)
 	}
 }
+paint_loader :: proc(center: [2]f32, radius, time: f32, color: Color) {
+	start := time * math.TAU
+	paint_ring_sector_fill(center, radius - 3, radius, start, start + 2.2 + math.sin(time * 4) * 0.8, 24, color)
+	core.paint_this_frame = true
+}

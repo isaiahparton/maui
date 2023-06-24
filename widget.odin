@@ -301,8 +301,7 @@ paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: [2]Alignm
 paint_label_box :: proc(label: Label, box: Box, color: Color, align: [2]Alignment) {
 	origin: [2]f32 = {box.x, box.y}
 	#partial switch align.x {
-		case .near: origin.x += box.h * 0.25
-		case .far: origin.x += box.w - box.h * 25
+		case .far: origin.x += box.w
 		case .middle: origin.x += box.w / 2
 	}
 	#partial switch align.y {
@@ -369,7 +368,7 @@ Check_Box_Info :: struct {
 checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_state: bool) {
 	SIZE :: 20
 	HALF_SIZE :: SIZE / 2
-	TEXT_OFFSET :: 5
+	TEXT_OFFSET :: 10
 
 	// Check if there is text
 	has_text := info.text != nil

@@ -138,6 +138,19 @@ cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
 	}
 	return box_cut(&layout.box, side, amount)
 }
+fake_cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
+	assert(core.layout_depth > 0)
+	layout := current_layout()
+	amount := amount
+	if relative {
+		if side == .left || side == .right {
+			amount *= layout.box.w
+		} else {
+			amount *= layout.box.h
+		}
+	}
+	return get_box_cut(layout.box, side, amount)
+}
 
 // User procs
 @(deferred_out=_layout)

@@ -3,13 +3,13 @@ package maui
 import "core:time"
 
 CALENDAR_WIDTH :: 440
-CALENDAR_HEIGHT :: 240
+CALENDAR_HEIGHT :: 250
 
-DatePickerInfo :: struct {
+Date_Picker_Info :: struct {
 	value,
 	temp_value: ^time.Time,
 }
-DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
+date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 	if self, ok := widget(hash(loc), layout_next(current_layout()), {}); ok {
 
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
@@ -18,7 +18,7 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 		if .should_paint in self.bits {
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), 0.2 if .pressed in self.state else hover_time * 0.1))
 			paint_box_stroke(self.box, 1, get_color(.button_base))
-			paint_label_box(text_format("%2i-%2i-%4i", day, int(month), year), self.box, get_color(.button_base), {.near, .middle})
+			paint_label_box(text_format("%2i-%2i-%4i", day, int(month), year), shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.button_base), {.near, .middle})
 			paint_aligned_icon(get_font_data(.default), .calendar, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.button_base), {.middle, .middle})
 		}
 
@@ -80,6 +80,7 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 						}
 					}
 				}
+				space(10)
 				if layout(.top, 20) {
 					set_side(.left); set_size(70)
 					// Subtract one year
@@ -166,10 +167,6 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 				}
 				// Stroke
 				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, true, get_color(.base_stroke))
-
-				if .focused not_in self.state && .focused not_in layer.state {
-					self.bits -= {.active}
-				}
 			}
 		}
 

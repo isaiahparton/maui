@@ -108,8 +108,8 @@ menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		if .should_paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), 0.2 if .pressed in state else hover_time * 0.1))
 			paint_box_stroke(box, 1, get_color(.base_stroke))
-			paint_rotating_arrow({box.x + box.w - box.h / 2, box.y + box.h / 2}, 8, -1 + state_time, get_color(.text))
-			paint_label_box(info.label, box, get_color(.text), {info.align.? or_else .near, .middle})
+			paint_rotating_arrow({box.x + box.w - box.h / 2, box.y + box.h / 2}, 6, -1 + state_time, get_color(.text))
+			paint_label_box(info.label, shrink_box_separate(box, {box.h * 0.25, 0}), get_color(.text), {info.align.? or_else .near, .middle})
 		}
 		// Expand/collapse on click
 		if .got_press in state {
@@ -146,7 +146,7 @@ _menu :: proc(active: bool) {
 }
 
 // Options within menus
-@(deferred_out=_SubMenu)
+@(deferred_out=_submenu)
 submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
 	if self, ok := widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
@@ -188,7 +188,7 @@ submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	return
 }
 @private
-_SubMenu :: proc(active: bool) {
+_submenu :: proc(active: bool) {
 	if active {
 		end_attached_layer({
 			stroke_color = get_color(.base_stroke),
@@ -299,7 +299,7 @@ option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
 		// Painting
 		if .should_paint in self.bits {
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), 0.2 if .pressed in self.state else hover_time * 0.1))
-			paint_label_box(info.label, self.box, get_color(.text), {info.align.? or_else .near, .middle})
+			paint_label_box(info.label, shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.text), {info.align.? or_else .near, .middle})
 			if info.active {
 				paint_aligned_icon(get_font_data(.header), .check, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.text), {.middle, .middle})
 			}
