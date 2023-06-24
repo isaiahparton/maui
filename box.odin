@@ -56,25 +56,38 @@ squish_box :: proc(box: Box, side: Box_Side, amount: f32) -> (result: Box) {
 // place a box in a nother box
 child_box :: proc(parent: Box, size: [2]f32, align: [2]Alignment) -> Box {
 	box := Box{0, 0, size.x, size.y}
-	if alignX == .near {
+	if align.x == .near {
 		box.x = parent.x
-	} else if alignX == .middle {
+	} else if align.x == .middle {
 		box.x = parent.x + parent.w / 2 - box.w / 2
-	} else if alignX == .far {
+	} else if align.x == .far {
 		box.x = parent.x + parent.w - box.w
 	}
-	if alignY == .near {
+	if align.y == .near {
 		box.y = parent.y
-	} else if alignY == .middle {
+	} else if align.y == .middle {
 		box.y = parent.y + parent.h / 2 - box.h / 2
-	} else if alignY == .far {
+	} else if align.y == .far {
 		box.y = parent.y + parent.h - box.h
 	}
 	return box
 }
 // shrink a box to its center
-shrink_box :: proc(b: Box, a: f32) -> Box {
-	return {b.x + a, b.y + a, b.w - a * 2, b.h - a * 2}
+shrink_box_uniform :: proc(box: Box, amount: f32) -> Box {
+	return {box.x + amount, box.y + amount, box.w - amount * 2, box.h - amount * 2}
+}
+shrink_box_separate :: proc(box: Box, amount: [2]f32) -> Box {
+	return {box.x + amount.x, box.y + amount.y, box.w - amount.x * 2, box.h - amount.y * 2}
+}
+shrink_box :: proc {
+	shrink_box_separate,
+	shrink_box_uniform,
+}
+grow_box :: proc(box: Box, amount: f32) -> Box {
+	return {box.x - amount, box.y - amount, box.w + amount * 2, box.h + amount * 2}
+}
+move_box :: proc(box: Box, delta: [2]f32) -> Box {
+	return {box.x + delta.x, box.y + delta.y, box.w, box.h}
 }
 // cut a box and return the cut piece
 box_cut_left :: proc(box: ^Box, amount: f32) -> (result: Box) {
@@ -147,7 +160,7 @@ attach_box :: proc(box: Box, side: Box_Side, size: f32) -> Box {
 	}
 	return {}
 }
-side_corners :: proc(side: Box_Side) -> BoxCorners {
+side_corners :: proc(side: Box_Side) -> Box_Corners {
 	switch side {
 		case .bottom:  	return {.top_left, .top_right}
 		case .top:  	return {.bottom_left, .bottom_right}
@@ -156,19 +169,13 @@ side_corners :: proc(side: Box_Side) -> BoxCorners {
 	}
 	return ALL_CORNERS
 }
-point_in_box :: proc(v: [2]f32, r: Box) -> bool {
-	return (v.x >= r.x) && (v.x <= r.x + r.w) && (v.y >= r.y) && (v.y <= r.y + r.h)
+point_in_box :: proc(point: [2]f32, box: Box) -> bool {
+	return (point.x >= box.x) && (point.x <= box.x + box.w) && (point.y >= box.y) && (point.y <= box.y + box.h)
 }
-box_vs_box :: proc(a, b: Box) -> bool {
-	return (a.x + a.w >= b.x) && (a.x <= b.x + b.w) && (a.y + a.h >= b.y) && (a.y <= b.y + b.h)
+box_vs_box :: proc(box_a, box_b: Box) -> bool {
+	return (box_a.x + box_a.w >= box_b.x) && (box_a.x <= box_b.x + box_b.w) && (box_a.y + box_a.h >= box_b.y) && (box_a.y <= box_b.y + box_b.h)
 }
 // B is contained entirely within A
-box_in_box :: proc(a, b: Box) -> bool {
-	return (b.x >= a.x) && (b.x + b.w <= a.x + a.w) && (b.y >= a.y) && (b.y + b.h <= a.y + a.h)
-}
-grow_box :: proc(box: Box, amount: f32) -> Box {
-	return {box.x - amount, box.y - amount, box.w + amount * 2, box.h + amount * 2}
-}
-move_box :: proc(r: Box, v: [2]f32) -> Box {
-	return {r.x + v.x, r.y + v.y, r.w, r.h}
+box_in_box :: proc(box_a, box_b: Box) -> bool {
+	return (box_b.x >= box_a.x) && (box_b.x + box_b.w <= box_a.x + box_a.w) && (box_b.y >= box_a.y) && (box_b.y + box_b.h <= box_a.y + box_a.h)
 }

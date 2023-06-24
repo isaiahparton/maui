@@ -86,11 +86,11 @@ Layer :: struct {
 	// The painting opacity of all the layer's paint commands
 	opacity: f32,
 
-	// Viewport rectangle
-	rect: Box,
+	// Viewport box
+	box: Box,
 
 	// Boxangle on which scrollbars are anchored
-	innerBox: Box,
+	inner_box: Box,
 
 	// Inner layout size
 	layout_size: [2]f32,
@@ -116,7 +116,7 @@ Layer :: struct {
 
 	// Clip command stored for use after
 	// contents are already drawn
-	clip_command: ^CommandClip,
+	clip_command: ^Command_Clip,
 
 	// Scroll bars
 	x_scroll_time,
@@ -162,7 +162,7 @@ delete_layer :: proc(self: ^Layer) {
 	self.reserved = false
 }
 create_or_get_layer :: proc(id: Id, options: Layer_Options) -> (self: ^Layer, ok: bool) {
-	self, ok = core.layerMap[id]
+	self, ok = core.layer_map[id]
 	if !ok {
 		self, ok = create_layer(id, options)
 	}
@@ -179,10 +179,10 @@ Frame_Info :: struct {
 @(deferred_out=_frame)
 frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	self: ^Layer
-	rect := layout_next(current_layout())
+	box := layout_next(current_layout())
 	self, ok = begin_layer({
-		rect = rect,
-		inner_box = shrink_box(rect, info.scrollbar_padding.? or_else 0),
+		box = box,
+		inner_box = shrink_box(box, info.scrollbar_padding.? or_else 0),
 		layout_size = info.layout_size, 
 		id = hash(loc), 
 		options = info.options + {.clip_to_parent, .attached},
@@ -192,13 +192,14 @@ frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 @private
 _frame :: proc(ok: bool) {
 	if ok {
-		paint_box_stroke(core.currentLayer.rect, 1, get_color(.baseStroke))
-		end_layer(core.currentLayer)
+		assert(core.current_layer != nil)
+		paint_box_stroke(core.current_layer.box, 1, get_color(.base_stroke))
+		end_layer(core.current_layer)
 	}
 }
 
 Layer_Info :: struct {
-	rect: Maybe(Box),
+	box: Maybe(Box),
 	inner_box: Maybe(Box),
 	layout_size: Maybe([2]f32),
 	order: Maybe(Layer_Order),
@@ -220,7 +221,7 @@ _layer :: proc(self: ^Layer, ok: bool) {
 // Begins a new layer, the layer is created if it doesn't exist
 // and is managed internally
 @private 
-begin_layer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^Layer, ok: bool) {
+begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	if self, ok = create_or_get_layer(info.id.? or_else panic("Must define a layer id", loc), info.options); ok {
 		assert(self != nil)
 
@@ -243,10 +244,10 @@ begin_layer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^Layer, 
 		}
 
 		// Reset stuff
-		self.bits += {.stayAlive}
+		self.bits += {.stay_alive}
 		self.command_offset = 0
 
-		// Get rect
+		// Get box
 		self.box = info.box.? or_else self.box
 		self.inner_box = info.inner_box.? or_else self.box
 
@@ -259,9 +260,9 @@ begin_layer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^Layer, 
 				self.state += {.got_hover}
 			}
 		} else if core.last_hovered_layer == self.id {
-			self.state += {.lostHover}
+			self.state += {.lost_hover}
 		}
-		if core.focusedLayer == self.id {
+		if core.focused_layer == self.id {
 			self.state += {.focused}
 		}
 
@@ -280,16 +281,16 @@ begin_layer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^Layer, 
 
 		// Update clip status
 		self.bits -= {.clipped}
-		if .clip_to_parent in self.options && self.parent != nil && !box_contains(self.parent.box, self.box) {
+		if .clip_to_parent in self.options && self.parent != nil && !box_in_box(self.parent.box, self.box) {
 			self.box = clamp_box(self.box, self.parent.box)
 		}
 
 		// Shadows
 		if .shadow in self.options {
-			paint_rounded_box_fill(move_box(self.box, SHADOW_OFFSET), WINDOW_ROUNDNESS, GetColor(.shadow))
+			paint_rounded_box_fill(move_box(self.box, SHADOW_OFFSET), WINDOW_ROUNDNESS, get_color(.shadow))
 		}
-		self.clip_command = push_command(self, CommandClip)
-		self.clip_command.rect = core.fullscreen_box
+		self.clip_command = push_command(self, Command_Clip)
+		self.clip_command.box = core.fullscreen_box
 
 		// Get layout size
 		self.layout_size = info.layout_size.? or_else {}
@@ -303,10 +304,10 @@ begin_layer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^Layer, 
 
 		// Horizontal scrolling
 		if self.layout_size.x > self.box.w && .no_scroll_x not_in self.options {
-			self.bits += {.scrollX}
+			self.bits += {.scroll_x}
 			self.x_scroll_time = min(1, self.x_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
-			self.bits -= {.scrollX}
+			self.bits -= {.scroll_x}
 			self.x_scroll_time = max(0, self.x_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
 		}
 		if .no_scroll_margin_y not_in self.options && self.layout_size.y <= self.box.h {
@@ -318,10 +319,10 @@ begin_layer :: proc(info: LayerInfo, loc := #caller_location) -> (self: ^Layer, 
 
 		// Vertical scrolling
 		if self.layout_size.y > self.box.h && .no_scroll_y not_in self.options {
-			self.bits += {.scrollY}
+			self.bits += {.scroll_y}
 			self.y_scroll_time = min(1, self.y_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
-			self.bits -= {.scrollY}
+			self.bits -= {.scroll_y}
 			self.y_scroll_time = max(0, self.y_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
 		}
 		if .no_scroll_margin_x not_in self.options && self.layout_size.x <= self.box.w {
@@ -356,7 +357,7 @@ end_layer :: proc(self: ^Layer) {
 		}
 
 		// Detect clipping
-		if (self.box != core.fullscreen_box && !box_contains(self.box, self.content_box)) || .force_clip in self.options {
+		if (self.box != core.fullscreen_box && !box_in_box(self.box, self.content_box)) || .force_clip in self.options {
 			self.bits += {.clipped}
 		}
 
@@ -386,34 +387,34 @@ end_layer :: proc(self: ^Layer) {
 
 		// Manifest scroll bars
 		if self.x_scroll_time > 0 {
-			rect := get_box_bottom(self.innerBox, self.x_scroll_time * SCROLL_BAR_SIZE)
-			rect.w -= self.y_scroll_time * SCROLL_BAR_SIZE
-			rect.h -= SCROLL_BAR_PADDING
-			rect.x += SCROLL_BAR_PADDING
-			rect.w -= SCROLL_BAR_PADDING * 2
-			set_next_box(rect)
+			box := get_box_bottom(self.inner_box, self.x_scroll_time * SCROLL_BAR_SIZE)
+			box.w -= self.y_scroll_time * SCROLL_BAR_SIZE
+			box.h -= SCROLL_BAR_PADDING
+			box.x += SCROLL_BAR_PADDING
+			box.w -= SCROLL_BAR_PADDING * 2
+			set_next_box(box)
 			if changed, new_value := scrollbar({
 				value = self.scroll.x, 
 				low = 0, 
-				high = maxScroll.x, 
-				thumb_size = max(SCROLL_BAR_SIZE * 2, rect.w * self.box.w / self.layout_size.x),
+				high = max_scroll.x, 
+				thumb_size = max(SCROLL_BAR_SIZE * 2, box.w * self.box.w / self.layout_size.x),
 			}); changed {
 				self.scroll.x = new_value
 				self.scroll_target.x = new_value
 			}
 		}
 		if self.y_scroll_time > 0 {
-			rect := get_box_right(self.innerBox, self.y_scroll_time * SCROLL_BAR_SIZE)
-			rect.h -= self.x_scroll_time * SCROLL_BAR_SIZE
-			rect.w -= SCROLL_BAR_PADDING
-			rect.y += SCROLL_BAR_PADDING
-			rect.h -= SCROLL_BAR_PADDING * 2
-			set_next_box(rect)
+			box := get_box_right(self.inner_box, self.y_scroll_time * SCROLL_BAR_SIZE)
+			box.h -= self.x_scroll_time * SCROLL_BAR_SIZE
+			box.w -= SCROLL_BAR_PADDING
+			box.y += SCROLL_BAR_PADDING
+			box.h -= SCROLL_BAR_PADDING * 2
+			set_next_box(box)
 			if change, new_value := scrollbar({
 				value = self.scroll.y, 
 				low = 0, 
-				high = maxScroll.y, 
-				thumb_size = max(SCROLL_BAR_SIZE * 2, rect.h * self.box.h / self.layout_size.y), 
+				high = max_scroll.y, 
+				thumb_size = max(SCROLL_BAR_SIZE * 2, box.h * self.box.h / self.layout_size.y), 
 				vertical = true,
 			}); change {
 				self.scroll.y = new_value
@@ -426,10 +427,10 @@ end_layer :: proc(self: ^Layer) {
 			// Apply clipping
 			assert(self.clip_command != nil)
 			self.box.h = max(0, self.box.h)
-			self.clip_command.rect = self.box
+			self.clip_command.box = self.box
 		}
 		// Push a new clip command to end clipping
-		push_command(self, Command_Clip).rect = core.fullscreen_box
+		push_command(self, Command_Clip).box = core.fullscreen_box
 		
 		if .attached in self.options {
 			self.parent.content_box = update_bounding_box(self.parent.content_box, self.inner_box)

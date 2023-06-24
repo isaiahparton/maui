@@ -29,9 +29,9 @@ init :: proc() {
 begin_frame :: proc() {
 	ui.set_screen_size(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
 	ui.set_mouse_point(f32(rl.GetMouseX()), f32(rl.GetMouseY()))
-	ui.set_mouse_bit(.left, rl.IsMouse_ButtonDown(.LEFT))
-	ui.set_mouse_bit(.right, rl.IsMouse_ButtonDown(.RIGHT))
-	ui.set_mouse_bit(.middle, rl.IsMouse_ButtonDown(.MIDDLE))
+	ui.set_mouse_bit(.left, rl.IsMouseButtonDown(.LEFT))
+	ui.set_mouse_bit(.right, rl.IsMouseButtonDown(.RIGHT))
+	ui.set_mouse_bit(.middle, rl.IsMouseButtonDown(.MIDDLE))
 
 	ui.set_key_bit(.control, rl.IsKeyDown(.LEFT_CONTROL) || rl.IsKeyDown(.RIGHT_CONTROL))
 	shiftDown := rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT); ui.set_key_bit(.shift, shiftDown)
@@ -59,7 +59,7 @@ begin_frame :: proc() {
 		key = rl.GetCharPressed()
 	}
 
-	ui.core.deltaTime = rl.GetFrameTime()
+	ui.core.delta_time = rl.GetFrameTime()
 }
 
 render :: proc() {
@@ -74,7 +74,7 @@ render :: proc() {
 
 	cmd: ^Command
 	
-	for next_frame(&cmd) {
+	for next_command(&cmd) {
 		switch v in cmd.variant {
 			case ^Command_Texture:
 			rl.rlSetTexture(texture.id)

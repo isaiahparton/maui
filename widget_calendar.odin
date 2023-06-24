@@ -6,129 +6,128 @@ CALENDAR_WIDTH :: 440
 CALENDAR_HEIGHT :: 240
 
 DatePickerInfo :: struct {
-	value: ^time.Time,
-	tempValue: ^time.Time,
+	value,
+	temp_value: ^time.Time,
 }
 DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
-	if self, ok := Widget(hash(loc), LayoutNext(current_layout()), {}); ok {
+	if self, ok := widget(hash(loc), layout_next(current_layout()), {}); ok {
 
-		hoverTime := AnimateBool(self.id, .hovered in self.state, 0.1)
+		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
 
 		year, month, day := time.date(info.value^)
-		if .shouldPaint in self.bits {
-			PaintBox(self.body, AlphaBlend(GetColor(.widgetBackground), GetColor(.widgetShade), 0.2 if .pressed in self.state else hoverTime * 0.1))
-			PaintBoxLines(self.body, 1, GetColor(.buttonBase))
-			PaintLabelBox(TextFormat("%2i-%2i-%4i", day, int(month), year), self.body, GetColor(.buttonBase), .near, .middle)
-			PaintIconAligned(GetFontData(.default), .calendar, {self.body.x + self.body.w - self.body.h / 2, self.body.y + self.body.h / 2}, GetColor(.buttonBase), .middle, .middle)
+		if .should_paint in self.bits {
+			paint_box_fill(self.box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), 0.2 if .pressed in self.state else hover_time * 0.1))
+			paint_box_stroke(self.box, 1, get_color(.button_base))
+			paint_label_box(text_format("%2i-%2i-%4i", day, int(month), year), self.box, get_color(.button_base), {.near, .middle})
+			paint_aligned_icon(get_font_data(.default), .calendar, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.button_base), {.middle, .middle})
 		}
 
 		if .active in self.bits {
-			rect: Box = {0, 0, CALENDAR_WIDTH, CALENDAR_HEIGHT}
-			rect.x = self.body.x + self.body.w / 2 - rect.w / 2
-			rect.y = self.body.y + self.body.h
-			if layer, ok := Layer({
-				rect = rect,
+			box: Box = {0, 0, CALENDAR_WIDTH, CALENDAR_HEIGHT}
+			box.x = self.box.x + self.box.w / 2 - box.w / 2
+			box.y = self.box.y + self.box.h
+			if layer, ok := layer({
+				box = box,
 				order = .background,
 				options = {.shadow, .attached},
 			}); ok {
 
 				// Temporary state
-				year, month, day := time.date(info.tempValue^)
+				year, month, day := time.date(info.temp_value^)
 
 				// Fill
-				PaintRoundedBox(layer.rect, WINDOW_ROUNDNESS, GetColor(.widgetBackground))
-				Shrink(10)
-				if Layout(.top, 20) {
-					SetSide(.left); SetSize(1, true); Align(.middle)
-					//DAY_SUFFIXES : []string = {"th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th"}
-					Text({text = TextFormat("%i %v %i", day, month, year)})
+				paint_rounded_box_fill(layer.box, WINDOW_ROUNDNESS, get_color(.widget_bg))
+				shrink(10)
+				if layout(.top, 20) {
+					set_side(.left); set_size(1, true); set_align(.middle)
+					text({text = text_format("%i %v %i", day, month, year)})
 				}
-				if Layout(.top, 20) {
-					SetSide(.left); SetSize(70)
+				if layout(.top, 20) {
+					set_side(.left); set_size(70)
 					// Subtract one year
-					if Button({label = "<<<", style = .filled}) {
+					if button({label = "<<<", style = .filled}) {
 						year -= 1
-						info.tempValue^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 					// Subtract one month
-					if Button({label = "<<", style = .filled}) {
+					if button({label = "<<", style = .filled}) {
 						month = time.Month(int(month) - 1)
 						if int(month) <= 0 {
 							month = time.Month(12)
 							year -= 1
 						}
-						info.tempValue^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 					// Subtract one day
-					if Button({label = "<", style = .filled}) {
-						info.tempValue^._nsec -= i64(time.Hour * 24)
-						year, month, day = time.date(info.tempValue^)
+					if button({label = "<", style = .filled}) {
+						info.temp_value^._nsec -= i64(time.Hour * 24)
+						year, month, day = time.date(info.temp_value^)
 					}
 					// Add one day
-					if Button({label = ">", style = .filled}) {
-						info.tempValue^._nsec += i64(time.Hour * 24)
-						year, month, day = time.date(info.tempValue^)
+					if button({label = ">", style = .filled}) {
+						info.temp_value^._nsec += i64(time.Hour * 24)
+						year, month, day = time.date(info.temp_value^)
 					}
 					// Add one month
-					if Button({label = ">>", style = .filled}) {
+					if button({label = ">>", style = .filled}) {
 						month = time.Month(int(month) + 1)
 						if int(month) >= 13 {
 							month = time.Month(1)
 							year += 1
 						}
-						info.tempValue^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 					// Add one year
-					if Button({label = ">>>", style = .filled}) {
+					if button({label = ">>>", style = .filled}) {
 						year += 1
-						info.tempValue^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 				}
-				if Layout(.top, 20) {
-					SetSide(.left); SetSize(60); Align(.middle)
+				if layout(.top, 20) {
+					set_side(.left); set_size(60); set_align(.middle)
 					for day in ([]string)({"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}) {
-						Text({text = day})
+						text({text = day})
 					}
 				}
 				WEEK_DURATION :: i64(time.Hour * 24 * 7)
 				OFFSET :: i64(time.Hour * 72)
 				t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
 				day_time := (t._nsec / WEEK_DURATION) * WEEK_DURATION - OFFSET
-				if Layout(.top, 20) {
-					SetSide(.left); SetSize(60)
+				if layout(.top, 20) {
+					set_side(.left); set_size(60)
 					for i in 0..<42 {
 						if (i > 0) && (i % 7 == 0) {
 							pop_layout()
-							push_layout(Cut(.top, 20))
-							SetSide(.left); SetSize(60)
+							push_layout(cut(.top, 20))
+							set_side(.left); set_size(60)
 						}
 						_, _month, _day := time.date(transmute(time.Time)day_time)
-						PushId(i)
-							if Button({label = Format(_day), style = .filled if (_month == month && _day == day) else .outlined, color = GetColor(.buttonBase, 0.5) if time.month(transmute(time.Time)day_time) != month else nil}) {
-								info.tempValue^ = transmute(time.Time)day_time
+						push_id(i)
+							if button({label = format(_day), style = .filled if (_month == month && _day == day) else .outlined, color = get_color(.button_base, 0.5) if time.month(transmute(time.Time)day_time) != month else nil}) {
+								info.temp_value^ = transmute(time.Time)day_time
 							}
-						PopId()
+						pop_id()
 						day_time += i64(time.Hour * 24)
 					}
 				}
-				if Layout(.bottom, 30) {
-					SetSide(.right); SetSize(60)
-					if Button({label = "Cancel", style = .outlined}) {
-						info.tempValue^ = info.value^
+				if layout(.bottom, 30) {
+					set_side(.right); set_size(60)
+					if button({label = "Cancel", style = .outlined}) {
+						info.temp_value^ = info.value^
 						self.bits -= {.active}
 					}
-					Space(10)
-					if Button({label = "Save"}) {
-						info.value^ = info.tempValue^
+					space(10)
+					if button({label = "Save"}) {
+						info.value^ = info.temp_value^
 						self.bits -= {.active}
 					}
-					SetSide(.left); SetSize(60)
-					if Button({label = "Today", style = .outlined}) {
-						info.tempValue^ = time.now()
+					set_side(.left); set_size(60)
+					if button({label = "Today", style = .outlined}) {
+						info.temp_value^ = time.now()
 					}
 				}
 				// Stroke
-				PaintRoundedBoxOutline(layer.rect, WINDOW_ROUNDNESS, true, GetColor(.baseStroke))
+				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, true, get_color(.base_stroke))
 
 				if .focused not_in self.state && .focused not_in layer.state {
 					self.bits -= {.active}
@@ -136,10 +135,10 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 			}
 		}
 
-		if WidgetClicked(self, .left) {
+		if widget_clicked(self, .left) {
 			self.bits ~= {.active}
 			if self.bits >= {.active} {
-				info.tempValue^ = info.value^
+				info.temp_value^ = info.value^
 			}
 		}
 	}

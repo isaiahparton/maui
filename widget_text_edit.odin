@@ -156,17 +156,17 @@ selectable_text :: proc(font_data: ^Font_Data, data: []u8, box: Box, options: Se
 		}
 	} else if widget.state >= {.focused} {
 		// Handle view offset
-		if core.scribe.index < core.scribe.prev_index {
+		if core.scribe.index < core.scribe.last_index {
 			if cursor_start.x < core.scribe.offset.x {
 				core.scribe.offset.x = cursor_start.x
 			}
-		} else if core.scribe.index > core.scribe.prev_index || core.scribe.length > core.scribe.prev_length {
+		} else if core.scribe.index > core.scribe.last_index || core.scribe.length > core.scribe.last_length {
 			if cursor_end.x > core.scribe.offset.x + (box.w - box.h * 0.5) {
 				core.scribe.offset.x = cursor_end.x - box.w + box.h * 0.5
 			}
 		}
-		core.scribe.prev_index = core.scribe.index
-		core.scribe.prev_length = core.scribe.length
+		core.scribe.last_index = core.scribe.index
+		core.scribe.last_length = core.scribe.length
 	}
 	// Clamp view offset
 	if size.x > box.w {
@@ -238,13 +238,13 @@ text_edit :: proc(buf: ^[dynamic]u8, options: Text_Edit_Options, max_len: int = 
 		// Highlight or not
 		if key_down(.shift) {
 			if state.index < state.anchor {
-				newIndex := state.index + delta
-				state.index = max(0, newIndex)
+				new_index := state.index + delta
+				state.index = max(0, new_index)
 				state.length = state.anchor - state.index
 			} else {
-				newIndex := state.index + state.length + delta
-				state.index = min(state.anchor, newIndex)
-				state.length = max(state.anchor, newIndex) - state.index
+				new_index := state.index + state.length + delta
+				state.index = min(state.anchor, new_index)
+				state.length = max(state.anchor, new_index) - state.index
 			}
 		} else {
 			if state.length == 0 {
@@ -253,7 +253,7 @@ text_edit :: proc(buf: ^[dynamic]u8, options: Text_Edit_Options, max_len: int = 
 			state.length = 0
 			state.anchor = state.index
 		}
-		core.paintNextFrame = true
+		core.paint_next_frame = true
 		// Clamp cursor
 		state.index = max(0, state.index)
 		state.length = max(0, state.length)
@@ -262,20 +262,20 @@ text_edit :: proc(buf: ^[dynamic]u8, options: Text_Edit_Options, max_len: int = 
 		delta := 0
 		// How far should the cursor move
 		if key_down(.control) {
-			delta = fint_next_seperator(buf[state.index + state.length:])
+			delta = find_next_seperator(buf[state.index + state.length:])
 		} else {
 			_, delta = utf8.decode_rune_in_bytes(buf[state.index + state.length:])
 		}
 		// Highlight or not?
 		if key_down(.shift) {
 			if state.index < state.anchor {
-				newIndex := state.index + delta
-				state.index = newIndex
-				state.length = state.anchor - newIndex
+				new_index := state.index + delta
+				state.index = new_index
+				state.length = state.anchor - new_index
 			} else {
-				newIndex := state.index + state.length + delta
+				new_index := state.index + state.length + delta
 				state.index = state.anchor
-				state.length = newIndex - state.index
+				state.length = new_index - state.index
 			}
 		} else {
 			if state.length > 0 {
@@ -296,7 +296,7 @@ text_edit :: proc(buf: ^[dynamic]u8, options: Text_Edit_Options, max_len: int = 
 				state.length = len(buf) - state.index
 			}
 		}
-		core.paintNextFrame = true
+		core.paint_next_frame = true
 		state.index = max(0, state.index)
 		state.length = max(0, state.length)
 	}
@@ -318,14 +318,14 @@ Text_Input_Info :: struct {
 	edit_options: Text_Edit_Options,
 }
 text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
-	if self, ok := widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable, .keySelect}); ok {
+	if self, ok := widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable, .can_key_select}); ok {
 		using self
 		// Text cursor
 		if state & {.hovered, .pressed} != {} {
 			core.cursor = .beam
 		}
 		// Animation values
-		hoverTime := animate_bool(self.id, .hovered in state, 0.1)
+		hover_time := animate_bool(self.id, .hovered in state, 0.1)
 
 		buffer := info.data.(^[dynamic]u8) or_else get_text_buffer(self.id)
 
@@ -347,22 +347,22 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 			}
 		}
 		// Paint!
-		paint_box_fill(body, AlphaBlend(get_color(.widgetBackground), get_color(.widgetShade), hoverTime * 0.05))
+		paint_box_fill(box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), hover_time * 0.05))
 		font_data := get_font_data(.default)
 		switch type in info.data {
 			case ^string:
-			selectable_text(font_data, transmute([]u8)type[:], body, {}, self)
+			selectable_text(font_data, transmute([]u8)type[:], box, {}, self)
 
 			case ^[dynamic]u8:
-			selectable_text(font_data, type[:], body, {}, self)
+			selectable_text(font_data, type[:], box, {}, self)
 		}
-		if .shouldPaint in bits {
-			stroke_color := get_color(.accent) if .focused in self.state else blend_colors(get_color(.baseStroke), get_color(.text), hoverTime)
-			paint_labeled_widget_frame(body, info.title, 1, stroke_color)
+		if .should_paint in bits {
+			stroke_color := get_color(.accent) if .focused in self.state else blend_colors(get_color(.base_stroke), get_color(.text), hover_time)
+			paint_labeled_widget_frame(box, info.title, 1, stroke_color)
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
-					paint_aligned_string(font_data, info.placeholder.?, {body.x + body.h * 0.25, body.y + body.h / 2}, get_color(.text, GHOST_TEXT_ALPHA), {.near, .middle})
+					paint_aligned_string(font_data, info.placeholder.?, {box.x + box.h * 0.25, box.y + box.h / 2}, get_color(.text, GHOST_TEXT_ALPHA), {.near, .middle})
 				}
 			}
 		}
@@ -379,10 +379,10 @@ Number_Input_Info :: struct($T: typeid) where intrinsics.type_is_float(T) || int
 }
 number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (newValue: T) {
 	newValue = info.value
-	if self, ok := widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable, .keySelect}); ok {
+	if self, ok := widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable, .can_key_select}); ok {
 		using self
 		// Animation values
-		hoverTime := animate_bool(self.id, .hovered in state, 0.1)
+		hover_time := animate_bool(self.id, .hovered in state, 0.1)
 		// Cursor style
 		if state & {.hovered, .pressed} != {} {
 			core.cursor = .beam
@@ -391,10 +391,10 @@ number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (n
 		text := text_format_slice(info.format.? or_else "%v", info.value)
 		// Painting
 		font_data := get_font_data(.monospace)
-		paint_box_fill(body, AlphaBlend(get_color(.widgetBackground), get_color(.widgetShade), hoverTime * 0.05))
-		if !info.noOutline {
-			stroke_color := get_color(.accent) if .focused in self.state else blend_colors(get_color(.baseStroke), get_color(.text), hoverTime)
-			paint_labeled_widget_frame(body, info.title, 1, stroke_color)
+		paint_box_fill(box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), hover_time * 0.05))
+		if !info.no_outline {
+			stroke_color := get_color(.accent) if .focused in self.state else blend_colors(get_color(.base_stroke), get_color(.text), hover_time)
+			paint_labeled_widget_frame(box, info.title, 1, stroke_color)
 		}
 		// Update text input
 		if state >= {.focused} {
@@ -410,12 +410,12 @@ number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (n
 			selectable_text(
 				font_data, 
 				buffer[:], 
-				body, 
-				info.textOptions, 
+				box, 
+				info.select_options, 
 				self,
 				)
 			if text_edit(buffer, text_edit_options, 18) {
-				core.paintNextFrame = true
+				core.paint_next_frame = true
 				str := string(buffer[:])
 				switch typeid_of(T) {
 					case f64:  		
@@ -433,7 +433,7 @@ number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (n
 			selectable_text(
 				font_data, 
 				text, 
-				body, 
+				box, 
 				info.select_options, 
 				self,
 				)
@@ -488,7 +488,7 @@ text_edit_backspace :: proc(buf: ^[dynamic]u8){
 is_seperator :: proc(glyph: u8) -> bool {
 	return glyph == ' ' || glyph == '\n' || glyph == '\t' || glyph == '\\' || glyph == '/'
 }
-fint_next_seperator :: proc(slice: []u8) -> int {
+find_next_seperator :: proc(slice: []u8) -> int {
 	for i in 1 ..< len(slice) {
 		if is_seperator(slice[i]) {
 			return i
@@ -496,7 +496,7 @@ fint_next_seperator :: proc(slice: []u8) -> int {
 	}
 	return len(slice) - 1
 }
-fint_last_seperator :: proc(slice: []u8) -> int {
+find_last_seperator :: proc(slice: []u8) -> int {
 	for i in len(slice) - 1 ..= 1 {
 		if is_seperator(slice[i]) {
 			return i

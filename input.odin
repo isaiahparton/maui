@@ -54,7 +54,7 @@ Input :: struct {
 	last_click_time: [Mouse_Button]time.Time,
 	this_click_time: [Mouse_Button]time.Time,
 
-	key_bits, last_key_bits: KeyBits,
+	key_bits, last_key_bits: Key_Bits,
 	last_key: Key,
 
 	runes: [MAX_INPUT_RUNES]rune,

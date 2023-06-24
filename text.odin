@@ -143,106 +143,106 @@ Contained_String_Info :: struct {
 	word_wrap: bool,
 	align: [2]Alignment,
 }
-paint_contained_string :: proc(font: ^FontData, text: string, rect: Box, color: Color, info: Contained_String_Info) -> [2]f32 {
+paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: Color, info: Contained_String_Info) -> [2]f32 {
 
-	point: [2]f32 = {rect.x, rect.y}
+	point: [2]f32 = {box.x, box.y}
 	size: [2]f32
-	nextWord: int
+	next_word_index: int
 
 	totalSize: [2]f32
-	if alignX != .near || alignY != .near {
+	if info.align.x != .near || info.align.y != .near {
 		totalSize = measure_string(font, text)
-		#partial switch align.x {
-			case .far: point.x += rect.w - totalSize.x
-			case .middle: point.x += rect.w / 2 - totalSize.x / 2
+		#partial switch info.align.x {
+			case .far: point.x += box.w - totalSize.x
+			case .middle: point.x += box.w / 2 - totalSize.x / 2
 		}
-		#partial switch align.y {
-			case .far: point.y += rect.h - totalSize.y
-			case .middle: point.y += rect.h / 2 - totalSize.y / 2
+		#partial switch info.align.y {
+			case .far: point.y += box.h - totalSize.y
+			case .middle: point.y += box.h / 2 - totalSize.y / 2
 		}
 	}
 
-	breakSize: f32
-	if options < {.wrap} {
+	break_size: f32
+	if !info.wrap {
 		//TODO(isaiah): Optimize this
-		breakSize = measure_string(font, TEXT_BREAK).x
+		break_size = measure_string(font, TEXT_BREAK).x
 	}
 
 	for codepoint, index in text {
 		glyph := get_glyph_data(font, codepoint)
-		totalAdvance := glyph.advance + GLYPH_SPACING
-		space := totalAdvance
+		total_advance := glyph.advance + GLYPH_SPACING
+		space := total_advance
 
-		if options >= {.wrap} {
-			if options >= {.word_wrap} && index >= nextWord {
-				for wordCodepoint, wordIndex in text[index:] {
-					textIndex := index + wordIndex
-					if wordCodepoint == ' ' {
-						nextWord = textIndex
+		if info.wrap {
+			if info.word_wrap && index >= next_word_index {
+				for word_rune, word_index in text[index:] {
+					text_index := index + word_index
+					if word_rune == ' ' {
+						next_word_index = text_index
 						break
-					} else if textIndex >= len(text) - 1 {
-						nextWord = textIndex + 1
+					} else if text_index >= len(text) - 1 {
+						next_word_index = text_index + 1
 						break
 					}
 				}
-				if nextWord > index {
-					space = measure_string(font, text[index:nextWord]).x
+				if next_word_index > index {
+					space = measure_string(font, text[index:next_word_index]).x
 				}
 			}
-			if point.x + space > rect.x + rect.w && codepoint != ' ' {
-				if options >= {.wrap} {
-					point.x = rect.x
+			if point.x + space > box.x + box.w && codepoint != ' ' {
+				if info.wrap {
+					point.x = box.x
 					point.y += font.size
 				}
 			}
-		} else if point.x + totalAdvance + breakSize >= rect.x + rect.w {
+		} else if point.x + total_advance + break_size >= box.x + box.w {
 			paint_string(font, TEXT_BREAK, point, color)
 			break
 		}
 
 		if codepoint == '\n' {
-			point.x = rect.x
+			point.x = box.x
 			point.y += font.size
 		} else {
-			if point.y + font.size >= rect.y + rect.h {
-				paint_clipped_glyph(glyph, point, rect, color)
+			if point.y + font.size >= box.y + box.h {
+				paint_clipped_glyph(glyph, point, box, color)
 			} else {
-				paint_texture(glyph.source, {math.trunc(point.x + glyph.offset.x), point.y + glyph.offset.y, glyph.source.w, glyph.source.h}, color)
+				paint_texture(glyph.src, {math.trunc(point.x + glyph.offset.x), point.y + glyph.offset.y, glyph.src.w, glyph.src.h}, color)
 			}
-			point.x += totalAdvance
+			point.x += total_advance
 		}
-		size.x = max(size.x, point.x - rect.x)
+		size.x = max(size.x, point.x - box.x)
 
-		if point.y >= rect.y + rect.h {
+		if point.y >= box.y + box.h {
 			break
 		}
 	}
-	size.y = point.y - rect.y
+	size.y = point.y - box.y
 
 	return size
 }
 
 // Text painting
-measure_string :: proc(font: ^FontData, text: string) -> (size: [2]f32) {
-	lineSize: [2]f32
+measure_string :: proc(font: ^Font_Data, text: string) -> (size: [2]f32) {
+	line_size: [2]f32
 	lines := 1
 	for codepoint in text {
 		glyph := get_glyph_data(font, codepoint)
-		lineSize.x += glyph.advance + GLYPH_SPACING
+		line_size.x += glyph.advance + GLYPH_SPACING
 		// Update the maximum width
 		if codepoint == '\n' {
-			size.x = max(size.x, lineSize.x)
-			lineSize = {}
+			size.x = max(size.x, line_size.x)
+			line_size = {}
 			lines += 1
 		}
 	}
 	// Account for the last line
-	size.x = max(size.x, lineSize.x)
+	size.x = max(size.x, line_size.x)
 	// Height is simple
 	size.y = font.size * f32(lines)
 	return size
 }
-paint_string :: proc(font: ^FontData, text: string, origin: [2]f32, color: Color) -> [2]f32 {
+paint_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, color: Color) -> [2]f32 {
 	point := origin
 	size := [2]f32{}
 	for codepoint in text {
@@ -251,7 +251,7 @@ paint_string :: proc(font: ^FontData, text: string, origin: [2]f32, color: Color
 			point.x = origin.x
 			point.y += font.size
 		} else {
-			paint_texture(glyph.source, {math.trunc(point.x + glyph.offset.x), point.y + glyph.offset.y, glyph.source.w, glyph.source.h}, color)
+			paint_texture(glyph.src, {math.trunc(point.x + glyph.offset.x), point.y + glyph.offset.y, glyph.src.w, glyph.src.h}, color)
 			point.x += glyph.advance + GLYPH_SPACING
 		}
 		size.x = max(size.x, point.x - origin.x)
@@ -259,57 +259,57 @@ paint_string :: proc(font: ^FontData, text: string, origin: [2]f32, color: Color
 	size.y = font.size
 	return size
 }
-paint_aligned_string :: proc(font: ^FontData, text: string, origin: [2]f32, color: Color, alignX, alignY: Alignment) -> [2]f32 {
+paint_aligned_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
 	origin := origin
-	if alignX == .middle {
+	if align.x == .middle {
 		origin.x -= math.trunc(measure_string(font, text).x / 2)
-	} else if alignX == .far {
+	} else if align.x == .far {
 		origin.x -= measure_string(font, text).x
 	}
-	if alignY == .middle {
+	if align.y == .middle {
 		origin.y -= measure_string(font, text).y / 2
-	} else if alignY == .far {
+	} else if align.y == .far {
 		origin.y -= measure_string(font, text).y
 	}
 	return paint_string(font, text, origin, color)
 }
-paint_aligned_glyph :: proc(glyph: GlyphData, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
-   	rect := glyph.source
+paint_aligned_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
+   	box := glyph.src
 	switch align.x {
-		case .far: rect.x = origin.x - rect.w
-		case .middle: rect.x = origin.x - math.floor(rect.w / 2)
-		case .near: rect.x = origin.x
+		case .far: box.x = origin.x - box.w
+		case .middle: box.x = origin.x - math.floor(box.w / 2)
+		case .near: box.x = origin.x
 	}
 	switch align.y {
-		case .far: rect.y = origin.y - rect.h
-		case .middle: rect.y = origin.y - math.floor(rect.h / 2)
-		case .near: rect.y = origin.y
+		case .far: box.y = origin.y - box.h
+		case .middle: box.y = origin.y - math.floor(box.h / 2)
+		case .near: box.y = origin.y
 	}
-    paint_texture(glyph.source, rect, color)
+    paint_texture(glyph.src, box, color)
 
-    return {rect.w, rect.h}
+    return {box.w, box.h}
 }
-paint_icon_aligned :: proc(font_data: ^FontData, icon: Icon, origin: [2]f32, size: f32, color: Color, align: [2]Alignment) -> [2]f32 {
+paint_aligned_icon :: proc(font_data: ^Font_Data, icon: Icon, origin: [2]f32, size: f32, color: Color, align: [2]Alignment) -> [2]f32 {
 	glyph := get_glyph_data(font_data, rune(icon))
-	rect := glyph.source
-	rect.w *= size
-	rect.h *= size
+	box := glyph.src
+	box.w *= size
+	box.h *= size
 	switch align.x {
-		case .far: rect.x = origin.x - rect.w
-		case .middle: rect.x = origin.x - rect.w / 2
-		case .near: rect.x = origin.x
+		case .far: box.x = origin.x - box.w
+		case .middle: box.x = origin.x - box.w / 2
+		case .near: box.x = origin.x
 	}
 	switch align.y {
-		case .far: rect.y = origin.y - rect.h
-		case .middle: rect.y = origin.y - rect.h / 2
-		case .near: rect.y = origin.y
+		case .far: box.y = origin.y - box.h
+		case .middle: box.y = origin.y - box.h / 2
+		case .near: box.y = origin.y
 	}
-    paint_texture(glyph.source, rect, color)
-    return {rect.w, rect.h}
+    paint_texture(glyph.src, box, color)
+    return {box.w, box.h}
 }
 // Draw a glyph, mathematically clipped to 'clipBox'
-paint_clipped_glyph :: proc(glyph: GlyphData, origin: [2]f32, clip: Box, color: Color) {
-  	src := glyph.source
+paint_clipped_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, clip: Box, color: Color) {
+  	src := glyph.src
     dst := Box{ 
         f32(i32(origin.x + glyph.offset.x)), 
         f32(i32(origin.y + glyph.offset.y)), 

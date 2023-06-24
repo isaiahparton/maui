@@ -177,15 +177,15 @@ get_color :: proc(index: Color_Index, alpha: f32 = 1) -> Color {
 	return {color.r, color.g, color.b, u8(f32(color.a) * clamp(alpha, 0, 1))}
 }
 
-style_shade :: proc(base: Color, shadeAmount: f32) -> Color {
-	return AlphaBlend(base, painter.style.colors[.widget_shade], shadeAmount * 0.1)
+style_shade :: proc(base: Color, amount: f32) -> Color {
+	return alpha_blend_colors(base, painter.style.colors[.widget_shade], amount * 0.1)
 }
-style_intense_shaded :: proc(shadeAmount: f32) -> Color {
-	return AlphaBlend(painter.style.colors[.intense], painter.style.colors[.intense_shade], shadeAmount * 0.15)
+style_intense_shaded :: proc(amount: f32) -> Color {
+	return alpha_blend_colors(painter.style.colors[.intense], painter.style.colors[.intense_shade], amount * 0.15)
 }
-style_widget_shaded :: proc(shadeAmount: f32) -> Color {
-	return AlphaBlend(painter.style.colors[.widget], painter.style.colors[.widget_shade], shadeAmount * 0.1)
+style_widget_shaded :: proc(amount: f32) -> Color {
+	return alpha_blend_colors(painter.style.colors[.widget], painter.style.colors[.widget_shade], amount * 0.1)
 }
-style_base_shaded :: proc(shadeAmount: f32) -> Color {
-	return AlphaBlend(painter.style.colors[.base], painter.style.colors[.base_shade], shadeAmount * 0.1)
+style_base_shaded :: proc(amount: f32) -> Color {
+	return alpha_blend_colors(painter.style.colors[.base], painter.style.colors[.base_shade], amount * 0.1)
 }

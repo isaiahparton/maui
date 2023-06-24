@@ -1,5 +1,7 @@
 package maui
 
+import "core:fmt"
+
 Alignment :: enum {
 	near,
 	middle,
@@ -9,58 +11,63 @@ Alignment :: enum {
 Layout :: struct {
 	box: Box,
 	side: Box_Side,
-	size, margin: f32,
+	size: f32,
+	// control margin
+	margin: [2]f32,
 	// control alignment
 	align: [2]Alignment,
 }
-push_layout :: proc(rect: Box) -> (layout: ^Layout) {
-	using ctx
-	layout = &layouts[layoutDepth]
+push_layout :: proc(box: Box) -> (layout: ^Layout) {
+	layout = &core.layouts[core.layout_depth]
 	layout^ = {
-		rect = rect,
+		box = box,
 	}
-	layoutDepth += 1
+	core.layout_depth += 1
+	assert(core.layout_depth < MAX_LAYOUTS)
 	return
 }
 pop_layout :: proc() {
-	using ctx
-	layoutDepth -= 1
+	core.layout_depth -= 1
 }
 
 /*
 	Current layout control
 */
-set_next_box :: proc(rect: Box) {
-	core.setNextBox = true
-	core.nextBox = rect
+set_next_box :: proc(box: Box) {
+	core.next_box = box
 }
-use_next_box :: proc() -> (rect: Box, ok: bool) {
-	rect = core.nextBox
-	ok = core.setNextBox
-	core.setNextBox = false
+use_next_box :: proc() -> (box: Box, ok: bool) {
+	box, ok = core.next_box.?
+	if ok {
+		core.next_box = nil
+	}
 	return
 }
 set_align :: proc(align: Alignment) {
-	layout := current_layout()
-	layout.alignX = align
-	layout.alignY = align
+	current_layout().align = {align, align}
 }
 set_align_x :: proc(align: Alignment) {
-	current_layout().alignX = align
+	current_layout().align.x = align
 }
 set_align_y :: proc(align: Alignment) {
-	current_layout().alignY = align
+	current_layout().align.y = align
 }
 set_margin :: proc(margin: f32) {
-	current_layout().margin = margin
+	current_layout().margin = {margin, margin}
+}
+set_margin_x :: proc(margin: f32) {
+	current_layout().margin.x = margin
+}
+set_margin_y :: proc(margin: f32) {
+	current_layout().margin.y = margin
 }
 set_size :: proc(size: f32, relative := false) {
 	layout := current_layout()
 	if relative {
 		if layout.side == .top || layout.side == .bottom {
-			layout.size = layout.rect.h * size
+			layout.size = layout.box.h * size
 		} else {
-			layout.size = layout.rect.w * size
+			layout.size = layout.box.w * size
 		}
 		return
 	}
@@ -71,70 +78,72 @@ set_side :: proc(side: Box_Side) {
 }
 space :: proc(amount: f32) {
 	layout := current_layout()
-	box_cut(&layout.rect, layout.side, amount)
+	box_cut(&layout.box, layout.side, amount)
 }
 shrink :: proc(amount: f32) {
 	layout := current_layout()
-	layout.rect = ShrinkBox(layout.rect, amount)
+	layout.box = shrink_box(layout.box, amount)
 }
 current_layout :: proc() -> ^Layout {
-	using ctx
-	return &layouts[layoutDepth - 1]
+	assert(core.layout_depth > 0)
+	return &core.layouts[core.layout_depth - 1]
 }
 
 layout_next :: proc(using self: ^Layout) -> (result: Box) {
 	assert(self != nil)
 	switch side {
-		case .bottom: 	result = box_cutBottom(&rect, size)
-		case .top: 		result = box_cutTop(&rect, size)
-		case .left: 	result = box_cutLeft(&rect, size)
-		case .right: 	result = box_cutRight(&rect, size)
+		case .bottom: 	result = box_cut_bottom(&box, size)
+		case .top: 		result = box_cut_top(&box, size)
+		case .left: 	result = box_cut_left(&box, size)
+		case .right: 	result = box_cut_right(&box, size)
 	}
 
-	if margin > 0 {
-		result = ShrinkBox(result, margin)
+	if margin != {} {
+		result = shrink_box(result, margin)
 	}
 	
-	core.lastBox = result
+	core.last_box = result
 	return
 }
-layout_next_child :: proc(using self: ^Layout, size: [2]f32) -> Box {
+layout_next_child :: proc(self: ^Layout, size: [2]f32) -> Box {
 	assert(self != nil)
-	return ChildBox(LayoutNext(self), size, alignX, alignY)
+	return child_box(layout_next(self), size, self.align)
 }
-layout_fit :: proc(layout: ^Layout, size: [2]f32) {
-	if layout.side == .left || layout.side == .right {
-		layout.size = size.x
+layout_fit :: proc(self: ^Layout, size: [2]f32) {
+	assert(self != nil)
+	if self.side == .left || self.side == .right {
+		self.size = size.x
 	} else {
-		layout.size = size.y
+		self.size = size.y
 	}
 }
 layout_fit_label :: proc(using self: ^Layout, label: Label) {
+	assert(self != nil)
 	if side == .left || side == .right {
-		size = measure_label(label).x + rect.h / 2 + margin * 2
+		size = measure_label(label).x + box.h / 2 + margin.x * 2
 	} else {
-		size = measure_label(label).y + rect.h / 2 + margin * 2
+		size = measure_label(label).y + box.h / 2 + margin.y * 2
 	}
 }
 cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
-	assert(core.layoutDepth > 0)
+	assert(core.layout_depth > 0)
 	layout := current_layout()
 	amount := amount
 	if relative {
 		if side == .left || side == .right {
-			amount *= layout.rect.w
+			amount *= layout.box.w
 		} else {
-			amount *= layout.rect.h
+			amount *= layout.box.h
 		}
 	}
-	return box_cut(&layout.rect, side, amount)
+	return box_cut(&layout.box, side, amount)
 }
 
 // User procs
 @(deferred_out=_layout)
 layout :: proc(side: Box_Side, size: f32, relative := false) -> (ok: bool) {
-	rect := cut(side, size, relative)
-	push_layout(rect)
+	box := cut(side, size, relative)
+	push_layout(box)
 	return true
 }
 @(deferred_out=_layout)
