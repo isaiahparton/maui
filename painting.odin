@@ -538,7 +538,7 @@ paint_texture :: proc(src, dst: Box, color: Color) {
 	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}
 }
 paint_circle_fill_texture :: proc(center: [2]f32, size: f32, color: Color) {
-	index := int(size) - MIN_CIRCLE_SIZE
+	index := int(size) - MIN_CIRCLE_SIZE - 1
 	if index < 0 || index >= CIRCLE_SIZES {
 		return
 	}
@@ -546,7 +546,7 @@ paint_circle_fill_texture :: proc(center: [2]f32, size: f32, color: Color) {
 	paint_texture(src, {center.x - math.floor(src.w / 2), center.y - math.floor(src.h / 2), src.w, src.h}, color)
 }
 paint_circle_stroke_texture :: proc(center: [2]f32, size: f32, thin: bool, color: Color) {
-	index := CIRCLE_SIZES + int(size) - MIN_CIRCLE_SIZE
+	index := CIRCLE_SIZES + int(size) - MIN_CIRCLE_SIZE - 1
 	if !thin {
 		index += CIRCLE_SIZES
 	}

@@ -147,7 +147,7 @@ _menu :: proc(active: bool) {
 
 // Options within menus
 @(deferred_out=_SubMenu)
-SubMenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
+submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
 	if self, ok := widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
 		using self
@@ -196,7 +196,7 @@ _SubMenu :: proc(active: bool) {
 	}
 }
 
-AttachedMenu_Info :: struct {
+Attached_Menu_Info :: struct {
 	parent: ^Widget,
 	size: [2]f32,
 	align: Alignment,
@@ -205,8 +205,8 @@ AttachedMenu_Info :: struct {
 	show_arrow: bool,
 }
 // Attach a menu to a widget (opens when focused)
-@(deferred_out=_AttachMenu)
-AttachMenu :: proc(info: AttachedMenu_Info) -> (ok: bool) {
+@(deferred_out=_attach_menu)
+attach_menu :: proc(info: Attached_Menu_Info) -> (ok: bool) {
 	if info.parent != nil {
 		if info.parent.bits >= {.menu_open} {
 
@@ -278,7 +278,7 @@ AttachMenu :: proc(info: AttachedMenu_Info) -> (ok: bool) {
 	return 
 }
 @private 
-_AttachMenu :: proc(ok: bool) {
+_attach_menu :: proc(ok: bool) {
 	if ok {
 		layer := current_layer()
 		pop_layout()
@@ -286,13 +286,13 @@ _AttachMenu :: proc(ok: bool) {
 	}
 }
 
-OptionInfo :: struct {
+Option_Info :: struct {
 	label: Label,
 	active: bool,
 	align: Maybe(Alignment),
 	no_dismiss: bool,
 }
-Option :: proc(info: OptionInfo, loc := #caller_location) -> (clicked: bool) {
+option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := widget(hash(loc), layout_next(current_layout())); ok {
 		// Animation
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
@@ -319,7 +319,7 @@ Option :: proc(info: OptionInfo, loc := #caller_location) -> (clicked: bool) {
 	}
 	return
 }
-EnumMenuOptions :: proc(
+enum_options :: proc(
 	value: $T, 
 	loc := #caller_location,
 ) -> (newValue: T) {
@@ -333,7 +333,7 @@ EnumMenuOptions :: proc(
 	}
 	return
 }
-BitSetMenuOptions :: proc(set: $S/bit_set[$E;$U], loc := #caller_location) -> (newSet: S) {
+bit_set_options :: proc(set: $S/bit_set[$E;$U], loc := #caller_location) -> (newSet: S) {
 	newSet = set
 	for member in E {
 		push_id(hash_int(int(member)))

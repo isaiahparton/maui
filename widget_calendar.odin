@@ -39,8 +39,46 @@ DatePicker :: proc(info: DatePickerInfo, loc := #caller_location) {
 				paint_rounded_box_fill(layer.box, WINDOW_ROUNDNESS, get_color(.widget_bg))
 				shrink(10)
 				if layout(.top, 20) {
-					set_side(.left); set_size(1, true); set_align(.middle)
-					text({text = text_format("%i %v %i", day, month, year)})
+					set_side(.left); set_size(135); set_align(.middle)
+					month_days := int(time.days_before[int(month)])
+					if int(month) > 0 {
+						month_days -= int(time.days_before[int(month) - 1])
+					}
+					if menu({label = format(day), size = {0, 120}, layout_size = ([2]f32){0, f32(month_days) * 20}}) {
+						set_size(20)
+						for i in 1..=month_days {
+							push_id(i)
+								if option({label = format(i)}) {
+									day = i
+									info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+								}
+							pop_id()
+						}
+					}
+					space(10)
+					if menu({label = format(month), size = {0, 120}, layout_size = ([2]f32){0, 240}}) {
+						set_size(20)
+						for member in time.Month {
+							push_id(int(member))
+								if option({label = format(member)}) {
+									month = member
+									info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+								}
+							pop_id()
+						}
+					}
+					space(10)
+					if menu({label = format(year), size = {0, 120}, layout_size = ([2]f32){0, 180}}) {
+						set_size(20)
+						for i in (year - 4)..=(year + 4) {
+							push_id(i)
+								if option({label = format(i)}) {
+									year = i
+									info.temp_value^, _ = time.datetime_to_time(i, int(month), day, 0, 0, 0, 0)
+								}
+							pop_id()
+						}
+					}
 				}
 				if layout(.top, 20) {
 					set_side(.left); set_size(70)

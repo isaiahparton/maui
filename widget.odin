@@ -538,7 +538,7 @@ toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (new
 		push_id(self.id) 
 			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.15)
 			press_time := animate_bool(hash_int(1), .pressed in self.state, 0.15)
-			how_on := animate_bool(hash_int(2), state, 0.25)
+			how_on := animate_bool(hash_int(2), state, 0.2)
 		pop_id()
 
 		// Painting
@@ -547,11 +547,11 @@ toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (new
 			base_radius := base_box.h / 2
 			start: [2]f32 = {base_box.x + base_radius, base_box.y + base_box.h / 2}
 			move := base_box.w - base_box.h
-			thumb_center := start + {move * (rl.EaseBackOut(how_on, 0, 1, 1) if state else rl.EaseBackIn(how_on, 0, 1, 1)), 0}
+			thumb_center := start + {move * (rl.EaseQuadInOut(how_on, 0, 1, 1) if state else rl.EaseQuadInOut(how_on, 0, 1, 1)), 0}
 
 			if how_on < 1 {
 				paint_rounded_box_fill(base_box, base_radius, get_color(.widget_bg))
-				paint_rounded_box_stroke(base_box, base_radius, false, get_color(.intense))
+				paint_rounded_box_stroke(base_box, base_radius, true, get_color(.widget_stroke, 0.5))
 			}
 			if how_on > 0 {
 				if how_on < 1 {
@@ -563,17 +563,17 @@ toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (new
 			}
 			
 			if hover_time > 0 {
-				paint_circle_fill(thumb_center, 18, 14, get_color(.base_shade, BASE_SHADE_ALPHA * hover_time))
+				paint_circle_fill(thumb_center, 18, 18, get_color(.base_shade, BASE_SHADE_ALPHA * hover_time))
 			}
 			if press_time > 0 {
 				if .pressed in self.state {
-					paint_circle_fill(thumb_center, 12 + 6 * press_time, 14, get_color(.base_shade, BASE_SHADE_ALPHA))
+					paint_circle_fill(thumb_center, 12 + 6 * press_time, 18, get_color(.base_shade, BASE_SHADE_ALPHA))
 				} else {
-					paint_circle_fill(thumb_center, 18, 14, get_color(.base_shade, BASE_SHADE_ALPHA * press_time))
+					paint_circle_fill(thumb_center, 18, 18, get_color(.base_shade, BASE_SHADE_ALPHA * press_time))
 				}
 			}
-			paint_circle_fill(thumb_center, 11, 10, get_color(.base))
-			paint_ring_fill(thumb_center, 10, 12, 18, get_color(.intense))
+			paint_circle_fill(thumb_center, 11, 10, get_color(.widget_bg))
+			paint_circle_stroke_texture(thumb_center, 22, true, blend_colors(get_color(.widget_stroke, 0.5), get_color(.intense), how_on))
 			if how_on < 1 && info.off_icon != nil {
 				paint_aligned_icon(get_font_data(.default), info.off_icon.?, thumb_center, 1, get_color(.intense, 1 - how_on), {.middle, .middle})
 			}

@@ -8,7 +8,19 @@ import ui_backend "../raylib_backend"
 import "core:fmt"
 import "core:mem"
 
+Choice :: enum {
+	first,
+	second,
+	third,
+}
+Choice_Set :: bit_set[Choice]
+
 main :: proc() {
+	choice: Choice
+	choice_set: Choice_Set
+	switch_state: bool
+	slider_value: f32
+
 	rl.InitWindow(1000, 800, "a window")
 	rl.SetTargetFPS(120)
 	ui.init()
@@ -19,6 +31,8 @@ main :: proc() {
 		ui_backend.begin_frame()
 
 		ui.shrink(100)
+		ui.set_size(30); ui.set_align_y(.middle)
+		ui.text({text = "Pill Buttons"})
 		if ui.layout(.top, 30) {
 			ui.set_side(.left)
 			ui.pill_button({label = "Filled"})
@@ -26,6 +40,37 @@ main :: proc() {
 			ui.pill_button({label = "Outlined", style = .outlined})
 			ui.space(10)
 			ui.pill_button({label = "Subtle", style = .subtle})
+		}
+		ui.space(10)
+		ui.text({text = "Normal Buttons"})
+		if ui.layout(.top, 30) {
+			ui.set_side(.left)
+			ui.button({label = "Filled", fit_to_label = true})
+			ui.space(10)
+			ui.button({label = "Outlined", style = .outlined, fit_to_label = true})
+			ui.space(10)
+			ui.button({label = "Subtle", style = .subtle, fit_to_label = true})
+		}
+		ui.space(10)
+		ui.text({text = "Multiple Choice"})
+		for member in Choice {
+			ui.push_id(int(member))
+				ui.checkbox_bit_set(&choice_set, member, ui.format(member))
+			ui.pop_id()
+		}
+		ui.space(10)
+		ui.text({text = "Single Choice"})
+		choice = ui.enum_radio_buttons(choice)
+		ui.space(10)
+		ui.text({text = "Switches"})
+		ui.toggle_switch({state = &switch_state})
+		ui.space(10)
+		ui.text({text = "Sliders"})
+		if ui.layout(.top, 30) {
+			ui.set_side(.left); ui.set_size(200)
+			if changed, new_value := ui.slider(ui.Slider_Info(f32){value = slider_value, low = 0, high = 10}); changed {
+				slider_value = new_value
+			}
 		}
 
 		ui.end_frame()
