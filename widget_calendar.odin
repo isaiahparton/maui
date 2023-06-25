@@ -10,7 +10,7 @@ Date_Picker_Info :: struct {
 	temp_value: ^time.Time,
 }
 date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
-	if self, ok := widget(hash(loc), layout_next(current_layout()), {}); ok {
+	if self, ok := do_widget(hash(loc), layout_next(current_layout()), {}); ok {
 
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
 
@@ -26,7 +26,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 			box: Box = {0, 0, CALENDAR_WIDTH, CALENDAR_HEIGHT}
 			box.x = self.box.x + self.box.w / 2 - box.w / 2
 			box.y = self.box.y + self.box.h
-			if layer, ok := layer({
+			if layer, ok := do_layer({
 				box = box,
 				order = .background,
 				options = {.shadow, .attached},
@@ -38,7 +38,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 				// Fill
 				paint_rounded_box_fill(layer.box, WINDOW_ROUNDNESS, get_color(.widget_bg))
 				shrink(10)
-				if layout(.top, 20) {
+				if do_layout(.top, 20) {
 					set_side(.left); set_size(135); set_align(.middle)
 					month_days := int(time.days_before[int(month)])
 					if int(month) > 0 {
@@ -81,7 +81,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 					}
 				}
 				space(10)
-				if layout(.top, 20) {
+				if do_layout(.top, 20) {
 					set_side(.left); set_size(70)
 					// Subtract one year
 					if button({label = "<<<", style = .filled}) {
@@ -122,7 +122,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 				}
-				if layout(.top, 20) {
+				if do_layout(.top, 20) {
 					set_side(.left); set_size(60); set_align(.middle)
 					for day in ([]string)({"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}) {
 						text({text = day})
@@ -132,7 +132,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 				OFFSET :: i64(time.Hour * 72)
 				t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
 				day_time := (t._nsec / WEEK_DURATION) * WEEK_DURATION - OFFSET
-				if layout(.top, 20) {
+				if do_layout(.top, 20) {
 					set_side(.left); set_size(60)
 					for i in 0..<42 {
 						if (i > 0) && (i % 7 == 0) {
@@ -149,7 +149,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 						day_time += i64(time.Hour * 24)
 					}
 				}
-				if layout(.bottom, 30) {
+				if do_layout(.bottom, 30) {
 					set_side(.right); set_size(60)
 					if button({label = "Cancel", style = .outlined}) {
 						info.temp_value^ = info.value^

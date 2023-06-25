@@ -34,7 +34,7 @@ hash :: proc {
 	hash_int,
 }
 hash_int :: #force_inline proc(num: int) -> Id {
-	hash := core.id_stack[core.id_count - 1] if core.id_count > 0 else FNV1A32_OFFSET_BASIS
+	hash := top(&core.id_stack) or_else FNV1A32_OFFSET_BASIS
 	return hash ~ (Id(num) * FNV1A32_PRIME)
 }
 hash_string :: #force_inline proc(str: string) -> Id { 
@@ -48,7 +48,7 @@ hash_uintptr :: #force_inline proc(ptr: uintptr) -> Id {
 	return hash_bytes(([^]u8)(&ptr)[:size_of(ptr)])  
 }
 hash_bytes :: proc(bytes: []byte) -> Id {
-	return fnv32a(bytes, core.id_stack[core.id_count - 1] if core.id_count > 0 else FNV1A32_OFFSET_BASIS)
+	return fnv32a(bytes, top(&core.id_stack) or_else FNV1A32_OFFSET_BASIS)
 }
 hash_loc :: proc(loc: runtime.Source_Code_Location) -> Id {
 	hash := hash_bytes(transmute([]byte)loc.file_path)
@@ -57,20 +57,14 @@ hash_loc :: proc(loc: runtime.Source_Code_Location) -> Id {
 	return hash
 }
 
-@private
-_push_id :: proc(id: Id) {
-	assert(core.id_count < ID_STACK_SIZE, "_push_id() id stack is full!")
-	core.id_stack[core.id_count] = id
-	core.id_count += 1
-}
 push_id_int :: proc(num: int) {
-	_push_id(hash_int(num))
+	push(&core.id_stack, hash_int(num))
 }
 push_id_string :: proc(str: string) {
-	_push_id(hash_string(str))
+	push(&core.id_stack, hash_string(str))
 }
 push_id_other :: proc(id: Id) {
-	_push_id(id)
+	push(&core.id_stack, id)
 }
 push_id :: proc {
 	push_id_int,
@@ -79,6 +73,5 @@ push_id :: proc {
 }
 
 pop_id :: proc() {
-	assert(core.id_count > 0, "PopId() id stack already empty!")
-	core.id_count -= 1
+	pop(&core.id_stack)
 }

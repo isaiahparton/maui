@@ -85,6 +85,7 @@ format_bit_set :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 
 // Unicode values from the remixicons set
 Icon :: enum rune {
+	code 				= 0xeba8,
 	github 				= 0xedca,
 	check 				= 0xEB7A,
 	error 				= 0xECA0,
@@ -341,4 +342,280 @@ paint_clipped_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, clip: Box, color:
     	return
     }
     paint_texture(src, dst, color)
+}
+
+// Advanced interactive text
+Selectable_Text_Bit :: enum {
+	password,
+	select_all,
+	no_paint,
+}
+Selectable_Text_Bits :: bit_set[Selectable_Text_Bit]
+Selectable_Text_Info :: struct {
+	font_data: ^Font_Data,
+	data: []u8,
+	box: Box,
+	view_offset: [2]f32,
+	bits: Selectable_Text_Bits,
+	padding: [2]f32,
+	align: [2]Alignment,
+}
+Selectable_Text_Result :: struct {
+	text_size,
+	view_offset: [2]f32,
+}
+// Displays clipped, selectable text that can be copied to clipboard
+selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result: Selectable_Text_Result) {
+	assert(widget != nil)
+
+	result.view_offset = info.view_offset
+
+	// Alias scribe state
+	//FIXME: fix me!
+	state := &core.typing_agent
+
+	// Should paint?
+	should_paint := .no_paint not_in info.bits
+
+	// For calculating hovered glyph
+	hover_index := 0
+	min_dist: f32 = math.F32_MAX
+
+	// Determine text origin
+	origin: [2]f32 = {info.box.x, info.box.y}
+
+	// Get text size if necessary
+	text_size: [2]f32
+	if info.align.x != .near || info.align.y != .near {
+		text_size = measure_string(info.font_data, string(info.data))
+	}
+
+	// Handle alignment
+	switch info.align.x {
+		case .near: origin.x += info.padding.x
+		case .middle: origin.x += info.box.w / 2 - text_size.x / 2
+		case .far: origin.x += info.box.w - text_size.x - info.padding.x
+	}
+	switch info.align.y {
+		case .near: origin.y += info.padding.y
+		case .middle: origin.y += info.box.h / 2 - text_size.y / 2
+		case .far: origin.y += info.box.h - text_size.y - info.padding.y
+	}
+
+	point := origin
+
+	// Total text size
+	size: [2]f32
+
+	// Cursor start and end position
+	cursor_start, 
+	cursor_end: [2]f32
+
+	// Reset view offset when just focused
+	if .got_focus in widget.state {
+		state.index = 0
+		result.view_offset = {}
+	}
+
+	if .focused in widget.state {
+		// Offset view when currently focused
+		point -= info.view_offset
+		// Content copy
+		if key_down(.control) {
+			if key_pressed(.c) {
+				if state.length > 0 {
+					set_clipboard_string(string(info.data[state.index:][:state.length]))
+				} else {
+					set_clipboard_string(string(info.data[:]))
+				}
+			}
+		}
+	}
+
+	// Iterate over the bytes
+	for index := 0; index <= len(info.data); {
+
+		// Decode the next glyph
+		bytes := 1
+		glyph: rune
+		if index < len(info.data) {
+			glyph, bytes = utf8.decode_rune_in_bytes(info.data[index:])
+		}
+
+		// Password placeholder glyph
+		if .password in info.bits {
+			glyph = '•'
+		}
+
+		is_tab := glyph == '\t'
+
+		// Get glyph data
+		glyph_data := get_glyph_data(info.font_data, 32 if is_tab else glyph)
+		glyph_width := glyph_data.advance + GLYPH_SPACING
+		if is_tab {
+			TAB_SPACES :: 3
+			glyph_width *= TAB_SPACES
+		}
+
+		// Draw cursors
+		highlight := false
+		if .focused in widget.state && .got_focus not_in widget.state {
+
+			// Draw cursor/selection if allowed
+			if should_paint {
+				if state.length == 0 {
+					if state.index == index && point.x >= info.box.x && point.x < info.box.x + info.box.w {
+						// Bar cursor
+						cursor_point := linalg.floor(point)
+						cursor_point.y = max(cursor_point.y, info.box.y)
+						paint_box_fill(
+							box = {
+								cursor_point.x, 
+								cursor_point.y, 
+								1, 
+								min(info.font_data.size, info.box.y + info.box.h - cursor_point.y),
+							}, 
+							color = get_color(.text),
+							)
+					}
+				} else if index >= state.index && index < state.index + state.length {
+					// Selection
+					cursor_point := linalg.floor(point)
+					cursor_point = {
+						max(cursor_point.x, info.box.x),
+						max(cursor_point.y, info.box.y),
+					}
+					paint_box_fill(
+						box = {
+							cursor_point.x, 
+							cursor_point.y, 
+							min(glyph_width, info.box.w - (cursor_point.x - info.box.x), (point.x + glyph_width) - info.box.x), 
+							min(info.font_data.size, info.box.y + info.box.h - cursor_point.y),
+						}, 
+						color = get_color(.text),
+						)
+					highlight = true
+				}
+			}
+
+			// Set cursor start/end points
+			if state.index == index {
+				cursor_start = size
+			}
+			if state.index + state.length == index {
+				cursor_end = size
+			}
+		}
+
+		// Decide the hovered glyph
+		glyph_point := point + {0, info.font_data.size / 2}
+		dist := linalg.length(glyph_point - input.mouse_point)
+		if dist < min_dist {
+			min_dist = dist
+			hover_index = index
+		}
+
+		// Anything past here requires a valid glyph
+		if index == len(info.data) {
+			break
+		}
+
+		// Draw the glyph
+		if glyph == '\n' {
+			point.x = origin.x
+			point.y += info.font_data.size
+			size.y += info.font_data.size
+		} else if glyph != '\t' && glyph != ' ' && should_paint {
+			paint_clipped_glyph(glyph_data, point, info.box, get_color(.text_inverted if highlight else .text, 1))
+		}
+
+		// Finished, move index and point
+		point.x += glyph_width
+		size.x = max(size.x, point.x - origin.x)
+		index += bytes
+	}
+
+	// Handle initial text selection
+	if .select_all in info.bits {
+		if .got_focus in widget.state {
+			state.index = 0
+			state.anchor = 0
+			state.length = len(info.data)
+		}
+	}
+	if .got_press in widget.state {
+		if widget.click_count == 1 {
+			for i := min(state.index, len(info.data) - 1); i >= 0; i -= 1 {
+				if is_seperator(info.data[i]) {
+					state.index = i + 1
+					break
+				} else if i == 0 {
+					state.index = 0
+					break
+				}
+			}
+			for j := state.index + 1; j < len(info.data); j += 1 {
+				if is_seperator(info.data[j]) {
+					state.length = j - state.index
+					break
+				} else if j == len(info.data) - 1 {
+					state.length = len(info.data) - state.index
+					break
+				}
+			}
+		} else if widget.click_count == 2 {
+			state.index = 0
+			state.anchor = 0
+			state.length = len(info.data)
+		} else {
+			state.index = hover_index
+			state.anchor = hover_index
+			state.length = 0
+		}
+	}
+
+	// View offset
+	if widget.state >= {.pressed} && widget.click_count == 0 {
+		// Selection by dragging
+		if hover_index < state.anchor {
+			state.index = hover_index
+			state.length = state.anchor - hover_index
+		} else {
+			state.index = state.anchor
+			state.length = hover_index - state.anchor
+		}
+		if size.x > info.box.w {
+			// Offset view by dragging
+			DRAG_SPEED :: 15
+			if input.mouse_point.x < info.box.x {
+				result.view_offset.x -= (info.box.x - input.mouse_point.x) * DRAG_SPEED * core.delta_time
+			} else if input.mouse_point.x > info.box.x + info.box.w {
+				result.view_offset.x += (input.mouse_point.x - (info.box.x + info.box.w)) * DRAG_SPEED * core.delta_time
+			}
+		}
+	} else if widget.state >= {.focused} {
+		// Handle view offset
+		if state.index < state.last_index {
+			if cursor_start.x < result.view_offset.x {
+				result.view_offset.x = cursor_start.x
+			}
+		} else if state.index > state.last_index || state.length > state.last_length {
+			if cursor_end.x > result.view_offset.x + (info.box.w - info.view_offset.x) {
+				result.view_offset.x = cursor_end.x - info.box.w + info.view_offset.x
+			}
+		}
+		state.last_index = state.index
+		state.last_length = state.length
+	}
+
+	// Clamp view offset
+	if size.x > info.box.w {
+		result.view_offset.x = clamp(result.view_offset.x, 0, (size.x - info.box.w) + info.view_offset.x)
+	} else {
+		result.view_offset.x = 0
+	}
+
+	result.text_size = size
+
+	return
 }

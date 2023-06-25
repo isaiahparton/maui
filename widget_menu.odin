@@ -96,7 +96,7 @@ Menu_Result :: struct {
 @(deferred_out=_menu)
 menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
-	if self, ok := widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
+	if self, ok := do_widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
 		using self
 		active = .active in bits
 		// Animation
@@ -149,7 +149,7 @@ _menu :: proc(active: bool) {
 @(deferred_out=_submenu)
 submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
-	if self, ok := widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
+	if self, ok := do_widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
 		using self
 		active = .active in bits
 		// Animation
@@ -268,7 +268,7 @@ attach_menu :: proc(info: Attached_Menu_Info) -> (ok: bool) {
 				}
 				push_layout(layout_box)
 			}
-			if core.focus_id != core.last_focus_id && core.focus_id != info.parent.id && core.focus_id not_in layer.contents {
+			if core.widget_agent.focus_id != core.widget_agent.last_focus_id && core.widget_agent.focus_id != info.parent.id && core.widget_agent.focus_id not_in layer.contents {
 				info.parent.bits -= {.menu_open}
 			}
 		} else if info.parent.state >= {.got_focus} {
@@ -293,7 +293,7 @@ Option_Info :: struct {
 	no_dismiss: bool,
 }
 option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
-	if self, ok := widget(hash(loc), layout_next(current_layout())); ok {
+	if self, ok := do_widget(hash(loc), layout_next(current_layout())); ok {
 		// Animation
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
 		// Painting

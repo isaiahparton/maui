@@ -54,6 +54,70 @@ Window :: struct {
 	how_collapsed: f32,
 }
 
+Window_Agent :: struct {
+	list: 			[dynamic]^Window,
+	pool: 			map[Id]^Window,
+	// Window context stack
+	stack: 			[WINDOW_STACK_SIZE]^Window,
+	stack_height: 	int,
+	// Current window
+	current_window:	^Window,
+}
+current_window :: proc() -> ^Window {
+	assert(core.window_agent.current_window != nil)
+	return core.window_agent.current_window
+}
+window_agent_assert :: proc(using self: ^Window_Agent, id: Id) -> (window: ^Window, ok: bool) {
+	window, ok = pool[id]
+	if !ok {
+		window, ok = window_agent_create(self, id)
+	}
+	assert(ok)
+	assert(window != nil)
+	return
+}
+window_agent_create :: proc(using self: ^Window_Agent, id: Id) -> (window: ^Window, ok: bool) {
+	window = new(Window)
+	window^ = {
+		id = id,
+	}
+	append(&list, window)
+	pool[id] = window
+	ok = true
+	return
+}
+window_agent_push :: proc(using self: ^Window_Agent, window: ^Window) {
+	stack[stack_height] = window
+	stack_height += 1
+	current_window = window
+}
+window_agent_pop :: proc(using self: ^Window_Agent) {
+	stack_height -= 1
+	if stack_height > 0 {
+		current_window = stack[stack_height - 1]
+	} else {
+		current_window = nil
+	}
+}
+window_agent_step :: proc(using self: ^Window_Agent) {
+	for window, i in &list {
+		if .stay_alive in window.bits {
+			window.bits -= {.stay_alive}
+		} else {
+			ordered_remove(&list, i)
+			delete_key(&pool, window.id)
+			free(window)
+		}
+	}
+}
+window_agent_destroy :: proc(using self: ^Window_Agent) {
+	for entry in list {
+		free(entry)
+	}
+	delete(list)
+	delete(pool)
+}
+
 Window_Info :: struct {
 	title: string,
 	box: Box,
@@ -62,12 +126,13 @@ Window_Info :: struct {
 	options: Window_Options,
 	layer_options: Layer_Options,
 }
-@(deferred_out=_window)
-window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
+@(deferred_out=_do_window)
+do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 	self: ^Window
 	id := hash(loc)
-	if self, ok = create_or_get_window(id); ok {
-		core.current_window = self
+	if self, ok = window_agent_assert(&core.window_agent, id); ok {
+		window_agent_push(&core.window_agent, self)
+
 		self.bits += {.stay_alive}
 		
 		// Initialize self
@@ -133,8 +198,8 @@ window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 						self.bits += {.should_close}
 					}
 				}
-				if .resizing not_in self.bits && core.hovered_layer == self.decor_layer.id && point_in_box(input.mouse_point, title_box) {
-					if .static not_in self.options && core.hover_id == 0 && mouse_pressed(.left) {
+				if .resizing not_in self.bits && core.layer_agent.hover_id == self.decor_layer.id && point_in_box(input.mouse_point, title_box) {
+					if .static not_in self.options && core.widget_agent.hover_id == 0 && mouse_pressed(.left) {
 						self.bits += {.moving}
 						core.drag_anchor = ([2]f32){self.decor_layer.box.x, self.decor_layer.box.y} - input.mouse_point
 					}
@@ -188,11 +253,11 @@ window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			right_hover 	:= point_in_box(input.mouse_point, get_box_right(self.box, RESIZE_MARGIN))
 			if top_hover || bottom_hover {
 				core.cursor = .resize_NS
-				core.hover_id = 0
+				core.widget_agent.hover_id = 0
 			}
 			if left_hover || right_hover {
 				core.cursor = .resize_EW
-				core.hover_id = 0
+				core.widget_agent.hover_id = 0
 			}
 			if mouse_pressed(.left) {
 				if top_hover {
@@ -216,9 +281,10 @@ window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 	return
 }
 @private
-_window :: proc(ok: bool) {
+_do_window :: proc(ok: bool) {
 	if true {
-		using self := core.current_window
+		using self := current_window()
+		window_agent_pop(&core.window_agent)
 		// End main layer
 		if .collapsed not_in bits {
 			// Outline
@@ -245,7 +311,7 @@ _window :: proc(ok: bool) {
 			switch drag_side {
 				case .bottom:
 				anchor := input.mouse_point.y
-				for other in &core.windows {
+				for other in &core.window_agent.list {
 					if other != self {
 						if abs(input.mouse_point.y - other.box.y) < WINDOW_SNAP_DISTANCE {
 							anchor = other.box.y
@@ -257,7 +323,7 @@ _window :: proc(ok: bool) {
 
 				case .left:
 				anchor := input.mouse_point.x
-				for other in &core.windows {
+				for other in &core.window_agent.list {
 					if other != self {
 						if abs(input.mouse_point.x - (other.box.x + other.box.w)) < WINDOW_SNAP_DISTANCE {
 							anchor = other.box.x + other.box.w
@@ -270,7 +336,7 @@ _window :: proc(ok: bool) {
 
 				case .right:
 				anchor := input.mouse_point.x
-				for other in &core.windows {
+				for other in &core.window_agent.list {
 					if other != self {
 						if abs(input.mouse_point.x - other.box.x) < WINDOW_SNAP_DISTANCE {
 							anchor = other.box.x
@@ -282,7 +348,7 @@ _window :: proc(ok: bool) {
 
 				case .top:
 				anchor := input.mouse_point.y
-				for other in &core.windows {
+				for other in &core.window_agent.list {
 					if other != self {
 						if abs(input.mouse_point.y - (other.box.y + other.box.h)) < WINDOW_SNAP_DISTANCE {
 							anchor = other.box.y + other.box.h
@@ -300,29 +366,4 @@ _window :: proc(ok: bool) {
 			}
 		}
 	}
-}
-
-
-current_window :: proc() -> ^Window {
-	return core.current_window
-}
-create_or_get_window :: proc(id: Id) -> (self: ^Window, ok: bool) {
-	self, ok = core.window_map[id]
-	if !ok {
-		self, ok = create_window(id)
-	}
-	return
-}
-create_window :: proc(id: Id) -> (self: ^Window, ok: bool) {
-	self = new(Window)
-	self^ = {
-		id = id,
-	}
-	append(&core.windows, self)
-	core.window_map[id] = self
-	ok = true
-	return
-}
-delete_window :: proc(self: ^Window) {
-	free(self)
 }

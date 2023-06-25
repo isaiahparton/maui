@@ -25,7 +25,7 @@ pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked
 			layout.size += layout.box.h * 0.75
 		}
 	}
-	if self, ok := widget(hash(loc), layout_next(layout)); ok {
+	if self, ok := do_widget(hash(loc), layout_next(layout)); ok {
 		using self
 		hover_time := animate_bool(self.id, .hovered in state, 0.1)
 		if .hovered in self.state {
@@ -88,7 +88,7 @@ button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
 	if info.fit_to_label {
 		layout_fit_label(layout, info.label)
 	}
-	if self, ok := widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
 		// Animations
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
 		// Cursor
@@ -139,7 +139,7 @@ toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (cli
 	if info.fit_to_label {
 		layout_fit_label(layout, info.label)
 	}
-	if self, ok := widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
 		// Animations
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
 		// Paintions
@@ -177,7 +177,7 @@ Floating_Button_Info :: struct {
 	icon: Icon,
 }
 floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) -> (clicked: bool) {
-	if self, ok := widget(hash(loc), child_box(use_next_box() or_else layout_next(current_layout()), {40, 40}, {.middle, .middle})); ok {
+	if self, ok := do_widget(hash(loc), child_box(use_next_box() or_else layout_next(current_layout()), {40, 40}, {.middle, .middle})); ok {
 		hover_time := animate_bool(self.id, self.state >= {.hovered}, 0.1)
 		// Painting
 		if self.bits >= {.should_paint} {

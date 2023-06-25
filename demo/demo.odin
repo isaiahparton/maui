@@ -19,9 +19,13 @@ main :: proc() {
 	choice: Choice
 	choice_set: Choice_Set
 	switch_state: bool
-	slider_value: f32
+	slider_value_f32: f32
+	slider_value_i32: i32
 	calendar_time: time.Time
 	temp_calendar_time: time.Time
+	spinner_value: int
+	text_buffer: [dynamic]u8
+	multiline_buffer: [dynamic]u8
 
 	button_load_timer: f32
 
@@ -36,11 +40,21 @@ main :: proc() {
 		ui_backend.begin_frame()
 
 		ui.shrink(100)
-		if ui.layout(.left, 0.5, true) {
+		if ui.do_layout_box(ui.fake_cut(.bottom, 50)) {
+			ui.set_side(.right); ui.set_size(50); ui.set_align(.middle)
+			if ui.floating_button({icon = .github}) {
+				rl.OpenURL("https://github.com/isaiahparton/maui")
+			}
+			if ui.floating_button({icon = .code}) {
+				rl.OpenURL("https://github.com/isaiahparton/maui/blob/new-naming-convention/demo/demo.odin")
+			}
+		}
+
+		if ui.do_layout(.left, 0.5, true) {
 
 			ui.set_size(30); ui.set_align_y(.middle)
 			ui.text({text = "Pill Buttons"})
-			if ui.layout(.top, 30) {
+			if ui.do_layout(.top, 30) {
 				ui.set_side(.left)
 				if ui.pill_button({label = string("Loading..." if button_load_timer > 0 else "Filled"), loading = button_load_timer > 0}) {
 					button_load_timer = 5
@@ -53,7 +67,7 @@ main :: proc() {
 			}
 			ui.space(10)
 			ui.text({text = "Normal Buttons"})
-			if ui.layout(.top, 30) {
+			if ui.do_layout(.top, 30) {
 				ui.set_side(.left)
 				ui.button({label = "Filled", fit_to_label = true})
 				ui.space(10)
@@ -76,26 +90,49 @@ main :: proc() {
 			ui.toggle_switch({state = &switch_state})
 			ui.space(10)
 			ui.text({text = "Sliders"})
-			if ui.layout(.top, 30) {
+			if ui.do_layout(.top, 30) {
 				ui.set_side(.left); ui.set_size(200)
-				if changed, new_value := ui.slider(ui.Slider_Info(f32){value = slider_value, low = 0, high = 10}); changed {
-					slider_value = new_value
+				if changed, new_value := ui.slider(ui.Slider_Info(f32){value = slider_value_f32, low = 0, high = 10}); changed {
+					slider_value_f32 = new_value
 				}
 			}
+			ui.space(10)
+			if ui.do_layout(.top, 30) {
+				ui.set_side(.left); ui.set_size(100)
+				slider_value_i32 = ui.box_slider(ui.Box_Slider_Info(i32){value = slider_value_i32, low = 0, high = 100})
+			}
 		}
-		if ui.layout(.left, 1, true) {
+		if ui.do_layout(.left, 1, true) {
 			ui.set_size(30)
 			ui.text({text = "Date & time"})
-			if ui.layout(.top, 30) {
+			if ui.do_layout(.top, 30) {
 				ui.set_side(.left); ui.set_size(200)
 				ui.date_picker({value = &calendar_time, temp_value = &temp_calendar_time})
 			}
-		}
-
-		if ui.layout_box(ui.fake_cut(.right, 50)) {
-			ui.set_side(.bottom); ui.set_size(50); ui.set_align(.middle)
-			if ui.floating_button({icon = .github}) {
-				rl.OpenURL("https://github.com/isaiahparton/maui")
+			ui.space(10)
+			ui.text({text = "Spinners"})
+			if ui.do_layout(.top, 70) {
+				ui.set_side(.left); ui.set_size(30)
+				spinner_value = ui.spinner({value = spinner_value, low = 0, high = 10, orientation = .vertical})
+				ui.space(10)
+				ui.set_size(70); ui.set_margin_y(20)
+				spinner_value = ui.spinner({value = spinner_value, low = 0, high = 10})
+			}
+			ui.space(10)
+			ui.text({text = "Text editing"})
+			if ui.do_layout(.top, 30) {
+				ui.set_side(.left); ui.set_size(200)
+				ui.text_input({data = &text_buffer, title = "Text input"})
+			}
+			ui.space(10)
+			if ui.do_layout(.top, 120) {
+				ui.set_side(.left); ui.set_size(200)
+				ui.text_input({
+					data = &multiline_buffer, 
+					title = "Multiline input", 
+					line_height = 30, 
+					edit_bits = {.multiline},
+				})
 			}
 		}
 

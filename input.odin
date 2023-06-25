@@ -23,10 +23,6 @@ Mouse_Button_State :: enum {
 	// Pressed and released over the widget
 	clicked,
 }
-Click_State :: struct {
-	button_state: Mouse_Button_State,
-	click_count: int,
-}
 
 Key :: enum {
 	alt,
@@ -65,6 +61,37 @@ Input :: struct {
 	key_pulse: bool,
 }
 
+input_step :: proc(using self: ^Input) {
+	rune_count = 0
+
+	// Repeating keys when held
+	new_keys := key_bits - last_key_bits
+	old_key := last_key
+	for key in Key {
+		if key in new_keys && key != last_key {
+			last_key = key
+			break
+		}
+	}
+	if last_key != old_key {
+		key_hold_timer = 0
+	}
+
+	key_pulse = false
+	if last_key in key_bits {
+		key_hold_timer += core.delta_time
+	} else {
+		key_hold_timer = 0
+	}
+	if key_hold_timer >= KEY_REPEAT_DELAY {
+		if key_pulse_timer > 0 {
+			key_pulse_timer -= core.delta_time
+		} else {
+			key_pulse_timer = 1.0 / KEY_REPEAT_RATE
+			key_pulse = true
+		}
+	}
+}
 mouse_pressed :: proc(button: Mouse_Button) -> bool {
 	using input
 	return (button in mouse_bits) && (button not_in last_mouse_bits)

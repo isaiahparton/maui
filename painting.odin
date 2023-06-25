@@ -361,10 +361,10 @@ push_command :: proc(layer: ^Layer, $Type: typeid, extra_size := 0) -> ^Type {
 // Get the next draw command
 next_command :: proc(pcmd: ^^Command) -> bool {
 	// Loop through layers
-	if core.hot_layer >= len(core.layers) {
+	if core.layer_agent.paint_index >= len(core.layer_agent.list) {
 		return false
 	}
-	layer := core.layers[core.hot_layer]
+	layer := core.layer_agent.list[core.layer_agent.paint_index]
 
 	cmd := pcmd^
 	defer pcmd^ = cmd
@@ -384,7 +384,7 @@ next_command :: proc(pcmd: ^^Command) -> bool {
 	}
 	if cmd == (^Command)(&layer.commands[layer.command_offset]) || cmd.size == 0 {
 		// At end of command buffer so reset `cmd` and go to next layer
-		core.hot_layer += 1
+		core.layer_agent.paint_index += 1
 		cmd = nil
 		return next_command(&cmd)
 	}
@@ -410,6 +410,16 @@ end_clip :: proc() {
 		core.clip_box = core.fullscreen_box
 		cmd := push_command(current_layer(), Command_Clip)
 		cmd.box = core.clip_box
+	}
+}
+paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickness: f32, color: Color) {
+	if text != nil {
+		label_font := get_font_data(.label)
+		text_size := measure_string(label_font, text.?)
+		paint_widget_frame(box, offset - 2, text_size.x + 4, thickness, color)
+		paint_string(label_font, text.?, {box.x + offset, box.y - text_size.y / 2}, get_color(.text))
+	} else {
+		paint_box_stroke(box, thickness, color)
 	}
 }
 paint_quad_fill :: proc(p1, p2, p3, p4: [2]f32, c: Color) {
@@ -529,7 +539,7 @@ paint_box_sweep :: proc(r: Box, t: f32, c: Color) {
 	)
 }
 paint_texture :: proc(src, dst: Box, color: Color) {
-	layer := current_layer()
+	layer := core.layer_agent.current_layer
 	cmd := push_command(layer, Command_Texture)
 	cmd.uv_min = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
 	cmd.uv_max = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}
@@ -542,8 +552,8 @@ paint_circle_fill_texture :: proc(center: [2]f32, size: f32, color: Color) {
 	if index < 0 || index >= CIRCLE_SIZES {
 		return
 	}
-	src := grow_box(painter.circles[index].src, 1)
-	paint_texture(src, {center.x - math.floor(src.w / 2), center.y - math.floor(src.h / 2), src.w, src.h}, color)
+	src := painter.circles[index].src
+	paint_texture(src, {center.x - src.w / 2, center.y - src.h / 2, src.w, src.h}, color)
 }
 paint_circle_stroke_texture :: proc(center: [2]f32, size: f32, thin: bool, color: Color) {
 	index := CIRCLE_SIZES + int(size) - MIN_CIRCLE_SIZE - 1
@@ -553,8 +563,8 @@ paint_circle_stroke_texture :: proc(center: [2]f32, size: f32, thin: bool, color
 	if index < 0 {
 		return
 	}
-	src := grow_box(painter.circles[index].src, 1)
-	paint_texture(src, {center.x - math.floor(src.w / 2), center.y - math.floor(src.h / 2), src.w, src.h}, color)
+	src := painter.circles[index].src
+	paint_texture(src, {center.x - src.w / 2, center.y - src.h / 2, src.w, src.h}, color)
 }
 
 paint_pill_fill_h :: proc(box: Box, color: Color) {

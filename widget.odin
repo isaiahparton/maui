@@ -69,31 +69,188 @@ Widget :: struct {
 	// Parent layer
 	layer: 			^Layer,
 }
+
+WIDGET_STACK_SIZE :: 32
+Widget_Agent :: struct {
+	list: [dynamic]^Widget,
+	stack: [WIDGET_STACK_SIZE]^Widget,
+	stack_height: int,
+	last_widget,
+	current_widget: ^Widget,
+	// State
+	last_hover_id, 
+	next_hover_id, 
+	hover_id, 
+	last_press_id, 
+	press_id, 
+	next_focus_fd,
+	focus_id,
+	last_focus_id: Id,
+}
+widget_agent_assert :: proc(using self: ^Widget_Agent, id: Id, box: Box, options: Widget_Options) -> (widget: ^Widget, ok: bool) {
+	layer := current_layer()
+	widget, ok = layer.contents[id]
+	if !ok {
+		widget, ok = widget_agent_create(self, id, layer)
+	}
+	assert(ok)
+	assert(widget != nil)
+	return
+}
+widget_agent_create :: proc(using self: ^Widget_Agent, id: Id, layer: ^Layer) -> (widget: ^Widget, ok: bool) {
+	widget = new(Widget)
+	widget^ = {
+		id = id,
+		layer = layer,
+	}
+	append(&list, widget)
+	layer.contents[id] = widget
+	core.paint_next_frame = true
+	ok = true
+	return
+}
+widget_agent_push :: proc(using self: ^Widget_Agent, widget: ^Widget) {
+	stack[stack_height] = widget
+	stack_height += 1
+	current_widget = widget
+}
+widget_agent_pop :: proc(using self: ^Widget_Agent, loc := #caller_location) {
+	assert(stack_height > 0, "", loc)
+	last_widget = stack[stack_height - 1]
+	stack_height -= 1
+	if stack_height > 0 {
+		current_widget = stack[stack_height - 1]
+	} else {
+		current_widget = nil
+	}
+}
+widget_agent_destroy :: proc(using self: ^Widget_Agent) {
+	for entry in list {
+		free(entry)
+	}
+	delete(list)
+}
+widget_agent_step :: proc(using self: ^Widget_Agent) {
+	for widget, i in &list {
+		if .stay_alive in widget.bits {
+			widget.bits -= {.stay_alive}
+		} else {
+			for key, value in widget.layer.contents {
+				if key == widget.id {
+					delete_key(&widget.layer.contents, key)
+				}
+			}
+			free(widget)
+			ordered_remove(&list, i)
+		}
+	}
+}
+widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
+	last_hover_id = hover_id
+	last_press_id = press_id
+	last_focus_id = focus_id
+	hover_id = next_hover_id
+	if core.dragging && press_id != 0 {
+		hover_id = press_id
+	}
+	if core.is_key_selecting {
+		hover_id = focus_id
+		if key_pressed(.enter) {
+			press_id = hover_id
+		}
+	}
+	next_hover_id = 0
+	if mouse_pressed(.left) {
+		press_id = hover_id
+		focus_id = press_id
+	}
+}
+widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer_Agent, widget: ^Widget) {
+	assert(widget != nil)
+	// Request hover status
+	if point_in_box(input.mouse_point, widget.box) && .hovered in widget.layer.state {
+		next_hover_id = widget.id
+	}
+	// If hovered
+	if hover_id == widget.id {
+		widget.state += {.hovered}
+		if last_hover_id != widget.id {
+			widget.state += {.got_hover}
+		}
+		pressed_buttons := input.mouse_bits - input.last_mouse_bits
+		if pressed_buttons != {} {
+			if widget.click_count == 0 {
+				widget.click_button = input.last_mouse_button
+			}
+			if widget.click_button == input.last_mouse_button && time.since(input.last_click_time[widget.click_button]) <= DOUBLE_CLICK_TIME {
+				widget.click_count = (widget.click_count + 1) % MAX_CLICK_COUNT
+			} else {
+				widget.click_count = 0
+			}
+			widget.click_button = input.last_mouse_button
+			press_id = widget.id
+		}
+		// Just released buttons
+		released_buttons := input.last_mouse_bits - input.mouse_bits
+		if released_buttons != {} {
+			for button in Mouse_Button {
+				if button == widget.click_button {
+					widget.state += {.clicked}
+					break
+				}
+			}
+			if press_id == widget.id {
+				press_id = 0
+			}
+		}
+	} else {
+		if last_hover_id == widget.id {
+			widget.state += {.lost_hover}
+		}
+		if press_id == widget.id {
+			if .draggable in widget.options {
+				if .pressed not_in widget.state {
+					press_id = 0
+				}
+			} else  {
+				press_id = 0
+			}
+		}
+		widget.click_count = 0
+	}
+	// Press
+	if press_id == widget.id {
+		widget.state += {.pressed}
+		if last_press_id != widget.id {
+			widget.state += {.got_press}
+		}
+		core.dragging = .draggable in widget.options
+	} else if last_press_id == widget.id {
+		widget.state += {.lost_press}
+	}
+	// Focus
+	if focus_id == widget.id {
+		widget.state += {.focused}
+		if last_focus_id != widget.id {
+			widget.state += {.got_focus}
+		}
+	} else if last_focus_id == widget.id {
+		widget.state += {.lost_focus}
+	}
+}
+
 // Main widget functionality
-@(deferred_out=_widget)
-widget :: proc(id: Id, box: Box, options: Widget_Options = {}) -> (^Widget, bool) {
+@(deferred_out=_do_widget)
+do_widget :: proc(id: Id, box: Box, options: Widget_Options = {}) -> (self: ^Widget, ok: bool) {
 	// Check if clipped
 	if get_clip(core.clip_box, box) == .full {
-		return nil, false
+		return
 	}
-	// Check for an existing widget
-	layer := current_layer()
-	self, ok := layer.contents[id]
-	// Allocate a new widget
+	self, ok = widget_agent_assert(&core.widget_agent, id, box, options)
 	if !ok {
-		self = new(Widget)
-		self^ = {
-			id = id,
-			layer = layer,
-		}
-		assert(self.layer != nil)
-		append(&core.widgets, self)
-		layer.contents[id] = self
-		core.paint_next_frame = true
+		return
 	}
-
-	assert(self != nil)
-	core.current_widget = self
+	widget_agent_push(&core.widget_agent, self)
 
 	// Prepare widget
 	self.box = box
@@ -112,85 +269,15 @@ widget :: proc(id: Id, box: Box, options: Widget_Options = {}) -> (^Widget, bool
 	}
 	// Get input
 	if !core.disabled {
-		using self
-		// Request hover status
-		if point_in_box(input.mouse_point, box) && core.hovered_layer == layer.id {
-			core.next_hover_id = id
-		}
-		// If hovered
-		if core.hover_id == id {
-			state += {.hovered}
-			if core.last_hover_id != id {
-				state += {.got_hover}
-			}
-			pressed_buttons := input.mouse_bits - input.last_mouse_bits
-			if pressed_buttons != {} {
-				if click_count == 0 {
-					click_button = input.last_mouse_button
-				}
-				if click_button == input.last_mouse_button && time.since(input.last_click_time[click_button]) <= DOUBLE_CLICK_TIME {
-					click_count = (click_count + 1) % MAX_CLICK_COUNT
-				} else {
-					click_count = 0
-				}
-				click_button = input.last_mouse_button
-				core.press_id = id
-			}
-			// Just released buttons
-			released_buttons := input.last_mouse_bits - input.mouse_bits
-			if released_buttons != {} {
-				for button in Mouse_Button {
-					if button == click_button {
-						state += {.clicked}
-						break
-					}
-				}
-				if core.press_id == id {
-					core.press_id = 0
-				}
-			}
-		} else {
-			if core.last_hover_id == id {
-				state += {.lost_hover}
-			}
-			if core.press_id == id {
-				if .draggable in options {
-					if .pressed not_in state {
-						core.press_id = 0
-					}
-				} else  {
-					core.press_id = 0
-				}
-			}
-			click_count = 0
-		}
-		// Press
-		if core.press_id == id {
-			state += {.pressed}
-			if core.last_press_id != id {
-				state += {.got_press}
-			}
-			core.dragging = .draggable in options
-		} else if core.last_press_id == id {
-			state += {.lost_press}
-		}
-		// Focus
-		if core.focus_id == id {
-			state += {.focused}
-			if core.last_focus_id != id {
-				state += {.got_focus}
-			}
-		} else if core.last_focus_id == id {
-			state += {.lost_focus}
-		}
+		widget_agent_update_state(&core.widget_agent, &core.layer_agent, self)
 	}
-	return self, true
+	return
 }
 @private
-_widget :: proc(self: ^Widget, ok: bool) {
+_do_widget :: proc(self: ^Widget, ok: bool) {
 	if ok {
-		// No nils never
 		assert(self != nil)
+		widget_agent_pop(&core.widget_agent)
 		// Shade over the widget if it is disabled
 		if .disabled in self.bits {
 			paint_disable_shade(self.box)
@@ -198,8 +285,8 @@ _widget :: proc(self: ^Widget, ok: bool) {
 		// Update the parent layer's content box
 		self.layer.content_box = update_bounding_box(self.layer.content_box, self.box)
 		// Update group if there is one
-		if core.group_depth > 0 {
-			core.groups[core.group_depth - 1].state += self.state
+		if core.group_stack.height > 0 {
+			top_ref(&core.group_stack).state += self.state
 		}
 		// Display tooltip if there is one
 		if core.next_tooltip != nil {
@@ -212,8 +299,13 @@ _widget :: proc(self: ^Widget, ok: bool) {
 }
 
 // Helper functions
-current_widget :: proc() -> ^Widget {
-	return core.current_widget
+current_widget :: proc(loc := #caller_location) -> ^Widget {
+	assert(core.widget_agent.current_widget != nil, "", loc)
+	return core.widget_agent.current_widget
+}
+last_widget :: proc() -> ^Widget {
+	assert(core.widget_agent.last_widget != nil)
+	return core.widget_agent.last_widget
 }
 widget_clicked :: proc(using self: ^Widget, button: Mouse_Button, times: int = 1) -> bool {
 	return .clicked in state && click_button == button && click_count >= times - 1
@@ -326,7 +418,7 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 	Buttons for navigation
 */
 nav_option :: proc(active: bool, icon: Icon, text: string, loc := #caller_location) -> (clicked: bool) {
-	if self, ok := widget(hash(loc), layout_next(current_layout())); ok {
+	if self, ok := do_widget(hash(loc), layout_next(current_layout())); ok {
 		push_id(self.id) 
 			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.1)
 			state_time := animate_bool(hash_int(1), active, 0.15)
@@ -392,7 +484,7 @@ checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_
 	}
 
 	// Widget
-	if self, ok := widget(hash(loc), use_next_box() or_else layout_next_child(current_layout(), size)); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next_child(current_layout(), size)); ok {
 		using self
 
 		// Determine on state
@@ -531,7 +623,7 @@ Toggle_Switch_Info :: struct {
 toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (new_state: bool) {
 	state := info.state.(bool) or_else info.state.(^bool)^
 	new_state = state
-	if self, ok := widget(hash(loc), layout_next_child(current_layout(), {40, 28})); ok {
+	if self, ok := do_widget(hash(loc), layout_next_child(current_layout(), {40, 28})); ok {
 
 		// Animation
 		push_id(self.id) 
@@ -612,7 +704,7 @@ radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (click
 		size.y = SIZE
 	}
 	// The widget
-	if self, ok := widget(hash(loc), layout_next_child(current_layout(), size)); ok {
+	if self, ok := do_widget(hash(loc), layout_next_child(current_layout(), size)); ok {
 		// Animation
 		push_id(self.id) 
 			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.1)
@@ -688,7 +780,7 @@ Tree_Node_Info :: struct{
 @(deferred_out=_tree_node)
 tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: bool) {
 	sharedId := hash(loc)
-	if self, ok := widget(sharedId, use_next_box() or_else layout_next(current_layout())); ok {
+	if self, ok := do_widget(sharedId, use_next_box() or_else layout_next(current_layout())); ok {
 		using self
 
 		if state & {.hovered} != {} {
@@ -742,7 +834,7 @@ card :: proc(
 	sides: Box_Sides = {}, 
 	loc := #caller_location,
 ) -> (clicked, ok: bool) {
-	if self, widget_ok := widget(hash(loc), layout_next(current_layout())); widget_ok {
+	if self, widget_ok := do_widget(hash(loc), layout_next(current_layout())); widget_ok {
 		push_id(self.id)
 			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.15)
 			press_time := animate_bool(hash_int(1), .pressed in self.state, 0.1)
@@ -825,7 +917,7 @@ Scrollbar_Info :: struct {
 }
 scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed: bool, new_value: f32) {
 	new_value = info.value
-	if self, ok := widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable}); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable}); ok {
 
 		i := int(info.vertical)
 		box := transmute([4]f32)self.box
@@ -879,7 +971,7 @@ chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
 	if layout.side == .left || layout.side == .right {
 		layout.size = measure_string(font_data, info.text).x + layout.box.h + layout.margin.x * 2
 	}
-	if self, ok := widget(hash(loc), layout_next(layout)); ok {
+	if self, ok := do_widget(hash(loc), layout_next(layout)); ok {
 		using self
 		hover_time := animate_bool(self.id, .hovered in state, 0.1)
 		// Graphics
@@ -917,7 +1009,7 @@ toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (click
 		}
 		set_size(min_size)
 	}
-	if self, ok := widget(id, layout_next(layout)); ok {
+	if self, ok := do_widget(id, layout_next(layout)); ok {
 		using self
 		push_id(self.id)
 			hover_time := animate_bool(hash(int(1)), .hovered in state, 0.1)
@@ -952,7 +1044,7 @@ Tab_Info :: struct {
 tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: bool) {
 	layout := current_layout()
 	horizontal := layout.side == .top || layout.side == .bottom
-	if self, ok := widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
 		// Default connecting side
 		side := info.side.? or_else .bottom
 		// Animations
@@ -989,8 +1081,13 @@ tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: bool) {
 enum_tabs :: proc(value: $T, tab_size: f32, loc := #caller_location) -> (new_value: T) { 
 	new_value = value
 	box := layout_next(current_layout())
-	if layout_box(box) {
-		set_side(.left); set_size(1 / f32(len(T)) if tab_size == 0 else tab_size)
+	if do_layout_box(box) {
+		set_side(.left)
+		if tab_size == 0 {
+			set_size(1.0 / f32(len(T)), true)
+		} else {
+			set_size(tab_size)
+		}
 		for member in T {
 			push_id(int(member))
 				if tab({
@@ -1013,7 +1110,6 @@ Text_Info :: struct {
 	color: Maybe(Color),
 }
 text :: proc(info: Text_Info) {
-	assert(core.current_layer != nil)
 	font_data := get_font_data(info.font.? or_else .default)
 	layout := current_layout()
 	text_size := measure_string(font_data, info.text)
@@ -1021,7 +1117,7 @@ text :: proc(info: Text_Info) {
 		layout_fit(layout, text_size)
 	}
 	box := layout_next_child(layout, text_size)
-	if get_clip(core.current_layer.box, box) != .full {
+	if core.paint_this_frame && get_clip(current_layer().box, box) != .full {
 		paint_string(font_data, info.text, {box.x, box.y}, info.color.? or_else get_color(.text))
 	}
 	layer := current_layer()
@@ -1036,10 +1132,9 @@ Text_Box_Info :: struct {
 	color: Maybe(Color),
 }
 text_box :: proc(info: Text_Box_Info) {
-	assert(core.current_layer != nil)
 	font_data := get_font_data(info.font.? or_else .default)
 	box := layout_next(current_layout())
-	if get_clip(core.current_layer.box, box) != .full {
+	if core.paint_this_frame && get_clip(current_layer().box, box) != .full {
 		paint_contained_string(
 			font_data, 
 			info.text, 
@@ -1080,21 +1175,18 @@ progress_bar :: proc(value: f32) {
 */
 @(deferred_out=_list_item)
 list_item :: proc(active: bool, loc := #caller_location) -> (clicked, ok: bool) {
-	box := layout_next(current_layout())
-	if get_clip(core.clip_box, box) != .full {
-		if self, widget_ok := widget(hash(loc), box); widget_ok {
-			hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
-			if active {
-				paint_box_fill(self.box, get_color(.widget))
-			} else if hover_time > 0 {
-				paint_box_fill(self.box, get_color(.widget_shade, BASE_SHADE_ALPHA * hover_time))
-			}
+	if self, widget_ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout())); widget_ok {
+		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
+		if active {
+			paint_box_fill(self.box, get_color(.widget))
+		} else if hover_time > 0 {
+			paint_box_fill(self.box, get_color(.widget_shade, BASE_SHADE_ALPHA * hover_time))
+		}
 
-			clicked = .clicked in self.state && self.click_button == .left
-			ok = true
-			if ok {
-				push_layout(self.box).side = .left
-			}
+		clicked = .clicked in self.state && self.click_button == .left
+		ok = true
+		if ok {
+			push_layout(self.box).side = .left
 		}
 	}
 	return

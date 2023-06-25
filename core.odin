@@ -38,13 +38,11 @@ FMT_BUFFER_SIZE 	:: 128
 
 TEMP_BUFFER_COUNT 	:: 2
 GROUP_STACK_SIZE 	:: 32
-LAYER_ARENA_SIZE 	:: 128
 MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 32)
 MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 1024)
+LAYER_ARENA_SIZE 	:: 128
 LAYER_STACK_SIZE 	:: #config(MAUI_LAYER_STACK_SIZE, 32)
 WINDOW_STACK_SIZE 	:: #config(MAUI_WINDOW_STACK_SIZE, 32)
-// Maximum layout depth (times you can call push_layout())
-MAX_LAYOUTS 		:: #config(MAUI_MAX_LAYOUTS, 32)
 // Size of each layer's command buffer
 COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 256 * 1024)
 // Size of id stack (times you can call push_id())
@@ -64,15 +62,9 @@ Animation :: struct {
 	last_value: f32,
 }
 
-Text_Buffer :: struct {
-	keep_alive: bool,
-	buffer: [dynamic]u8,
-}
-
 Scribe :: struct {
 	index, length, anchor: int,
 	last_index, last_length: int,
-	offset: [2]f32,
 }
 
 Group :: struct {
@@ -97,21 +89,43 @@ Tooltip_Info :: struct {
 	box_side: Box_Side,
 }
 
+Stack :: struct($T: typeid, $N: int) {
+	items: [N]T,
+	height: int,
+}
+push :: proc(stack: ^Stack($T, $N), item: T) {
+	stack.items[stack.height] = item
+	stack.height += 1
+}
+pop :: proc(stack: ^Stack($T, $N)) {
+	stack.height -= 1
+}
+top :: proc(stack: ^Stack($T, $N)) -> (item: T, ok: bool) #optional_ok {
+	assert(stack.height < len(stack.items))
+	if stack.height == 0 {
+		return {}, false
+	}
+	return stack.items[stack.height - 1], true
+}
+top_ref :: proc(stack: ^Stack($T, $N)) -> (ref: ^T, ok: bool) #optional_ok {
+	assert(stack.height < len(stack.items))
+	if stack.height == 0 {
+		return nil, false
+	}
+	return &stack.items[stack.height - 1], true
+}
+
 Core :: struct {
-	// Debugification
+	// Time
+	current_time,
+	delta_time: f32,
 	frame_start_time: time.Time,
 	frame_duration: time.Duration,
 
+	// Debugification
 	debug_bits: Debug_Bits,
 	debug_mode: Debug_Mode,
 
-	// Widget groups collect information from widgets inside them
-	group_depth: 	int,
-	groups: 		[GROUP_STACK_SIZE]Group,
-
-	// Core
-	current_time,
-	delta_time: f32,
 	disabled, 
 	dragging, 
 	is_key_selecting: bool,
@@ -125,78 +139,43 @@ Core :: struct {
 	size: [2]f32,
 	last_box, fullscreen_box: Box,
 
-	// Values to be used by the next widget
-	next_tooltip: Maybe(Tooltip_Info),
-
-	// Text editing/selecting state
-	scribe: Scribe,
-
-	// Temporary text buffers
-	text_buffers: map[Id]Text_Buffer,
-
 	// Mouse cursor type
 	cursor: Cursor_Type,
 
 	// Hash stack
-	id_stack: [ID_STACK_SIZE]Id,
-	id_count: int,
+	id_stack: Stack(Id, ID_STACK_SIZE),
+
+	// Group stack
+	group_stack: Stack(Group, GROUP_STACK_SIZE),
 
 	// Retained animation values
 	animations: map[Id]Animation,
 
-	// Retained control data
-	widgets: 			[dynamic]^Widget,
-	current_widget:  	^Widget,
-	// Internal window data
-	windows: 			[dynamic]^Window,
-	window_map: 		map[Id]^Window,
-	// Window context stack
-	window_stack: 		[WINDOW_STACK_SIZE]^Window,
-	window_depth: 		int,
-	// Current window data
-	current_window:		^Window,
+	// Handles text editing
+	typing_agent: Typing_Agent,
 
-	// First layer
-	root_layer: 		^Layer,
+	// Handles widgets
+	widget_agent: Widget_Agent,
 
-	// Fixed storage for layers
-	layer_arena:  		[LAYER_ARENA_SIZE]Layer,
-	// Internal layer data
-	layers: 		[dynamic]^Layer,
-	layer_map: 			map[Id]^Layer,
-	// Layer context stack
-	layer_stack: 		[LAYER_STACK_SIZE]^Layer,
-	layer_depth: 		int,
-	// Layer ordering helpers
-	should_sort_layers:			bool,
-	last_top_layer, top_layer: Id,
-	current_layer: ^Layer,
-	// Current layer being drawn (used only by 'NextCommand')
-	hot_layer: int,
-	// Current layer state
-	hovered_layer, 
-	last_hovered_layer,
-	focused_layer: Id,
-	debug_layer: Id,
+	// Handles windows
+	window_agent: Window_Agent,
+
+	// Handles layers
+	layer_agent: Layer_Agent,
+
+	// Handles layouts
+	layout_agent: Layout_Agent,
+
 	// Used for dragging stuff
 	drag_anchor: [2]f32,
-	// Layout
-	layouts: [MAX_LAYOUTS]Layout,
-	layout_depth: int,
+
 	// Current clip box
 	clip_box: Box,
-	// Next control options
+
+	// Next stuff
 	next_id: Maybe(Id),
 	next_box: Maybe(Box),
-	// Widget ids
-	last_hover_id, 
-	next_hover_id, 
-	hover_id, 
-	last_press_id, 
-	press_id, 
-	next_focus_fd,
-	focus_id,
-	last_focus_id: Id,
+	next_tooltip: Maybe(Tooltip_Info),
 }
 
 _get_clipboard_string: proc() -> string = ---
@@ -227,22 +206,12 @@ _enabled :: proc() {
 }
 
 begin_group :: proc() {
-	core.groups[core.group_depth] = {}
-	core.group_depth += 1
+	push(&core.group_stack, Group({}))
 }
-end_group :: proc() -> ^Group {
-	core.group_depth -= 1
-	return &core.groups[core.group_depth]
-}
-
-get_text_buffer :: proc(id: Id) -> ^[dynamic]u8 {
-	value, ok := &core.text_buffers[id]
-	if !ok {
-		value = map_insert(&core.text_buffers, id, Text_Buffer({}))
-		ok = true
-	}
-	value.keep_alive = true
-	return &value.buffer
+end_group :: proc() -> (result: ^Group) {
+	result = top_ref(&core.group_stack)
+	pop(&core.group_stack)
+	return
 }
 
 /*
@@ -308,30 +277,16 @@ init :: proc() -> bool {
 }
 uninit :: proc() {
 	if core != nil {
-		// Free widgets
-		for widget in &core.widgets {
-			free(widget)
-		}
-		delete(core.widgets)
-		// Free text buffers
-		for _, value in core.text_buffers {
-			delete(value.buffer)
-		}
-		delete(core.text_buffers)
 		// Free animation pool
 		delete(core.animations)
-		// Free window data
-		for window in core.windows {
-			delete_window(window)
-		}
-		delete(core.window_map)
-		delete(core.windows)
+		// Free text buffers
+		typing_agent_destroy(&core.typing_agent)
 		// Free layer data
-		for layer in core.layers {
-			delete_layer(layer)
-		}
-		delete(core.layer_map)
-		delete(core.layers)
+		layer_agent_destroy(&core.layer_agent)
+		// Free window data
+		window_agent_destroy(&core.window_agent)
+		// Free widgets
+		widget_agent_destroy(&core.widget_agent)
 		//
 		painter_uninit()
 		//
@@ -341,9 +296,20 @@ uninit :: proc() {
 begin_frame :: proc() {
 	using core
 
+	// Try tell the user what went wrong if
+	// a stack overflow occours
+	assert(layout_agent.stack.height == 0, "You forgot to pop_layout()")
+	assert(layer_agent.stack.height == 0, "You forgot to pop_layer()")
+	assert(id_stack.height == 0, "You forgot to pop_id()")
+	assert(group_stack.height == 0, "You forgot to end_group()")
+
+	// Update current time
+	current_time += delta_time
+
 	// Begin frame
 	frame_start_time = time.now()
-	// Swap painting bools
+
+	// Decide if painting is required this frame
 	paint_this_frame = false
 	if paint_next_frame {
 		paint_this_frame = true
@@ -354,6 +320,7 @@ begin_frame :: proc() {
 	if input.last_mouse_point != input.mouse_point || input.last_key_bits != input.key_bits|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
 		paint_this_frame = true
 	}
+
 	// Delete unused animations
 	for key, value in &animations {
 		if value.keep_alive {
@@ -367,88 +334,34 @@ begin_frame :: proc() {
 		}
 	}
 
+	// Reset cursor to default state
 	cursor = .default
-	input.rune_count = 0
-	// Try tell the user what went wrong if
-	// a stack overflow occours
-	assert(layout_depth == 0, "You forgot to pop_layout()")
-	assert(layer_depth == 0, "You forgot to PopLayer()")
-	assert(id_count == 0, "You forgot to PopId()")
+
 	// Reset fullscreen box
 	fullscreen_box = {0, 0, size.x, size.y}
+
 	// Free and delete unused text buffers
-	for key, value in &text_buffers {
-		if value.keep_alive {
-			value.keep_alive = false
-		} else {
-			delete(value.buffer)
-			delete_key(&text_buffers, key)
-		}
-	}
+	typing_agent_step(&typing_agent)
 
-	new_keys := input.key_bits - input.last_key_bits
-	old_key := input.last_key
-	for key in Key {
-		if key in new_keys && key != input.last_key {
-			input.last_key = key
-			break
-		}
-	}
-	if input.last_key != old_key {
-		input.key_hold_timer = 0
-	}
+	// Update input
+	input_step(&input)
 
-	input.key_pulse = false
-	if input.last_key in input.key_bits {
-		input.key_hold_timer += delta_time
-	} else {
-		input.key_hold_timer = 0
-	}
-	if input.key_hold_timer >= KEY_REPEAT_DELAY {
-		if input.key_pulse_timer > 0 {
-			input.key_pulse_timer -= delta_time
-		} else {
-			input.key_pulse_timer = 1.0 / KEY_REPEAT_RATE
-			input.key_pulse = true
-		}
-	}
 	// Update control interaction ids
-	last_hover_id = hover_id
-	last_press_id = press_id
-	last_focus_id = focus_id
-	hover_id = next_hover_id
-	if dragging && press_id != 0 {
-		hover_id = press_id
-	}
-	if is_key_selecting {
-		hover_id = focus_id
-		if key_pressed(.enter) {
-			press_id = hover_id
-		}
-	}
-	next_hover_id = 0
-	if mouse_pressed(.left) {
-		press_id = hover_id
-		focus_id = press_id
-	}
+	widget_agent_update_ids(&widget_agent)
 
-	current_time += delta_time
 	// Begin root layer
-	root_layer, _ = begin_layer({
-		id = 0,
-		box = core.fullscreen_box, 
-		options = {.no_id},
-	})
+	assert(layer_agent_begin_root(&layer_agent))
+
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
-	if key_pressed(.tab) && core.focus_id != 0 {
+	if key_pressed(.tab) && core.widget_agent.focus_id != 0 {
 		array: [dynamic]^Widget
 		defer delete(array)
 
 		anchor: int
-		for widget in &widgets {
+		for widget in &widget_agent.list {
 			if .can_key_select in widget.options && .disabled not_in widget.bits {
-				if widget.id == core.focus_id {
+				if widget.id == core.widget_agent.focus_id {
 					anchor = len(array)
 				}
 				append(&array, widget)
@@ -466,17 +379,20 @@ begin_frame :: proc() {
 				}
 				return false
 			})
-			core.focus_id = array[(anchor + 1) % len(array)].id
+			core.widget_agent.focus_id = array[(anchor + 1) % len(array)].id
 			core.is_key_selecting = true
 		}
 	}
 
+	// Reset dragging state
 	dragging = false
 
+	// If the mouse moves, stop key selecting
 	if input.mouse_point - input.last_mouse_point != {} {
 		is_key_selecting = false
 	}
 
+	// Reset clip box
 	clip_box = fullscreen_box
 
 	// Reset input bits
@@ -487,18 +403,19 @@ begin_frame :: proc() {
 end_frame :: proc() {
 	using core
 	// Built-in debug window
+	//TODO(isaiah): Make this better
 	when ODIN_DEBUG {
-		debug_layer = 0
+		layer_agent.debug_id = 0
 		if key_down(.control) && key_pressed(.backspace) {
 			debug_bits ~= {.show_window}
 		}
 		if debug_bits >= {.show_window} {
-			if window({
+			if do_window({
 				title = "Debug", 
 				box = {0, 0, 500, 700}, 
 				options = {.collapsable, .closable, .title, .resizable},
 			}) {
-				if current_window.bits >= {.should_close} {
+				if current_window().bits >= {.should_close} {
 					debug_bits -= {.show_window}
 				}
 
@@ -513,124 +430,44 @@ end_frame :: proc() {
 						fill_color = Color{0, 0, 0, 255},
 						options = {.no_scroll_margin_x, .no_scroll_margin_y},
 					}) {
+						paint_box_fill(current_layout().box, {0, 0, 0, 255})
 						paint_texture({0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT}, current_layout().box, 255)
-						current_layer.content_box = update_bounding_box(current_layer.content_box, current_layout().box)
+						layer_agent.current_layer.content_box = update_bounding_box(layer_agent.current_layer.content_box, current_layout().box)
 					}
-					_debug_layer_widget(core.root_layer)
+					_debug_layer_widget(core.layer_agent.root_layer)
 				} else if debug_mode == .windows {
-					for id, window in window_map {
+					for id, window in window_agent.pool {
 						push_id(window.id)
 							button({
 								label = format(window.id), 
 								align = .near,
 							})
-							if current_widget.state >= {.hovered} {
-								debug_layer = window.layer.id
+							if last_widget().state >= {.hovered} {
+								layer_agent.debug_id = window.layer.id
 							}
 						pop_id()
 					}
 				} else if debug_mode == .controls {
-					text({font = .monospace, text = text_format("Layer: %i", hovered_layer), fit = true})
+					text({font = .monospace, text = text_format("Layer: %i", layer_agent.hover_id), fit = true})
 					space(20)
-					text({font = .monospace, text = text_format("Hovered: %i", hover_id), fit = true})
-					text({font = .monospace, text = text_format("Focused: %i", focus_id), fit = true})
-					text({font = .monospace, text = text_format("Pressed: %i", press_id), fit = true})
+					text({font = .monospace, text = text_format("Hovered: %i", widget_agent.hover_id), fit = true})
+					text({font = .monospace, text = text_format("Focused: %i", widget_agent.focus_id), fit = true})
+					text({font = .monospace, text = text_format("Pressed: %i", widget_agent.press_id), fit = true})
 					space(20)
-					text({font = .monospace, text = text_format("Count: %i", len(widgets)), fit = true})
+					text({font = .monospace, text = text_format("Count: %i", len(widget_agent.list)), fit = true})
 				}
 			}
 		}
 	}
-	// End the root layer
-	end_layer(root_layer)
-	// Delete unused controls
-	for widget, i in &widgets {
-		if .stay_alive in widget.bits {
-			widget.bits -= {.stay_alive}
-		} else {
-			for key, value in widget.layer.contents {
-				if key == widget.id {
-					delete_key(&widget.layer.contents, key)
-				}
-			}
-			free(widget)
-			ordered_remove(&widgets, i)
-		}
-	}
-	// Delete unused windows
-	for window, i in &windows {
-		if .stay_alive in window.bits {
-			window.bits -= {.stay_alive}
-		} else {
-			ordered_remove(&windows, i)
-			delete_key(&window_map, window.id)
-			delete_window(window)
-		}
-	}
-	// Determine hovered layer and reorder if needed
-	sorted_layer: ^Layer
-	last_hovered_layer = hovered_layer
-	hovered_layer = 0
-	for layer, i in layers {
-		if .stay_alive in layer.bits {
-			layer.bits -= {.stay_alive}
-			if point_in_box(input.mouse_point, layer.box) {
-				hovered_layer = layer.id
-				if mouse_pressed(.left) {
-					focused_layer = layer.id
-					sorted_layer = layer
-				}
-			}
-		} else {
-			delete_key(&layer_map, layer.id)
-			if layer.parent != nil {
-				for child, j in layer.parent.children {
-					if child == layer {
-						ordered_remove(&layer.parent.children, j)
-						break
-					}
-				}
-			}
-			delete_layer(layer)
-			should_sort_layers = true
-		}
-	}
-	// If a sorted layer was selected, then find it's root attached parent
-	if sorted_layer != nil {
-		child := sorted_layer
-		for child.parent != nil {
-			top_layer = child.id
-			sorted_layer = child
-			if child.options >= {.attached} {
-				child = child.parent
-			} else {
-				break
-			}
-		}
-	}
-	// Then reorder it with it's siblings
-	if top_layer != last_top_layer {
-		for child in sorted_layer.parent.children {
-			if child.order == sorted_layer.order {
-				if child.id == top_layer {
-					child.index = len(sorted_layer.parent.children)
-				} else {
-					child.index -= 1
-				}
-			}
-		}
-		should_sort_layers = true
-		last_top_layer = top_layer
-	}
-	// Sort the layers
-	if should_sort_layers {
-		should_sort_layers = false
-
-		clear(&layers)
-		sort_layer(&layers, root_layer)
-	}
-	// Reset rendered layer
-	hot_layer = 0
+	// End root layer
+	layer_agent_end_root(&layer_agent)
+	// Update layers
+	layer_agent_step(&layer_agent)
+	// Update widgets
+	widget_agent_step(&widget_agent)
+	// Update windows
+	window_agent_step(&window_agent)
+	// Update timings
 	painted_last_frame = paint_this_frame
 	frame_duration = time.since(frame_start_time)
 }
@@ -644,7 +481,7 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 }
 @private
 _debug_layer_widget :: proc(layer: ^Layer) {
-	if layout(.top, 24) {
+	if do_layout(.top, 24) {
 		push_id(layer.id)
 			n := 0
 			x := layer
@@ -657,8 +494,8 @@ _debug_layer_widget :: proc(layer: ^Layer) {
 				label = format(layer.id),
 				align = .near,
 			})
-			if current_widget().state >= {.hovered} {
-				core.debug_layer = layer.id
+			if last_widget().state >= {.hovered} {
+				core.layer_agent.debug_id = layer.id
 			}
 		pop_id()
 	}

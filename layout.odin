@@ -8,6 +8,7 @@ Alignment :: enum {
 	far,
 }
 
+// A `Layout` is a context for placing widgets and other layouts
 Layout :: struct {
 	box: Box,
 	side: Box_Side,
@@ -17,17 +18,34 @@ Layout :: struct {
 	// control alignment
 	align: [2]Alignment,
 }
+
+LAYOUT_STACK_SIZE :: 32
+
+Layout_Agent :: struct {
+	stack: Stack(Layout, LAYOUT_STACK_SIZE),
+	current_layout: ^Layout,
+}
+layout_agent_push :: proc(using self: ^Layout_Agent, layout: Layout) -> ^Layout {
+	push(&stack, layout)
+	current_layout = top_ref(&stack)
+	return current_layout
+}
+layout_agent_pop :: proc(using self: ^Layout_Agent) {
+	pop(&stack)
+	current_layout = top_ref(&stack)
+}
+
 push_layout :: proc(box: Box) -> (layout: ^Layout) {
-	layout = &core.layouts[core.layout_depth]
-	layout^ = {
+	return layout_agent_push(&core.layout_agent, Layout({
 		box = box,
-	}
-	core.layout_depth += 1
-	assert(core.layout_depth < MAX_LAYOUTS)
-	return
+	}))
 }
 pop_layout :: proc() {
-	core.layout_depth -= 1
+	layout_agent_pop(&core.layout_agent)
+}
+current_layout :: proc() -> ^Layout {
+	assert(core.layout_agent.current_layout != nil)
+	return core.layout_agent.current_layout
 }
 
 /*
@@ -84,10 +102,6 @@ shrink :: proc(amount: f32) {
 	layout := current_layout()
 	layout.box = shrink_box(layout.box, amount)
 }
-current_layout :: proc() -> ^Layout {
-	assert(core.layout_depth > 0)
-	return &core.layouts[core.layout_depth - 1]
-}
 
 layout_next :: proc(using self: ^Layout) -> (result: Box) {
 	assert(self != nil)
@@ -126,7 +140,6 @@ layout_fit_label :: proc(using self: ^Layout, label: Label) {
 	}
 }
 cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
-	assert(core.layout_depth > 0)
 	layout := current_layout()
 	amount := amount
 	if relative {
@@ -139,7 +152,6 @@ cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
 	return box_cut(&layout.box, side, amount)
 }
 fake_cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
-	assert(core.layout_depth > 0)
 	layout := current_layout()
 	amount := amount
 	if relative {
@@ -153,19 +165,19 @@ fake_cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
 }
 
 // User procs
-@(deferred_out=_layout)
-layout :: proc(side: Box_Side, size: f32, relative := false) -> (ok: bool) {
+@(deferred_out=_do_layout)
+do_layout :: proc(side: Box_Side, size: f32, relative := false) -> (ok: bool) {
 	box := cut(side, size, relative)
 	push_layout(box)
 	return true
 }
-@(deferred_out=_layout)
-layout_box :: proc(box: Box) -> (ok: bool) {
+@(deferred_out=_do_layout)
+do_layout_box :: proc(box: Box) -> (ok: bool) {
 	push_layout(box)
 	return true
 }
 @private 
-_layout :: proc(ok: bool) {
+_do_layout :: proc(ok: bool) {
 	if ok {
 		pop_layout()
 	}

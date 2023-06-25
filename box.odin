@@ -1,24 +1,55 @@
 package maui
 import "core:fmt"
+
 Box :: struct {
 	x, y, w, h: f32,
 }
+
 Box_Side :: enum {
 	top,
 	bottom,
 	left,
 	right,
 }
+
 Box_Sides :: bit_set[Box_Side;u8]
+
 Box_Corner :: enum {
 	top_left,
 	top_right,
 	bottom_right,
 	bottom_left,
 }
+
 Box_Corners :: bit_set[Box_Corner;u8]
 
-// Clamps a box to fit inside another
+Clip :: enum {
+	none,		// completely visible
+	partial,	// partially visible
+	full,		// hidden
+}
+
+get_clip :: proc(clip, subject: Box) -> Clip {
+	if subject.x > clip.x + clip.w || subject.x + subject.w < clip.x ||
+	   subject.y > clip.y + clip.h || subject.y + subject.h < clip.y { 
+		return .full 
+	}
+	if subject.x >= clip.x && subject.x + subject.w <= clip.x + clip.w &&
+	   subject.y >= clip.y && subject.y + subject.h <= clip.y + clip.h { 
+		return .none
+	}
+	return .partial
+}
+
+update_bounding_box :: proc(bounds, subject: Box) -> Box {
+	bounds := bounds
+	bounds.x = min(bounds.x, subject.x)
+	bounds.y = min(bounds.y, subject.y)
+	bounds.w = max(bounds.w, (subject.x + subject.w) - bounds.x)
+	bounds.h = max(bounds.h, (subject.y + subject.h) - bounds.y)
+	return bounds
+}
+
 clamp_box :: proc(box, inside: Box) -> Box {
 	box := box
 	box.x = clamp(box.x, inside.x, inside.x + inside.w)
@@ -27,11 +58,11 @@ clamp_box :: proc(box, inside: Box) -> Box {
 	box.h = clamp(box.h, 0, inside.h - (box.y - inside.y))
 	return box
 }
+
 box_center :: proc(box: Box) -> [2]f32 {
 	return {box.x + box.w / 2, box.y + box.h / 2}
 }
-// Box manip
-// Move the side of a boxangle
+
 squish_box_left :: proc(box: Box, amount: f32) -> Box {
 	return {box.x + amount, box.y, box.w - amount, box.h}
 }
@@ -53,7 +84,7 @@ squish_box :: proc(box: Box, side: Box_Side, amount: f32) -> (result: Box) {
 	}
 	return
 }
-// place a box in a nother box
+
 child_box :: proc(parent: Box, size: [2]f32, align: [2]Alignment) -> Box {
 	box := Box{0, 0, size.x, size.y}
 	if align.x == .near {
@@ -72,7 +103,7 @@ child_box :: proc(parent: Box, size: [2]f32, align: [2]Alignment) -> Box {
 	}
 	return box
 }
-// shrink a box to its center
+
 shrink_box_uniform :: proc(box: Box, amount: f32) -> Box {
 	return {box.x + amount, box.y + amount, box.w - amount * 2, box.h - amount * 2}
 }
@@ -83,12 +114,15 @@ shrink_box :: proc {
 	shrink_box_separate,
 	shrink_box_uniform,
 }
+
 grow_box :: proc(box: Box, amount: f32) -> Box {
 	return {box.x - amount, box.y - amount, box.w + amount * 2, box.h + amount * 2}
 }
+
 move_box :: proc(box: Box, delta: [2]f32) -> Box {
 	return {box.x + delta.x, box.y + delta.y, box.w, box.h}
 }
+
 // cut a box and return the cut piece
 box_cut_left :: proc(box: ^Box, amount: f32) -> (result: Box) {
 	amount := min(box.w, amount)
@@ -125,6 +159,7 @@ box_cut :: proc(box: ^Box, side: Box_Side, amount: f32) -> Box {
 	}
 	return {}
 }
+
 // get a cut piece of a box
 get_box_left :: proc(b: Box, a: f32) -> Box {
 	return {b.x, b.y, a, b.h}
@@ -147,6 +182,7 @@ get_box_cut :: proc(box: Box, side: Box_Side, amount: f32) -> Box {
 	}
 	return {}
 }
+
 // attach a box
 attach_box_left :: proc(box: Box, amount: f32) -> Box {
 	return {box.x - amount, box.y, amount, box.h}

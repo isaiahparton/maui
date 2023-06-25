@@ -44,12 +44,14 @@ Layer_Option :: enum {
 	// Scroll bars won't affect layout size
 	no_scroll_margin_x,
 	no_scroll_margin_y,
-	// Doesn't push the self's id to the stack
+	// Doesn't push the layers's id to the stack
 	no_id,
 	// Forces the self to always clip its contents
 	force_clip,
 	// Forces the self to fit inside its parent
 	clip_to_parent,
+	// The layer is not interactable
+	no_interact,
 }
 Layer_Options :: bit_set[Layer_Option]
 /*
@@ -123,50 +125,172 @@ Layer :: struct {
 	y_scroll_time: f32,
 }
 
-current_layer :: proc() -> ^Layer {
-	assert(core.layer_depth > 0)
-	return core.layer_stack[core.layer_depth - 1]
+Layer_Agent :: struct {
+	root_layer: 	^Layer,
+	// Fixed memory arena
+	arena:  		[LAYER_ARENA_SIZE]Layer,
+	// Internal layer data
+	list: 			[dynamic]^Layer,
+	pool: 			map[Id]^Layer,
+	// Layer context stack
+	stack: 			Stack(^Layer, LAYER_STACK_SIZE),
+	// Layer ordering helpers
+	should_sort:	bool,
+	last_top_id, 
+	top_id: 		Id,
+	current_layer: 	^Layer,
+	// Current layer being drawn (used only by 'NextCommand')
+	paint_index: 	int,
+	// Current layer state
+	hover_id,
+	last_hover_id,
+	focus_id,
+	debug_id: 		Id,
 }
-create_layer :: proc(id: Id, options: Layer_Options) -> (self: ^Layer, ok: bool) {
-	// Allocate a new self
+layer_agent_destroy :: proc(using self: ^Layer_Agent) {
+	for entry in list {
+		layer_destroy(entry)
+	}
+	delete(pool)
+	delete(list)
+	self^ = {}
+}
+layer_agent_begin_root :: proc(using self: ^Layer_Agent) -> (ok: bool) {
+	root_layer, ok = begin_layer({
+		id = 0,
+		box = core.fullscreen_box, 
+		options = {.no_id},
+	})
+	return
+}
+layer_agent_end_root :: proc(using self: ^Layer_Agent) {
+	end_layer(root_layer)
+}
+layer_agent_step :: proc(using self: ^Layer_Agent) {
+	sorted_layer: ^Layer
+	last_hover_id = hover_id
+	hover_id = 0
+	for layer, i in list {
+		if .stay_alive in layer.bits {
+			layer.bits -= {.stay_alive}
+			if point_in_box(input.mouse_point, layer.box) {
+				if .no_interact in layer.options {
+					layer.state += {.hovered}
+				} else {
+					hover_id = layer.id
+					if mouse_pressed(.left) {
+						focus_id = layer.id
+						sorted_layer = layer
+					}
+				}
+			}
+		} else {
+			delete_key(&pool, layer.id)
+			if layer.parent != nil {
+				for child, j in layer.parent.children {
+					if child == layer {
+						ordered_remove(&layer.parent.children, j)
+						break
+					}
+				}
+			}
+			layer_destroy(layer)
+			should_sort = true
+		}
+	}
+	// If a sorted layer was selected, then find it's root attached parent
+	if sorted_layer != nil {
+		child := sorted_layer
+		for child.parent != nil {
+			top_id = child.id
+			sorted_layer = child
+			if child.options >= {.attached} {
+				child = child.parent
+			} else {
+				break
+			}
+		}
+	}
+	// Then reorder it with it's siblings
+	if top_id != last_top_id {
+		for child in sorted_layer.parent.children {
+			if child.order == sorted_layer.order {
+				if child.id == top_id {
+					child.index = len(sorted_layer.parent.children)
+				} else {
+					child.index -= 1
+				}
+			}
+		}
+		should_sort = true
+		last_top_id = top_id
+	}
+	// Sort the layers
+	if should_sort {
+		should_sort = false
+
+		clear(&list)
+		sort_layer(&list, root_layer)
+	}
+	// Reset rendered layer
+	paint_index = 0
+}
+layer_agent_allocate :: proc(using self: ^Layer_Agent) -> (layer: ^Layer, ok: bool) {
 	for i in 0..<LAYER_ARENA_SIZE {
-		if !core.layer_arena[i].reserved {
-			self = &core.layer_arena[i]
+		if !arena[i].reserved {
+			layer = &arena[i]
+			ok = true
 			break
 		}
 	}
-	//self = new(Layer)
-	self^ = {
+	return
+}
+layer_agent_create :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
+	layer, ok = layer_agent_allocate(self)
+	if !ok {
+		return
+	}
+	// Initiate the layer
+	layer^ = {
 		reserved = true,
 		id = id,
 		opacity = 0 if .invisible in options else 1,
 	}
-	// Append the new self
-	append(&core.layers, self)
-	core.layer_map[id] = self
-	// Handle self attachment
-	if core.layer_depth > 0 {
-		parent := current_layer() if .attached in options else core.root_layer
-		append(&parent.children, self)
-		self.parent = parent
-		self.index = len(parent.children)
+	// Append the new layer
+	append(&list, layer)
+	pool[id] = layer
+	if stack.height > 0 {
+		parent := current_layer if .attached in options else root_layer
+		append(&parent.children, layer)
+		layer.parent = parent
+		layer.index = len(parent.children)
 	}
 	// Will sort layers this frame
-	core.should_sort_layers = true
-	ok = true
+	should_sort = true
+
 	return
 }
-delete_layer :: proc(self: ^Layer) {
+layer_agent_assert :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
+	layer, ok = pool[id]
+	if !ok {
+		layer, ok = layer_agent_create(self, id, options)
+	}
+	assert(ok)
+	assert(layer != nil)
+	return
+}
+layer_agent_push :: proc(using self: ^Layer_Agent, layer: ^Layer) {
+	push(&stack, layer)
+	current_layer = top(&stack)
+}
+layer_agent_pop :: proc(using self: ^Layer_Agent) {
+	pop(&stack)
+	current_layer = top(&stack)
+}
+layer_destroy :: proc(self: ^Layer) {
 	delete(self.contents)
 	delete(self.children)
 	self.reserved = false
-}
-create_or_get_layer :: proc(id: Id, options: Layer_Options) -> (self: ^Layer, ok: bool) {
-	self, ok = core.layer_map[id]
-	if !ok {
-		self, ok = create_layer(id, options)
-	}
-	return
 }
 
 // Frame info
@@ -192,9 +316,9 @@ frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 @private
 _frame :: proc(ok: bool) {
 	if ok {
-		assert(core.current_layer != nil)
-		paint_box_stroke(core.current_layer.box, 1, get_color(.base_stroke))
-		end_layer(core.current_layer)
+		assert(core.layer_agent.current_layer != nil)
+		paint_box_stroke(core.layer_agent.current_layer.box, 1, get_color(.base_stroke))
+		end_layer(core.layer_agent.current_layer)
 	}
 }
 
@@ -206,30 +330,38 @@ Layer_Info :: struct {
 	options: Layer_Options,
 	id: Maybe(Id),
 }
-@(deferred_out=_layer)
-layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
+@(deferred_out=_do_layer)
+do_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	info := info
 	info.id = info.id.? or_else hash(loc)
 	return begin_layer(info)
 }
 @private
-_layer :: proc(self: ^Layer, ok: bool) {
+_do_layer :: proc(self: ^Layer, ok: bool) {
 	if ok {
 		end_layer(self)
 	}
+}
+
+current_layer :: proc() -> ^Layer {
+	assert(core.layer_agent.current_layer != nil)
+	return core.layer_agent.current_layer
 }
 // Begins a new layer, the layer is created if it doesn't exist
 // and is managed internally
 @private 
 begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
-	if self, ok = create_or_get_layer(info.id.? or_else panic("Must define a layer id", loc), info.options); ok {
-		assert(self != nil)
+	agent := &core.layer_agent
 
+	if self, ok = layer_agent_assert(
+		self = agent, 
+		id = info.id.? or_else panic("Must define a layer id", loc), 
+		options = info.options,
+	); ok {
 		// Push layer stack
-		core.layer_stack[core.layer_depth] = self
-		core.layer_depth += 1
-		core.current_layer = self
+		layer_agent_push(&core.layer_agent, self)
 
+		// Set sort order
 		self.order = info.order.? or_else self.order
 
 		// Update user options
@@ -254,15 +386,15 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Hovering and stuff
 		self.state = self.next_state
 		self.next_state = {}
-		if core.hovered_layer == self.id {
+		if agent.hover_id == self.id {
 			self.state += {.hovered}
-			if core.last_hovered_layer != self.id {
+			if agent.last_hover_id != self.id {
 				self.state += {.got_hover}
 			}
-		} else if core.last_hovered_layer == self.id {
+		} else if agent.last_hover_id == self.id {
 			self.state += {.lost_hover}
 		}
-		if core.focused_layer == self.id {
+		if agent.focus_id == self.id {
 			self.state += {.focused}
 		}
 
@@ -293,7 +425,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.clip_command.box = core.fullscreen_box
 
 		// Get layout size
-		self.layout_size = info.layout_size.? or_else {}
+		self.layout_size = info.layout_size.? or_else self.layout_size
 		self.layout_size = {
 			max(self.layout_size.x, self.box.w),
 			max(self.layout_size.y, self.box.h),
@@ -350,7 +482,7 @@ end_layer :: proc(self: ^Layer) {
 	if self != nil {
 		// Debug stuff
 		when ODIN_DEBUG {
-			if .show_window in core.debug_bits && self.id != 0 && core.debug_layer == self.id {
+			if .show_window in core.debug_bits && self.id != 0 && core.layer_agent.debug_id == self.id {
 				paint_box_fill(self.box, {255, 0, 255, 20})
 				paint_box_stroke(self.box, 1, {255, 0, 255, 255})
 			}
@@ -375,7 +507,7 @@ end_layer :: proc(self: ^Layer) {
 		}
 
 		// Update scroll offset
-		if core.hovered_layer == self.id {
+		if .hovered in self.state {
 			self.scroll_target -= input.mouse_scroll * SCROLL_STEP
 		}
 		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
@@ -441,33 +573,5 @@ end_layer :: proc(self: ^Layer) {
 			pop_id()
 		}
 	}
-	core.layer_depth -= 1
-	if core.layer_depth > 0 {
-		core.current_layer = core.layer_stack[core.layer_depth - 1]
-	}
-}
-update_bounding_box :: proc(bounds, subject: Box) -> Box {
-	bounds := bounds
-	bounds.x = min(bounds.x, subject.x)
-	bounds.y = min(bounds.y, subject.y)
-	bounds.w = max(bounds.w, (subject.x + subject.w) - bounds.x)
-	bounds.h = max(bounds.h, (subject.y + subject.h) - bounds.y)
-	return bounds
-}
-
-Clip :: enum {
-	none,		// completely visible
-	partial,	// partially visible
-	full,		// hidden
-}
-get_clip :: proc(clip, subject: Box) -> Clip {
-	if subject.x > clip.x + clip.w || subject.x + subject.w < clip.x ||
-	   subject.y > clip.y + clip.h || subject.y + subject.h < clip.y { 
-		return .full 
-	}
-	if subject.x >= clip.x && subject.x + subject.w <= clip.x + clip.w &&
-	   subject.y >= clip.y && subject.y + subject.h <= clip.y + clip.h { 
-		return .none
-	}
-	return .partial
+	layer_agent_pop(&core.layer_agent)
 }
