@@ -20,9 +20,7 @@ init :: proc() {
 		rl.SetClipboardText(cstr)
 	}
 	ui._get_clipboard_string = proc() -> string {
-		cstr := rl.GetClipboardText()
-		defer delete(cstr)
-		return strings.clone_from_cstring(cstr)
+		return string(rl.GetClipboardText())
 	}
 }
 

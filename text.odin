@@ -363,6 +363,8 @@ Selectable_Text_Info :: struct {
 Selectable_Text_Result :: struct {
 	text_size,
 	view_offset: [2]f32,
+	line_count: int,
+	dragging: bool,
 }
 // Displays clipped, selectable text that can be copied to clipboard
 selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result: Selectable_Text_Result) {
@@ -401,6 +403,8 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		case .middle: origin.y += info.box.h / 2 - text_size.y / 2
 		case .far: origin.y += info.box.h - text_size.y - info.padding.y
 	}
+	// Offset view when currently focused
+	origin -= info.view_offset
 
 	point := origin
 
@@ -418,8 +422,6 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	}
 
 	if .focused in widget.state {
-		// Offset view when currently focused
-		point -= info.view_offset
 		// Content copy
 		if key_down(.control) {
 			if key_pressed(.c) {
@@ -469,29 +471,25 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 						cursor_point := linalg.floor(point)
 						cursor_point.y = max(cursor_point.y, info.box.y)
 						paint_box_fill(
-							box = {
+							box = clip_box({
 								cursor_point.x, 
 								cursor_point.y, 
 								1, 
-								min(info.font_data.size, info.box.y + info.box.h - cursor_point.y),
-							}, 
+								info.font_data.size,
+							}, info.box), 
 							color = get_color(.text),
 							)
 					}
 				} else if index >= state.index && index < state.index + state.length {
 					// Selection
 					cursor_point := linalg.floor(point)
-					cursor_point = {
-						max(cursor_point.x, info.box.x),
-						max(cursor_point.y, info.box.y),
-					}
 					paint_box_fill(
-						box = {
+						box = clip_box({
 							cursor_point.x, 
 							cursor_point.y, 
-							min(glyph_width, info.box.w - (cursor_point.x - info.box.x), (point.x + glyph_width) - info.box.x), 
-							min(info.font_data.size, info.box.y + info.box.h - cursor_point.y),
-						}, 
+							glyph_width,
+							info.font_data.size,
+						}, info.box), 
 						color = get_color(.text),
 						)
 					highlight = true
@@ -525,6 +523,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			point.x = origin.x
 			point.y += info.font_data.size
 			size.y += info.font_data.size
+			result.line_count += 1
 		} else if glyph != '\t' && glyph != ' ' && should_paint {
 			paint_clipped_glyph(glyph_data, point, info.box, get_color(.text_inverted if highlight else .text, 1))
 		}
@@ -585,6 +584,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			state.length = hover_index - state.anchor
 		}
 		if size.x > info.box.w {
+			result.dragging = true
 			// Offset view by dragging
 			DRAG_SPEED :: 15
 			if input.mouse_point.x < info.box.x {
@@ -592,6 +592,12 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			} else if input.mouse_point.x > info.box.x + info.box.w {
 				result.view_offset.x += (input.mouse_point.x - (info.box.x + info.box.w)) * DRAG_SPEED * core.delta_time
 			}
+			if input.mouse_point.y < info.box.y {
+				result.view_offset.y -= (info.box.y - input.mouse_point.y) * DRAG_SPEED * core.delta_time
+			} else if input.mouse_point.y > info.box.y + info.box.h {
+				result.view_offset.y += (input.mouse_point.y - (info.box.y + info.box.h)) * DRAG_SPEED * core.delta_time
+			}
+			core.paint_next_frame = true
 		}
 	} else if widget.state >= {.focused} {
 		// Handle view offset
@@ -604,13 +610,15 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 				result.view_offset.x = cursor_end.x - info.box.w + info.view_offset.x
 			}
 		}
+		state.index = clamp(state.index, 0, len(info.data))
+		state.length = clamp(state.length, 0, len(info.data) - state.index)
 		state.last_index = state.index
 		state.last_length = state.length
 	}
 
 	// Clamp view offset
 	if size.x > info.box.w {
-		result.view_offset.x = clamp(result.view_offset.x, 0, (size.x - info.box.w) + info.view_offset.x)
+		result.view_offset.x = clamp(result.view_offset.x, 0, (size.x - info.box.w) + info.padding.x * 2)
 	} else {
 		result.view_offset.x = 0
 	}

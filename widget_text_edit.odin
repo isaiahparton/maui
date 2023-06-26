@@ -28,10 +28,23 @@ Text_Input_Info :: struct {
 	edit_bits: Text_Edit_Bits,
 }
 text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable, .can_key_select}); ok {
+	is_multiline := .multiline in info.edit_bits
+	widget_id := hash(loc)
+	widget_box := use_next_box() or_else layout_next(current_layout())
+	scroll_layer: ^Layer
+	if is_multiline {
+		scroll_layer, _ = begin_layer({
+			id = widget_id,
+			box = widget_box,
+			options = {.attached, .no_sort, .no_scroll_margin_x, .no_scroll_margin_y},
+		})
+	}
+	padding: [2]f32
+	result: Selectable_Text_Result
+	if self, ok := do_widget(widget_id, widget_box, {.draggable, .can_key_select}); ok {
 		using self
 		// Text cursor
-		if state & {.hovered, .pressed} != {} {
+		if .hovered in self.state {
 			core.cursor = .beam
 		}
 		// Animation values
@@ -69,34 +82,19 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 			data_slice = type[:]
 		}
 
-		is_multiline := .multiline in info.edit_bits
-		
-		scroll_layer: ^Layer
-		if is_multiline {
-			scroll_layer, _ = begin_layer({
-				id = self.id,
-				box = self.box,
-				options = {
-					.no_interact,
-					.attached,
-				},
-			})
-		}
+		padding = {line_height * 0.25, y_padding}
 
 		// Set text offset
-		text_size := selectable_text(self, {
+		result = selectable_text(self, {
 			font_data = font_data, 
 			data = data_slice, 
 			box = box, 
-			padding = ([2]f32){line_height * 0.25, y_padding},
-			view_offset = -scroll_layer.scroll if is_multiline else {},
+			padding = padding,
+			view_offset = scroll_layer.scroll if is_multiline else {},
 			bits = Selectable_Text_Bits({.no_paint} if .should_paint not_in bits else {}), 
-		}).text_size
-
-		if is_multiline {
-			scroll_layer.layout_size = text_size
-			scroll_layer.content_box = {scroll_layer.box.x, scroll_layer.box.y, text_size.x, text_size.y}
-			end_layer(scroll_layer)
+		})
+		if is_multiline && result.dragging {
+			scroll_layer.scroll_target += result.view_offset - scroll_layer.scroll
 		}
 
 		// Widget decoration
@@ -115,10 +113,17 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
-					paint_aligned_string(font_data, info.placeholder.?, {box.x + box.h * 0.25, box.y + box.h / 2}, get_color(.text, GHOST_TEXT_ALPHA), {.near, .middle})
+					paint_string(font_data, info.placeholder.?, {box.x + padding.x, box.y + padding.y}, get_color(.text, 0.5))
 				}
 			}
 		}
+	}
+	if is_multiline {
+		if result.text_size.y > widget_box.h {
+			scroll_layer.bits += {.scroll_y}
+		}
+		scroll_layer.layout_size = result.text_size + padding * 2 + SCROLL_BAR_SIZE
+		end_layer(scroll_layer)
 	}
 	return
 }

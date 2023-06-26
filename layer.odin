@@ -50,8 +50,8 @@ Layer_Option :: enum {
 	force_clip,
 	// Forces the self to fit inside its parent
 	clip_to_parent,
-	// The layer is not interactable
-	no_interact,
+	// The layer does not move
+	no_sort,
 }
 Layer_Options :: bit_set[Layer_Option]
 /*
@@ -77,15 +77,18 @@ Layer :: struct {
 
 	// Base Data
 	id: Id,
+
 	// Internal state
 	bits: Layer_Bits,
+
 	// User options
 	options: Layer_Options,
+
 	// The layer's own state
 	state,
 	next_state: Layer_State,
 
-	// The painting opacity of all the layer's paint commands
+	// Painting settings
 	opacity: f32,
 
 	// Viewport box
@@ -101,7 +104,8 @@ Layer :: struct {
 	content_box: Box,
 
 	// Negative content offset
-	scroll, scroll_target: [2]f32,
+	scroll, 
+	scroll_target: [2]f32,
 
 	// draw order
 	order: Layer_Order,
@@ -174,12 +178,10 @@ layer_agent_step :: proc(using self: ^Layer_Agent) {
 		if .stay_alive in layer.bits {
 			layer.bits -= {.stay_alive}
 			if point_in_box(input.mouse_point, layer.box) {
-				if .no_interact in layer.options {
-					layer.state += {.hovered}
-				} else {
-					hover_id = layer.id
-					if mouse_pressed(.left) {
-						focus_id = layer.id
+				hover_id = layer.id
+				if mouse_pressed(.left) {
+					focus_id = layer.id
+					if .no_sort not_in layer.options {
 						sorted_layer = layer
 					}
 				}

@@ -1,5 +1,6 @@
 package maui
 
+import "core:fmt"
 import "core:unicode"
 import "core:unicode/utf8"
 
@@ -45,6 +46,7 @@ typing_agent_step :: proc(using self: ^Typing_Agent) {
 
 // Text edit helpers
 typing_agent_insert_string :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, max_len: int, str: string) {
+	
 	if length > 0 {
 		remove_range(buf, index, index + length)
 		length = 0
@@ -106,14 +108,28 @@ Text_Edit_Bits :: bit_set[Text_Edit_Bit]
 typing_agent_edit :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, bits: Text_Edit_Bits, max_len: int = 0) -> (change: bool) {
 	// Control commands
 	if key_down(.control) {
+		// Select all
 		if key_pressed(.a) {
 			index = 0
 			anchor = 0
 			length = len(buf)
 		}
+		// Clipboard paste
 		if key_pressed(.v) {
-			typing_agent_insert_string(self, buf, max_len, get_clipboard_string())
-			change = true
+			valid := true
+			content := get_clipboard_string()
+			if .multiline not_in bits {
+				for i in 0..<len(content) {
+					if content[i] == '\n' {
+						valid = false
+						break
+					}
+				}
+			}
+			if valid {
+				typing_agent_insert_string(self, buf, max_len, content)
+				change = true
+			}
 		}
 	}
 	// Normal character input

@@ -929,7 +929,7 @@ scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed: bo
 
 		thumb_box := box
 		thumb_box[i] += range * clamp((info.value - info.low) / value_range, 0, 1)
-		thumb_box[2 + i] = info.thumb_size
+		thumb_box[2 + i] = min(info.thumb_size, box[2 + i])
 		// Painting
 		if .should_paint in self.bits {
 			ROUNDNESS :: 4

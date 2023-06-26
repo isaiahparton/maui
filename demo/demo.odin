@@ -122,16 +122,17 @@ main :: proc() {
 			ui.text({text = "Text editing"})
 			if ui.do_layout(.top, 30) {
 				ui.set_side(.left); ui.set_size(200)
-				ui.text_input({data = &text_buffer, title = "Text input"})
+				ui.text_input({data = &text_buffer, title = "Normal"})
 			}
 			ui.space(10)
 			if ui.do_layout(.top, 120) {
 				ui.set_side(.left); ui.set_size(200)
 				ui.text_input({
 					data = &multiline_buffer, 
-					title = "Multiline input", 
+					title = "Multiline", 
 					line_height = 30, 
 					edit_bits = {.multiline},
+					placeholder = "Placeholder",
 				})
 			}
 		}
