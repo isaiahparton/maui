@@ -26,13 +26,13 @@ Layout_Agent :: struct {
 	current_layout: ^Layout,
 }
 layout_agent_push :: proc(using self: ^Layout_Agent, layout: Layout) -> ^Layout {
-	push(&stack, layout)
-	current_layout = top_ref(&stack)
+	stack_push(&stack, layout)
+	current_layout = stack_top_ref(&stack)
 	return current_layout
 }
 layout_agent_pop :: proc(using self: ^Layout_Agent) {
-	pop(&stack)
-	current_layout = top_ref(&stack)
+	stack_pop(&stack)
+	current_layout = stack_top_ref(&stack)
 }
 
 push_layout :: proc(box: Box) -> (layout: ^Layout) {

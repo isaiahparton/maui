@@ -165,7 +165,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			box = self.draw_box,
 			id = hash(rawptr(&self.id), size_of(Id)),
 			order = .floating,
-			options = {.shadow},
+			options = {.shadow, .no_scroll_y},
 		}); ok {
 			// Body
 			if .collapsed not_in self.bits {
@@ -192,7 +192,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				if .closable in self.options {
 					set_next_box(child_box(get_box_right(title_box, title_box.h), {24, 24}, {.middle, .middle}))
 					if button({
-						label = Icon.close, 
+						label = Icon.Close, 
 						align = .middle,
 					}) {
 						self.bits += {.should_close}
@@ -298,8 +298,8 @@ _do_window :: proc(ok: bool) {
 		if .moving in bits {
 			core.cursor = .resize_all
 			new_origin := input.mouse_point + core.drag_anchor
-			box.x = new_origin.x
-			box.y = new_origin.y
+			box.x = clamp(new_origin.x, 0, core.fullscreen_box.w - box.w)
+			box.y = clamp(new_origin.y, 0, core.fullscreen_box.h - box.h)
 			if mouse_released(.left) {
 				bits -= {.moving}
 			}

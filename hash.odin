@@ -34,7 +34,7 @@ hash :: proc {
 	hash_int,
 }
 hash_int :: #force_inline proc(num: int) -> Id {
-	hash := top(&core.id_stack) or_else FNV1A32_OFFSET_BASIS
+	hash := stack_top(&core.id_stack) or_else FNV1A32_OFFSET_BASIS
 	return hash ~ (Id(num) * FNV1A32_PRIME)
 }
 hash_string :: #force_inline proc(str: string) -> Id { 
@@ -48,7 +48,7 @@ hash_uintptr :: #force_inline proc(ptr: uintptr) -> Id {
 	return hash_bytes(([^]u8)(&ptr)[:size_of(ptr)])  
 }
 hash_bytes :: proc(bytes: []byte) -> Id {
-	return fnv32a(bytes, top(&core.id_stack) or_else FNV1A32_OFFSET_BASIS)
+	return fnv32a(bytes, stack_top(&core.id_stack) or_else FNV1A32_OFFSET_BASIS)
 }
 hash_loc :: proc(loc: runtime.Source_Code_Location) -> Id {
 	hash := hash_bytes(transmute([]byte)loc.file_path)
@@ -58,13 +58,13 @@ hash_loc :: proc(loc: runtime.Source_Code_Location) -> Id {
 }
 
 push_id_int :: proc(num: int) {
-	push(&core.id_stack, hash_int(num))
+	stack_push(&core.id_stack, hash_int(num))
 }
 push_id_string :: proc(str: string) {
-	push(&core.id_stack, hash_string(str))
+	stack_push(&core.id_stack, hash_string(str))
 }
 push_id_other :: proc(id: Id) {
-	push(&core.id_stack, id)
+	stack_push(&core.id_stack, id)
 }
 push_id :: proc {
 	push_id_int,
@@ -73,5 +73,5 @@ push_id :: proc {
 }
 
 pop_id :: proc() {
-	pop(&core.id_stack)
+	stack_pop(&core.id_stack)
 }

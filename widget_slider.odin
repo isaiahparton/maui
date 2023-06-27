@@ -37,7 +37,7 @@ spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: int)
 	loc.column += 1
 	set_next_box(decrease_box)
 	if button({
-		label = Icon.remove, 
+		label = Icon.Remove, 
 		align = .middle,
 	}, loc) {
 		new_value = max(info.low, info.value - 1)
@@ -45,7 +45,7 @@ spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: int)
 	loc.column += 1
 	set_next_box(increase_box)
 	if button({
-		label = Icon.add, 
+		label = Icon.Add, 
 		align = .middle,
 	}, loc) {
 		new_value = min(info.high, info.value + 1)

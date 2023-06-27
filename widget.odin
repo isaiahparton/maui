@@ -168,7 +168,7 @@ widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
 widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer_Agent, widget: ^Widget) {
 	assert(widget != nil)
 	// Request hover status
-	if point_in_box(input.mouse_point, widget.box) && .hovered in widget.layer.state {
+	if point_in_box(input.mouse_point, widget.box) && core.layer_agent.hover_id == widget.layer.id {
 		next_hover_id = widget.id
 	}
 	// If hovered
@@ -190,19 +190,6 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer
 			widget.click_button = input.last_mouse_button
 			press_id = widget.id
 		}
-		// Just released buttons
-		released_buttons := input.last_mouse_bits - input.mouse_bits
-		if released_buttons != {} {
-			for button in Mouse_Button {
-				if button == widget.click_button {
-					widget.state += {.clicked}
-					break
-				}
-			}
-			if press_id == widget.id {
-				press_id = 0
-			}
-		}
 	} else {
 		if last_hover_id == widget.id {
 			widget.state += {.lost_hover}
@@ -223,6 +210,19 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer
 		widget.state += {.pressed}
 		if last_press_id != widget.id {
 			widget.state += {.got_press}
+		}
+		// Just released buttons
+		released_buttons := input.last_mouse_bits - input.mouse_bits
+		if released_buttons != {} {
+			for button in Mouse_Button {
+				if button == widget.click_button {
+					widget.state += {.clicked}
+					break
+				}
+			}
+			if press_id == widget.id {
+				press_id = 0
+			}
 		}
 		core.dragging = .draggable in widget.options
 	} else if last_press_id == widget.id {
@@ -286,7 +286,7 @@ _do_widget :: proc(self: ^Widget, ok: bool) {
 		self.layer.content_box = update_bounding_box(self.layer.content_box, self.box)
 		// Update group if there is one
 		if core.group_stack.height > 0 {
-			top_ref(&core.group_stack).state += self.state
+			stack_top_ref(&core.group_stack).state += self.state
 		}
 		// Display tooltip if there is one
 		if core.next_tooltip != nil {
@@ -460,7 +460,7 @@ Check_Box_Info :: struct {
 checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_state: bool) {
 	SIZE :: 20
 	HALF_SIZE :: SIZE / 2
-	TEXT_OFFSET :: 10
+	TEXT_OFFSET :: 8
 
 	// Check if there is text
 	has_text := info.text != nil
@@ -536,7 +536,7 @@ checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_
 			// Paint icon
 			if active || state_time == 1 {
 				real_state := info.state.(Check_Box_Status) or_else .on
-				paint_aligned_icon(get_font_data(.default), .remove if real_state == .unknown else .check, center, state_time, get_color(.button_text), {.middle, .middle})
+				paint_aligned_icon(get_font_data(.default), .Remove if real_state == .unknown else .Check, center, state_time, get_color(.button_text), {.middle, .middle})
 			}
 
 			// Paint text
@@ -828,8 +828,8 @@ _tree_node :: proc(active: bool) {
 }
 
 // Cards are interactable boxangles that contain other widgets
-@(deferred_out=_card)
-card :: proc(
+@(deferred_out=_do_card)
+do_card :: proc(
 	text: string, 
 	sides: Box_Sides = {}, 
 	loc := #caller_location,
@@ -854,7 +854,7 @@ card :: proc(
 	return
 }
 @private 
-_card :: proc(clicked, ok: bool) {
+_do_card :: proc(clicked, ok: bool) {
 	if ok {
 		pop_layout()
 	}
@@ -1024,7 +1024,7 @@ toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (click
 			}
 			paint_pill_stroke_h(self.box, !info.state, color)
 			if state_time > 0 {
-				paint_aligned_icon(font_data, .check, {box.x + box.h / 2, box.y + box.h / 2}, 1, fade(color, state_time), {.near, .middle})
+				paint_aligned_icon(font_data, .Check, {box.x + box.h / 2, box.y + box.h / 2}, 1, fade(color, state_time), {.near, .middle})
 				paint_aligned_string(font_data, info.text, {box.x + box.w - box.h / 2, box.y + box.h / 2}, color, {.far, .middle}) 
 			} else {
 				paint_aligned_string(font_data, info.text, {box.x + box.w / 2, box.y + box.h / 2}, color, {.middle, .middle}) 

@@ -282,12 +282,12 @@ layer_agent_assert :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Opti
 	return
 }
 layer_agent_push :: proc(using self: ^Layer_Agent, layer: ^Layer) {
-	push(&stack, layer)
-	current_layer = top(&stack)
+	stack_push(&stack, layer)
+	current_layer = stack_top(&stack)
 }
 layer_agent_pop :: proc(using self: ^Layer_Agent) {
-	pop(&stack)
-	current_layer = top(&stack)
+	stack_pop(&stack)
+	current_layer = stack_top(&stack)
 }
 layer_destroy :: proc(self: ^Layer) {
 	delete(self.contents)
@@ -302,8 +302,8 @@ Frame_Info :: struct {
 	fill_color: Maybe(Color),
 	scrollbar_padding: Maybe(f32),
 }
-@(deferred_out=_frame)
-frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
+@(deferred_out=_do_frame)
+do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	self: ^Layer
 	box := layout_next(current_layout())
 	self, ok = begin_layer({
@@ -316,7 +316,7 @@ frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	return
 }
 @private
-_frame :: proc(ok: bool) {
+_do_frame :: proc(ok: bool) {
 	if ok {
 		assert(core.layer_agent.current_layer != nil)
 		paint_box_stroke(core.layer_agent.current_layer.box, 1, get_color(.base_stroke))

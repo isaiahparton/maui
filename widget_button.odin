@@ -20,7 +20,7 @@ Pill_Button_Info :: struct {
 pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	if (info.fit_to_label.? or_else true) && (layout.side == .left || layout.side == .right) {
-		layout.size = measure_label(info.label).x + layout.box.h
+		layout.size = measure_label(info.label).x + (layout.box.h - layout.margin.y * 2) + layout.margin.x * 2
 		if info.loading {
 			layout.size += layout.box.h * 0.75
 		}
@@ -101,7 +101,7 @@ button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
 			switch info.style {
 				case .filled:
 				paint_box_fill(self.box, alpha_blend_colors(color, get_color(.button_shade), 0.3 if .pressed in self.state else hover_time * 0.15))
-				paint_label_box(info.label, self.box, get_color(.button_text), {info.align.? or_else .middle, .middle})
+				paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), get_color(.button_text), {info.align.? or_else .middle, .middle})
 
 				case .outlined:
 				paint_box_fill(self.box, fade(color, 0.2 if .pressed in self.state else hover_time * 0.1))
@@ -114,11 +114,11 @@ button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
 				paint_box_fill({self.box.x, self.box.y, self.box.w, 1}, color)
 				paint_box_fill({self.box.x, self.box.y + self.box.h - 1, self.box.w, 1}, color)
 				
-				paint_label_box(info.label, self.box, color, {info.align.? or_else .middle, .middle})
+				paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, {info.align.? or_else .middle, .middle})
 
 				case .subtle:
 				paint_box_fill(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
-				paint_label_box(info.label, self.box, color, {info.align.? or_else .middle, .middle})
+				paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, {info.align.? or_else .middle, .middle})
 			}
 		}
 		// Result
@@ -133,6 +133,7 @@ Toggle_Button_Info :: struct {
 	state: bool,
 	align: Maybe(Alignment),
 	fit_to_label: bool,
+	join: Box_Sides,
 }
 toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
@@ -144,15 +145,28 @@ toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (cli
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
 		// Paintions
 		if .should_paint in self.bits {
-			fillColor: Color
+			color := get_color(.accent if info.state else .widget_stroke)
 			if info.state {
-				fillColor = style_widget_shaded(2 if .pressed in self.state else hover_time)
+				paint_box_fill(self.box, get_color(.accent, 0.2 if .pressed in self.state else 0.1))
 			} else {
-				fillColor = style_base_shaded(2 if .pressed in self.state else hover_time)
+				paint_box_fill(self.box, get_color(.base_shade, 0.2 if .pressed in self.state else 0.1 * hover_time))
 			}
-			paint_box_fill(self.box, fillColor)
-			paint_box_stroke(self.box, 1, get_color(.widget_stroke if info.state else .base_stroke))
-			paint_label(info.label, box_center(self.box), get_color(.text), {info.align.? or_else .middle, .middle})
+
+			if info.state {
+				paint_box_stroke(self.box, 2, get_color(.accent))
+			} else {
+				color := get_color(.widget_stroke)
+				if .left not_in info.join {
+					paint_box_fill({self.box.x, self.box.y, 1, self.box.h}, color)
+				}
+				if .right not_in info.join {
+					paint_box_fill({self.box.x + self.box.w - 1, self.box.y, 1, self.box.h}, color)
+				}
+				paint_box_fill({self.box.x, self.box.y, self.box.w, 1}, color)
+				paint_box_fill({self.box.x, self.box.y + self.box.h - 1, self.box.w, 1}, color)
+			}
+
+			paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, {info.align.? or_else .middle, .middle})
 		}
 		// Result
 		if .clicked in self.state && self.click_button == .left {
@@ -169,6 +183,24 @@ toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #ca
 		)
 	if click {
 		set^ ~= {bit}
+	}
+	return
+}
+enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T) {
+	new_value = value
+	for member, i in T {
+		push_id(int(member))
+			sides: Box_Sides
+			if i > 0 {
+				sides += {.left}
+			}
+			if i < len(T) - 1 {
+				sides += {.right}
+			}
+			if toggle_button({label = format(member), state = value == member, join = sides}) {
+				new_value = member
+			}
+		pop_id()
 	}
 	return
 }

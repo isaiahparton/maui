@@ -9,9 +9,9 @@ import "core:fmt"
 import "core:mem"
 
 Choice :: enum {
-	first,
-	second,
-	third,
+	First,
+	Second,
+	Third,
 }
 Choice_Set :: bit_set[Choice]
 
@@ -42,10 +42,10 @@ main :: proc() {
 		ui.shrink(100)
 		if ui.do_layout_box(ui.fake_cut(.bottom, 50)) {
 			ui.set_side(.right); ui.set_size(50); ui.set_align(.middle)
-			if ui.floating_button({icon = .github}) {
+			if ui.floating_button({icon = .Github}) {
 				rl.OpenURL("https://github.com/isaiahparton/maui")
 			}
-			if ui.floating_button({icon = .code}) {
+			if ui.floating_button({icon = .Code}) {
 				rl.OpenURL("https://github.com/isaiahparton/maui/blob/new-naming-convention/demo/demo.odin")
 			}
 		}
@@ -76,6 +76,12 @@ main :: proc() {
 				ui.button({label = "Subtle", style = .subtle, fit_to_label = true})
 			}
 			ui.space(10)
+			ui.text({text = "Toggle Buttons"})
+			if ui.do_layout(.top, 30) {
+				ui.set_side(.left); ui.set_size(80)
+				choice = ui.enum_toggle_buttons(choice)
+			}
+			ui.space(10)
 			ui.text({text = "Multiple Choice"})
 			for member in Choice {
 				ui.push_id(int(member))
@@ -86,9 +92,22 @@ main :: proc() {
 			ui.text({text = "Single Choice"})
 			choice = ui.enum_radio_buttons(choice)
 			ui.space(10)
+			if ui.do_layout(.top, 30) {
+				ui.set_side(.left); ui.set_size(180)
+				if ui.do_menu({
+					label = ui.format(choice),
+					size = ([2]f32){0, 90},
+				}) {
+					ui.set_size(30)
+					choice = ui.enum_options(choice)
+				}
+			}
+			ui.space(10)
 			ui.text({text = "Switches"})
 			ui.toggle_switch({state = &switch_state})
-			ui.space(10)
+		}
+		if ui.do_layout(.left, 1, true) {
+			ui.set_size(30)
 			ui.text({text = "Sliders"})
 			if ui.do_layout(.top, 30) {
 				ui.set_side(.left); ui.set_size(200)
@@ -101,9 +120,7 @@ main :: proc() {
 				ui.set_side(.left); ui.set_size(100)
 				slider_value_i32 = ui.box_slider(ui.Box_Slider_Info(i32){value = slider_value_i32, low = 0, high = 100})
 			}
-		}
-		if ui.do_layout(.left, 1, true) {
-			ui.set_size(30)
+			ui.space(10)
 			ui.text({text = "Date & time"})
 			if ui.do_layout(.top, 30) {
 				ui.set_side(.left); ui.set_size(200)

@@ -93,21 +93,21 @@ Stack :: struct($T: typeid, $N: int) {
 	items: [N]T,
 	height: int,
 }
-push :: proc(stack: ^Stack($T, $N), item: T) {
+stack_push :: proc(stack: ^Stack($T, $N), item: T) {
 	stack.items[stack.height] = item
 	stack.height += 1
 }
-pop :: proc(stack: ^Stack($T, $N)) {
+stack_pop :: proc(stack: ^Stack($T, $N)) {
 	stack.height -= 1
 }
-top :: proc(stack: ^Stack($T, $N)) -> (item: T, ok: bool) #optional_ok {
+stack_top :: proc(stack: ^Stack($T, $N)) -> (item: T, ok: bool) #optional_ok {
 	assert(stack.height < len(stack.items))
 	if stack.height == 0 {
 		return {}, false
 	}
 	return stack.items[stack.height - 1], true
 }
-top_ref :: proc(stack: ^Stack($T, $N)) -> (ref: ^T, ok: bool) #optional_ok {
+stack_top_ref :: proc(stack: ^Stack($T, $N)) -> (ref: ^T, ok: bool) #optional_ok {
 	assert(stack.height < len(stack.items))
 	if stack.height == 0 {
 		return nil, false
@@ -206,11 +206,11 @@ _enabled :: proc() {
 }
 
 begin_group :: proc() {
-	push(&core.group_stack, Group({}))
+	stack_push(&core.group_stack, Group({}))
 }
 end_group :: proc() -> (result: ^Group) {
-	result = top_ref(&core.group_stack)
-	pop(&core.group_stack)
+	result = stack_top_ref(&core.group_stack)
+	stack_pop(&core.group_stack)
 	return
 }
 
@@ -425,7 +425,7 @@ end_frame :: proc() {
 				shrink(10); set_size(24)
 				if debug_mode == .layers {
 					set_side(.bottom); set_size(TEXTURE_HEIGHT)
-					if frame({
+					if do_frame({
 						layout_size = {TEXTURE_WIDTH, TEXTURE_HEIGHT},
 						fill_color = Color{0, 0, 0, 255},
 						options = {.no_scroll_margin_x, .no_scroll_margin_y},

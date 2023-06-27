@@ -128,7 +128,7 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 	return
 }
 // Edit number values
-Number_Input_Info :: struct($T: typeid) where intrinsics.type_is_float(T) || intrinsics.type_is_integer(T) {
+Number_Input_Info :: struct($T: typeid) {
 	value: T,
 	title,
 	format: Maybe(string),

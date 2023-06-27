@@ -137,6 +137,9 @@ shrink_box :: proc {
 	shrink_box_separate,
 	shrink_box_uniform,
 }
+box_padding :: proc(box: Box, padding: [2]f32) -> Box {
+	return {box.x + padding.x, box.y + padding.y, box.w - padding.x * 2, box.h - padding.y * 2}
+}
 
 grow_box :: proc(box: Box, amount: f32) -> Box {
 	return {box.x - amount, box.y - amount, box.w + amount * 2, box.h + amount * 2}

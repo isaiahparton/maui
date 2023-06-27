@@ -1,4 +1,4 @@
-package mauiRaylib
+package maui_raylib
 import rl "vendor:raylib"
 import ui ".."
 import "core:fmt"
@@ -13,6 +13,7 @@ init :: proc() {
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
 	rl.SetTextureFilter(texture, .POINT)
+	rl.UnloadImage(image)
 
 	ui._set_clipboard_string = proc(str: string) {
 		cstr := strings.clone_to_cstring(str)
@@ -22,6 +23,9 @@ init :: proc() {
 	ui._get_clipboard_string = proc() -> string {
 		return string(rl.GetClipboardText())
 	}
+}
+uninit :: proc() {
+	rl.UnloadTexture(texture)
 }
 
 begin_frame :: proc() {

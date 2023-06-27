@@ -90,7 +90,7 @@ painter_init :: proc() -> bool {
 }
 painter_uninit :: proc() {
 	if painter != nil {
-		rl.UnloadImage(painter.image)
+		//rl.UnloadImage(painter.image)
 
 		for font in &painter.fonts {
 			delete(font.glyphs)

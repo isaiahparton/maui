@@ -9,7 +9,7 @@ Date_Picker_Info :: struct {
 	value,
 	temp_value: ^time.Time,
 }
-date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
+date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (changed: bool) {
 	if self, ok := do_widget(hash(loc), layout_next(current_layout()), {}); ok {
 
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
@@ -19,7 +19,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), 0.2 if .pressed in self.state else hover_time * 0.1))
 			paint_box_stroke(self.box, 1, get_color(.button_base))
 			paint_label_box(text_format("%2i-%2i-%4i", day, int(month), year), shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.button_base), {.near, .middle})
-			paint_aligned_icon(get_font_data(.default), .calendar, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.button_base), {.middle, .middle})
+			paint_aligned_icon(get_font_data(.default), .Calendar, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.button_base), {.middle, .middle})
 		}
 
 		if .active in self.bits {
@@ -44,7 +44,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 					if int(month) > 0 {
 						month_days -= int(time.days_before[int(month) - 1])
 					}
-					if menu({label = format(day), size = {0, 120}, layout_size = ([2]f32){0, f32(month_days) * 20}}) {
+					if do_menu({label = format(day), size = {0, 120}, layout_size = ([2]f32){0, f32(month_days) * 20}}) {
 						set_size(20)
 						for i in 1..=month_days {
 							push_id(i)
@@ -56,7 +56,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 						}
 					}
 					space(10)
-					if menu({label = format(month), size = {0, 120}, layout_size = ([2]f32){0, 240}}) {
+					if do_menu({label = format(month), size = {0, 120}, layout_size = ([2]f32){0, 240}}) {
 						set_size(20)
 						for member in time.Month {
 							push_id(int(member))
@@ -68,7 +68,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 						}
 					}
 					space(10)
-					if menu({label = format(year), size = {0, 120}, layout_size = ([2]f32){0, 180}}) {
+					if do_menu({label = format(year), size = {0, 120}, layout_size = ([2]f32){0, 180}}) {
 						set_size(20)
 						for i in (year - 4)..=(year + 4) {
 							push_id(i)
@@ -159,6 +159,7 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 					if button({label = "Save"}) {
 						info.value^ = info.temp_value^
 						self.bits -= {.active}
+						changed = true
 					}
 					set_side(.left); set_size(60)
 					if button({label = "Today", style = .outlined}) {
@@ -177,4 +178,5 @@ date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) {
 			}
 		}
 	}
+	return
 }

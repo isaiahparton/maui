@@ -93,8 +93,8 @@ Menu_Result :: struct {
 	active: bool,
 }
 // Menu starting point
-@(deferred_out=_menu)
-menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
+@(deferred_out=_do_menu)
+do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
 	if self, ok := do_widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
 		using self
@@ -107,7 +107,7 @@ menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		// Painting
 		if .should_paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), 0.2 if .pressed in state else hover_time * 0.1))
-			paint_box_stroke(box, 1, get_color(.base_stroke))
+			paint_box_stroke(box, 1, get_color(.base_stroke, 0.5 + 0.5 * hover_time))
 			paint_rotating_arrow({box.x + box.w - box.h / 2, box.y + box.h / 2}, 6, -1 + state_time, get_color(.text))
 			paint_label_box(info.label, shrink_box_separate(box, {box.h * 0.25, 0}), get_color(.text), {info.align.? or_else .near, .middle})
 		}
@@ -136,7 +136,7 @@ menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	return
 }
 @private 
-_menu :: proc(active: bool) {
+_do_menu :: proc(active: bool) {
 	if active {
 		end_attached_layer({
 			stroke_color = get_color(.base_stroke),
@@ -301,7 +301,7 @@ option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), 0.2 if .pressed in self.state else hover_time * 0.1))
 			paint_label_box(info.label, shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.text), {info.align.? or_else .near, .middle})
 			if info.active {
-				paint_aligned_icon(get_font_data(.header), .check, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.text), {.middle, .middle})
+				paint_aligned_icon(get_font_data(.header), .Check, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.text), {.middle, .middle})
 			}
 		}
 		// Dismiss the root menu
@@ -322,12 +322,12 @@ option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
 enum_options :: proc(
 	value: $T, 
 	loc := #caller_location,
-) -> (newValue: T) {
-	newValue = value
+) -> (new_value: T) {
+	new_value = value
 	for member in T {
 		push_id(hash_int(int(member)))
-			if Option({label = TextCapitalize(Format(member))}) {
-				newValue = member
+			if option({label = text_capitalize(format(member))}) {
+				new_value = member
 			}
 		pop_id()
 	}
@@ -337,7 +337,7 @@ bit_set_options :: proc(set: $S/bit_set[$E;$U], loc := #caller_location) -> (new
 	newSet = set
 	for member in E {
 		push_id(hash_int(int(member)))
-			if Option({label = TextCapitalize(Format(member)), active = member in set}) {
+			if option({label = text_capitalize(format(member)), active = member in set}) {
 				newSet = newSet ~ {member}
 			}
 		pop_id()
