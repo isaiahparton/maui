@@ -43,8 +43,8 @@ push_layout :: proc(box: Box) -> (layout: ^Layout) {
 pop_layout :: proc() {
 	layout_agent_pop(&core.layout_agent)
 }
-current_layout :: proc() -> ^Layout {
-	assert(core.layout_agent.current_layout != nil)
+current_layout :: proc(loc := #caller_location) -> ^Layout {
+	assert(core.layout_agent.current_layout != nil, "There is no current layout", loc)
 	return core.layout_agent.current_layout
 }
 
@@ -98,8 +98,8 @@ space :: proc(amount: f32) {
 	layout := current_layout()
 	box_cut(&layout.box, layout.side, amount)
 }
-shrink :: proc(amount: f32) {
-	layout := current_layout()
+shrink :: proc(amount: f32, loc := #caller_location) {
+	layout := current_layout(loc)
 	layout.box = shrink_box(layout.box, amount)
 }
 

@@ -353,6 +353,7 @@ paint_clipped_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, clip: Box, color:
 Selectable_Text_Bit :: enum {
 	password,
 	select_all,
+	multiline,
 	no_paint,
 }
 Selectable_Text_Bits :: bit_set[Selectable_Text_Bit]
@@ -597,10 +598,12 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			} else if input.mouse_point.x > info.box.x + info.box.w {
 				result.view_offset.x += (input.mouse_point.x - (info.box.x + info.box.w)) * DRAG_SPEED * core.delta_time
 			}
-			if input.mouse_point.y < info.box.y {
-				result.view_offset.y -= (info.box.y - input.mouse_point.y) * DRAG_SPEED * core.delta_time
-			} else if input.mouse_point.y > info.box.y + info.box.h {
-				result.view_offset.y += (input.mouse_point.y - (info.box.y + info.box.h)) * DRAG_SPEED * core.delta_time
+			if .multiline in info.bits {
+				if input.mouse_point.y < info.box.y {
+					result.view_offset.y -= (info.box.y - input.mouse_point.y) * DRAG_SPEED * core.delta_time
+				} else if input.mouse_point.y > info.box.y + info.box.h {
+					result.view_offset.y += (input.mouse_point.y - (info.box.y + info.box.h)) * DRAG_SPEED * core.delta_time
+				}
 			}
 			core.paint_next_frame = true
 		}
@@ -611,8 +614,8 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 				result.view_offset.x = cursor_start.x
 			}
 		} else if state.index > state.last_index || state.length > state.last_length {
-			if cursor_end.x > result.view_offset.x + (info.box.w - info.view_offset.x) {
-				result.view_offset.x = cursor_end.x - info.box.w + info.view_offset.x
+			if cursor_end.x > result.view_offset.x + (info.box.w - info.padding.x) {
+				result.view_offset.x = cursor_end.x - info.box.w + info.padding.x
 			}
 		}
 		state.index = clamp(state.index, 0, len(info.data))

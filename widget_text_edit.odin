@@ -9,6 +9,7 @@ import "core:unicode/utf8"
 import "core:math"
 import "core:math/linalg"
 import "core:intrinsics"
+
 Text_Edit_Result :: struct {
 	using self: ^Widget,
 	changed: bool,
@@ -19,6 +20,7 @@ Text_Input_Data :: union {
 	^[dynamic]u8,
 	^string,
 }
+
 Text_Input_Info :: struct {
 	data: Text_Input_Data,
 	title: Maybe(string),
@@ -47,8 +49,17 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 		if .hovered in self.state {
 			core.cursor = .beam
 		}
+
+		scroll_x, scroll_y: ^f32
+
 		// Animation values
-		hover_time := animate_bool(self.id, .hovered in state, 0.1)
+		push_id(self.id)
+			hover_time := animate_bool(hash_int(0), .hovered in state, 0.1)
+			if !is_multiline {
+				scroll_x = get_animation(hash_int(1))
+				scroll_y = get_animation(hash_int(2))
+			}
+		pop_id()
 
 		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
 
@@ -84,17 +95,30 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 
 		padding = {line_height * 0.25, y_padding}
 
+		text_bits: Selectable_Text_Bits
+		if info.line_height != nil {
+			text_bits += {.multiline}
+		}
+		if .should_paint not_in bits {
+			text_bits += {.no_paint}
+		}
+
 		// Set text offset
 		result = selectable_text(self, {
 			font_data = font_data, 
 			data = data_slice, 
 			box = box, 
 			padding = padding,
-			view_offset = scroll_layer.scroll if is_multiline else {},
-			bits = Selectable_Text_Bits({.no_paint} if .should_paint not_in bits else {}), 
+			view_offset = scroll_layer.scroll if is_multiline else {scroll_x^, scroll_y^},
+			bits = text_bits,
 		})
-		if is_multiline && result.dragging {
-			scroll_layer.scroll_target += result.view_offset - scroll_layer.scroll
+		if is_multiline {
+			if result.dragging {
+				scroll_layer.scroll_target += result.view_offset - scroll_layer.scroll
+			}
+		} else if result.dragging {
+			scroll_x^ = result.view_offset.x
+			scroll_y^ = result.view_offset.y
 		}
 
 		// Widget decoration

@@ -119,6 +119,7 @@ window_agent_destroy :: proc(using self: ^Window_Agent) {
 }
 
 Window_Info :: struct {
+	id: Maybe(Id),
 	title: string,
 	box: Box,
 	layout_size: Maybe([2]f32),
@@ -129,7 +130,7 @@ Window_Info :: struct {
 @(deferred_out=_do_window)
 do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 	self: ^Window
-	id := hash(loc)
+	id := info.id.? or_else hash(loc)
 	if self, ok = window_agent_assert(&core.window_agent, id); ok {
 		window_agent_push(&core.window_agent, self)
 
