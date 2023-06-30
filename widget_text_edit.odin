@@ -30,36 +30,15 @@ Text_Input_Info :: struct {
 	edit_bits: Text_Edit_Bits,
 }
 text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
-	is_multiline := .multiline in info.edit_bits
-	widget_id := hash(loc)
-	widget_box := use_next_box() or_else layout_next(current_layout())
-	scroll_layer: ^Layer
-	if is_multiline {
-		scroll_layer, _ = begin_layer({
-			id = widget_id,
-			box = widget_box,
-			options = {.attached, .no_sort, .no_scroll_margin_x, .no_scroll_margin_y},
-		})
-	}
-	padding: [2]f32
-	result: Selectable_Text_Result
-	if self, ok := do_widget(widget_id, widget_box, {.draggable, .can_key_select}); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable, .can_key_select}); ok {
 		using self
 		// Text cursor
 		if .hovered in self.state {
 			core.cursor = .beam
 		}
 
-		scroll_x, scroll_y: ^f32
-
 		// Animation values
-		push_id(self.id)
-			hover_time := animate_bool(hash_int(0), .hovered in state, 0.1)
-			if !is_multiline {
-				scroll_x = get_animation(hash_int(1))
-				scroll_y = get_animation(hash_int(2))
-			}
-		pop_id()
+		hover_time := animate_bool(self.id, .hovered in state, 0.1)
 
 		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
 
@@ -93,32 +72,24 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 			data_slice = type[:]
 		}
 
-		padding = {line_height * 0.25, y_padding}
+		padding: [2]f32 = {line_height * 0.25, y_padding}
 
 		text_bits: Selectable_Text_Bits
-		if info.line_height != nil {
-			text_bits += {.multiline}
-		}
 		if .should_paint not_in bits {
 			text_bits += {.no_paint}
 		}
 
 		// Set text offset
-		result = selectable_text(self, {
+		result := selectable_text(self, {
 			font_data = font_data, 
 			data = data_slice, 
 			box = box, 
 			padding = padding,
-			view_offset = scroll_layer.scroll if is_multiline else {scroll_x^, scroll_y^},
+			view_offset = core.typing_agent.view_offset if .focused in state else {},
 			bits = text_bits,
 		})
-		if is_multiline {
-			if result.dragging {
-				scroll_layer.scroll_target += result.view_offset - scroll_layer.scroll
-			}
-		} else if result.dragging {
-			scroll_x^ = result.view_offset.x
-			scroll_y^ = result.view_offset.y
+		if .focused in state {
+			core.typing_agent.view_offset = result.view_offset
 		}
 
 		// Widget decoration
@@ -141,13 +112,6 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 				}
 			}
 		}
-	}
-	if is_multiline {
-		if result.text_size.y > widget_box.h {
-			scroll_layer.bits += {.scroll_y}
-		}
-		scroll_layer.layout_size = result.text_size + padding * 2 + SCROLL_BAR_SIZE
-		end_layer(scroll_layer)
 	}
 	return
 }

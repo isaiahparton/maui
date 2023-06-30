@@ -15,6 +15,8 @@ Typing_Agent :: struct {
 	last_index,
 	last_length: int,
 
+	view_offset: [2]f32,
+
 	buffers: map[Id]Text_Buffer,
 }
 

@@ -1,6 +1,7 @@
 package maui
 
 import "core:math"
+import "core:math/bits"
 import "core:math/linalg"
 
 import "core:fmt"
@@ -409,6 +410,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		case .middle: origin.y += info.box.h / 2 - text_size.y / 2
 		case .far: origin.y += info.box.h - text_size.y - info.padding.y
 	}
+
 	// Offset view when currently focused
 	origin -= info.view_offset
 
@@ -418,8 +420,8 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	size: [2]f32
 
 	// Cursor start and end position
-	cursor_start, 
-	cursor_end: [2]f32
+	cursor_low: [2]f32 = 3.40282347E+38
+	cursor_high: [2]f32
 
 	// Reset view offset when just focused
 	if .got_focus in widget.state {
@@ -465,49 +467,38 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			glyph_width *= TAB_SPACES
 		}
 
-		// Draw cursors
 		highlight := false
-		if .focused in widget.state && .got_focus not_in widget.state {
-
+		// Draw cursors
+		if should_paint && .focused in widget.state && .got_focus not_in widget.state {
 			// Draw cursor/selection if allowed
-			if should_paint {
-				if state.length == 0 {
-					if state.index == index && point.x >= info.box.x && point.x < info.box.x + info.box.w {
-						// Bar cursor
-						cursor_point := linalg.floor(point)
-						cursor_point.y = max(cursor_point.y, info.box.y)
-						paint_box_fill(
-							box = clip_box({
-								cursor_point.x, 
-								cursor_point.y, 
-								1, 
-								info.font_data.size,
-							}, info.box), 
-							color = get_color(.text),
-							)
-					}
-				} else if index >= state.index && index < state.index + state.length {
-					// Selection
+			if state.length == 0 {
+				if state.index == index && point.x >= info.box.x && point.x < info.box.x + info.box.w {
+					// Bar cursor
 					cursor_point := linalg.floor(point)
+					cursor_point.y = max(cursor_point.y, info.box.y)
 					paint_box_fill(
 						box = clip_box({
 							cursor_point.x, 
 							cursor_point.y, 
-							glyph_width,
+							1, 
 							info.font_data.size,
 						}, info.box), 
 						color = get_color(.text),
 						)
-					highlight = true
 				}
-			}
-
-			// Set cursor start/end points
-			if state.index == index {
-				cursor_start = size
-			}
-			if state.index + state.length == index {
-				cursor_end = size
+			} else if index >= state.index && index < state.index + state.length {
+				// Selection
+				cursor_point := linalg.floor(point)
+				paint_box_fill(
+					box = clip_box({
+						cursor_point.x, 
+						cursor_point.y, 
+						glyph_width,
+						info.font_data.size,
+					}, info.box), 
+					color = get_color(.text),
+					)
+				highlight = true
 			}
 		}
 
@@ -517,6 +508,13 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		if dist < min_dist {
 			min_dist = dist
 			hover_index = index
+		}
+
+		if index == state.index {
+			cursor_low = point - origin
+		}
+		if index == state.index + state.length {
+			cursor_high = (point + {0, info.font_data.size}) - origin
 		}
 
 		// Anything past here requires a valid glyph
@@ -530,7 +528,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			point.y += info.font_data.size
 			size.y += info.font_data.size
 			result.line_count += 1
-		} else if glyph != '\t' && glyph != ' ' && should_paint {
+		} else if should_paint && glyph != '\t' && glyph != ' ' {
 			paint_clipped_glyph(glyph_data, point, info.box, get_color(.text_inverted if highlight else .text, 1))
 		}
 
@@ -548,23 +546,27 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			state.length = len(info.data)
 		}
 	}
+
+	// Text selection by clicking
 	if .got_press in widget.state {
 		if widget.click_count == 1 {
-			for i := min(state.index, len(info.data) - 1); i >= 0; i -= 1 {
-				if is_seperator(info.data[i]) {
-					state.index = i + 1
-					break
-				} else if i == 0 {
+			// Move index to the beginning of the hovered word
+			for i := min(state.index, len(info.data) - 1); ; i -= 1 {
+				if i == 0 {
 					state.index = 0
+					break
+				} else if is_seperator(info.data[i]) {
+					state.index = i + 1
 					break
 				}
 			}
-			for j := state.index + 1; j < len(info.data); j += 1 {
-				if is_seperator(info.data[j]) {
-					state.length = j - state.index
-					break
-				} else if j == len(info.data) - 1 {
+			// Find length of the word
+			for j := state.index + 1; ; j += 1 {
+				if j == len(info.data) - 1 {
 					state.length = len(info.data) - state.index
+					break
+				} else if is_seperator(info.data[j]) {
+					state.length = j - state.index
 					break
 				}
 			}
@@ -579,6 +581,8 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		}
 	}
 
+	inner_size: [2]f32 = {info.box.w, info.box.h} - info.padding * 2
+
 	// View offset
 	if widget.state >= {.pressed} && widget.click_count == 0 {
 		// Selection by dragging
@@ -589,33 +593,38 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			state.index = state.anchor
 			state.length = hover_index - state.anchor
 		}
+		result.dragging = true
+		// Offset view by dragging
+		DRAG_SPEED :: 15
 		if size.x > info.box.w {
-			result.dragging = true
-			// Offset view by dragging
-			DRAG_SPEED :: 15
 			if input.mouse_point.x < info.box.x {
 				result.view_offset.x -= (info.box.x - input.mouse_point.x) * DRAG_SPEED * core.delta_time
 			} else if input.mouse_point.x > info.box.x + info.box.w {
 				result.view_offset.x += (input.mouse_point.x - (info.box.x + info.box.w)) * DRAG_SPEED * core.delta_time
 			}
-			if .multiline in info.bits {
-				if input.mouse_point.y < info.box.y {
-					result.view_offset.y -= (info.box.y - input.mouse_point.y) * DRAG_SPEED * core.delta_time
-				} else if input.mouse_point.y > info.box.y + info.box.h {
-					result.view_offset.y += (input.mouse_point.y - (info.box.y + info.box.h)) * DRAG_SPEED * core.delta_time
-				}
-			}
-			core.paint_next_frame = true
 		}
-	} else if widget.state >= {.focused} {
-		// Handle view offset
-		if state.index < state.last_index {
-			if cursor_start.x < result.view_offset.x {
-				result.view_offset.x = cursor_start.x
+		if size.y > info.box.h && result.line_count > 0 {
+			if input.mouse_point.y < info.box.y {
+				result.view_offset.y -= (info.box.y - input.mouse_point.y) * DRAG_SPEED * core.delta_time
+			} else if input.mouse_point.y > info.box.y + info.box.h {
+				result.view_offset.y += (input.mouse_point.y - (info.box.y + info.box.h)) * DRAG_SPEED * core.delta_time
 			}
-		} else if state.index > state.last_index || state.length > state.last_length {
-			if cursor_end.x > result.view_offset.x + (info.box.w - info.padding.x) {
-				result.view_offset.x = cursor_end.x - info.box.w + info.padding.x
+		}
+		core.paint_next_frame = true
+	} else if .focused in widget.state && .lost_press not_in widget.state {
+		// Handle view offset
+		if state.index != state.last_index || state.length != state.last_length {
+			if cursor_low.x < result.view_offset.x {
+				result.view_offset.x = cursor_low.x
+			}
+			if cursor_low.y < result.view_offset.y {
+				result.view_offset.y = cursor_low.y
+			}
+			if cursor_high.x > result.view_offset.x + inner_size.x {
+				result.view_offset.x = cursor_high.x - inner_size.x
+			}
+			if cursor_high.y + info.font_data.size >= result.view_offset.y + inner_size.y {
+				result.view_offset.y = cursor_high.y - inner_size.y + info.font_data.size
 			}
 		}
 		state.index = clamp(state.index, 0, len(info.data))
@@ -625,10 +634,15 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	}
 
 	// Clamp view offset
-	if size.x > info.box.w {
+	if size.x >= inner_size.x {
 		result.view_offset.x = clamp(result.view_offset.x, 0, (size.x - info.box.w) + info.padding.x * 2)
 	} else {
 		result.view_offset.x = 0
+	}
+	if size.y >= inner_size.y {
+		result.view_offset.y = clamp(result.view_offset.y, 0, (size.y - info.box.h) + info.padding.y * 2 + info.font_data.size)
+	} else {
+		result.view_offset.y = 0
 	}
 
 	result.text_size = size
