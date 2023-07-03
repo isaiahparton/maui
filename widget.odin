@@ -220,9 +220,8 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer
 					break
 				}
 			}
-			if press_id == widget.id {
-				press_id = 0
-			}
+			widget.state += {.lost_press}
+			press_id = 0
 		}
 		core.dragging = .draggable in widget.options
 	} else if last_press_id == widget.id {
@@ -338,6 +337,7 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 	if layer, ok := begin_layer({
 		box = box, 
 		id = id,
+		options = {.no_scroll_x, .no_scroll_y},
 	}); ok {
 		layer.order = .tooltip
 		paint_box_fill(layer.box, get_color(.tooltip_fill))
@@ -346,6 +346,7 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 		end_layer(layer)
 	}
 }
+
 tooltip_box ::proc(id: Id, text: string, anchor_box: Box, side: Box_Side, offset: f32) {
 	origin: [2]f32
 	align: [2]Alignment
@@ -380,16 +381,25 @@ Label :: union {
 	Icon,
 }
 
-paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
+Paint_Label_Info :: struct {
+	align: [2]Alignment,
+	clip_box: Maybe(Box),
+}
+
+paint_label :: proc(label: Label, origin: [2]f32, color: Color, info: Paint_Label_Info) -> [2]f32 {
 	switch variant in label {
 		case string: 	
-		return paint_aligned_string(get_font_data(.default), variant, origin, color, align)
+		return paint_string(get_font_data(.default), variant, origin, color, {
+			align = info.align, 
+			clip_box = info.clip_box,
+		})
 
 		case Icon: 		
-		return paint_aligned_glyph(get_glyph_data(get_font_data(.header), rune(variant)), linalg.floor(origin), color, align)
+		return paint_aligned_glyph(get_glyph_data(get_font_data(.header), rune(variant)), linalg.floor(origin), color, info.align)
 	}
 	return {}
 }
+
 paint_label_box :: proc(label: Label, box: Box, color: Color, align: [2]Alignment) {
 	origin: [2]f32 = {box.x, box.y}
 	#partial switch align.x {
@@ -400,8 +410,9 @@ paint_label_box :: proc(label: Label, box: Box, color: Color, align: [2]Alignmen
 		case .far: origin.y += box.h
 		case .middle: origin.y += box.h / 2
 	}
-	paint_label(label, origin, color, align)
+	paint_label(label, origin, color, {align = align})
 }
+
 measure_label :: proc(label: Label) -> (size: [2]f32) {
 	switch variant in label {
 		case string: 
@@ -954,7 +965,7 @@ scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed: bo
 			new_value = info.low + (info.high - info.low) * normal
 			changed = true
 		}
-		if .lost_press in self.state {
+		if self.state & {.lost_press, .lost_focus} != {} {
 			self.bits -= {.active}
 		}
 	}
@@ -969,7 +980,7 @@ chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	font_data := get_font_data(.label)
 	if layout.side == .left || layout.side == .right {
-		layout.size = measure_string(font_data, info.text).x + layout.box.h + layout.margin.x * 2
+		layout.size = measure_string(font_data, info.text).x + layout.box.h + layout.margin[.left] + layout.margin[.right]
 	}
 	if self, ok := do_widget(hash(loc), layout_next(layout)); ok {
 		using self
@@ -997,7 +1008,7 @@ toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (click
 	id := hash(loc)
 	state_time := animate_bool(id, info.state, 0.15)
 	if layout.side == .left || layout.side == .right {
-		min_size := measure_string(font_data, info.text).x + layout.box.h + layout.margin.x * 2
+		min_size := measure_string(font_data, info.text).x + layout.box.h + layout.margin[.left] + layout.margin[.right]
 		min_size += font_data.size * state_time
 		if min_size > layout.box.w {
 			pop_layout()
@@ -1037,11 +1048,17 @@ toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (click
 
 // Navigation tabs
 Tab_Info :: struct {
-	active: bool,
+	state: bool,
 	label: Label,
 	side: Maybe(Box_Side),
+	has_close_button: bool,
+	show_divider: bool,
 }
-tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: bool) {
+Tab_Result :: struct {
+	clicked,
+	closed: bool,
+}
+tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) {
 	layout := current_layout()
 	horizontal := layout.side == .top || layout.side == .bottom
 	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
@@ -1050,31 +1067,43 @@ tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: bool) {
 		// Animations
 		push_id(self.id)
 			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.1)
-			state_time := animate_bool(hash_int(1), info.active, 0.15)
+			state_time := animate_bool(hash_int(1), info.state, 0.15)
 		pop_id()
 
+		label_box := self.box
+		if info.has_close_button {
+			set_next_box(shrink_box(box_cut_right(&label_box, label_box.h), 4))
+		}
+
+		ROUNDNESS :: 7
 		if self.bits >= {.should_paint} {
-			paint_rounded_box_corners_fill(self.box, 10, side_corners(side), get_color(.base, 1 if info.active else 0.5 * hover_time))
-			center: [2]f32 = {self.box.x + self.box.w / 2, self.box.y + self.box.h / 2}
-			text_size := paint_label(info.label, center, get_color(.text), {.middle, .middle})
-			size := text_size.x
-			if state_time > 0 {
-				if info.active {
-					size *= state_time
-				}
-				accentBox: Box
-				THICKNESS :: 4
-				switch side {
-					case .top: 		accentBox = {center.x - size / 2, self.box.y, size, THICKNESS}
-					case .bottom: 	accentBox = {center.x - size / 2, self.box.y + self.box.h - THICKNESS, size, THICKNESS}
-					case .left: 	accentBox = {self.box.x, center.y - size / 2, size, THICKNESS}
-					case .right: 	accentBox = {self.box.x + self.box.y - THICKNESS, center.y - size / 2, size, THICKNESS}
-				}
-				paint_box_fill(accentBox, get_color(.accent, 1 if info.active else state_time))
+			paint_rounded_box_corners_fill(self.box, ROUNDNESS, side_corners(side), get_color(.base, 1 if info.state else 0.5 * hover_time))
+
+			if info.show_divider && !info.state {
+				paint_box_fill({
+					self.box.x + self.box.w - 1,
+					self.box.y + ROUNDNESS,
+					1,
+					self.box.h - ROUNDNESS * 2,
+				}, get_color(.widget_stroke, 0.5))
+			}
+
+			paint_label(info.label, {self.box.x + self.box.h * 0.25, self.box.y + self.box.h / 2}, get_color(.text), {
+				align = {.near, .middle}, 
+				clip_box = label_box,
+			})
+		}
+
+		if info.has_close_button {
+			if button({
+				label = Icon.Close,
+				style = .subtle,
+			}) {
+				result.closed = true
 			}
 		}
 
-		result = .pressed in self.state
+		result.clicked = !info.state && widget_clicked(self, .left, 1)
 	}
 	return
 }
@@ -1091,9 +1120,9 @@ enum_tabs :: proc(value: $T, tab_size: f32, loc := #caller_location) -> (new_val
 		for member in T {
 			push_id(int(member))
 				if tab({
-					active = member == value, 
+					state = member == value, 
 					label = text_capitalize(format(member)), 
-				}, loc) {
+				}, loc).clicked {
 					new_value = member
 				}
 			pop_id()

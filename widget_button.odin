@@ -20,7 +20,7 @@ Pill_Button_Info :: struct {
 pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	if (info.fit_to_label.? or_else true) && (layout.side == .left || layout.side == .right) {
-		layout.size = measure_label(info.label).x + (layout.box.h - layout.margin.y * 2) + layout.margin.x * 2
+		layout.size = measure_label(info.label).x + (layout.box.h - (layout.margin[.top] + layout.margin[.bottom])) + layout.margin[.left] + layout.margin[.right]
 		if info.loading {
 			layout.size += layout.box.h * 0.75
 		}
