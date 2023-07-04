@@ -39,6 +39,8 @@ main :: proc() {
 		ui.begin_frame()
 		ui_backend.begin_frame()
 
+		ui.core.current_time = rl.GetTime()
+
 		ui.shrink(100)
 		if ui.do_layout_box(ui.fake_cut(.bottom, 50)) {
 			ui.set_side(.right); ui.set_size(50); ui.set_align(.middle)

@@ -65,6 +65,7 @@ Widget :: struct {
 	options: 		Widget_Options,
 	state: 			Widget_State,
 	click_button:  	Mouse_Button,
+	click_time: 	time.Time,
 	click_count: 	int,
 	// Parent layer
 	layer: 			^Layer,
@@ -182,12 +183,13 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer
 			if widget.click_count == 0 {
 				widget.click_button = input.last_mouse_button
 			}
-			if widget.click_button == input.last_mouse_button && time.since(input.last_click_time[widget.click_button]) <= DOUBLE_CLICK_TIME {
+			if widget.click_button == input.last_mouse_button && time.since(widget.click_time) <= DOUBLE_CLICK_TIME {
 				widget.click_count = (widget.click_count + 1) % MAX_CLICK_COUNT
 			} else {
 				widget.click_count = 0
 			}
 			widget.click_button = input.last_mouse_button
+			widget.click_time = time.now()
 			press_id = widget.id
 		}
 	} else {

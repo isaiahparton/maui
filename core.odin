@@ -117,7 +117,7 @@ stack_top_ref :: proc(stack: ^Stack($T, $N)) -> (ref: ^T, ok: bool) #optional_ok
 
 Core :: struct {
 	// Time
-	current_time,
+	current_time: f64,
 	delta_time: f32,
 	frame_start_time: time.Time,
 	frame_duration: time.Duration,
@@ -302,9 +302,6 @@ begin_frame :: proc() {
 	assert(layer_agent.stack.height == 0, "You forgot to pop_layer()")
 	assert(id_stack.height == 0, "You forgot to pop_id()")
 	assert(group_stack.height == 0, "You forgot to end_group()")
-
-	// Update current time
-	current_time += delta_time
 
 	// Begin frame
 	frame_start_time = time.now()

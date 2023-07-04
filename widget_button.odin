@@ -38,7 +38,7 @@ pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked
 				case .filled:
 				paint_pill_fill_h(self.box, alpha_blend_colors(get_color(.button_base), get_color(.button_shade), 0.3 if .pressed in self.state else hover_time * 0.15))
 				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, core.current_time, get_color(.button_text, 0.5))
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.button_text, 0.5))
 					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.button_text, 0.5), {.far, .middle})
 				} else {
 					paint_label_box(info.label, self.box, get_color(.button_text), {.middle, .middle})
@@ -48,7 +48,7 @@ pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked
 				paint_pill_fill_h(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
 				paint_pill_stroke_h(self.box, true, get_color(.button_base))
 				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, core.current_time, get_color(.button_base, 0.5))
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.button_base, 0.5))
 					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.button_base, 0.5), {.far, .middle})
 				} else {
 					paint_label_box(info.label, self.box, get_color(.button_base), {.middle, .middle})
@@ -57,7 +57,7 @@ pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked
 				case .subtle:
 				paint_pill_fill_h(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
 				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, core.current_time, get_color(.button_base, 0.5))
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.button_base, 0.5))
 					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.button_base, 0.5), {.far, .middle})
 				} else {
 					paint_label_box(info.label, self.box, get_color(.button_base), {.middle, .middle})

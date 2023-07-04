@@ -163,6 +163,7 @@ layer_agent_begin_root :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 	root_layer, ok = begin_layer({
 		id = 0,
 		box = core.fullscreen_box, 
+		layout_size = ([2]f32){core.fullscreen_box.w, core.fullscreen_box.h},
 		options = {.no_id},
 	})
 	return
