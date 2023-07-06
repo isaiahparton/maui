@@ -1282,7 +1282,7 @@ do_list_item :: proc(active: bool, loc := #caller_location) -> (result: List_Ite
 			clicked = .clicked in self.state && self.click_button == .left,
 			self = self,
 		}
-		ok = true
+		ok = get_clip(core.clip_box, self.box) != .full
 		if ok {
 			push_layout(self.box).side = .left
 		}

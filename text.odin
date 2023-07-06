@@ -438,7 +438,9 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	}
 
 	// Offset view when currently focused
-	origin -= info.view_offset
+	if .got_focus not_in widget.state {
+		origin -= info.view_offset
+	}
 
 	point := origin
 

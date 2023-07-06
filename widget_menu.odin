@@ -205,7 +205,7 @@ Attached_Menu_Info :: struct {
 }
 // Attach a menu to a widget (opens when focused)
 @(deferred_out=_do_attached_menu)
-do_attached_menu :: proc(info: Attached_Menu_Info) -> (ok: bool) {
+do_attached_menu :: proc(info: Attached_Menu_Info, loc := #caller_location) -> (ok: bool) {
 	if info.parent != nil {
 		if info.parent.bits >= {.menu_open} {
 
@@ -240,6 +240,9 @@ do_attached_menu :: proc(info: Attached_Menu_Info) -> (ok: bool) {
 					offset = SHADOW_OFFSET,
 				}),
 			})
+			opacity := get_animation(hash(loc))
+			opacity^ += (1.0 - opacity^) * core.delta_time * 10
+			layer.opacity = opacity^
 			
 			if ok {
 				layout_box := current_layout().box
