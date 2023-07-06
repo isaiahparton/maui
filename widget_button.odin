@@ -17,7 +17,7 @@ Pill_Button_Info :: struct {
 	fill_color: Maybe(Color),
 	text_color: Maybe(Color),
 }
-pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked: bool) {
+do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	if (info.fit_to_label.? or_else true) && (layout.side == .left || layout.side == .right) {
 		layout.size = measure_label(info.label).x + (layout.box.h - (layout.margin[.top] + layout.margin[.bottom])) + layout.margin[.left] + layout.margin[.right]
@@ -83,7 +83,7 @@ Button_Info :: struct {
 	color: Maybe(Color),
 	style: Button_Style,
 }
-button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
+do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	if info.fit_to_label {
 		layout_fit_label(layout, info.label)
@@ -135,7 +135,7 @@ Toggle_Button_Info :: struct {
 	fit_to_label: bool,
 	join: Box_Sides,
 }
-toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (clicked: bool) {
+do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	if info.fit_to_label {
 		layout_fit_label(layout, info.label)
@@ -175,7 +175,7 @@ toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (cli
 	}
 	return
 }
-toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #caller_location) -> (click: bool) {
+do_toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #caller_location) -> (click: bool) {
 	click = toggle_button(
 		value = bit in set, 
 		label = label, 
@@ -186,7 +186,7 @@ toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #ca
 	}
 	return
 }
-enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T) {
+do_enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T) {
 	new_value = value
 	for member, i in T {
 		push_id(int(member))
@@ -197,7 +197,7 @@ enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T
 			if i < len(T) - 1 {
 				sides += {.right}
 			}
-			if toggle_button({label = format(member), state = value == member, join = sides}) {
+			if do_toggle_button({label = format(member), state = value == member, join = sides}) {
 				new_value = member
 			}
 		pop_id()
@@ -208,7 +208,7 @@ enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T
 Floating_Button_Info :: struct {
 	icon: Icon,
 }
-floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) -> (clicked: bool) {
+do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := do_widget(hash(loc), child_box(use_next_box() or_else layout_next(current_layout()), {40, 40}, {.middle, .middle})); ok {
 		hover_time := animate_bool(self.id, self.state >= {.hovered}, 0.1)
 		// Painting

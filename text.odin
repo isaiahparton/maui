@@ -12,6 +12,7 @@ import "core:unicode/utf8"
 TEXT_BREAK :: "..."
 
 Icon :: enum rune {
+	More_Horizontal 	= 0xEF78,
 	Code 				= 0xeba8,
 	Github 				= 0xedca,
 	Check 				= 0xEB7A,

@@ -417,7 +417,7 @@ end_frame :: proc() {
 				}
 
 				set_size(30)
-				debug_mode = enum_tabs(debug_mode, 0)
+				debug_mode = do_enum_tabs(debug_mode, 0)
 
 				shrink(10); set_size(24)
 				if debug_mode == .layers {
@@ -435,7 +435,7 @@ end_frame :: proc() {
 				} else if debug_mode == .windows {
 					for id, window in window_agent.pool {
 						push_id(window.id)
-							button({
+							do_button({
 								label = format(window.id), 
 								align = .near,
 							})
@@ -445,13 +445,13 @@ end_frame :: proc() {
 						pop_id()
 					}
 				} else if debug_mode == .controls {
-					text({font = .monospace, text = text_format("Layer: %i", layer_agent.hover_id), fit = true})
+					do_text({font = .monospace, text = text_format("Layer: %i", layer_agent.hover_id), fit = true})
 					space(20)
-					text({font = .monospace, text = text_format("Hovered: %i", widget_agent.hover_id), fit = true})
-					text({font = .monospace, text = text_format("Focused: %i", widget_agent.focus_id), fit = true})
-					text({font = .monospace, text = text_format("Pressed: %i", widget_agent.press_id), fit = true})
+					do_text({font = .monospace, text = text_format("Hovered: %i", widget_agent.hover_id), fit = true})
+					do_text({font = .monospace, text = text_format("Focused: %i", widget_agent.focus_id), fit = true})
+					do_text({font = .monospace, text = text_format("Pressed: %i", widget_agent.press_id), fit = true})
 					space(20)
-					text({font = .monospace, text = text_format("Count: %i", len(widget_agent.list)), fit = true})
+					do_text({font = .monospace, text = text_format("Count: %i", len(widget_agent.list)), fit = true})
 				}
 			}
 		}
@@ -487,7 +487,7 @@ _debug_layer_widget :: proc(layer: ^Layer) {
 				n += 1
 			}
 			cut(.left, f32(n) * 24); set_side(.left); set_size(1, true)
-			button({
+			do_button({
 				label = format(layer.id),
 				align = .near,
 			})

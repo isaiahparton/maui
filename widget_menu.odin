@@ -146,8 +146,8 @@ _do_menu :: proc(active: bool) {
 }
 
 // Options within menus
-@(deferred_out=_submenu)
-submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
+@(deferred_out=_do_submenu)
+do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
 	if self, ok := do_widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
 		using self
@@ -188,7 +188,7 @@ submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	return
 }
 @private
-_submenu :: proc(active: bool) {
+_do_submenu :: proc(active: bool) {
 	if active {
 		end_attached_layer({
 			stroke_color = get_color(.base_stroke),
@@ -202,11 +202,10 @@ Attached_Menu_Info :: struct {
 	align: Alignment,
 	side: Box_Side,
 	layer_options: Layer_Options,
-	show_arrow: bool,
 }
 // Attach a menu to a widget (opens when focused)
-@(deferred_out=_attach_menu)
-attach_menu :: proc(info: Attached_Menu_Info) -> (ok: bool) {
+@(deferred_out=_do_attached_menu)
+do_attached_menu :: proc(info: Attached_Menu_Info) -> (ok: bool) {
 	if info.parent != nil {
 		if info.parent.bits >= {.menu_open} {
 
@@ -237,35 +236,15 @@ attach_menu :: proc(info: Attached_Menu_Info) -> (ok: bool) {
 				id = info.parent.id, 
 				layout_size = info.size,
 				options = info.layer_options + {.attached},
+				shadow = Layer_Shadow_Info({
+					offset = SHADOW_OFFSET,
+				}),
 			})
 			
 			if ok {
-				if info.show_arrow {
-					switch info.side {
-						case .bottom: cut(.top, 15)
-						case .right: cut(.left, 15)
-						case .left, .top:
-					}
-				}
 				layout_box := current_layout().box
 				paint_box_fill(layout_box, get_color(.base))
 				paint_box_stroke(current_layout().box, 1, get_color(.base_stroke))
-				if info.show_arrow {
-					center := box_center(info.parent.box)
-					switch info.side {
-						case .bottom:
-						a, b, c: [2]f32 = {center.x, layout_box.y - 9}, {center.x - 8, layout_box.y + 1}, {center.x + 8, layout_box.y + 1}
-						paint_triangle_fill(a, b, c, get_color(.base))
-						paint_line(a, b, 1, get_color(.base_stroke))
-						paint_line(c, a, 1, get_color(.base_stroke))
-						case .right:
-						a, b, c: [2]f32 = {layout_box.x - 9, center.y}, {layout_box.x + 1, center.y - 8}, {layout_box.x - 1, center.y + 8}
-						paint_triangle_fill(a, b, c, get_color(.base))
-						paint_line(a, b, 1, get_color(.base_stroke))
-						paint_line(c, a, 1, get_color(.base_stroke))
-						case .left, .top:
-					}
-				}
 				push_layout(layout_box)
 			}
 			if core.widget_agent.focus_id != core.widget_agent.last_focus_id && core.widget_agent.focus_id != info.parent.id && core.widget_agent.focus_id not_in layer.contents {
@@ -278,7 +257,7 @@ attach_menu :: proc(info: Attached_Menu_Info) -> (ok: bool) {
 	return 
 }
 @private 
-_attach_menu :: proc(ok: bool) {
+_do_attached_menu :: proc(ok: bool) {
 	if ok {
 		layer := current_layer()
 		pop_layout()
@@ -292,7 +271,7 @@ Option_Info :: struct {
 	align: Maybe(Alignment),
 	no_dismiss: bool,
 }
-option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
+do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := do_widget(hash(loc), layout_next(current_layout())); ok {
 		// Animation
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
@@ -319,25 +298,25 @@ option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
 	}
 	return
 }
-enum_options :: proc(
+do_enum_options :: proc(
 	value: $T, 
 	loc := #caller_location,
 ) -> (new_value: T) {
 	new_value = value
 	for member in T {
 		push_id(hash_int(int(member)))
-			if option({label = text_capitalize(format(member))}) {
+			if do_option({label = text_capitalize(format(member))}) {
 				new_value = member
 			}
 		pop_id()
 	}
 	return
 }
-bit_set_options :: proc(set: $S/bit_set[$E;$U], loc := #caller_location) -> (newSet: S) {
+do_bit_set_options :: proc(set: $S/bit_set[$E;$U], loc := #caller_location) -> (newSet: S) {
 	newSet = set
 	for member in E {
 		push_id(hash_int(int(member)))
-			if option({label = text_capitalize(format(member)), active = member in set}) {
+			if do_option({label = text_capitalize(format(member)), active = member in set}) {
 				newSet = newSet ~ {member}
 			}
 		pop_id()
