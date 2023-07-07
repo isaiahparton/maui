@@ -351,8 +351,11 @@ Command :: struct {
 // Push a command to a given layer
 push_command :: proc(layer: ^Layer, $Type: typeid, extra_size := 0) -> ^Type {
 	size := size_of(Type) + extra_size
+	if layer.command_offset + size >= COMMAND_BUFFER_SIZE {
+		return nil
+	}
+	//assert(layer.command_offset + size < COMMAND_BUFFER_SIZE, "push_command() Insufficient space in command buffer!")
 	cmd := transmute(^Type)&layer.commands[layer.command_offset]
-	assert(layer.command_offset + size < COMMAND_BUFFER_SIZE, "push_command() Insufficient space in command buffer!")
 	layer.command_offset += size
 	cmd.variant = cmd
 	cmd.size = u8(size)

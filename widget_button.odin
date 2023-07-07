@@ -17,10 +17,10 @@ Pill_Button_Info :: struct {
 	fill_color: Maybe(Color),
 	text_color: Maybe(Color),
 }
-pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked: bool) {
+do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	if (info.fit_to_label.? or_else true) && (layout.side == .left || layout.side == .right) {
-		layout.size = measure_label(info.label).x + (layout.box.h - layout.margin.y * 2) + layout.margin.x * 2
+		layout.size = measure_label(info.label).x + (layout.box.h - (layout.margin[.top] + layout.margin[.bottom])) + layout.margin[.left] + layout.margin[.right]
 		if info.loading {
 			layout.size += layout.box.h * 0.75
 		}
@@ -38,7 +38,7 @@ pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked
 				case .filled:
 				paint_pill_fill_h(self.box, alpha_blend_colors(get_color(.button_base), get_color(.button_shade), 0.3 if .pressed in self.state else hover_time * 0.15))
 				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, core.current_time, get_color(.button_text, 0.5))
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.button_text, 0.5))
 					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.button_text, 0.5), {.far, .middle})
 				} else {
 					paint_label_box(info.label, self.box, get_color(.button_text), {.middle, .middle})
@@ -48,7 +48,7 @@ pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked
 				paint_pill_fill_h(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
 				paint_pill_stroke_h(self.box, true, get_color(.button_base))
 				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, core.current_time, get_color(.button_base, 0.5))
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.button_base, 0.5))
 					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.button_base, 0.5), {.far, .middle})
 				} else {
 					paint_label_box(info.label, self.box, get_color(.button_base), {.middle, .middle})
@@ -57,7 +57,7 @@ pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked
 				case .subtle:
 				paint_pill_fill_h(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
 				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, core.current_time, get_color(.button_base, 0.5))
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.button_base, 0.5))
 					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.button_base, 0.5), {.far, .middle})
 				} else {
 					paint_label_box(info.label, self.box, get_color(.button_base), {.middle, .middle})
@@ -83,7 +83,7 @@ Button_Info :: struct {
 	color: Maybe(Color),
 	style: Button_Style,
 }
-button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
+do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	if info.fit_to_label {
 		layout_fit_label(layout, info.label)
@@ -135,7 +135,7 @@ Toggle_Button_Info :: struct {
 	fit_to_label: bool,
 	join: Box_Sides,
 }
-toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (clicked: bool) {
+do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	if info.fit_to_label {
 		layout_fit_label(layout, info.label)
@@ -175,7 +175,7 @@ toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (cli
 	}
 	return
 }
-toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #caller_location) -> (click: bool) {
+do_toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #caller_location) -> (click: bool) {
 	click = toggle_button(
 		value = bit in set, 
 		label = label, 
@@ -186,7 +186,7 @@ toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := #ca
 	}
 	return
 }
-enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T) {
+do_enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T) {
 	new_value = value
 	for member, i in T {
 		push_id(int(member))
@@ -197,7 +197,7 @@ enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T
 			if i < len(T) - 1 {
 				sides += {.right}
 			}
-			if toggle_button({label = format(member), state = value == member, join = sides}) {
+			if do_toggle_button({label = format(member), state = value == member, join = sides}) {
 				new_value = member
 			}
 		pop_id()
@@ -208,7 +208,7 @@ enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T
 Floating_Button_Info :: struct {
 	icon: Icon,
 }
-floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) -> (clicked: bool) {
+do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := do_widget(hash(loc), child_box(use_next_box() or_else layout_next(current_layout()), {40, 40}, {.middle, .middle})); ok {
 		hover_time := animate_bool(self.id, self.state >= {.hovered}, 0.1)
 		// Painting

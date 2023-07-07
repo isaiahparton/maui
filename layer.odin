@@ -14,7 +14,9 @@ Layer_Status :: enum {
 	lost_hover,
 	focused,
 }
+
 Layer_State :: bit_set[Layer_Status]
+
 // General purpose booleans
 Layer_Bit :: enum {
 	// If the layer should stay alive
@@ -29,13 +31,13 @@ Layer_Bit :: enum {
 	// If the layer pushed to the id stack this frame
 	did_push_id,
 }
+
 Layer_Bits :: bit_set[Layer_Bit]
+
 // Options
 Layer_Option :: enum {
 	// If the layer is attached (fixed) to it's parent
 	attached,
-	// Shadows for windows (must be drawn before clip command)
-	shadow,
 	// If the layer is spawned with 0 or 1 opacity
 	invisible,
 	// Disallow scrolling on either axis
@@ -53,7 +55,9 @@ Layer_Option :: enum {
 	// The layer does not move
 	no_sort,
 }
+
 Layer_Options :: bit_set[Layer_Option]
+
 /*
 	Layers for layers
 */
@@ -67,63 +71,48 @@ Layer_Order :: enum {
 	// Spetial self for debug drawing
 	debug,
 }
-/*
-	Each self's data
-*/
+
+// A layer's own data
 Layer :: struct {
+	// Reserved in data table
 	reserved: bool,
+	// Relations
 	parent: ^Layer,
 	children: [dynamic]^Layer,
-
 	// Base Data
 	id: Id,
-
 	// Internal state
 	bits: Layer_Bits,
-
 	// User options
 	options: Layer_Options,
-
 	// The layer's own state
 	state,
 	next_state: Layer_State,
-
 	// Painting settings
 	opacity: f32,
-
 	// Viewport box
 	box: Box,
-
 	// Boxangle on which scrollbars are anchored
 	inner_box: Box,
-
 	// Inner layout size
 	layout_size: [2]f32,
-
 	// Content bounding box
 	content_box: Box,
-
 	// Negative content offset
 	scroll, 
 	scroll_target: [2]f32,
-
 	// draw order
 	order: Layer_Order,
-
 	// list index
 	index: int,
-
 	// controls on this self
 	contents: map[Id]^Widget,
-
 	// draw commands for this self
 	commands: [COMMAND_BUFFER_SIZE]u8,
 	command_offset: int,
-
 	// Clip command stored for use after
 	// contents are already drawn
 	clip_command: ^Command_Clip,
-
 	// Scroll bars
 	x_scroll_time,
 	y_scroll_time: f32,
@@ -151,6 +140,7 @@ Layer_Agent :: struct {
 	focus_id,
 	debug_id: 		Id,
 }
+
 layer_agent_destroy :: proc(using self: ^Layer_Agent) {
 	for entry in list {
 		layer_destroy(entry)
@@ -159,17 +149,21 @@ layer_agent_destroy :: proc(using self: ^Layer_Agent) {
 	delete(list)
 	self^ = {}
 }
+
 layer_agent_begin_root :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 	root_layer, ok = begin_layer({
 		id = 0,
 		box = core.fullscreen_box, 
+		layout_size = ([2]f32){core.fullscreen_box.w, core.fullscreen_box.h},
 		options = {.no_id},
 	})
 	return
 }
+
 layer_agent_end_root :: proc(using self: ^Layer_Agent) {
 	end_layer(root_layer)
 }
+
 layer_agent_step :: proc(using self: ^Layer_Agent) {
 	sorted_layer: ^Layer
 	last_hover_id = hover_id
@@ -237,6 +231,7 @@ layer_agent_step :: proc(using self: ^Layer_Agent) {
 	// Reset rendered layer
 	paint_index = 0
 }
+
 layer_agent_allocate :: proc(using self: ^Layer_Agent) -> (layer: ^Layer, ok: bool) {
 	for i in 0..<LAYER_ARENA_SIZE {
 		if !arena[i].reserved {
@@ -247,6 +242,7 @@ layer_agent_allocate :: proc(using self: ^Layer_Agent) -> (layer: ^Layer, ok: bo
 	}
 	return
 }
+
 layer_agent_create :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
 	layer, ok = layer_agent_allocate(self)
 	if !ok {
@@ -272,6 +268,7 @@ layer_agent_create :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Opti
 
 	return
 }
+
 layer_agent_assert :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
 	layer, ok = pool[id]
 	if !ok {
@@ -281,14 +278,17 @@ layer_agent_assert :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Opti
 	assert(layer != nil)
 	return
 }
+
 layer_agent_push :: proc(using self: ^Layer_Agent, layer: ^Layer) {
 	stack_push(&stack, layer)
 	current_layer = stack_top(&stack)
 }
+
 layer_agent_pop :: proc(using self: ^Layer_Agent) {
 	stack_pop(&stack)
 	current_layer = stack_top(&stack)
 }
+
 layer_destroy :: proc(self: ^Layer) {
 	delete(self.contents)
 	delete(self.children)
@@ -302,6 +302,7 @@ Frame_Info :: struct {
 	fill_color: Maybe(Color),
 	scrollbar_padding: Maybe(f32),
 }
+
 @(deferred_out=_do_frame)
 do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	self: ^Layer
@@ -311,10 +312,11 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 		inner_box = shrink_box(box, info.scrollbar_padding.? or_else 0),
 		layout_size = info.layout_size, 
 		id = hash(loc), 
-		options = info.options + {.clip_to_parent, .attached},
+		options = info.options + {.clip_to_parent, .attached, .no_sort},
 	})
 	return
 }
+
 @private
 _do_frame :: proc(ok: bool) {
 	if ok {
@@ -324,20 +326,34 @@ _do_frame :: proc(ok: bool) {
 	}
 }
 
+Layer_Shadow_Info :: struct {
+	offset,
+	roundness: f32,
+}
+
 Layer_Info :: struct {
+	// Explicit id assignment
+	id: Maybe(Id),
+	// Explicit box assignment
 	box: Maybe(Box),
 	inner_box: Maybe(Box),
+	// Layout size
 	layout_size: Maybe([2]f32),
+	// Sorting order
 	order: Maybe(Layer_Order),
+	// Optional shadow
+	shadow: Maybe(Layer_Shadow_Info),
+	// Optional options
 	options: Layer_Options,
-	id: Maybe(Id),
 }
+
 @(deferred_out=_do_layer)
 do_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	info := info
 	info.id = info.id.? or_else hash(loc)
 	return begin_layer(info)
 }
+
 @private
 _do_layer :: proc(self: ^Layer, ok: bool) {
 	if ok {
@@ -420,8 +436,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		}
 
 		// Shadows
-		if .shadow in self.options {
-			paint_rounded_box_fill(move_box(self.box, SHADOW_OFFSET), WINDOW_ROUNDNESS, get_color(.shadow))
+		if shadow, ok := info.shadow.?; ok {
+			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, get_color(.shadow))
 		}
 		self.clip_command = push_command(self, Command_Clip)
 		self.clip_command.box = core.fullscreen_box
@@ -527,7 +543,7 @@ end_layer :: proc(self: ^Layer) {
 			box.x += SCROLL_BAR_PADDING
 			box.w -= SCROLL_BAR_PADDING * 2
 			set_next_box(box)
-			if changed, new_value := scrollbar({
+			if changed, new_value := do_scrollbar({
 				value = self.scroll.x, 
 				low = 0, 
 				high = max_scroll.x, 
@@ -544,7 +560,7 @@ end_layer :: proc(self: ^Layer) {
 			box.y += SCROLL_BAR_PADDING
 			box.h -= SCROLL_BAR_PADDING * 2
 			set_next_box(box)
-			if change, new_value := scrollbar({
+			if change, new_value := do_scrollbar({
 				value = self.scroll.y, 
 				low = 0, 
 				high = max_scroll.y, 

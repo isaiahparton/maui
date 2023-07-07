@@ -11,6 +11,68 @@ import "core:unicode/utf8"
 
 TEXT_BREAK :: "..."
 
+Icon :: enum rune {
+	More_Horizontal 	= 0xEF78,
+	Code 				= 0xeba8,
+	Github 				= 0xedca,
+	Check 				= 0xEB7A,
+	Error 				= 0xECA0,
+	Close 				= 0xEB98,
+	Heart 				= 0xEE0E,
+	Alert 				= 0xEA20,
+	Edit 				= 0xEC7F,
+	Home 				= 0xEE18,
+	Add 				= 0xEA12,
+	Undo 				= 0xEA58,
+	Shopping_Cart 		= 0xF11D,
+	Attach_File			= 0xEA84,
+	Remove 				= 0xF1AE,
+	Delete 				= 0xEC1D,
+	User 				= 0xF25F,
+	Format_Italic		= 0xe23f,
+	Format_Bold			= 0xe238,
+	Format_Underline	= 0xe249,
+	Chevron_Down 		= 0xEA4E,
+	Chevron_Left 		= 0xEA64,
+	Chevron_Right 		= 0xEA6E,
+	Chevron_Up			= 0xEA78,
+	Folder 				= 0xED57,
+	Admin 				= 0xEA14,
+	Shopping_Basket 	= 0xF11A,
+	Shopping_Bag 		= 0xF115,
+	Receipt 			= 0xEAC2,
+	File_Paper 			= 0xECF8,
+	File_New 			= 0xECC2,
+	Calendar 			= 0xEB20,
+	Inventory 			= 0xF1C6,
+	History 			= 0xEE17,
+	Copy 				= 0xECD2,
+	Checkbox_Multiple	= 0xEB88,
+	Eye 				= 0xECB4,
+	Eye_Off 			= 0xECB6,
+	Box 				= 0xF2F3,
+	Archive 			= 0xEA47,
+	Cog 				= 0xF0ED,
+	Group 				= 0xEDE2,
+	Flow_Chart 			= 0xEF59,
+	Pie_Chart 			= 0xEFF5,
+	Keyboard 			= 0xEE74,
+	Spreadsheet			= 0xECDE,
+	Contact_Book 		= 0xEBCB,
+	Pin 				= 0xF038,
+	Unpin 				= 0xF376,
+	Filter 				= 0xED26,
+	Filter_Off 			= 0xED28,
+	Search 				= 0xF0CD,
+	Printer 			= 0xF028,
+	Draft_Fill 			= 0xEC5B,
+	Check_List 			= 0xEEB9,
+	Numbers 			= 0xEFA9,
+	Refund 				= 0xF067,
+	Wallet 				= 0xF2AB,
+	Bank_Card 			= 0xEA91,
+}
+
 // Text formatting for short term usage
 // each string is valid until it's home buffer is reused
 @private fmtBuffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
@@ -82,63 +144,6 @@ format_bit_set :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 	str := string(buffer[:size])
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
-}
-
-// Unicode values from the remixicons set
-Icon :: enum rune {
-	Code 				= 0xeba8,
-	Github 				= 0xedca,
-	Check 				= 0xEB7A,
-	Error 				= 0xECA0,
-	Close 				= 0xEB98,
-	Heart 				= 0xEE0E,
-	Alert 				= 0xEA20,
-	Edit 				= 0xEC7F,
-	Home 				= 0xEE18,
-	Add 				= 0xEA12,
-	Undo 				= 0xEA58,
-	Shopping_Cart 		= 0xF11D,
-	Attach_File			= 0xEA84,
-	Remove 				= 0xF1AE,
-	Delete 				= 0xEC1D,
-	User 				= 0xF25F,
-	Format_Italic		= 0xe23f,
-	Format_Bold			= 0xe238,
-	Format_Underline	= 0xe249,
-	Chevron_Down 		= 0xEA4E,
-	Chevron_Left 		= 0xEA64,
-	Chevron_Right 		= 0xEA6E,
-	Chevron_Up			= 0xEA78,
-	Folder 				= 0xED57,
-	Admin 				= 0xEA14,
-	Shopping_Basket 	= 0xF11A,
-	Shopping_Bag 		= 0xF115,
-	Receipt 			= 0xEAC2,
-	File_Paper 			= 0xECF8,
-	File_New 			= 0xECC2,
-	Calendar 			= 0xEB20,
-	Inventory 			= 0xF1C6,
-	History 			= 0xEE17,
-	Copy 				= 0xECD2,
-	Checkbox_Multiple	= 0xEB88,
-	Eye 				= 0xECB4,
-	Eye_Off 			= 0xECB6,
-	Cog 				= 0xF0ED,
-	Group 				= 0xEDE2,
-	Flow_Chart 			= 0xEF59,
-	Pie_Chart 			= 0xEFF5,
-	Keyboard 			= 0xEE74,
-	Spreadsheet			= 0xECDE,
-	Contact_Book 		= 0xEBCB,
-	Pin 				= 0xF038,
-	Unpin 				= 0xF376,
-	Filter 				= 0xED26,
-	Filter_Off 			= 0xED28,
-	Search 				= 0xF0D1,
-	Printer 			= 0xF028,
-	Draft_Fill 			= 0xEC5B,
-	Check_List 			= 0xEEB9,
-	Numbers 			= 0xEFA9,
 }
 
 String_Paint_Option :: enum {
@@ -250,37 +255,52 @@ measure_string :: proc(font: ^Font_Data, text: string) -> (size: [2]f32) {
 	size.y = font.size * f32(lines)
 	return size
 }
-paint_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, color: Color) -> [2]f32 {
+
+String_Paint_Info :: struct {
+	align: [2]Alignment,
+	clip_box: Maybe(Box),
+}
+
+paint_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, color: Color, info: String_Paint_Info = {}) -> [2]f32 {
+	origin := origin
+	size: [2]f32
+	if info.align.x != .near || info.align.y != .near {
+		size = measure_string(font, text)
+	}
+	#partial switch info.align.x {
+		case .middle: origin.x -= math.trunc(size.x / 2)
+		case .far: origin.x -= size.x
+	}
+	#partial switch info.align.y {
+		case .middle: origin.y -= math.trunc(size.y / 2)
+		case .far: origin.y -= size.y
+	}
+	size = {}
 	point := origin
-	size := [2]f32{}
 	for codepoint in text {
 		glyph := get_glyph_data(font, codepoint)
 		if codepoint == '\n' {
 			point.x = origin.x
 			point.y += font.size
+			size.y += font.size
 		} else {
-			paint_texture(glyph.src, {math.trunc(point.x + glyph.offset.x), point.y + glyph.offset.y, glyph.src.w, glyph.src.h}, color)
+			if info.clip_box != nil {
+				paint_clipped_glyph(glyph, point, info.clip_box.?, color)
+			} else {
+				paint_texture(glyph.src, {math.trunc(point.x + glyph.offset.x), point.y + glyph.offset.y, glyph.src.w, glyph.src.h}, color)
+			}
 			point.x += glyph.advance + GLYPH_SPACING
 		}
 		size.x = max(size.x, point.x - origin.x)
 	}
-	size.y = font.size
+	size.y += font.size
 	return size
 }
+
 paint_aligned_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
-	origin := origin
-	if align.x == .middle {
-		origin.x -= math.trunc(measure_string(font, text).x / 2)
-	} else if align.x == .far {
-		origin.x -= measure_string(font, text).x
-	}
-	if align.y == .middle {
-		origin.y -= measure_string(font, text).y / 2
-	} else if align.y == .far {
-		origin.y -= measure_string(font, text).y
-	}
-	return paint_string(font, text, origin, color)
+	return paint_string(font, text, origin, color, {align = align})
 }
+
 paint_aligned_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
    	box := glyph.src
 	switch align.x {
@@ -297,6 +317,7 @@ paint_aligned_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, color: Color, ali
 
     return {box.w, box.h}
 }
+
 paint_aligned_icon :: proc(font_data: ^Font_Data, icon: Icon, origin: [2]f32, size: f32, color: Color, align: [2]Alignment) -> [2]f32 {
 	glyph := get_glyph_data(font_data, rune(icon))
 	box := glyph.src
@@ -315,6 +336,7 @@ paint_aligned_icon :: proc(font_data: ^Font_Data, icon: Icon, origin: [2]f32, si
     paint_texture(glyph.src, box, color)
     return {box.w, box.h}
 }
+
 // Draw a glyph, mathematically clipped to 'clipBox'
 paint_clipped_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, clip: Box, color: Color) {
   	src := glyph.src
@@ -417,7 +439,9 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	}
 
 	// Offset view when currently focused
-	origin -= info.view_offset
+	if .got_focus not_in widget.state {
+		origin -= info.view_offset
+	}
 
 	point := origin
 
@@ -569,7 +593,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			}
 			// Find length of the word
 			for j := state.index + 1; ; j += 1 {
-				if j == len(info.data) - 1 {
+				if j >= len(info.data) - 1 {
 					state.length = len(info.data) - state.index
 					break
 				} else if is_seperator(info.data[j]) {

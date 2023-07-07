@@ -36,7 +36,7 @@ begin_frame :: proc() {
 	ui.set_mouse_bit(.middle, rl.IsMouseButtonDown(.MIDDLE))
 
 	ui.set_key_bit(.control, rl.IsKeyDown(.LEFT_CONTROL) || rl.IsKeyDown(.RIGHT_CONTROL))
-	shiftDown := rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT); ui.set_key_bit(.shift, shiftDown)
+	shift_down := rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT); ui.set_key_bit(.shift, shift_down)
 	ui.set_key_bit(.backspace, rl.IsKeyDown(.BACKSPACE))
 	ui.set_key_bit(.tab, rl.IsKeyDown(.TAB))
 	ui.set_key_bit(.left, rl.IsKeyDown(.LEFT))
@@ -50,7 +50,7 @@ begin_frame :: proc() {
 	ui.set_key_bit(.c, rl.IsKeyDown(.C))
 	ui.set_key_bit(.v, rl.IsKeyDown(.V))
 
-	if shiftDown {
+	if shift_down {
 		ui.set_mouse_scroll(rl.GetMouseWheelMove(), 0)
 	} else {
 		ui.set_mouse_scroll(0, rl.GetMouseWheelMove())
@@ -61,7 +61,7 @@ begin_frame :: proc() {
 		ui.input_add_char(key)
 		key = rl.GetCharPressed()
 	}
-
+	
 	ui.core.delta_time = rl.GetFrameTime()
 }
 

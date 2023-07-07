@@ -29,7 +29,7 @@ Text_Input_Info :: struct {
 	select_bits: Selectable_Text_Bits,
 	edit_bits: Text_Edit_Bits,
 }
-text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
+do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
 	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable, .can_key_select}); ok {
 		using self
 		// Text cursor
@@ -42,8 +42,18 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 
 		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
 
-		font_data := get_font_data(.default)
-		
+		// Text edit
+		if state >= {.focused} {
+			change = typing_agent_edit(&core.typing_agent, buffer, info.edit_bits)
+			if change {
+				state += {.changed}
+				core.paint_next_frame = true
+				if value, ok := info.data.(^string); ok {
+					delete(value^)
+					value^ = strings.clone_from_bytes(buffer[:])
+				}
+			}
+		}
 		if state >= {.got_focus} {
 			if text, ok := info.data.(^string); ok {
 				resize(buffer, len(text))
@@ -107,7 +117,7 @@ text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: b
 			paint_labeled_widget_frame(
 				box = box, 
 				text = info.title, 
-				offset = line_height * 0.25,
+				offset = WIDGET_TEXT_OFFSET,
 				thickness = 1, 
 				color = stroke_color,
 				)
@@ -130,7 +140,7 @@ Number_Input_Info :: struct($T: typeid) {
 	text_align: Maybe([2]Alignment),
 	no_outline: bool,
 }
-number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (newValue: T) {
+do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (newValue: T) {
 	newValue = info.value
 	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable, .can_key_select}); ok {
 		using self
@@ -156,7 +166,7 @@ number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (n
 			paint_labeled_widget_frame(
 				box = box, 
 				text = info.title, 
-				offset = box.h * 0.25, 
+				offset = WIDGET_TEXT_OFFSET, 
 				thickness = 1, 
 				color = stroke_color,
 				)

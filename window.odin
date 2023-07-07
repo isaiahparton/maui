@@ -166,7 +166,11 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			box = self.draw_box,
 			id = hash(rawptr(&self.id), size_of(Id)),
 			order = .floating,
-			options = {.shadow, .no_scroll_y},
+			shadow = Layer_Shadow_Info({
+				offset = SHADOW_OFFSET,
+				roundness = WINDOW_ROUNDNESS,
+			}),
+			options = {.no_scroll_y},
 		}); ok {
 			// Body
 			if .collapsed not_in self.bits {
@@ -192,7 +196,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				paint_aligned_string(get_font_data(.default), self.title, {title_box.x + text_offset, baseline}, get_color(.base), {.near, .middle})
 				if .closable in self.options {
 					set_next_box(child_box(get_box_right(title_box, title_box.h), {24, 24}, {.middle, .middle}))
-					if button({
+					if do_button({
 						label = Icon.Close, 
 						align = .middle,
 					}) {

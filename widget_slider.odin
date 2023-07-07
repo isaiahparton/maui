@@ -16,7 +16,7 @@ Spinner_Info :: struct {
 	high: int,
 	orientation: Orientation,
 }
-spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: int) {
+do_spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: int) {
 	loc := loc
 	new_value = info.value
 	// Sub-widget boxes
@@ -26,7 +26,7 @@ spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: int)
 	// Number input
 	set_next_box(box)
 	paint_box_fill(box, get_color(.widget_bg))
-	new_value = clamp(number_input(Number_Input_Info(int){
+	new_value = clamp(do_number_input(Number_Input_Info(int){
 		value = info.value,
 		text_align = ([2]Alignment){
 			.middle,
@@ -36,7 +36,7 @@ spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: int)
 	// Step buttons
 	loc.column += 1
 	set_next_box(decrease_box)
-	if button({
+	if do_button({
 		label = Icon.Remove, 
 		align = .middle,
 	}, loc) {
@@ -44,7 +44,7 @@ spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: int)
 	}
 	loc.column += 1
 	set_next_box(increase_box)
-	if button({
+	if do_button({
 		label = Icon.Add, 
 		align = .middle,
 	}, loc) {
@@ -61,7 +61,7 @@ Slider_Info :: struct($T: typeid) {
 	guides: Maybe([]T),
 	format: Maybe(string),
 }
-slider :: proc(info: Slider_Info($T), loc := #caller_location) -> (changed: bool, new_value: T) {
+do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> (changed: bool, new_value: T) {
 	SIZE :: 16
 	HEIGHT :: SIZE / 2
 	HALF_HEIGHT :: HEIGHT / 2
@@ -126,7 +126,7 @@ Box_Slider_Info :: struct($T: typeid) {
 	low,
 	high: T,
 }
-box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (new_value: T) where intrinsics.type_is_integer(T) {
+do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (new_value: T) where intrinsics.type_is_integer(T) {
 	new_value = info.value
 	if self, ok := do_widget(hash(loc), layout_next(current_layout()), {.draggable}); ok {
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)

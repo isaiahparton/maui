@@ -3,7 +3,6 @@ package maui
 //TODO(isaiah): Migrate these to values in Style
 WINDOW_ROUNDNESS :: 6
 WINDOW_TITLE_SIZE :: 34
-WIDGET_TEXT_OFFSET :: 9
 
 SCROLL_BAR_SIZE :: 14
 SCROLL_BAR_PADDING :: 0
@@ -13,6 +12,9 @@ DIVIDER_ALPHA :: 0.45
 BASE_SHADE_ALPHA :: 0.1
 SHADOW_OFFSET :: 7
 DISABLED_SHADE_ALPHA :: 0.5
+
+WIDGET_TEXT_OFFSET :: 8
+WIDGET_TEXT_MARGIN :: 2
 
 // Default color schemes
 DEFAULT_COLORS_LIGHT :: [Color_Index]Color {

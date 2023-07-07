@@ -9,8 +9,10 @@ import "core:strconv"
 import "core:strings"
 import "core:slice"
 import "core:time"
+
 // For easings
 import rl "vendor:raylib"
+
 // General purpose booleans
 Widget_Bit :: enum {
 	// Widget thrown away if 0
@@ -25,7 +27,9 @@ Widget_Bit :: enum {
 	// Should be painted this frame
 	should_paint,
 }
+
 Widget_Bits :: bit_set[Widget_Bit]
+
 // Behavior options
 Widget_Option :: enum {
 	// The widget does not receive input if 1
@@ -36,7 +40,9 @@ Widget_Option :: enum {
 	// If the widget can be selected with the keyboard
 	can_key_select,
 }
+
 Widget_Options :: bit_set[Widget_Option]
+
 // Interaction state
 Widget_Status :: enum {
 	// Just got status
@@ -56,7 +62,9 @@ Widget_Status :: enum {
 	// Pressed and released
 	clicked,
 }
+
 Widget_State :: bit_set[Widget_Status]
+
 // Universal control data (stoopid get rid of it)
 Widget :: struct {
 	id: 			Id,
@@ -65,12 +73,14 @@ Widget :: struct {
 	options: 		Widget_Options,
 	state: 			Widget_State,
 	click_button:  	Mouse_Button,
+	click_time: 	time.Time,
 	click_count: 	int,
 	// Parent layer
 	layer: 			^Layer,
 }
 
 WIDGET_STACK_SIZE :: 32
+
 Widget_Agent :: struct {
 	list: [dynamic]^Widget,
 	stack: [WIDGET_STACK_SIZE]^Widget,
@@ -87,6 +97,7 @@ Widget_Agent :: struct {
 	focus_id,
 	last_focus_id: Id,
 }
+
 widget_agent_assert :: proc(using self: ^Widget_Agent, id: Id, box: Box, options: Widget_Options) -> (widget: ^Widget, ok: bool) {
 	layer := current_layer()
 	widget, ok = layer.contents[id]
@@ -97,6 +108,7 @@ widget_agent_assert :: proc(using self: ^Widget_Agent, id: Id, box: Box, options
 	assert(widget != nil)
 	return
 }
+
 widget_agent_create :: proc(using self: ^Widget_Agent, id: Id, layer: ^Layer) -> (widget: ^Widget, ok: bool) {
 	widget = new(Widget)
 	widget^ = {
@@ -109,14 +121,17 @@ widget_agent_create :: proc(using self: ^Widget_Agent, id: Id, layer: ^Layer) ->
 	ok = true
 	return
 }
+
 widget_agent_push :: proc(using self: ^Widget_Agent, widget: ^Widget) {
 	stack[stack_height] = widget
 	stack_height += 1
 	current_widget = widget
+	last_widget = widget
 }
+
 widget_agent_pop :: proc(using self: ^Widget_Agent, loc := #caller_location) {
 	assert(stack_height > 0, "", loc)
-	last_widget = stack[stack_height - 1]
+	//last_widget = stack[stack_height - 1]
 	stack_height -= 1
 	if stack_height > 0 {
 		current_widget = stack[stack_height - 1]
@@ -124,12 +139,14 @@ widget_agent_pop :: proc(using self: ^Widget_Agent, loc := #caller_location) {
 		current_widget = nil
 	}
 }
+
 widget_agent_destroy :: proc(using self: ^Widget_Agent) {
 	for entry in list {
 		free(entry)
 	}
 	delete(list)
 }
+
 widget_agent_step :: proc(using self: ^Widget_Agent) {
 	for widget, i in &list {
 		if .stay_alive in widget.bits {
@@ -145,6 +162,7 @@ widget_agent_step :: proc(using self: ^Widget_Agent) {
 		}
 	}
 }
+
 widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
 	last_hover_id = hover_id
 	last_press_id = press_id
@@ -165,6 +183,7 @@ widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
 		focus_id = press_id
 	}
 }
+
 widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer_Agent, widget: ^Widget) {
 	assert(widget != nil)
 	// Request hover status
@@ -182,12 +201,13 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer
 			if widget.click_count == 0 {
 				widget.click_button = input.last_mouse_button
 			}
-			if widget.click_button == input.last_mouse_button && time.since(input.last_click_time[widget.click_button]) <= DOUBLE_CLICK_TIME {
+			if widget.click_button == input.last_mouse_button && time.since(widget.click_time) <= DOUBLE_CLICK_TIME {
 				widget.click_count = (widget.click_count + 1) % MAX_CLICK_COUNT
 			} else {
 				widget.click_count = 0
 			}
 			widget.click_button = input.last_mouse_button
+			widget.click_time = time.now()
 			press_id = widget.id
 		}
 	} else {
@@ -220,9 +240,8 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer
 					break
 				}
 			}
-			if press_id == widget.id {
-				press_id = 0
-			}
+			widget.state += {.lost_press}
+			press_id = 0
 		}
 		core.dragging = .draggable in widget.options
 	} else if last_press_id == widget.id {
@@ -243,9 +262,6 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer
 @(deferred_out=_do_widget)
 do_widget :: proc(id: Id, box: Box, options: Widget_Options = {}) -> (self: ^Widget, ok: bool) {
 	// Check if clipped
-	if get_clip(core.clip_box, box) == .full {
-		return
-	}
 	self, ok = widget_agent_assert(&core.widget_agent, id, box, options)
 	if !ok {
 		return
@@ -267,12 +283,15 @@ do_widget :: proc(id: Id, box: Box, options: Widget_Options = {}) -> (self: ^Wid
 	} else {
 		self.bits -= {.should_paint}
 	}
+
+	core.last_box = box
 	// Get input
 	if !core.disabled {
 		widget_agent_update_state(&core.widget_agent, &core.layer_agent, self)
 	}
 	return
 }
+
 @private
 _do_widget :: proc(self: ^Widget, ok: bool) {
 	if ok {
@@ -300,25 +319,30 @@ _do_widget :: proc(self: ^Widget, ok: bool) {
 
 // Helper functions
 current_widget :: proc(loc := #caller_location) -> ^Widget {
-	assert(core.widget_agent.current_widget != nil, "", loc)
+	assert(core.widget_agent.current_widget != nil, "There is no current widget", loc)
 	return core.widget_agent.current_widget
 }
-last_widget :: proc() -> ^Widget {
-	assert(core.widget_agent.last_widget != nil)
+
+last_widget :: proc(loc := #caller_location) -> ^Widget {
+	assert(core.widget_agent.last_widget != nil, "There is no previous widget", loc)
 	return core.widget_agent.last_widget
 }
+
 widget_clicked :: proc(using self: ^Widget, button: Mouse_Button, times: int = 1) -> bool {
 	return .clicked in state && click_button == button && click_count >= times - 1
 }
+
 attach_tooltip :: proc(text: string, side: Box_Side) {
 	core.next_tooltip = Tooltip_Info({
 		text = text,
 		box_side = side,
 	})
 }
+
 paint_disable_shade :: proc(box: Box) {
 	paint_box_fill(box, get_color(.base, DISABLED_SHADE_ALPHA))
 }
+
 tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 	font_data := get_font_data(.label)
 	text_size := measure_string(font_data, text)
@@ -338,6 +362,7 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 	if layer, ok := begin_layer({
 		box = box, 
 		id = id,
+		options = {.no_scroll_x, .no_scroll_y},
 	}); ok {
 		layer.order = .tooltip
 		paint_box_fill(layer.box, get_color(.tooltip_fill))
@@ -346,6 +371,7 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 		end_layer(layer)
 	}
 }
+
 tooltip_box ::proc(id: Id, text: string, anchor_box: Box, side: Box_Side, offset: f32) {
 	origin: [2]f32
 	align: [2]Alignment
@@ -380,16 +406,25 @@ Label :: union {
 	Icon,
 }
 
-paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
+Paint_Label_Info :: struct {
+	align: [2]Alignment,
+	clip_box: Maybe(Box),
+}
+
+paint_label :: proc(label: Label, origin: [2]f32, color: Color, info: Paint_Label_Info) -> [2]f32 {
 	switch variant in label {
 		case string: 	
-		return paint_aligned_string(get_font_data(.default), variant, origin, color, align)
+		return paint_string(get_font_data(.default), variant, origin, color, {
+			align = info.align, 
+			clip_box = info.clip_box,
+		})
 
 		case Icon: 		
-		return paint_aligned_glyph(get_glyph_data(get_font_data(.header), rune(variant)), linalg.floor(origin), color, align)
+		return paint_aligned_glyph(get_glyph_data(get_font_data(.header), rune(variant)), linalg.floor(origin), color, info.align)
 	}
 	return {}
 }
+
 paint_label_box :: proc(label: Label, box: Box, color: Color, align: [2]Alignment) {
 	origin: [2]f32 = {box.x, box.y}
 	#partial switch align.x {
@@ -400,8 +435,9 @@ paint_label_box :: proc(label: Label, box: Box, color: Color, align: [2]Alignmen
 		case .far: origin.y += box.h
 		case .middle: origin.y += box.h / 2
 	}
-	paint_label(label, origin, color, align)
+	paint_label(label, origin, color, {align = align})
 }
+
 measure_label :: proc(label: Label) -> (size: [2]f32) {
 	switch variant in label {
 		case string: 
@@ -417,7 +453,7 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 /*
 	Buttons for navigation
 */
-nav_option :: proc(active: bool, icon: Icon, text: string, loc := #caller_location) -> (clicked: bool) {
+do_navbar_option :: proc(active: bool, icon: Icon, text: string, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := do_widget(hash(loc), layout_next(current_layout())); ok {
 		push_id(self.id) 
 			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.1)
@@ -443,24 +479,41 @@ Check_Box_Status :: enum u8 {
 	off,
 	unknown,
 }
+
 Check_Box_State :: union {
 	bool,
 	^bool,
 	Check_Box_Status,
 }
+
 Check_Box_Info :: struct {
 	state: Check_Box_State,
 	text: Maybe(string),
 	text_side: Maybe(Box_Side),
 }
+
+evaluate_checkbox_state :: proc(state: Check_Box_State) -> bool {
+	active: bool
+	switch v in state {
+		case bool:
+		active = v
+
+		case ^bool:
+		active = v^
+
+		case Check_Box_Status:
+		active = v != .off
+	}
+	return active
+}
+
 //#Info fields
 // - `state` Either a `bool`, a `^bool` or one of `{.on, .off, .unknown}`
 // - `text` If defined, the check box will display text on `text_side` of itself
 // - `text_side` The side on which text will appear (defaults to left)
-checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_state: bool) {
+do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_state: bool) {
 	SIZE :: 20
 	HALF_SIZE :: SIZE / 2
-	TEXT_OFFSET :: 8
 
 	// Check if there is text
 	has_text := info.text != nil
@@ -476,7 +529,7 @@ checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_
 			size.x = max(SIZE, text_size.x)
 			size.y = SIZE + text_size.y
 		} else {
-			size.x = SIZE + text_size.x + TEXT_OFFSET * 2
+			size.x = SIZE + text_size.x + WIDGET_TEXT_OFFSET
 			size.y = SIZE
 		}
 	} else {
@@ -488,17 +541,7 @@ checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_
 		using self
 
 		// Determine on state
-		active: bool
-		switch state in info.state {
-			case bool:
-			active = state
-
-			case ^bool:
-			active = state^
-
-			case Check_Box_Status:
-			active = state != .off
-		}
+		active := evaluate_checkbox_state(info.state)
 
 		push_id(id) 
 			hover_time := animate_bool(hash_int(0), .hovered in state, 0.15)
@@ -543,9 +586,9 @@ checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_
 			if has_text {
 				switch text_side {
 					case .left: 	
-					paint_string(get_font_data(.default), info.text.?, {icon_box.x + icon_box.w + TEXT_OFFSET, center.y - text_size.y / 2}, get_color(.text, 1))
+					paint_string(get_font_data(.default), info.text.?, {icon_box.x + icon_box.w + WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, get_color(.text, 1))
 					case .right: 	
-					paint_string(get_font_data(.default), info.text.?, {icon_box.x - TEXT_OFFSET, center.y - text_size.y / 2}, get_color(.text, 1))
+					paint_string(get_font_data(.default), info.text.?, {icon_box.x - WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, get_color(.text, 1))
 					case .top: 		
 					paint_string(get_font_data(.default), info.text.?, {box.x, box.y}, get_color(.text, 1))
 					case .bottom: 	
@@ -573,11 +616,12 @@ checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, new_
 	}
 	return
 }
-checkbox_bit_set :: proc(set: ^$S/bit_set[$E;$U], bit: E, text: string, loc := #caller_location) -> bool {
+
+do_checkbox_bit_set :: proc(set: ^$S/bit_set[$E;$U], bit: E, text: string, loc := #caller_location) -> bool {
 	if set == nil {
 		return false
 	}
-	if change, _ := checkbox({
+	if change, _ := do_checkbox({
 		state = .on if bit in set else .off, 
 		text = text,
 	}, loc); change {
@@ -586,7 +630,8 @@ checkbox_bit_set :: proc(set: ^$S/bit_set[$E;$U], bit: E, text: string, loc := #
 	}
 	return false
 }
-checkbox_bit_set_header :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #caller_location) -> bool {
+
+do_checkbox_bit_set_header :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #caller_location) -> bool {
 	if set == nil {
 		return false
 	}
@@ -597,7 +642,7 @@ checkbox_bit_set_header :: proc(set: ^$S/bit_set[$E;$U], text: string, loc := #c
 	} else if elementCount > 0 {
 		state = .unknown
 	}
-	if change, new_value := checkbox({state = state, text = text}, loc); change {
+	if change, new_value := do_checkbox({state = state, text = text}, loc); change {
 		if new_value {
 			for element in E {
 				incl(set, element)
@@ -614,13 +659,15 @@ Toggle_Switch_State :: union #no_nil {
 	bool,
 	^bool,
 }
+
 Toggle_Switch_Info :: struct {
 	state: Toggle_Switch_State,
 	off_icon,
 	on_icon: Maybe(Icon),
 }
+
 // Sliding toggle switch
-toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (new_state: bool) {
+do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (new_state: bool) {
 	state := info.state.(bool) or_else info.state.(^bool)^
 	new_state = state
 	if self, ok := do_widget(hash(loc), layout_next_child(current_layout(), {40, 28})); ok {
@@ -689,7 +736,8 @@ Radio_Button_Info :: struct {
 	text: string,
 	text_side: Maybe(Box_Side),
 }
-radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (clicked: bool) {
+
+do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	SIZE :: 20
 	HALF_SIZE :: SIZE / 2
 	// Determine total size
@@ -749,8 +797,9 @@ radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (click
 	}
 	return
 }
+
 // Helper functions
-enum_radio_buttons :: proc(
+do_enum_radio_buttons :: proc(
 	value: $T, 
 	text_side: Box_Side = .left, 
 	loc := #caller_location,
@@ -758,7 +807,7 @@ enum_radio_buttons :: proc(
 	new_value = value
 	for member in T {
 		push_id(hash_int(int(member)))
-			if radio_button({
+			if do_radio_button({
 				on = member == value, 
 				text = text_capitalize(format(member)), 
 				text_side = text_side,
@@ -777,8 +826,9 @@ Tree_Node_Info :: struct{
 	text: string,
 	size: f32,
 }
-@(deferred_out=_tree_node)
-tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: bool) {
+
+@(deferred_out=_do_tree_node)
+do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: bool) {
 	sharedId := hash(loc)
 	if self, ok := do_widget(sharedId, use_next_box() or_else layout_next(current_layout())); ok {
 		using self
@@ -820,7 +870,7 @@ tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: boo
 	return 
 }
 @private 
-_tree_node :: proc(active: bool) {
+_do_tree_node :: proc(active: bool) {
 	if active {
 		layer := current_layer()
 		end_layer(layer)
@@ -853,6 +903,7 @@ do_card :: proc(
 	}
 	return
 }
+
 @private 
 _do_card :: proc(clicked, ok: bool) {
 	if ok {
@@ -860,19 +911,8 @@ _do_card :: proc(clicked, ok: bool) {
 	}
 }
 
-/*
-	Widget divider
-*/
-widget_divider :: proc() {
-	using layout := current_layout()
-	#partial switch side {
-		case .left: paint_box_fill({box.x, box.y + 10, 1, box.h - 20}, get_color(.base_stroke))
-		case .right: paint_box_fill({box.x + box.w, box.y + 10, 1, box.h - 20}, get_color(.base_stroke))
-	}
-}
-
 // Just a line
-divider :: proc(size: f32) {
+do_divider :: proc(size: f32) {
 	layout := current_layout()
 	box := box_cut(&layout.box, layout.side, size)
 	if layout.side == .left || layout.side == .right {
@@ -885,24 +925,48 @@ divider :: proc(size: f32) {
 /*
 	Sections
 */
-@(deferred_out=_section)
-section :: proc(label: string, sides: Box_Sides) -> (ok: bool) {
+Section_Title :: union {
+	string,
+	Check_Box_Info,
+}
+
+Section_Result :: struct {
+	changed, new_state: bool,
+}
+
+@(deferred_out=_do_section)
+do_section :: proc(title: Section_Title, loc := #caller_location) -> (result: Section_Result, ok: bool) {
 	box := layout_next(current_layout())
 
-	paint_box_stroke(box, 1, get_color(.base_stroke))
-	if len(label) != 0 {
+	switch type in title {
+		case nil:
+		paint_box_stroke(box, 1, get_color(.base_stroke))
+
+		case string:
 		font := get_font_data(.default)
-		text_size := measure_string(font, label)
-		paint_box_fill({box.x + box.h * 0.25 - 2, box.y, text_size.x + 4, 1}, get_color(.base))
-		paint_string(get_font_data(.default), label, {box.x + box.h * 0.25, box.y - text_size.y / 2}, get_color(.text))
+		text_size := measure_string(font, type)
+		paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, text_size.x + WIDGET_TEXT_MARGIN * 2, 1, get_color(.base_stroke))
+		paint_string(get_font_data(.default), type, {box.x + WIDGET_TEXT_OFFSET, box.y - text_size.y / 2}, get_color(.text))
+
+		case Check_Box_Info:
+		push_layout({box.x + WIDGET_TEXT_OFFSET, box.y, box.w - WIDGET_TEXT_OFFSET * 2, 0})
+		set_side(.left); set_align_y(.middle)
+		result.changed, result.new_state = do_checkbox(type, loc)
+		if !evaluate_checkbox_state(type.state) {
+			core.disabled = true
+		}
+		pop_layout()
+		paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, core.last_box.w + WIDGET_TEXT_MARGIN * 2, 1, get_color(.base_stroke))
 	}
 
 	push_layout(box)
-	shrink(20)
-	return true
+	ok = true
+	return
 }
-@private _section :: proc(ok: bool) {
+
+@private _do_section :: proc(_: Section_Result, ok: bool) {
 	if ok {
+		core.disabled = false
 		pop_layout()
 	}
 }
@@ -915,7 +979,8 @@ Scrollbar_Info :: struct {
 	thumb_size: f32,
 	vertical: bool,
 }
-scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed: bool, new_value: f32) {
+
+do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed: bool, new_value: f32) {
 	new_value = info.value
 	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable}); ok {
 
@@ -954,7 +1019,7 @@ scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed: bo
 			new_value = info.low + (info.high - info.low) * normal
 			changed = true
 		}
-		if .lost_press in self.state {
+		if self.state & {.lost_press, .lost_focus} != {} {
 			self.bits -= {.active}
 		}
 	}
@@ -965,11 +1030,12 @@ scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed: bo
 Chip_Info :: struct {
 	text: string,
 }
-chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
+
+do_chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	font_data := get_font_data(.label)
 	if layout.side == .left || layout.side == .right {
-		layout.size = measure_string(font_data, info.text).x + layout.box.h + layout.margin.x * 2
+		layout.size = measure_string(font_data, info.text).x + layout.box.h + layout.margin[.left] + layout.margin[.right]
 	}
 	if self, ok := do_widget(hash(loc), layout_next(layout)); ok {
 		using self
@@ -991,13 +1057,14 @@ Toggled_Chip_Info :: struct {
 	state: bool,
 	row_spacing: Maybe(f32),
 }
-toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (clicked: bool) {
+
+do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	font_data := get_font_data(.label)
 	id := hash(loc)
 	state_time := animate_bool(id, info.state, 0.15)
 	if layout.side == .left || layout.side == .right {
-		min_size := measure_string(font_data, info.text).x + layout.box.h + layout.margin.x * 2
+		min_size := measure_string(font_data, info.text).x + layout.box.h + layout.margin[.left] + layout.margin[.right]
 		min_size += font_data.size * state_time
 		if min_size > layout.box.w {
 			pop_layout()
@@ -1037,11 +1104,19 @@ toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (click
 
 // Navigation tabs
 Tab_Info :: struct {
-	active: bool,
+	state: bool,
 	label: Label,
 	side: Maybe(Box_Side),
+	has_close_button: bool,
+	show_divider: bool,
 }
-tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: bool) {
+
+Tab_Result :: struct {
+	clicked,
+	closed: bool,
+}
+
+do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) {
 	layout := current_layout()
 	horizontal := layout.side == .top || layout.side == .bottom
 	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
@@ -1050,35 +1125,48 @@ tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: bool) {
 		// Animations
 		push_id(self.id)
 			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.1)
-			state_time := animate_bool(hash_int(1), info.active, 0.15)
+			state_time := animate_bool(hash_int(1), info.state, 0.15)
 		pop_id()
 
+		label_box := self.box
+		if info.has_close_button {
+			set_next_box(shrink_box(box_cut_right(&label_box, label_box.h), 4))
+		}
+
+		ROUNDNESS :: 7
 		if self.bits >= {.should_paint} {
-			paint_rounded_box_corners_fill(self.box, 10, side_corners(side), get_color(.base, 1 if info.active else 0.5 * hover_time))
-			center: [2]f32 = {self.box.x + self.box.w / 2, self.box.y + self.box.h / 2}
-			text_size := paint_label(info.label, center, get_color(.text), {.middle, .middle})
-			size := text_size.x
-			if state_time > 0 {
-				if info.active {
-					size *= state_time
-				}
-				accentBox: Box
-				THICKNESS :: 4
-				switch side {
-					case .top: 		accentBox = {center.x - size / 2, self.box.y, size, THICKNESS}
-					case .bottom: 	accentBox = {center.x - size / 2, self.box.y + self.box.h - THICKNESS, size, THICKNESS}
-					case .left: 	accentBox = {self.box.x, center.y - size / 2, size, THICKNESS}
-					case .right: 	accentBox = {self.box.x + self.box.y - THICKNESS, center.y - size / 2, size, THICKNESS}
-				}
-				paint_box_fill(accentBox, get_color(.accent, 1 if info.active else state_time))
+			paint_rounded_box_corners_fill(self.box, ROUNDNESS, side_corners(side), get_color(.base, 1 if info.state else 0.5 * hover_time))
+
+			if info.show_divider && !info.state {
+				paint_box_fill({
+					self.box.x + self.box.w - 1,
+					self.box.y + ROUNDNESS,
+					1,
+					self.box.h - ROUNDNESS * 2,
+				}, get_color(.widget_stroke, 0.5))
+			}
+
+			paint_label(info.label, {self.box.x + self.box.h * 0.25, self.box.y + self.box.h / 2}, get_color(.text), {
+				align = {.near, .middle}, 
+				clip_box = label_box,
+			})
+		}
+
+		if info.has_close_button {
+			if do_button({
+				label = Icon.Close,
+				style = .subtle,
+			}) {
+				result.closed = true
 			}
 		}
 
-		result = .pressed in self.state
+		result.clicked = !info.state && widget_clicked(self, .left, 1)
 	}
 	return
 }
-enum_tabs :: proc(value: $T, tab_size: f32, loc := #caller_location) -> (new_value: T) { 
+
+do_enum_tabs :: proc(value: $T, tab_size: f32, loc := #caller_location) -> (new_value: T) { 
 	new_value = value
 	box := layout_next(current_layout())
 	if do_layout_box(box) {
@@ -1090,10 +1178,10 @@ enum_tabs :: proc(value: $T, tab_size: f32, loc := #caller_location) -> (new_val
 		}
 		for member in T {
 			push_id(int(member))
-				if tab({
-					active = member == value, 
+				if do_tab({
+					state = member == value, 
 					label = text_capitalize(format(member)), 
-				}, loc) {
+				}, loc).clicked {
 					new_value = member
 				}
 			pop_id()
@@ -1109,7 +1197,8 @@ Text_Info :: struct {
 	font: Maybe(Font_Index),
 	color: Maybe(Color),
 }
-text :: proc(info: Text_Info) {
+
+do_text :: proc(info: Text_Info) {
 	font_data := get_font_data(info.font.? or_else .default)
 	layout := current_layout()
 	text_size := measure_string(font_data, info.text)
@@ -1118,7 +1207,7 @@ text :: proc(info: Text_Info) {
 	}
 	box := layout_next_child(layout, text_size)
 	if core.paint_this_frame && get_clip(current_layer().box, box) != .full {
-		paint_string(font_data, info.text, {box.x, box.y}, info.color.? or_else get_color(.text))
+		paint_string(font_data, info.text, {box.x, box.y}, fade(info.color.? or_else get_color(.text), 0.5 if core.disabled else 1))
 	}
 	layer := current_layer()
 	layer.content_box = update_bounding_box(layer.content_box, box)
@@ -1131,7 +1220,8 @@ Text_Box_Info :: struct {
 	options: String_Paint_Options,
 	color: Maybe(Color),
 }
-text_box :: proc(info: Text_Box_Info) {
+
+do_text_box :: proc(info: Text_Box_Info) {
 	font_data := get_font_data(info.font.? or_else .default)
 	box := layout_next(current_layout())
 	if core.paint_this_frame && get_clip(current_layer().box, box) != .full {
@@ -1163,7 +1253,7 @@ glyph_icon :: proc(font: Font_Index, icon: Icon) {
 /*
 	Progress bar
 */
-progress_bar :: proc(value: f32) {
+do_progress_bar :: proc(value: f32) {
 	box := layout_next(current_layout())
 	radius := box.h / 2
 	paint_rounded_box_fill(box, radius, get_color(.widget_bg))
@@ -1173,8 +1263,13 @@ progress_bar :: proc(value: f32) {
 /*
 	Simple selectable list item	
 */
-@(deferred_out=_list_item)
-list_item :: proc(active: bool, loc := #caller_location) -> (clicked, ok: bool) {
+List_Item_Result :: struct {
+	self: ^Widget,
+	clicked: bool,
+}
+
+@(deferred_out=_do_list_item)
+do_list_item :: proc(active: bool, loc := #caller_location) -> (result: List_Item_Result, ok: bool) {
 	if self, widget_ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout())); widget_ok {
 		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
 		if active {
@@ -1183,15 +1278,20 @@ list_item :: proc(active: bool, loc := #caller_location) -> (clicked, ok: bool) 
 			paint_box_fill(self.box, get_color(.widget_shade, BASE_SHADE_ALPHA * hover_time))
 		}
 
-		clicked = .clicked in self.state && self.click_button == .left
-		ok = true
+		result = {
+			clicked = .clicked in self.state && self.click_button == .left,
+			self = self,
+		}
+		ok = get_clip(core.clip_box, self.box) != .full
 		if ok {
 			push_layout(self.box).side = .left
 		}
 	}
 	return
 }
-@private _list_item :: proc(selected, ok: bool) {
+
+@private 
+_do_list_item :: proc(_: List_Item_Result, ok: bool) {
 	if ok {
 		pop_layout()
 	}

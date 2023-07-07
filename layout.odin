@@ -14,7 +14,7 @@ Layout :: struct {
 	side: Box_Side,
 	size: f32,
 	// control margin
-	margin: [2]f32,
+	margin: [Box_Side]f32,
 	// control alignment
 	align: [2]Alignment,
 }
@@ -71,13 +71,22 @@ set_align_y :: proc(align: Alignment) {
 	current_layout().align.y = align
 }
 set_margin :: proc(margin: f32) {
-	current_layout().margin = {margin, margin}
+	current_layout().margin = {
+		.top = margin, 
+		.bottom = margin, 
+		.left = margin, 
+		.right = margin,
+	}
 }
 set_margin_x :: proc(margin: f32) {
-	current_layout().margin.x = margin
+	layout := current_layout()
+	layout.margin[.left] = margin
+	layout.margin[.right] = margin
 }
 set_margin_y :: proc(margin: f32) {
-	current_layout().margin.y = margin
+	layout := current_layout()
+	layout.margin[.top] = margin
+	layout.margin[.bottom] = margin
 }
 set_size :: proc(size: f32, relative := false) {
 	layout := current_layout()
@@ -112,8 +121,10 @@ layout_next :: proc(using self: ^Layout) -> (result: Box) {
 		case .right: 	result = box_cut_right(&box, size)
 	}
 
-	if margin != {} {
-		result = shrink_box(result, margin)
+	for side in Box_Side {
+		if margin[side] != 0 {
+			result = squish_box(result, side, margin[side])
+		}
 	}
 	
 	core.last_box = result
@@ -134,9 +145,9 @@ layout_fit :: proc(self: ^Layout, size: [2]f32) {
 layout_fit_label :: proc(using self: ^Layout, label: Label) {
 	assert(self != nil)
 	if side == .left || side == .right {
-		size = measure_label(label).x + box.h / 2 + margin.x * 2
+		size = measure_label(label).x + box.h / 2 + margin[.left] + margin[.right]
 	} else {
-		size = measure_label(label).y + box.h / 2 + margin.y * 2
+		size = measure_label(label).y + box.h / 2 + margin[.top] + margin[.bottom]
 	}
 }
 cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
