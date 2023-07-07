@@ -353,11 +353,14 @@ paint_clipped_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, clip: Box, color:
 // Advanced interactive text
 Selectable_Text_Bit :: enum {
 	password,
+	mutable,
 	select_all,
 	multiline,
 	no_paint,
 }
+
 Selectable_Text_Bits :: bit_set[Selectable_Text_Bit]
+
 Selectable_Text_Info :: struct {
 	font_data: ^Font_Data,
 	data: []u8,
@@ -367,12 +370,14 @@ Selectable_Text_Info :: struct {
 	padding: [2]f32,
 	align: [2]Alignment,
 }
+
 Selectable_Text_Result :: struct {
 	text_size,
 	view_offset: [2]f32,
 	line_count: int,
-	dragging: bool,
+	font_data: ^Font_Data,
 }
+
 // Displays clipped, selectable text that can be copied to clipboard
 selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result: Selectable_Text_Result) {
 	assert(widget != nil)
@@ -510,11 +515,13 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			hover_index = index
 		}
 
-		if index == state.index {
-			cursor_low = point - origin
-		}
-		if index == state.index + state.length {
-			cursor_high = (point + {0, info.font_data.size}) - origin
+		if .focused in widget.state {
+			if index == state.index {
+				cursor_low = point - origin
+			}
+			if index == state.index + state.length {
+				cursor_high = (point + {0, info.font_data.size}) - origin
+			}
 		}
 
 		// Anything past here requires a valid glyph
@@ -593,7 +600,6 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			state.index = state.anchor
 			state.length = hover_index - state.anchor
 		}
-		result.dragging = true
 		// Offset view by dragging
 		DRAG_SPEED :: 15
 		if size.x > info.box.w {
@@ -623,8 +629,8 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			if cursor_high.x > result.view_offset.x + inner_size.x {
 				result.view_offset.x = cursor_high.x - inner_size.x
 			}
-			if cursor_high.y + info.font_data.size >= result.view_offset.y + inner_size.y {
-				result.view_offset.y = cursor_high.y - inner_size.y + info.font_data.size
+			if cursor_high.y + info.font_data.size > result.view_offset.y + inner_size.y {
+				result.view_offset.y = (cursor_high.y + info.font_data.size) - inner_size.y
 			}
 		}
 		state.index = clamp(state.index, 0, len(info.data))
@@ -646,6 +652,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	}
 
 	result.text_size = size
+	result.font_data = info.font_data
 
 	return
 }

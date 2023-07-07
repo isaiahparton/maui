@@ -13,6 +13,7 @@ Choice :: enum {
 	Second,
 	Third,
 }
+
 Choice_Set :: bit_set[Choice]
 
 main :: proc() {

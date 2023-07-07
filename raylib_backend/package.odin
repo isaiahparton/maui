@@ -42,6 +42,7 @@ begin_frame :: proc() {
 	ui.set_key_bit(.left, rl.IsKeyDown(.LEFT))
 	ui.set_key_bit(.right, rl.IsKeyDown(.RIGHT))
 	ui.set_key_bit(.up, rl.IsKeyDown(.UP))
+	ui.set_key_bit(.down, rl.IsKeyDown(.DOWN))
 	ui.set_key_bit(.alt, rl.IsKeyDown(.LEFT_ALT))
 	ui.set_key_bit(.enter, rl.IsKeyDown(.ENTER))
 	ui.set_key_bit(.a, rl.IsKeyDown(.A))

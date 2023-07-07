@@ -153,7 +153,7 @@ box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (new_v
 				core.cursor = .beam
 			}
 			buffer := typing_agent_get_buffer(&core.typing_agent, self.id)
-			selectable_text(self, {
+			select_result := selectable_text(self, {
 				font_data = font_data, 
 				data = buffer[:], 
 				box = self.box, 
@@ -171,7 +171,11 @@ box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (new_v
 				copy(buffer[:], text[:])
 			}
 			if .focused in self.state {
-				if typing_agent_edit(&core.typing_agent, buffer, {.numeric, .integer}) {
+				if typing_agent_edit(&core.typing_agent, {
+					array = buffer,
+					bits = {.numeric, .integer},
+					select_result = select_result,
+				}) {
 					if parsed_value, parse_ok := strconv.parse_int(string(buffer[:])); parse_ok {
 						new_value = T(parsed_value)
 					}
