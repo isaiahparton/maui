@@ -289,8 +289,7 @@ painter_make_atlas :: proc(using painter: ^Painter) -> (result: bool) {
 
 	offset: f32 = 0
 	for index in Font_Index {
-		file := MONOSPACE_FONT if index == .monospace else DEFAULT_FONT
-		font, success := make_font({circle_space.x + offset, 0}, text_format("%s/fonts/%s", RESOURCES_PATH, file), i32(style.fontSizes[index]), runes[:first_icon_index] if index == .monospace else runes)
+		font, success := make_font({circle_space.x + offset, 0}, text_format("%s/fonts/%s", RESOURCES_PATH, MONOSPACE_FONT if index == .monospace else DEFAULT_FONT), i32(style.fontSizes[index]), runes[:first_icon_index] if index == .monospace else runes)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
 			result = false
@@ -309,6 +308,13 @@ painter_make_atlas :: proc(using painter: ^Painter) -> (result: bool) {
 
 	result = true
 	return
+}
+painter_free_atlas :: proc(using painter: ^Painter) {
+	for font in &painter.fonts {
+		delete(font.glyphs)
+		delete(font.glyph_map)
+	}
+	rl.UnloadImage(image)
 }
 get_glyph_data :: proc(font: ^Font_Data, codepoint: rune) -> Glyph_Data {
 	index, ok := font.glyph_map[codepoint]

@@ -13,7 +13,6 @@ init :: proc() {
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
 	rl.SetTextureFilter(texture, .POINT)
-	rl.UnloadImage(image)
 
 	ui._set_clipboard_string = proc(str: string) {
 		cstr := strings.clone_to_cstring(str)
@@ -23,6 +22,9 @@ init :: proc() {
 	ui._get_clipboard_string = proc() -> string {
 		return string(rl.GetClipboardText())
 	}
+}
+update_texture :: proc() {
+	rl.UpdateTexture(texture, ui.painter.image.data)
 }
 uninit :: proc() {
 	rl.UnloadTexture(texture)
@@ -42,6 +44,7 @@ begin_frame :: proc() {
 	ui.set_key_bit(.left, rl.IsKeyDown(.LEFT))
 	ui.set_key_bit(.right, rl.IsKeyDown(.RIGHT))
 	ui.set_key_bit(.up, rl.IsKeyDown(.UP))
+	ui.set_key_bit(.down, rl.IsKeyDown(.DOWN))
 	ui.set_key_bit(.alt, rl.IsKeyDown(.LEFT_ALT))
 	ui.set_key_bit(.enter, rl.IsKeyDown(.ENTER))
 	ui.set_key_bit(.a, rl.IsKeyDown(.A))

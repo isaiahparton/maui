@@ -162,8 +162,12 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 				if .right not_in info.join {
 					paint_box_fill({self.box.x + self.box.w - 1, self.box.y, 1, self.box.h}, color)
 				}
-				paint_box_fill({self.box.x, self.box.y, self.box.w, 1}, color)
-				paint_box_fill({self.box.x, self.box.y + self.box.h - 1, self.box.w, 1}, color)
+				if .top not_in info.join {
+					paint_box_fill({self.box.x, self.box.y, self.box.w, 1}, color)
+				}
+				if .bottom not_in info.join {
+					paint_box_fill({self.box.x, self.box.y + self.box.h - 1, self.box.w, 1}, color)
+				}
 			}
 
 			paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, {info.align.? or_else .middle, .middle})

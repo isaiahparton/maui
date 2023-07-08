@@ -15,6 +15,8 @@ Typing_Agent :: struct {
 	last_index,
 	last_length: int,
 
+	left_offset: f32,
+
 	view_offset: [2]f32,
 
 	buffers: map[Id]Text_Buffer,
@@ -78,6 +80,27 @@ typing_agent_backspace :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8){
 		length = 0
 	}
 }
+get_last_line :: proc(data: []u8, index: int) -> (int, bool) {
+	f: bool
+	for i := index - 1; i >= 0; i -= 1 {
+		if data[i] == '\n' {
+			if f {
+				return i + 1, true
+			} else {
+				f = true
+			}
+		}
+	}
+	return 0, f
+}
+get_next_line :: proc(data: []u8, index: int) -> (int, bool) {
+	for i := index + 1; i < len(data); i += 1 {
+		if data[i] == '\n' {
+			return i + 1, true
+		}
+	}
+	return len(data) - 1, false
+}
 is_seperator :: proc(glyph: u8) -> bool {
 	return glyph == ' ' || glyph == '\n' || glyph == '\t' || glyph == '\\' || glyph == '/'
 }
@@ -107,20 +130,27 @@ Text_Edit_Bit :: enum {
 
 Text_Edit_Bits :: bit_set[Text_Edit_Bit]
 
-typing_agent_edit :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, bits: Text_Edit_Bits, max_len: int = 0) -> (change: bool) {
+Text_Edit_Info :: struct {
+	bits: Text_Edit_Bits,
+	select_result: Maybe(Selectable_Text_Result),
+	array: ^[dynamic]u8,
+	capacity: int,
+}
+
+typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (change: bool) {
 	// Control commands
 	if key_down(.control) {
 		// Select all
 		if key_pressed(.a) {
 			index = 0
 			anchor = 0
-			length = len(buf)
+			length = len(info.array)
 		}
 		// Clipboard paste
 		if key_pressed(.v) {
 			valid := true
 			content := get_clipboard_string()
-			if .multiline not_in bits {
+			if .multiline not_in info.bits {
 				for i in 0..<len(content) {
 					if content[i] == '\n' {
 						valid = false
@@ -129,45 +159,90 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, bits: Te
 				}
 			}
 			if valid {
-				typing_agent_insert_string(self, buf, max_len, content)
+				typing_agent_insert_string(self, info.array, info.capacity, content)
 				change = true
 			}
 		}
 	}
 	// Normal character input
 	if input.rune_count > 0 {
-		if .numeric in bits {
+		if .numeric in info.bits {
 			for i in 0 ..< input.rune_count {
 				glyph := int(input.runes[i])
-				if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .integer not_in bits) {
-					typing_agent_insert_runes(self, buf, max_len, input.runes[i:i + 1])
+				if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .integer not_in info.bits) {
+					typing_agent_insert_runes(self, info.array, info.capacity, input.runes[i:i + 1])
 					change = true
 				}
 			}
 		} else {
-			typing_agent_insert_runes(self, buf, max_len, input.runes[:input.rune_count])
+			typing_agent_insert_runes(self, info.array, info.capacity, input.runes[:input.rune_count])
 			change = true
 		}
 	}
 	// Enter
-	if .multiline in bits && key_pressed(.enter) {
-		typing_agent_insert_runes(self, buf, max_len, {'\n'})
+	if .multiline in info.bits && key_pressed(.enter) {
+		typing_agent_insert_runes(self, info.array, info.capacity, {'\n'})
 		change = true
 	}
 	// Backspacing
 	if key_pressed(.backspace) {
-		typing_agent_backspace(self, buf)
+		typing_agent_backspace(self, info.array)
 		change = true
 	}
 	// Arrowkey navigation
 	// TODO(isaiah): Implement up/down navigation for multiline text input
+	// A font is required to perform vertical navigation
+	if info.select_result != nil {
+		if key_pressed(.up) {
+			if above_line, ok := get_last_line(info.array[:], index); ok {
+				lowest_diff: f32 = 999999
+				pos: f32
+				for i := above_line; i < len(info.array); {
+					diff := abs(left_offset - pos)
+					if diff < lowest_diff {
+						lowest_diff = diff
+						index = i
+					}
+					glyph, bytes := utf8.decode_rune(info.array[i:])
+					pos += get_glyph_data(info.select_result.?.font_data, glyph).src.w + GLYPH_SPACING
+					i += bytes
+					if glyph == '\n' {
+						break
+					}
+				}
+			}
+			length = 0
+			fmt.println(left_offset)
+		}
+		if key_pressed(.down) {
+			fmt.println(left_offset)
+			if below_line, ok := get_next_line(info.array[:], index); ok {
+				lowest_diff: f32 = 999999
+				pos: f32
+				for i := below_line + 1; i < len(info.array); {
+					diff := abs(left_offset - pos)
+					if diff < lowest_diff {
+						lowest_diff = diff
+						index = i
+					}
+					glyph, bytes := utf8.decode_rune(info.array[i:])
+					i += bytes
+					pos += get_glyph_data(info.select_result.?.font_data, glyph).src.w + GLYPH_SPACING
+					if glyph == '\n' {
+						break
+					}
+				}
+			}
+			length = 0
+		}
+	}
 	if key_pressed(.left) {
 		delta := 0
 		// How far should the cursor move?
 		if key_down(.control) {
-			delta = find_last_seperator(buf[:index])
+			delta = find_last_seperator(info.array[:index])
 		} else{
-			_, delta = utf8.decode_last_rune_in_bytes(buf[:index + length])
+			_, delta = utf8.decode_last_rune_in_bytes(info.array[:index + length])
 			delta = -delta
 		}
 		// Highlight or not
@@ -197,9 +272,9 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, bits: Te
 		delta := 0
 		// How far should the cursor move
 		if key_down(.control) {
-			delta = find_next_seperator(buf[index + length:])
+			delta = find_next_seperator(info.array[index + length:])
 		} else {
-			_, delta = utf8.decode_rune_in_bytes(buf[index + length:])
+			_, delta = utf8.decode_rune_in_bytes(info.array[index + length:])
 		}
 		// Highlight or not?
 		if key_down(.shift) {
@@ -223,12 +298,12 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, bits: Te
 		}
 		// Clamp cursor
 		if length == 0 {
-			if index > len(buf) {
-				index = len(buf)
+			if index > len(info.array) {
+				index = len(info.array)
 			}
 		} else {
-			if index + length > len(buf) {
-				length = len(buf) - index
+			if index + length > len(info.array) {
+				length = len(info.array) - index
 			}
 		}
 		core.paint_next_frame = true
@@ -236,7 +311,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, bits: Te
 		length = max(0, length)
 	}
 	if change {
-		length = min(length, len(buf) - index)
+		length = min(length, len(info.array) - index)
 	}
 	return
 }

@@ -240,9 +240,6 @@ do_attached_menu :: proc(info: Attached_Menu_Info, loc := #caller_location) -> (
 					offset = SHADOW_OFFSET,
 				}),
 			})
-			opacity := get_animation(hash(loc))
-			opacity^ += (1.0 - opacity^) * core.delta_time * 10
-			layer.opacity = opacity^
 			
 			if ok {
 				layout_box := current_layout().box

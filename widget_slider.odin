@@ -16,37 +16,47 @@ Spinner_Info :: struct {
 	high: int,
 	orientation: Orientation,
 }
+
 do_spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: int) {
 	loc := loc
 	new_value = info.value
 	// Sub-widget boxes
 	box := layout_next(current_layout())
-	decrease_box := box_cut_left(&box, 20) if info.orientation == .horizontal else box_cut_bottom(&box, 20)
-	increase_box := box_cut_right(&box, 20) if info.orientation == .horizontal else box_cut_top(&box, 20)
+	increase_box, decrease_box: Box
+	if info.orientation == .horizontal {
+		buttons_box := get_box_right(box, box.h)
+		increase_box = get_box_top(buttons_box, box.h / 2)
+		decrease_box = get_box_bottom(buttons_box, box.h / 2)
+	} else {
+		increase_box = get_box_top(box, box.w / 2)
+		decrease_box = get_box_bottom(box, box.w / 2)
+	}
 	// Number input
 	set_next_box(box)
 	paint_box_fill(box, get_color(.widget_bg))
 	new_value = clamp(do_number_input(Number_Input_Info(int){
 		value = info.value,
 		text_align = ([2]Alignment){
+			.middle, 
 			.middle,
-			.middle,
-		},
+		} if info.orientation == .vertical else nil,
 	}, loc), info.low, info.high)
 	// Step buttons
 	loc.column += 1
 	set_next_box(decrease_box)
 	if do_button({
-		label = Icon.Remove, 
+		label = "\uEA4E", 
 		align = .middle,
+		style = .subtle,
 	}, loc) {
 		new_value = max(info.low, info.value - 1)
 	}
 	loc.column += 1
 	set_next_box(increase_box)
 	if do_button({
-		label = Icon.Add, 
+		label = "\uEA78", 
 		align = .middle,
+		style = .subtle,
 	}, loc) {
 		new_value = min(info.high, info.value + 1)
 	}
@@ -153,7 +163,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 				core.cursor = .beam
 			}
 			buffer := typing_agent_get_buffer(&core.typing_agent, self.id)
-			selectable_text(self, {
+			select_result := selectable_text(self, {
 				font_data = font_data, 
 				data = buffer[:], 
 				box = self.box, 
@@ -171,7 +181,11 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 				copy(buffer[:], text[:])
 			}
 			if .focused in self.state {
-				if typing_agent_edit(&core.typing_agent, buffer, {.numeric, .integer}) {
+				if typing_agent_edit(&core.typing_agent, {
+					array = buffer,
+					bits = {.numeric, .integer},
+					select_result = select_result,
+				}) {
 					if parsed_value, parse_ok := strconv.parse_int(string(buffer[:])); parse_ok {
 						new_value = T(parsed_value)
 					}

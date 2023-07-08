@@ -74,7 +74,8 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					space(10)
 					if do_menu({label = format(year), size = {0, 120}, layout_size = ([2]f32){0, 180}}) {
 						set_size(20)
-						for i in (year - 4)..=(year + 4) {
+						low := max(year - 4, 1970)
+						for i in low..=(low + 8) {
 							push_id(i)
 								if do_option({label = format(i)}) {
 									year = i
@@ -172,6 +173,8 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				}
 				// Stroke
 				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, true, get_color(.base_stroke))
+
+				info.temp_value._nsec = max(info.temp_value._nsec, 0)
 			}
 		}
 
