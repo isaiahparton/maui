@@ -42,18 +42,9 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 
 		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
 
+		font_data := get_font_data(.default)
+
 		// Text edit
-		if state >= {.focused} {
-			change = typing_agent_edit(&core.typing_agent, buffer, info.edit_bits)
-			if change {
-				state += {.changed}
-				core.paint_next_frame = true
-				if value, ok := info.data.(^string); ok {
-					delete(value^)
-					value^ = strings.clone_from_bytes(buffer[:])
-				}
-			}
-		}
 		if state >= {.got_focus} {
 			if text, ok := info.data.(^string); ok {
 				resize(buffer, len(text))
@@ -91,16 +82,13 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 		})
 		if .focused in state {
 			core.typing_agent.view_offset = select_result.view_offset
-		}
-
-		// Text edit
-		if state >= {.focused} {
 			change = typing_agent_edit(&core.typing_agent, {
-				array = buffer, 
+				array = buffer,
 				bits = info.edit_bits,
 				select_result = select_result,
 			})
 			if change {
+				state += {.changed}
 				core.paint_next_frame = true
 				if value, ok := info.data.(^string); ok {
 					delete(value^)

@@ -237,7 +237,6 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		}
 	}
 	if key_pressed(.left) {
-		state.left_offset = line_o
 		delta := 0
 		// How far should the cursor move?
 		if key_down(.control) {

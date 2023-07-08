@@ -32,7 +32,7 @@ Widget_Bits :: bit_set[Widget_Bit]
 
 // Behavior options
 Widget_Option :: enum {
-	// The widget does not receive input if 1
+	// The widget does not receive input
 	static,
 	// The widget will maintain focus, hover and press state if
 	// the mouse is held after clicking even when not hovered
@@ -57,7 +57,7 @@ Widget_Status :: enum {
 	lost_hover,
 	lost_focus,
 	lost_press,
-	// Textbox change
+	// Data modified
 	changed,
 	// Pressed and released
 	clicked,
@@ -67,16 +67,16 @@ Widget_State :: bit_set[Widget_Status]
 
 // Universal control data (stoopid get rid of it)
 Widget :: struct {
-	id: 			Id,
-	box: 			Box,
-	bits: 			Widget_Bits,
-	options: 		Widget_Options,
-	state: 			Widget_State,
+	id: 						Id,
+	box: 						Box,
+	bits: 					Widget_Bits,
+	options: 				Widget_Options,
+	state: 					Widget_State,
 	click_button:  	Mouse_Button,
-	click_time: 	time.Time,
-	click_count: 	int,
+	click_time: 		time.Time,
+	click_count: 		int,
 	// Parent layer
-	layer: 			^Layer,
+	layer: 					^Layer,
 }
 
 WIDGET_STACK_SIZE :: 32
@@ -938,25 +938,26 @@ Section_Result :: struct {
 do_section :: proc(title: Section_Title, loc := #caller_location) -> (result: Section_Result, ok: bool) {
 	box := layout_next(current_layout())
 
-	switch type in title {
-		case nil:
+	if title == nil {
 		paint_box_stroke(box, 1, get_color(.base_stroke))
+	} else {
+		switch type in title {
+			case string:
+			font := get_font_data(.default)
+			text_size := measure_string(font, type)
+			paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, text_size.x + WIDGET_TEXT_MARGIN * 2, 1, get_color(.base_stroke))
+			paint_string(get_font_data(.default), type, {box.x + WIDGET_TEXT_OFFSET, box.y - text_size.y / 2}, get_color(.text))
 
-		case string:
-		font := get_font_data(.default)
-		text_size := measure_string(font, type)
-		paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, text_size.x + WIDGET_TEXT_MARGIN * 2, 1, get_color(.base_stroke))
-		paint_string(get_font_data(.default), type, {box.x + WIDGET_TEXT_OFFSET, box.y - text_size.y / 2}, get_color(.text))
-
-		case Check_Box_Info:
-		push_layout({box.x + WIDGET_TEXT_OFFSET, box.y, box.w - WIDGET_TEXT_OFFSET * 2, 0})
-		set_side(.left); set_align_y(.middle)
-		result.changed, result.new_state = do_checkbox(type, loc)
-		if !evaluate_checkbox_state(type.state) {
-			core.disabled = true
+			case Check_Box_Info:
+			push_layout({box.x + WIDGET_TEXT_OFFSET, box.y, box.w - WIDGET_TEXT_OFFSET * 2, 0})
+			set_side(.left); set_align_y(.middle)
+			result.changed, result.new_state = do_checkbox(type, loc)
+			if !evaluate_checkbox_state(type.state) {
+				core.disabled = true
+			}
+			pop_layout()
+			paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, core.last_box.w + WIDGET_TEXT_MARGIN * 2, 1, get_color(.base_stroke))
 		}
-		pop_layout()
-		paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, core.last_box.w + WIDGET_TEXT_MARGIN * 2, 1, get_color(.base_stroke))
 	}
 
 	push_layout(box)

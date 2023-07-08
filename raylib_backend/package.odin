@@ -13,7 +13,6 @@ init :: proc() {
 	image := transmute(rl.Image)ui.painter.image
 	texture = rl.LoadTextureFromImage(image)
 	rl.SetTextureFilter(texture, .POINT)
-	rl.UnloadImage(image)
 
 	ui._set_clipboard_string = proc(str: string) {
 		cstr := strings.clone_to_cstring(str)
@@ -23,6 +22,9 @@ init :: proc() {
 	ui._get_clipboard_string = proc() -> string {
 		return string(rl.GetClipboardText())
 	}
+}
+update_texture :: proc() {
+	rl.UpdateTexture(texture, ui.painter.image.data)
 }
 uninit :: proc() {
 	rl.UnloadTexture(texture)
