@@ -12,6 +12,8 @@ import "core:unicode/utf8"
 TEXT_BREAK :: "..."
 
 Icon :: enum rune {
+	Tree_Nodes 			= 0xEF90,
+	Ball_Pen  			= 0xEA8D,
 	More_Horizontal 	= 0xEF78,
 	Code 				= 0xeba8,
 	Github 				= 0xedca,
@@ -22,6 +24,7 @@ Icon :: enum rune {
 	Alert 				= 0xEA20,
 	Edit 				= 0xEC7F,
 	Home 				= 0xEE18,
+	Server 				= 0xF0DF,
 	Add 				= 0xEA12,
 	Undo 				= 0xEA58,
 	Shopping_Cart 		= 0xF11D,

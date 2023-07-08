@@ -112,6 +112,11 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 					paint_string(font_data, info.placeholder.?, {box.x + padding.x, box.y + padding.y}, get_color(.text, 0.5))
 				}
 			}
+
+			if info.title != nil {
+				box.y -= 10
+				box.h += 10
+			}
 		}
 	}
 	return
