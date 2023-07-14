@@ -127,7 +127,7 @@ main :: proc() {
 					size = ([2]f32){0, 90},
 				}) {
 					ui.set_size(30)
-					choice = ui.do_enum_options(choice)
+					choice = ui.do_enum_options(choice).? or_else choice
 				}
 			}
 			ui.space(20)
@@ -162,6 +162,11 @@ main :: proc() {
 					slider_value_f32 = new_value
 				}
 			}
+			ui.space(10)
+			slider_value_f32 = ui.do_number_input(ui.Number_Input_Info(f32){
+				value = slider_value_f32,
+				trim_decimal = true,
+			})
 			ui.space(10)
 			if ui.do_layout(.top, 30) {
 				ui.set_side(.left); ui.set_size(100)
@@ -206,12 +211,14 @@ main :: proc() {
 					label = ui.Icon.More_Horizontal,
 				})
 			}
-			if ui.do_attached_menu({
+			if result, ok := ui.do_attached_layer({
 				parent = ui.last_widget(),
 				side = .bottom,
 				align = .middle,
 				size = {200, 90},
-			}) {
+				fill_color = ui.get_color(.base),
+				stroke_color = ui.get_color(.base_stroke),
+			}); ok {
 				ui.set_size(30)
 				if ui.do_button({label = "such option", style = .subtle}) {
 					append_string(&multiline_buffer, "such text\n")

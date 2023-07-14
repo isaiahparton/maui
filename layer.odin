@@ -314,6 +314,11 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 		id = hash(loc), 
 		options = info.options + {.clip_to_parent, .attached, .no_sort},
 	})
+	if ok {
+		if info.fill_color != nil {
+			paint_box_fill(self.box, info.fill_color.?)
+		}
+	}
 	return
 }
 

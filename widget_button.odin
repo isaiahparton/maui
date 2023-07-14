@@ -122,7 +122,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 			}
 		}
 		// Result
-		clicked = .clicked in self.state && self.click_button == .left
+		clicked = widget_clicked(self, .left)
 	}
 	return
 }

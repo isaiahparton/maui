@@ -351,6 +351,8 @@ begin_frame :: proc() {
 
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
+	//FIXME(isaiah): Text inputs selected with 'tab' do not behave correctly
+	/*
 	if key_pressed(.tab) && core.widget_agent.focus_id != 0 {
 		array: [dynamic]^Widget
 		defer delete(array)
@@ -380,6 +382,7 @@ begin_frame :: proc() {
 			core.is_key_selecting = true
 		}
 	}
+	*/
 
 	// Reset dragging state
 	dragging = false

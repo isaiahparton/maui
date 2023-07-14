@@ -462,8 +462,8 @@ do_navbar_option :: proc(active: bool, icon: Icon, text: string, loc := #caller_
 
 		if .should_paint in self.bits {
 			paint_box_fill(self.box, fade(255, min(hover_time + state_time, 1) * 0.25))
-			paint_aligned_icon(get_font_data(.default), icon, {self.box.x + self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.base), {.middle, .middle})
-			paint_aligned_string(get_font_data(.default), text, {self.box.x + self.box.h * rl.EaseCubicInOut(state_time, 1, 0.3, 1), self.box.y + self.box.h / 2}, get_color(.base), {.near, .middle})
+			paint_aligned_icon(get_font_data(.default), icon, {self.box.x + self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.text), {.middle, .middle})
+			paint_aligned_string(get_font_data(.default), text, {self.box.x + self.box.h * rl.EaseCubicInOut(state_time, 1, 0.3, 1), self.box.y + self.box.h / 2}, get_color(.text), {.near, .middle})
 		}
 		
 		clicked = widget_clicked(self, .left)
@@ -471,9 +471,7 @@ do_navbar_option :: proc(active: bool, icon: Icon, text: string, loc := #caller_
 	return
 }
 
-/*
-	[SECTION] BOOLEAN CONTROLS
-*/
+// [SECTION] BOOLEAN CONTROLS
 Check_Box_Status :: enum u8 {
 	on,
 	off,
@@ -877,37 +875,39 @@ _do_tree_node :: proc(active: bool) {
 	}
 }
 
+Card_Result :: struct {
+	clicked: bool,
+}
+CARD_ROUNDNESS :: 8
 // Cards are interactable boxangles that contain other widgets
 @(deferred_out=_do_card)
-do_card :: proc(
-	text: string, 
-	sides: Box_Sides = {}, 
-	loc := #caller_location,
-) -> (clicked, ok: bool) {
+do_card :: proc(loc := #caller_location) -> (result: Card_Result, ok: bool) {
 	if self, widget_ok := do_widget(hash(loc), layout_next(current_layout())); widget_ok {
 		push_id(self.id)
-			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.15)
-			press_time := animate_bool(hash_int(1), .pressed in self.state, 0.1)
+			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.2)
+			press_time := animate_bool(hash_int(1), .pressed in self.state, 0.15)
 		pop_id()
 
+		layout_box := move_box(self.box, math.floor(clamp(hover_time - press_time, 0, 1) * -5))
 		if hover_time > 0 {
-			paint_box_fill(self.box, style_base_shaded((hover_time + press_time) * 0.75))
+			paint_rounded_box_fill(self.box, CARD_ROUNDNESS, get_color(.shadow))
 		}
-		paint_box_stroke(self.box, 1, get_color(.base_stroke))
-		paint_aligned_string(get_font_data(.default), text, {self.box.x + self.box.h * 0.25, self.box.y + self.box.h / 2}, get_color(.text), {.near, .middle})
+		paint_rounded_box_fill(layout_box, CARD_ROUNDNESS, get_color(.intense))
 
-		push_layout(self.box)
+		push_layout(layout_box)
+		push_color(.text, get_color(.text_inverted))
 
-		clicked = .clicked in self.state && self.click_button == .left
+		result.clicked = widget_clicked(self, .left, 1)
 		ok = true
 	}
 	return
 }
 
 @private 
-_do_card :: proc(clicked, ok: bool) {
+_do_card :: proc(_: Card_Result, ok: bool) {
 	if ok {
 		pop_layout()
+		pop_color()
 	}
 }
 
@@ -1113,6 +1113,7 @@ Tab_Info :: struct {
 }
 
 Tab_Result :: struct {
+	self: ^Widget,
 	clicked,
 	closed: bool,
 }
@@ -1126,7 +1127,7 @@ do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) 
 		// Animations
 		push_id(self.id)
 			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.1)
-			state_time := animate_bool(hash_int(1), info.state, 0.15)
+			state_time := animate_bool(hash_int(1), info.state, 0.1)
 		pop_id()
 
 		label_box := self.box
@@ -1147,7 +1148,7 @@ do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) 
 				}, get_color(.widget_stroke, 0.5))
 			}
 
-			paint_label(info.label, {self.box.x + self.box.h * 0.25, self.box.y + self.box.h / 2}, get_color(.text), {
+			paint_label(info.label, {self.box.x + self.box.h * 0.25, self.box.y + self.box.h / 2}, get_color(.text, 0.5 + min(state_time + hover_time, 1) * 0.5), {
 				align = {.near, .middle}, 
 				clip_box = label_box,
 			})
@@ -1162,6 +1163,7 @@ do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) 
 			}
 		}
 
+		result.self = self
 		result.clicked = !info.state && widget_clicked(self, .left, 1)
 	}
 	return
@@ -1216,9 +1218,9 @@ do_text :: proc(info: Text_Info) {
 
 Text_Box_Info :: struct {
 	text: string,
-	font: Maybe(Font_Index),
-	align: [2]Maybe(Alignment),
 	options: String_Paint_Options,
+	font: Maybe(Font_Index),
+	align: Maybe([2]Alignment),
 	color: Maybe(Color),
 }
 
@@ -1232,10 +1234,7 @@ do_text_box :: proc(info: Text_Box_Info) {
 			{box.x + box.h * 0.25, box.y, box.w - box.h * 0.5, box.h},
 			info.color.? or_else get_color(.text),
 			{
-				align = {
-					info.align.x.? or_else .near, 
-					info.align.y.? or_else .near, 
-				},
+				align = info.align.? or_else {.near, .near},
 				wrap = .wrap in info.options,
 				word_wrap = .word_wrap in info.options,
 			},

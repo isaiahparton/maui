@@ -12,6 +12,9 @@ import "core:unicode/utf8"
 TEXT_BREAK :: "..."
 
 Icon :: enum rune {
+	Cloud 				= 0xEB9C,
+	Hard_Drive 			= 0xF394,
+	Sliders 			= 0xEC9C,
 	Tree_Nodes 			= 0xEF90,
 	Ball_Pen  			= 0xEA8D,
 	More_Horizontal 	= 0xEF78,
@@ -113,6 +116,20 @@ text_capitalize :: proc(str: string) -> string {
 	str := string(buffer[:len(str)])
 	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
 	return str
+}
+text_remove_trailing_zeroes :: proc(text: string) -> string {
+	text := text
+	for i := len(text) - 1; i >= 0; i -= 1 {
+		if text[i] != '0' {
+			if text[i] == '.' {
+				text = text[:i]
+			}
+			break
+		} else {
+			text = text[:i]
+		}
+	}
+	return text
 }
 // Format types to text
 format :: proc(args: ..any) -> string {

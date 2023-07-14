@@ -330,6 +330,7 @@ get_font_data :: proc(index: Font_Index) -> ^Font_Data {
 // Draw commands
 Command_Texture :: struct {
 	using command: Command,
+	index: int,
 	uv_min, 
 	uv_max,
 	min, 
