@@ -315,9 +315,7 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 		options = info.options + {.clip_to_parent, .attached, .no_sort},
 	})
 	if ok {
-		if info.fill_color != nil {
-			paint_box_fill(self.box, info.fill_color.?)
-		}
+		paint_box_fill(self.box, info.fill_color.? or_else get_color(.base_shade, 0.075))
 	}
 	return
 }

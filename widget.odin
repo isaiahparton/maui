@@ -450,23 +450,87 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 	return
 }
 
-/*
-	Buttons for navigation
-*/
-do_navbar_option :: proc(active: bool, icon: Icon, text: string, loc := #caller_location) -> (clicked: bool) {
-	if self, ok := do_widget(hash(loc), layout_next(current_layout())); ok {
-		push_id(self.id) 
-			hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.1)
-			state_time := animate_bool(hash_int(1), active, 0.15)
-		pop_id()
 
-		if .should_paint in self.bits {
-			paint_box_fill(self.box, fade(255, min(hover_time + state_time, 1) * 0.25))
-			paint_aligned_icon(get_font_data(.default), icon, {self.box.x + self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.text), {.middle, .middle})
-			paint_aligned_string(get_font_data(.default), text, {self.box.x + self.box.h * rl.EaseCubicInOut(state_time, 1, 0.3, 1), self.box.y + self.box.h / 2}, get_color(.text), {.near, .middle})
+Nav_Menu_Option_Info :: struct {
+	index: int,
+	icon: Icon,
+	name: string,
+}
+Nav_Menu_Section_Info :: struct {
+	name: string,
+}
+Nav_Menu_Item_Info :: union {
+	Nav_Menu_Option_Info,
+	Nav_Menu_Section_Info,
+}
+
+Nav_Menu_Info :: struct {
+	current_index: int,
+	items: []Nav_Menu_Item_Info,
+}
+
+do_nav_menu :: proc(info: Nav_Menu_Info, loc := #caller_location) -> (result: Maybe(int)) {
+
+	option_counter: int 
+
+	for &item_union, i in info.items {
+		push_id(i)
+		switch item in item_union {
+			case Nav_Menu_Option_Info: 
+			set_size(30)
+			new_box := layout_next(current_layout())
+			new_box.h += 1
+			if self, ok := do_widget(hash(loc), new_box); ok {
+				push_id(self.id) 
+					hover_time := animate_bool(hash_int(0), .hovered in self.state, 0.1)
+					state_time := animate_bool(hash_int(1), info.current_index == item.index, 0.15)
+				pop_id()
+
+				if .should_paint in self.bits {
+					box := self.box
+
+					stroke_color := alpha_blend_colors(get_color(.intense), get_color(.base), 0.15 * (1 - hover_time))
+					if state_time < 1 {
+						if option_counter == 0  {
+							paint_box_fill({box.x, box.y, box.w, 1}, stroke_color)
+						}
+						paint_box_fill({box.x, box.y + box.h - 1, box.w, 1}, stroke_color)
+					}
+
+					fill_color := fade(alpha_blend_colors(get_color(.intense), get_color(.base), min(0.15 + state_time, 1)), 1 if info.current_index == item.index else hover_time)
+					paint_triangle_fill(
+						{box.x + box.w + box.h / 2, box.y + box.h / 2}, 
+						{box.x + box.w, box.y}, 
+						{box.x + box.w, box.y + box.h}, 
+						fill_color,
+						)
+					paint_rounded_box_corners_fill({box.x - 4, box.y, box.w + 4, box.h}, 4, {.top_left, .bottom_left}, fill_color)
+
+					text_color := blend_colors(get_color(.base, 0.5 + hover_time), get_color(.intense), state_time)
+					paint_aligned_icon(get_font_data(.default), item.icon, {self.box.x + self.box.h / 2, self.box.y + self.box.h / 2}, 1, text_color, {.middle, .middle})
+					paint_aligned_string(get_font_data(.default), item.name, {self.box.x + self.box.h * rl.EaseCubicInOut(state_time, 1, 0.3, 1), self.box.y + self.box.h / 2}, text_color, {.near, .middle})
+				}
+				
+				if widget_clicked(self, .left) {
+					result = item.index
+				}
+			}
+			option_counter += 1
+
+			case Nav_Menu_Section_Info:
+			option_counter = 0
+			set_align_x(.middle)
+			space(20)
+			do_text({
+				text = item.name,
+				fit = true,
+				font = .label,
+				color = get_color(.base),
+			})
+			space(6)
 		}
 		
-		clicked = widget_clicked(self, .left)
+		pop_id()
 	}
 	return
 }
@@ -1139,16 +1203,13 @@ do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) 
 		if self.bits >= {.should_paint} {
 			paint_rounded_box_corners_fill(self.box, ROUNDNESS, side_corners(side), get_color(.base, 1 if info.state else 0.5 * hover_time))
 
-			if info.show_divider && !info.state {
-				paint_box_fill({
-					self.box.x + self.box.w - 1,
-					self.box.y + ROUNDNESS,
-					1,
-					self.box.h - ROUNDNESS * 2,
-				}, get_color(.widget_stroke, 0.5))
+			opacity: f32 = 0.5 + min(state_time + hover_time, 1)
+			paint_rounded_box_sides_stroke(self.box, ROUNDNESS, true, {.left, .top, .bottom, .right} - {side}, get_color(.base_stroke, opacity))
+			if info.state {
+				paint_box_fill({self.box.x + 1, self.box.y + self.box.h, self.box.w - 2, 1}, get_color(.base))
 			}
 
-			paint_label(info.label, {self.box.x + self.box.h * 0.25, self.box.y + self.box.h / 2}, get_color(.text, 0.5 + min(state_time + hover_time, 1) * 0.5), {
+			paint_label(info.label, {self.box.x + self.box.h * 0.25, self.box.y + self.box.h / 2}, get_color(.text, opacity), {
 				align = {.near, .middle}, 
 				clip_box = label_box,
 			})

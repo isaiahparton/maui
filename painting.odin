@@ -1,16 +1,18 @@
 package maui
 // Core dependencies
-import "core:fmt"
-import "core:math"
-import "core:math/linalg"
-import "core:mem"
 import "core:os"
-import "core:strconv"
-import "core:strings"
+import "core:mem"
 import "core:runtime"
 import "core:path/filepath"
+
+import "core:fmt"
+import "core:strings"
+import "core:strconv"
 import "core:unicode"
 import "core:unicode/utf8"
+
+import "core:math"
+import "core:math/linalg"
 // For image/font processing
 import rl "vendor:raylib"
 
@@ -753,9 +755,9 @@ paint_rounded_box_stroke :: proc(box: Box, radius: f32, thin: bool, color: Color
 		paint_box_fill({box.x + box.w - thickness, box.y + radius, thickness, box.h - radius * 2}, color)
 	}
 }
-paint_rounded_box_corners_stroke :: proc(box: Box, radius: f32, thin: bool, corners: Box_Corners, color: Color) {
+paint_rounded_box_sides_stroke :: proc(box: Box, radius: f32, thin: bool, sides: Box_Sides, color: Color) {
 	thickness: f32 = 1 if thin else 2
-	if radius == 0 || corners == {} {
+	if radius == 0 {
 		paint_box_stroke(box, thickness, color)
 		return
 	}
@@ -769,6 +771,20 @@ paint_rounded_box_corners_stroke :: proc(box: Box, radius: f32, thin: bool, corn
 
 	half_width := min(half_size, box.w / 2)
 	half_height := min(half_size, box.h / 2)
+
+	corners: Box_Corners
+	if sides >= {.top, .left} {
+		corners += {.top_left}
+	}
+	if sides >= {.top, .right} {
+		corners += {.top_right}
+	}
+	if sides >= {.bottom, .left} {
+		corners += {.bottom_left}
+	}
+	if sides >= {.bottom, .right} {
+		corners += {.bottom_right}
+	}
 
 	if .top_left in corners {
 		src_top_left: Box = {src.x, src.y, half_width, half_height}
@@ -792,16 +808,24 @@ paint_rounded_box_corners_stroke :: proc(box: Box, radius: f32, thin: bool, corn
 		top_right := radius if .top_right in corners else 0
 		bottom_right := radius if .bottom_right in corners else 0
 		bottom_left := radius if .bottom_left in corners else 0
-		paint_box_fill({box.x + top_left, box.y, box.w - (top_left + top_right), thickness}, color)
-		paint_box_fill({box.x + bottom_left, box.y + box.h - thickness, box.w - (bottom_left + bottom_right), thickness}, color)
+		if .top in sides {
+			paint_box_fill({box.x + top_left, box.y, box.w - (top_left + top_right), thickness}, color)
+		}
+		if .bottom in sides {
+			paint_box_fill({box.x + bottom_left, box.y + box.h - thickness, box.w - (bottom_left + bottom_right), thickness}, color)
+		}
 	}
 	if box.h > radius * 2 {
 		top_left := radius if .top_left in corners else 0
 		top_right := radius if .top_right in corners else 0
 		bottom_right := radius if .bottom_right in corners else 0
 		bottom_left := radius if .bottom_left in corners else 0
-		paint_box_fill({box.x, box.y + top_left, thickness, box.h - (top_left + bottom_left)}, color)
-		paint_box_fill({box.x + box.w - thickness, box.y + top_right, thickness, box.h - (top_right + bottom_right)}, color)
+		if .left in sides {
+			paint_box_fill({box.x, box.y + top_left, thickness, box.h - (top_left + bottom_left)}, color)
+		}
+		if .right in sides {
+			paint_box_fill({box.x + box.w - thickness, box.y + top_right, thickness, box.h - (top_right + bottom_right)}, color)
+		}
 	}
 }
 

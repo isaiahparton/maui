@@ -129,6 +129,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 Number_Input_Info :: struct($T: typeid) {
 	value: T,
 	title,
+	suffix,
 	format: Maybe(string),
 	text_align: Maybe([2]Alignment),
 	trim_decimal,
@@ -169,8 +170,10 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				offset = WIDGET_TEXT_OFFSET, 
 				thickness = 1, 
 				color = stroke_color,
-				)
+			)
 		}
+		select_result: Selectable_Text_Result
+
 		// Update text input
 		if state >= {.focused} {
 			buffer := typing_agent_get_buffer(&core.typing_agent, id)
@@ -182,7 +185,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			switch typeid_of(T) {
 				case f16, f32, f64: text_edit_bits -= {.integer}
 			}
-			select_result := selectable_text(self, {
+			select_result = selectable_text(self, {
 				font_data = font_data, 
 				data = buffer[:], 
 				box = box, 
@@ -208,12 +211,19 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				state += {.changed}
 			}
 		} else {
-			selectable_text(self, {
+			select_result = selectable_text(self, {
 				font_data = font_data, 
 				data = text, 
 				box = box, 
 				padding = {box.h * 0.25, box.h / 2 - font_data.size / 2},
 				align = text_align,
+			})
+		}
+
+		if suffix, ok := info.suffix.?; ok {
+			paint_string(font_data, suffix, {box.x + box.h * 0.25, box.y + box.h / 2} + select_result.view_offset + {select_result.text_size.x, 0}, get_color(.text, 0.5), {
+				align = {.near, .middle},
+				clip_box = box,
 			})
 		}
 	}

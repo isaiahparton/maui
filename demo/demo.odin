@@ -165,6 +165,7 @@ main :: proc() {
 			ui.space(10)
 			slider_value_f32 = ui.do_number_input(ui.Number_Input_Info(f32){
 				value = slider_value_f32,
+				suffix = "%",
 				trim_decimal = true,
 			})
 			ui.space(10)

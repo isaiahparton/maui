@@ -19,7 +19,7 @@ WIDGET_TEXT_MARGIN :: 2
 // Default color schemes
 DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.accent 			= {45, 105, 238, 255},
-	.base 				= {230, 230, 235, 255},
+	.base 				= {238, 238, 243, 255},
 	.base_shade 		= {0, 0, 0, 255},
 	.base_stroke		= {112, 113, 116, 255},
 	.widget_bg 			= {255, 255, 255, 255},
