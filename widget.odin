@@ -187,7 +187,7 @@ widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
 widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer_Agent, widget: ^Widget) {
 	assert(widget != nil)
 	// Request hover status
-	if point_in_box(input.mouse_point, widget.box) && core.layer_agent.hover_id == widget.layer.id {
+	if core.layer_agent.hover_id == widget.layer.id && point_in_box(input.mouse_point, widget.box) {
 		next_hover_id = widget.id
 	}
 	// If hovered
@@ -489,7 +489,7 @@ do_nav_menu :: proc(info: Nav_Menu_Info, loc := #caller_location) -> (result: Ma
 				if .should_paint in self.bits {
 					box := self.box
 
-					stroke_color := alpha_blend_colors(get_color(.intense), get_color(.base), 0.15 * (1 - hover_time))
+					stroke_color := alpha_blend_colors(get_color(.base), get_color(.intense), 0.5 * (1 - hover_time))
 					if state_time < 1 {
 						if option_counter == 0  {
 							paint_box_fill({box.x, box.y, box.w, 1}, stroke_color)
@@ -497,16 +497,29 @@ do_nav_menu :: proc(info: Nav_Menu_Info, loc := #caller_location) -> (result: Ma
 						paint_box_fill({box.x, box.y + box.h - 1, box.w, 1}, stroke_color)
 					}
 
-					fill_color := fade(alpha_blend_colors(get_color(.intense), get_color(.base), min(0.15 + state_time, 1)), 1 if info.current_index == item.index else hover_time)
+					fill_color := fade(alpha_blend_colors(get_color(.base), get_color(.intense), min(0.5 + state_time, 1)), 1 if info.current_index == item.index else hover_time)
 					paint_triangle_fill(
 						{box.x + box.w + box.h / 2, box.y + box.h / 2}, 
 						{box.x + box.w, box.y}, 
 						{box.x + box.w, box.y + box.h}, 
 						fill_color,
 						)
-					paint_rounded_box_corners_fill({box.x - 4, box.y, box.w + 4, box.h}, 4, {.top_left, .bottom_left}, fill_color)
+					paint_triangle_fill(
+						{box.x, box.y}, 
+						{box.x - box.h / 2, box.y}, 
+						{box.x, box.y + box.h / 2}, 
+						fill_color,
+						)
+					paint_triangle_fill(
+						{box.x - box.h / 2, box.y + box.h}, 
+						{box.x, box.y + box.h}, 
+						{box.x, box.y + box.h / 2}, 
+						fill_color,
+						)
+					paint_box_fill(box, fill_color)
+					//paint_rounded_box_corners_fill({box.x - 4, box.y, box.w + 4, box.h}, 4, {.top_left, .bottom_left}, fill_color)
 
-					text_color := blend_colors(get_color(.base, 0.5 + hover_time), get_color(.intense), state_time)
+					text_color := blend_colors(get_color(.intense, 0.5 + hover_time), get_color(.base), state_time)
 					paint_aligned_icon(get_font_data(.default), item.icon, {self.box.x + self.box.h / 2, self.box.y + self.box.h / 2}, 1, text_color, {.middle, .middle})
 					paint_aligned_string(get_font_data(.default), item.name, {self.box.x + self.box.h * rl.EaseCubicInOut(state_time, 1, 0.3, 1), self.box.y + self.box.h / 2}, text_color, {.near, .middle})
 				}
@@ -525,7 +538,7 @@ do_nav_menu :: proc(info: Nav_Menu_Info, loc := #caller_location) -> (result: Ma
 				text = item.name,
 				fit = true,
 				font = .label,
-				color = get_color(.base),
+				color = get_color(.intense, 0.5),
 			})
 			space(6)
 		}
@@ -1218,7 +1231,7 @@ do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) 
 		if info.has_close_button {
 			if do_button({
 				label = Icon.Close,
-				style = .subtle,
+				style = .Subtle,
 			}) {
 				result.closed = true
 			}

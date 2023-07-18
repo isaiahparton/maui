@@ -66,18 +66,18 @@ main :: proc() {
 				}
 				button_load_timer = max(0, button_load_timer - ui.core.delta_time)
 				ui.space(10)
-				ui.do_pill_button({label = "Outlined", style = .outlined})
+				ui.do_pill_button({label = "Outlined", style = .Outlined})
 				ui.space(10)
-				ui.do_pill_button({label = "Subtle", style = .subtle})
+				ui.do_pill_button({label = "Subtle", style = .Subtle})
 			}
 			ui.space(10)
 			if ui.do_layout(.top, 30) {
 				ui.set_side(.left)
 				ui.do_button({label = "Filled", fit_to_label = true})
 				ui.space(10)
-				ui.do_button({label = "Outlined", style = .outlined, fit_to_label = true})
+				ui.do_button({label = "Outlined", style = .Outlined, fit_to_label = true})
 				ui.space(10)
-				ui.do_button({label = "Subtle", style = .subtle, fit_to_label = true})
+				ui.do_button({label = "Subtle", style = .Subtle, fit_to_label = true})
 			}
 			ui.space(10)
 			ui.do_text({text = "Multiple Choice"})
@@ -221,13 +221,13 @@ main :: proc() {
 				stroke_color = ui.get_color(.base_stroke),
 			}); ok {
 				ui.set_size(30)
-				if ui.do_button({label = "such option", style = .subtle}) {
+				if ui.do_button({label = "such option", style = .Subtle}) {
 					append_string(&multiline_buffer, "such text\n")
 				}
-				if ui.do_button({label = "much choice", style = .subtle}) {
+				if ui.do_button({label = "much choice", style = .Subtle}) {
 					append_string(&multiline_buffer, "much information\n")
 				}
-				if ui.do_button({label = "wow", style = .subtle}) {
+				if ui.do_button({label = "wow", style = .Subtle}) {
 					append_string(&multiline_buffer, "cool\n")
 				}
 			}

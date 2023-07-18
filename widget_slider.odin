@@ -47,7 +47,7 @@ do_spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: i
 	if do_button({
 		label = "\uEA4E", 
 		align = .middle,
-		style = .subtle,
+		style = .Subtle,
 	}, loc) {
 		new_value = max(info.low, info.value - 1)
 	}
@@ -56,7 +56,7 @@ do_spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: i
 	if do_button({
 		label = "\uEA78", 
 		align = .middle,
-		style = .subtle,
+		style = .Subtle,
 	}, loc) {
 		new_value = min(info.high, info.value + 1)
 	}
