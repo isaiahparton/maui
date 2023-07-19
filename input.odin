@@ -8,38 +8,38 @@ MAX_INPUT_RUNES :: 32
 MAX_CLICK_COUNT :: 3
 
 Mouse_Button :: enum {
-	left,
-	middle,
-	right,
+	Left,
+	Middle,
+	Right,
 }
 Mouse_Bits :: bit_set[Mouse_Button]
 Mouse_Button_State :: enum {
-	// Just pressed down (was not down before)
-	pressed,
+	// Just pressed down (was not down before) (but is now)
+	Pressed,
 	// Is down
-	down,
-	// Just released (unpressed) (not down anymore)
-	released,
+	Down,
+	// Just released (unpressed) (not down anymore) (but was before)
+	Released,
 	// Pressed and released over the widget
-	clicked,
+	Clicked,
 }
 
 Key :: enum {
-	alt,
-	escape,
-	control,
-	shift,
-	tab,
-	backspace,
-	enter,
-	left,
-	right,
-	up,
-	down,
-	a,
-	x,
-	c,
-	v,
+	Alt,
+	Escape,
+	Control,
+	Shift,
+	Tab,
+	Backspace,
+	Enter,
+	Left,
+	Right,
+	Up,
+	Down,
+	A,
+	X,
+	C,
+	V,
 }
 Key_Bits :: bit_set[Key]
 

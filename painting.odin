@@ -42,10 +42,10 @@ Image :: rl.Image
 
 // Builtin text styles
 Font_Index :: enum {
-	default,
-	header,
-	monospace,
-	label,
+	Default,
+	Header,
+	Monospace,
+	Label,
 }
 Font_Data :: struct {
 	size: f32,
@@ -80,11 +80,11 @@ painter_init :: proc() -> bool {
 		painter = new(Painter)
 		// Default style
 		painter.style.colors = DEFAULT_COLORS_LIGHT
-		painter.style.fontSizes = {
-			.label = 16,
-			.default = 18,
-			.header = 28,
-			.monospace = 18,
+		painter.style.font_sizes = {
+			.Label = 16,
+			.Default = 18,
+			.Header = 28,
+			.Monospace = 18,
 		}
 		return painter_make_atlas(painter)
 	}
@@ -291,7 +291,7 @@ painter_make_atlas :: proc(using painter: ^Painter) -> (result: bool) {
 
 	offset: f32 = 0
 	for index in Font_Index {
-		font, success := make_font({circle_space.x + offset, 0}, text_format("%s/fonts/%s", RESOURCES_PATH, MONOSPACE_FONT if index == .monospace else DEFAULT_FONT), i32(style.fontSizes[index]), runes[:first_icon_index] if index == .monospace else runes)
+		font, success := make_font({circle_space.x + offset, 0}, text_format("%s/fonts/%s", RESOURCES_PATH, MONOSPACE_FONT if index == .Monospace else DEFAULT_FONT), i32(style.font_sizes[index]), runes[:first_icon_index] if index == .Monospace else runes)
 		if !success {
 			fmt.printf("Failed to load font %v\n", index)
 			result = false
@@ -426,10 +426,10 @@ end_clip :: proc() {
 }
 paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickness: f32, color: Color) {
 	if text != nil {
-		label_font := get_font_data(.label)
+		label_font := get_font_data(.Label)
 		text_size := measure_string(label_font, text.?)
 		paint_widget_frame(box, offset - 2, text_size.x + 4, thickness, color)
-		paint_string(label_font, text.?, {box.x + offset, box.y - text_size.y / 2}, get_color(.text))
+		paint_string(label_font, text.?, {box.x + offset, box.y - text_size.y / 2}, get_color(.Text))
 	} else {
 		paint_box_stroke(box, thickness, color)
 	}
@@ -651,19 +651,19 @@ paint_rounded_box_corners_fill :: proc(box: Box, radius: f32, corners: Box_Corne
 	half_width := min(half_size, box.w / 2)
 	half_height := min(half_size, box.h / 2)
 
-	if .top_left in corners {
+	if .Top_Left in corners {
 		src_top_left: Box = {src.x, src.y, half_width, half_height}
 		paint_texture(src_top_left, {box.x, box.y, half_size, half_size}, color)
 	}
-	if .top_right in corners {
+	if .Top_Right in corners {
 		src_top_right: Box = {src.x + src.w - half_width, src.y, half_width, half_height}
 		paint_texture(src_top_right, {box.x + box.w - half_width, box.y, half_size, half_size}, color)
 	}
-	if .bottom_right in corners {
+	if .Bottom_Right in corners {
 		src_bottom_right: Box = {src.x + src.w - half_width, src.y + src.h - half_height, half_width, half_height}
 		paint_texture(src_bottom_right, {box.x + box.w - half_size, box.y + box.h - half_size, half_size, half_size}, color)
 	}
-	if .bottom_left in corners {
+	if .Bottom_Left in corners {
 		src_bottom_left: Box = {src.x, src.y + src.h - half_height, half_width, half_height}
 		paint_texture(src_bottom_left, {box.x, box.y + box.h - half_height, half_size, half_size}, color)
 	}
@@ -672,10 +672,10 @@ paint_rounded_box_corners_fill :: proc(box: Box, radius: f32, corners: Box_Corne
 		paint_box_fill({box.x + radius, box.y, box.w - radius * 2, box.h}, color)
 	}
 	if box.h > radius * 2 {
-		top_left := radius if .top_left in corners else 0
-		top_right := radius if .top_right in corners else 0
-		bottom_right := radius if .bottom_right in corners else 0
-		bottom_left := radius if .bottom_left in corners else 0
+		top_left := radius if .Top_Left in corners else 0
+		top_right := radius if .Top_Right in corners else 0
+		bottom_right := radius if .Bottom_Right in corners else 0
+		bottom_left := radius if .Bottom_Left in corners else 0
 		paint_box_fill({box.x, box.y + top_left, radius, box.h - (top_left + bottom_left)}, color)
 		paint_box_fill({box.x + box.w - radius, box.y + top_right, radius, box.h - (top_right + bottom_right)}, color)
 	}
@@ -773,57 +773,57 @@ paint_rounded_box_sides_stroke :: proc(box: Box, radius: f32, thin: bool, sides:
 	half_height := min(half_size, box.h / 2)
 
 	corners: Box_Corners
-	if sides >= {.top, .left} {
-		corners += {.top_left}
+	if sides >= {.Top, .Left} {
+		corners += {.Top_Left}
 	}
-	if sides >= {.top, .right} {
-		corners += {.top_right}
+	if sides >= {.Top, .Right} {
+		corners += {.Top_Right}
 	}
-	if sides >= {.bottom, .left} {
-		corners += {.bottom_left}
+	if sides >= {.Bottom, .Left} {
+		corners += {.Bottom_Left}
 	}
-	if sides >= {.bottom, .right} {
-		corners += {.bottom_right}
+	if sides >= {.Bottom, .Right} {
+		corners += {.Bottom_Right}
 	}
 
-	if .top_left in corners {
+	if .Top_Left in corners {
 		src_top_left: Box = {src.x, src.y, half_width, half_height}
 		paint_texture(src_top_left, {box.x, box.y, half_size, half_size}, color)
 	}
-	if .top_right in corners {
+	if .Top_Right in corners {
 		src_top_right: Box = {src.x + src.w - half_width, src.y, half_width, half_height}
 		paint_texture(src_top_right, {box.x + box.w - half_width, box.y, half_size, half_size}, color)
 	}
-	if .bottom_right in corners {
+	if .Bottom_Right in corners {
 		src_bottom_right: Box = {src.x + src.w - half_width, src.y + src.h - half_height, half_width, half_height}
 		paint_texture(src_bottom_right, {box.x + box.w - half_size, box.y + box.h - half_size, half_size, half_size}, color)
 	}
-	if .bottom_left in corners {
+	if .Bottom_Left in corners {
 		src_bottom_left: Box = {src.x, src.y + src.h - half_height, half_width, half_height}
 		paint_texture(src_bottom_left, {box.x, box.y + box.h - half_height, half_size, half_size}, color)
 	}
 
 	if box.w > radius * 2 {
-		top_left := radius if .top_left in corners else 0
-		top_right := radius if .top_right in corners else 0
-		bottom_right := radius if .bottom_right in corners else 0
-		bottom_left := radius if .bottom_left in corners else 0
-		if .top in sides {
+		top_left := radius if .Top_Left in corners else 0
+		top_right := radius if .Top_Right in corners else 0
+		bottom_right := radius if .Bottom_Right in corners else 0
+		bottom_left := radius if .Bottom_Left in corners else 0
+		if .Top in sides {
 			paint_box_fill({box.x + top_left, box.y, box.w - (top_left + top_right), thickness}, color)
 		}
-		if .bottom in sides {
+		if .Bottom in sides {
 			paint_box_fill({box.x + bottom_left, box.y + box.h - thickness, box.w - (bottom_left + bottom_right), thickness}, color)
 		}
 	}
 	if box.h > radius * 2 {
-		top_left := radius if .top_left in corners else 0
-		top_right := radius if .top_right in corners else 0
-		bottom_right := radius if .bottom_right in corners else 0
-		bottom_left := radius if .bottom_left in corners else 0
-		if .left in sides {
+		top_left := radius if .Top_Left in corners else 0
+		top_right := radius if .Top_Right in corners else 0
+		bottom_right := radius if .Bottom_Right in corners else 0
+		bottom_left := radius if .Bottom_Left in corners else 0
+		if .Left in sides {
 			paint_box_fill({box.x, box.y + top_left, thickness, box.h - (top_left + bottom_left)}, color)
 		}
-		if .right in sides {
+		if .Right in sides {
 			paint_box_fill({box.x + box.w - thickness, box.y + top_right, thickness, box.h - (top_right + bottom_right)}, color)
 		}
 	}

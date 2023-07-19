@@ -17,18 +17,18 @@ import "core:math/linalg"
 import rl "vendor:raylib"
 
 Cursor_Type :: enum {
-	none = -1,
-	default,
-	arrow,
-	beam,
-	crosshair,
-	hand,
-	resize_EW,
-	resize_NS,
-	resize_NWSE,
-	resize_NESW,
-	resize_all,
-	disabled,
+	None = -1,
+	Default,
+	Arrow,
+	Beam,
+	Crosshair,
+	Hand,
+	Resize_EW,
+	Resize_NS,
+	Resize_NWSE,
+	Resize_NESW,
+	Resize_all,
+	Disabled,
 }
 
 RENDER_TIMEOUT 		:: 0.5
@@ -50,7 +50,7 @@ ID_STACK_SIZE 		:: 32
 // Repeating key press
 KEY_REPEAT_DELAY 	:: 0.5
 KEY_REPEAT_RATE 	:: 30
-ALL_CORNERS: Box_Corners = {.top_left, .top_right, .bottom_left, .bottom_right}
+ALL_CORNERS: Box_Corners = {.Top_Left, .Top_Right, .Bottom_Left, .Bottom_Right}
 
 DOUBLE_CLICK_TIME :: time.Millisecond * 200
 
@@ -73,13 +73,13 @@ Group :: struct {
 
 @private
 Debug_Mode :: enum {
-	layers,
-	windows,
-	controls,
+	Layers,
+	Windows,
+	Controls,
 }
 @private
 Debug_Bit :: enum {
-	show_window,
+	Show_Window,
 }
 @private
 Debug_Bits :: bit_set[Debug_Bit]
@@ -319,7 +319,7 @@ begin_frame :: proc() {
 	}
 
 	// Delete unused animations
-	for key, value in &animations {
+	for key, &value in animations {
 		if value.keep_alive {
 			value.keep_alive = false
 			if value.last_value != value.value {
@@ -332,7 +332,7 @@ begin_frame :: proc() {
 	}
 
 	// Reset cursor to default state
-	cursor = .default
+	cursor = .Default
 
 	// Reset fullscreen box
 	fullscreen_box = {0, 0, size.x, size.y}
@@ -406,55 +406,55 @@ end_frame :: proc() {
 	//TODO(isaiah): Make this better
 	when ODIN_DEBUG {
 		layer_agent.debug_id = 0
-		if key_down(.control) && key_pressed(.backspace) {
-			debug_bits ~= {.show_window}
+		if key_down(.Control) && key_pressed(.Backspace) {
+			debug_bits ~= {.Show_Window}
 		}
-		if debug_bits >= {.show_window} {
+		if debug_bits >= {.Show_Window} {
 			if do_window({
 				title = "Debug", 
 				box = {0, 0, 500, 700}, 
-				options = {.collapsable, .closable, .title, .resizable},
+				options = {.Collapsable, .Closable, .Title, .Resizable},
 			}) {
-				if current_window().bits >= {.should_close} {
-					debug_bits -= {.show_window}
+				if current_window().bits >= {.Should_Close} {
+					debug_bits -= {.Show_Window}
 				}
 
 				set_size(30)
 				debug_mode = do_enum_tabs(debug_mode, 0)
 
 				shrink(10); set_size(24)
-				if debug_mode == .layers {
-					set_side(.bottom); set_size(TEXTURE_HEIGHT)
+				if debug_mode == .Layers {
+					set_side(.Bottom); set_size(TEXTURE_HEIGHT)
 					if do_frame({
 						layout_size = {TEXTURE_WIDTH, TEXTURE_HEIGHT},
 						fill_color = Color{0, 0, 0, 255},
-						options = {.no_scroll_margin_x, .no_scroll_margin_y},
+						options = {.No_Scroll_Margin_X, .No_Scroll_Margin_Y},
 					}) {
 						paint_box_fill(current_layout().box, {0, 0, 0, 255})
 						paint_texture({0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT}, current_layout().box, 255)
 						layer_agent.current_layer.content_box = update_bounding_box(layer_agent.current_layer.content_box, current_layout().box)
 					}
 					_debug_layer_widget(core.layer_agent.root_layer)
-				} else if debug_mode == .windows {
+				} else if debug_mode == .Windows {
 					for id, window in window_agent.pool {
 						push_id(window.id)
 							do_button({
 								label = format(window.id), 
-								align = .near,
+								align = .Near,
 							})
-							if last_widget().state >= {.hovered} {
+							if last_widget().state >= {.Hovered} {
 								layer_agent.debug_id = window.layer.id
 							}
 						pop_id()
 					}
-				} else if debug_mode == .controls {
-					do_text({font = .monospace, text = text_format("Layer: %i", layer_agent.hover_id), fit = true})
+				} else if debug_mode == .Controls {
+					do_text({font = .Monospace, text = text_format("Layer: %i", layer_agent.hover_id), fit = true})
 					space(20)
-					do_text({font = .monospace, text = text_format("Hovered: %i", widget_agent.hover_id), fit = true})
-					do_text({font = .monospace, text = text_format("Focused: %i", widget_agent.focus_id), fit = true})
-					do_text({font = .monospace, text = text_format("Pressed: %i", widget_agent.press_id), fit = true})
+					do_text({font = .Monospace, text = text_format("Hovered: %i", widget_agent.hover_id), fit = true})
+					do_text({font = .Monospace, text = text_format("Focused: %i", widget_agent.focus_id), fit = true})
+					do_text({font = .Monospace, text = text_format("Pressed: %i", widget_agent.press_id), fit = true})
 					space(20)
-					do_text({font = .monospace, text = text_format("Count: %i", len(widget_agent.list)), fit = true})
+					do_text({font = .Monospace, text = text_format("Count: %i", len(widget_agent.list)), fit = true})
 				}
 			}
 		}
@@ -481,7 +481,7 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 }
 @private
 _debug_layer_widget :: proc(layer: ^Layer) {
-	if do_layout(.top, 24) {
+	if do_layout(.Top, 24) {
 		push_id(layer.id)
 			n := 0
 			x := layer
@@ -489,12 +489,12 @@ _debug_layer_widget :: proc(layer: ^Layer) {
 				x = x.parent
 				n += 1
 			}
-			cut(.left, f32(n) * 24); set_side(.left); set_size(1, true)
+			cut(.Left, f32(n) * 24); set_side(.Left); set_size(1, true)
 			do_button({
 				label = format(layer.id),
-				align = .near,
+				align = .Near,
 			})
-			if last_widget().state >= {.hovered} {
+			if last_widget().state >= {.Hovered} {
 				core.layer_agent.debug_id = layer.id
 			}
 		pop_id()

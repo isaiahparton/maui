@@ -122,10 +122,10 @@ find_last_seperator :: proc(slice: []u8) -> int {
 }
 
 Text_Edit_Bit :: enum {
-	multiline,
-	numeric,
-	integer,
-	focus_selects_all,
+	Multiline,
+	Numeric,
+	Integer,
+	Focus_Selects_All,
 }
 
 Text_Edit_Bits :: bit_set[Text_Edit_Bit]
@@ -139,18 +139,18 @@ Text_Edit_Info :: struct {
 
 typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (change: bool) {
 	// Control commands
-	if key_down(.control) {
+	if key_down(.Control) {
 		// Select all
-		if key_pressed(.a) {
+		if key_pressed(.A) {
 			index = 0
 			anchor = 0
 			length = len(info.array)
 		}
 		// Clipboard paste
-		if key_pressed(.v) {
+		if key_pressed(.V) {
 			valid := true
 			content := get_clipboard_string()
-			if .multiline not_in info.bits {
+			if .Multiline not_in info.bits {
 				for i in 0..<len(content) {
 					if content[i] == '\n' {
 						valid = false
@@ -166,10 +166,10 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 	}
 	// Normal character input
 	if input.rune_count > 0 {
-		if .numeric in info.bits {
+		if .Numeric in info.bits {
 			for i in 0 ..< input.rune_count {
 				glyph := int(input.runes[i])
-				if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .integer not_in info.bits) {
+				if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .Integer not_in info.bits) {
 					typing_agent_insert_runes(self, info.array, info.capacity, input.runes[i:i + 1])
 					change = true
 				}
@@ -180,12 +180,12 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		}
 	}
 	// Enter
-	if .multiline in info.bits && key_pressed(.enter) {
+	if .Multiline in info.bits && key_pressed(.Enter) {
 		typing_agent_insert_runes(self, info.array, info.capacity, {'\n'})
 		change = true
 	}
 	// Backspacing
-	if key_pressed(.backspace) {
+	if key_pressed(.Backspace) {
 		typing_agent_backspace(self, info.array)
 		change = true
 	}
@@ -193,7 +193,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 	// TODO(isaiah): Implement up/down navigation for multiline text input
 	// A font is required to perform vertical navigation
 	if info.select_result != nil {
-		if key_pressed(.up) {
+		if key_pressed(.Up) {
 			if above_line, ok := get_last_line(info.array[:], index); ok {
 				lowest_diff: f32 = 999999
 				pos: f32
@@ -212,10 +212,8 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 				}
 			}
 			length = 0
-			fmt.println(left_offset)
 		}
-		if key_pressed(.down) {
-			fmt.println(left_offset)
+		if key_pressed(.Down) {
 			if below_line, ok := get_next_line(info.array[:], index); ok {
 				lowest_diff: f32 = 999999
 				pos: f32
@@ -236,17 +234,17 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 			length = 0
 		}
 	}
-	if key_pressed(.left) {
+	if key_pressed(.Left) {
 		delta := 0
 		// How far should the cursor move?
-		if key_down(.control) {
+		if key_down(.Control) {
 			delta = find_last_seperator(info.array[:index])
 		} else{
 			_, delta = utf8.decode_last_rune_in_bytes(info.array[:index + length])
 			delta = -delta
 		}
 		// Highlight or not
-		if key_down(.shift) {
+		if key_down(.Shift) {
 			if index < anchor {
 				new_index := index + delta
 				index = max(0, new_index)
@@ -268,16 +266,16 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		index = max(0, index)
 		length = max(0, length)
 	}
-	if key_pressed(.right) {
+	if key_pressed(.Right) {
 		delta := 0
 		// How far should the cursor move
-		if key_down(.control) {
+		if key_down(.Control) {
 			delta = find_next_seperator(info.array[index + length:])
 		} else {
 			_, delta = utf8.decode_rune_in_bytes(info.array[index + length:])
 		}
 		// Highlight or not?
-		if key_down(.shift) {
+		if key_down(.Shift) {
 			if index < anchor {
 				new_index := index + delta
 				index = new_index

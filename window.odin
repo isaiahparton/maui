@@ -3,32 +3,32 @@ import "core:fmt"
 import "core:math"
 
 Window_Bit :: enum {
-	stay_alive,
-	initialized,
-	resizing,
-	moving,
-	should_close,
-	should_collapse,
-	collapsed,
+	Stay_Alive,
+	Initialized,
+	Resizing,
+	Moving,
+	Should_Close,
+	Should_Collapse,
+	Collapsed,
 	// If the window has an extra layer for decoration
-	decorated,
+	Decorated,
 }
 Window_Bits :: bit_set[Window_Bit]
 Window_Option :: enum {
 	// Removes all decoration
-	undecorated,
+	Undecorated,
 	// Gives the window a title bar to move it
-	title,
+	Title,
 	// Lets the user resize the window
-	resizable,
+	Resizable,
 	// Disallows dragging
-	static,
+	Static,
 	// Shows a close button on the title bar
-	closable,
+	Closable,
 	// Allows collapsing by right-click
-	collapsable,
+	Collapsable,
 	// The window can't resize below its layout size
-	fit_to_layout,
+	Fit_To_Layout,
 }
 Window_Options :: bit_set[Window_Option]
 Window :: struct {
@@ -37,7 +37,7 @@ Window :: struct {
 	id: Id,
 	options: Window_Options,
 	bits: Window_Bits,
-	// for resizing
+	// for Resizing
 	drag_side: Box_Side,
 	drag_anchor: f32,
 	// minimum layout size
@@ -101,8 +101,8 @@ window_agent_pop :: proc(using self: ^Window_Agent) {
 }
 window_agent_step :: proc(using self: ^Window_Agent) {
 	for window, i in &list {
-		if .stay_alive in window.bits {
-			window.bits -= {.stay_alive}
+		if .Stay_Alive in window.bits {
+			window.bits -= {.Stay_Alive}
 		} else {
 			ordered_remove(&list, i)
 			delete_key(&pool, window.id)
@@ -134,10 +134,10 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 	if self, ok = window_agent_assert(&core.window_agent, id); ok {
 		window_agent_push(&core.window_agent, self)
 
-		self.bits += {.stay_alive}
+		self.bits += {.Stay_Alive}
 		
 		// Initialize self
-		if .initialized not_in self.bits {
+		if .Initialized not_in self.bits {
 			if info.box != {} {
 				self.box = info.box
 			}
@@ -146,97 +146,97 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 		self.title = info.title
 		self.min_layout_size = info.layout_size.? or_else self.min_layout_size
 		
-		if .should_collapse in self.bits {
+		if .Should_Collapse in self.bits {
 			self.how_collapsed = min(1, self.how_collapsed + core.delta_time * 5)
 		} else {
 			self.how_collapsed = max(0, self.how_collapsed - core.delta_time * 5)
 		}
 		if self.how_collapsed >= 1 {
-			self.bits += {.collapsed}
+			self.bits += {.Collapsed}
 		} else {
-			self.bits -= {.collapsed}
+			self.bits -= {.Collapsed}
 		}
 
 		// Layer body
 		self.draw_box = self.box
-		self.draw_box.h -= ((self.draw_box.h - WINDOW_TITLE_SIZE) if .title in self.options else self.draw_box.h) * self.how_collapsed
+		self.draw_box.h -= ((self.draw_box.h - WINDOW_TITLE_SIZE) if .Title in self.options else self.draw_box.h) * self.how_collapsed
 
 		// Decoration layer
 		if self.decor_layer, ok = begin_layer({
 			box = self.draw_box,
 			id = hash(rawptr(&self.id), size_of(Id)),
-			order = .floating,
+			order = .Floating,
 			shadow = Layer_Shadow_Info({
 				offset = SHADOW_OFFSET,
 				roundness = WINDOW_ROUNDNESS,
 			}),
-			options = {.no_scroll_y},
+			options = {.No_Scroll_Y},
 		}); ok {
 			// Body
-			if .collapsed not_in self.bits {
-				paint_rounded_box_fill(self.draw_box, WINDOW_ROUNDNESS, get_color(.base))
+			if .Collapsed not_in self.bits {
+				paint_rounded_box_fill(self.draw_box, WINDOW_ROUNDNESS, get_color(.Base))
 			}
 			// Draw title bar and get movement dragging
-			if .title in self.options {
-				title_box := cut(.top, WINDOW_TITLE_SIZE)
+			if .Title in self.options {
+				title_box := cut(.Top, WINDOW_TITLE_SIZE)
 				// Draw title boxangle
-				if .collapsed in self.bits {
-					paint_rounded_box_fill(title_box, WINDOW_ROUNDNESS, get_color(.intense))
+				if .Collapsed in self.bits {
+					paint_rounded_box_fill(title_box, WINDOW_ROUNDNESS, get_color(.Intense))
 				} else {
-					paint_rounded_box_corners_fill(title_box, WINDOW_ROUNDNESS, {.top_left, .top_right}, get_color(.intense))
+					paint_rounded_box_corners_fill(title_box, WINDOW_ROUNDNESS, {.Top_Left, .Top_Right}, get_color(.Intense))
 				}
 				// Title bar decoration
 				baseline := title_box.y + title_box.h / 2
 				text_offset := title_box.h * 0.25
-				can_collapse := .collapsable in self.options || .collapsed in self.bits
+				can_collapse := .Collapsable in self.options || .Collapsed in self.bits
 				if can_collapse {
-					paint_rotating_arrow({title_box.x + title_box.h / 2, baseline}, 8, self.how_collapsed, get_color(.base))
+					paint_rotating_arrow({title_box.x + title_box.h / 2, baseline}, 8, self.how_collapsed, get_color(.Base))
 					text_offset = title_box.h
 				}
-				paint_aligned_string(get_font_data(.default), self.title, {title_box.x + text_offset, baseline}, get_color(.base), {.near, .middle})
-				if .closable in self.options {
-					set_next_box(child_box(get_box_right(title_box, title_box.h), {24, 24}, {.middle, .middle}))
+				paint_aligned_string(get_font_data(.Default), self.title, {title_box.x + text_offset, baseline}, get_color(.Base), {.Near, .Middle})
+				if .Closable in self.options {
+					set_next_box(child_box(get_box_right(title_box, title_box.h), {24, 24}, {.Middle, .Middle}))
 					if do_button({
 						label = Icon.Close, 
-						align = .middle,
+						align = .Middle,
 					}) {
-						self.bits += {.should_close}
+						self.bits += {.Should_Close}
 					}
 				}
-				if .resizing not_in self.bits && core.layer_agent.hover_id == self.decor_layer.id && point_in_box(input.mouse_point, title_box) {
-					if .static not_in self.options && core.widget_agent.hover_id == 0 && mouse_pressed(.left) {
-						self.bits += {.moving}
+				if .Resizing not_in self.bits && core.layer_agent.hover_id == self.decor_layer.id && point_in_box(input.mouse_point, title_box) {
+					if .Static not_in self.options && core.widget_agent.hover_id == 0 && mouse_pressed(.Left) {
+						self.bits += {.Moving}
 						core.drag_anchor = ([2]f32){self.decor_layer.box.x, self.decor_layer.box.y} - input.mouse_point
 					}
-					if can_collapse && mouse_pressed(.right) {
-						if .should_collapse in self.bits {
-							self.bits -= {.should_collapse}
+					if can_collapse && mouse_pressed(.Right) {
+						if .Should_Collapse in self.bits {
+							self.bits -= {.Should_Collapse}
 						} else {
-							self.bits += {.should_collapse}
+							self.bits += {.Should_Collapse}
 						}
 					}
 				}
 			} else {
-				self.bits -= {.should_collapse}
+				self.bits -= {.Should_Collapse}
 			}
 		}
 		
 		inner_box := self.draw_box
-		box_cut(&inner_box, .top, WINDOW_TITLE_SIZE)
+		box_cut(&inner_box, .Top, WINDOW_TITLE_SIZE)
 
-		if .initialized not_in self.bits {
+		if .Initialized not_in self.bits {
 			self.min_layout_size = {inner_box.w, inner_box.h}
-			self.bits += {.initialized}
+			self.bits += {.Initialized}
 		}
 
-		layer_options := info.layer_options + {.attached}
-		if (self.how_collapsed > 0 && self.how_collapsed < 1) || (self.how_collapsed == 1 && .should_collapse not_in self.bits) {
-			layer_options += {.force_clip, .no_scroll_y}
+		layer_options := info.layer_options + {.Attached}
+		if (self.how_collapsed > 0 && self.how_collapsed < 1) || (self.how_collapsed == 1 && .Should_Collapse not_in self.bits) {
+			layer_options += {.Force_Clip, .No_Scroll_Y}
 			core.paint_next_frame = true
 		}
 
 		// Push layout if necessary
-		if .collapsed in self.bits {
+		if .Collapsed in self.bits {
 			ok = false
 		} else {
 			self.layer, ok = begin_layer({
@@ -245,40 +245,40 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				id = id, 
 				options = layer_options,
 				layout_size = self.min_layout_size,
-				order = .background,
+				order = .Background,
 			})
 		}
 
 		// Get resize click
-		if .resizable in self.options && self.decor_layer.state >= {.hovered} && .collapsed not_in self.bits {
+		if .Resizable in self.options && self.decor_layer.state >= {.Hovered} && .Collapsed not_in self.bits {
 			RESIZE_MARGIN :: 5
 			top_hover 		:= point_in_box(input.mouse_point, get_box_top(self.box, RESIZE_MARGIN))
 			left_hover 		:= point_in_box(input.mouse_point, get_box_left(self.box, RESIZE_MARGIN))
 			bottom_hover 	:= point_in_box(input.mouse_point, get_box_bottom(self.box, RESIZE_MARGIN))
 			right_hover 	:= point_in_box(input.mouse_point, get_box_right(self.box, RESIZE_MARGIN))
 			if top_hover || bottom_hover {
-				core.cursor = .resize_NS
+				core.cursor = .Resize_NS
 				core.widget_agent.hover_id = 0
 			}
 			if left_hover || right_hover {
-				core.cursor = .resize_EW
+				core.cursor = .Resize_EW
 				core.widget_agent.hover_id = 0
 			}
-			if mouse_pressed(.left) {
+			if mouse_pressed(.Left) {
 				if top_hover {
-					self.bits += {.resizing}
-					self.drag_side = .top
+					self.bits += {.Resizing}
+					self.drag_side = .Top
 					self.drag_anchor = self.box.y + self.box.h
 				} else if left_hover {
-					self.bits += {.resizing}
-					self.drag_side = .left
+					self.bits += {.Resizing}
+					self.drag_side = .Left
 					self.drag_anchor = self.box.x + self.box.w
 				} else if bottom_hover {
-					self.bits += {.resizing}
-					self.drag_side = .bottom
+					self.bits += {.Resizing}
+					self.drag_side = .Bottom
 				} else if right_hover {
-					self.bits += {.resizing}
-					self.drag_side = .right
+					self.bits += {.Resizing}
+					self.drag_side = .Right
 				}
 			}
 		}
@@ -291,30 +291,30 @@ _do_window :: proc(ok: bool) {
 		using self := current_window()
 		window_agent_pop(&core.window_agent)
 		// End main layer
-		if .collapsed not_in bits {
+		if .Collapsed not_in bits {
 			// Outline
-			paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, true, get_color(.base_stroke))
+			paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, true, get_color(.Base_Stroke))
 			end_layer(layer)
 		}
-		paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, true, get_color(.base_stroke))
+		paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, true, get_color(.Base_Stroke))
 		// End decor layer
 		end_layer(decor_layer)
 		// Handle movement
-		if .moving in bits {
-			core.cursor = .resize_all
+		if .Moving in bits {
+			core.cursor = .Resize_all
 			new_origin := input.mouse_point + core.drag_anchor
 			box.x = clamp(new_origin.x, 0, core.fullscreen_box.w - box.w)
 			box.y = clamp(new_origin.y, 0, core.fullscreen_box.h - box.h)
-			if mouse_released(.left) {
-				bits -= {.moving}
+			if mouse_released(.Left) {
+				bits -= {.Moving}
 			}
 		}
-		// Handle resizing
+		// Handle Resizing
 		WINDOW_SNAP_DISTANCE :: 10
-		if .resizing in bits {
-			min_size: [2]f32 = self.min_layout_size if .fit_to_layout in self.options else {180, 240}
+		if .Resizing in bits {
+			min_size: [2]f32 = self.min_layout_size if .Fit_To_Layout in self.options else {180, 240}
 			switch drag_side {
-				case .bottom:
+				case .Bottom:
 				anchor := input.mouse_point.y
 				for other in &core.window_agent.list {
 					if other != self {
@@ -324,9 +324,9 @@ _do_window :: proc(ok: bool) {
 					}
 				}
 				self.box.h = anchor - box.y
-				core.cursor = .resize_NS
+				core.cursor = .Resize_NS
 
-				case .left:
+				case .Left:
 				anchor := input.mouse_point.x
 				for other in &core.window_agent.list {
 					if other != self {
@@ -337,9 +337,9 @@ _do_window :: proc(ok: bool) {
 				}
 				self.box.x = min(anchor, self.drag_anchor - min_size.x)
 				self.box.w = self.drag_anchor - anchor
-				core.cursor = .resize_EW
+				core.cursor = .Resize_EW
 
-				case .right:
+				case .Right:
 				anchor := input.mouse_point.x
 				for other in &core.window_agent.list {
 					if other != self {
@@ -349,9 +349,9 @@ _do_window :: proc(ok: bool) {
 					}
 				}
 				self.box.w = anchor - box.x
-				core.cursor = .resize_EW
+				core.cursor = .Resize_EW
 
-				case .top:
+				case .Top:
 				anchor := input.mouse_point.y
 				for other in &core.window_agent.list {
 					if other != self {
@@ -362,12 +362,12 @@ _do_window :: proc(ok: bool) {
 				}
 				self.box.y = min(anchor, self.drag_anchor - min_size.y)
 				self.box.h = self.drag_anchor - anchor
-				core.cursor = .resize_NS
+				core.cursor = .Resize_NS
 			}
 			self.box.w = max(self.box.w, min_size.x)
 			self.box.h = max(self.box.h, min_size.y)
-			if mouse_released(.left) {
-				self.bits -= {.resizing}
+			if mouse_released(.Left) {
+				self.bits -= {.Resizing}
 			}
 		}
 	}

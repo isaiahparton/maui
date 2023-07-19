@@ -3,9 +3,9 @@ package maui
 import "core:fmt"
 
 Alignment :: enum {
-	near,
-	middle,
-	far,
+	Near,
+	Middle,
+	Far,
 }
 
 // A `Layout` is a context for placing widgets and other layouts
@@ -72,10 +72,10 @@ set_align_y :: proc(align: Alignment) {
 }
 set_margin_all :: proc(margin: f32) {
 	current_layout().margin = {
-		.top = margin, 
-		.bottom = margin, 
-		.left = margin, 
-		.right = margin,
+		.Top = margin, 
+		.Bottom = margin, 
+		.Left = margin, 
+		.Right = margin,
 	}
 }
 set_margin_side :: proc(side: Box_Side, margin: f32) {
@@ -86,13 +86,13 @@ set_margin_any :: proc(margin: [Box_Side]f32) {
 }
 set_margin_x :: proc(margin: f32) {
 	layout := current_layout()
-	layout.margin[.left] = margin
-	layout.margin[.right] = margin
+	layout.margin[.Left] = margin
+	layout.margin[.Right] = margin
 }
 set_margin_y :: proc(margin: f32) {
 	layout := current_layout()
-	layout.margin[.top] = margin
-	layout.margin[.bottom] = margin
+	layout.margin[.Top] = margin
+	layout.margin[.Bottom] = margin
 }
 set_margin :: proc {
 	set_margin_all,
@@ -102,7 +102,7 @@ set_margin :: proc {
 set_size :: proc(size: f32, relative := false) {
 	layout := current_layout()
 	if relative {
-		if layout.side == .top || layout.side == .bottom {
+		if layout.side == .Top || layout.side == .Bottom {
 			layout.size = layout.box.h * size
 		} else {
 			layout.size = layout.box.w * size
@@ -126,10 +126,10 @@ shrink :: proc(amount: f32, loc := #caller_location) {
 layout_next :: proc(using self: ^Layout) -> (result: Box) {
 	assert(self != nil)
 	switch side {
-		case .bottom: 	result = box_cut_bottom(&box, size)
-		case .top: 		result = box_cut_top(&box, size)
-		case .left: 	result = box_cut_left(&box, size)
-		case .right: 	result = box_cut_right(&box, size)
+		case .Bottom: 	result = box_cut_bottom(&box, size)
+		case .Top: 		result = box_cut_top(&box, size)
+		case .Left: 	result = box_cut_left(&box, size)
+		case .Right: 	result = box_cut_right(&box, size)
 	}
 
 	for side in Box_Side {
@@ -147,7 +147,7 @@ layout_next_child :: proc(self: ^Layout, size: [2]f32) -> Box {
 }
 layout_fit :: proc(self: ^Layout, size: [2]f32) {
 	assert(self != nil)
-	if self.side == .left || self.side == .right {
+	if self.side == .Left || self.side == .Right {
 		self.size = size.x
 	} else {
 		self.size = size.y
@@ -155,17 +155,17 @@ layout_fit :: proc(self: ^Layout, size: [2]f32) {
 }
 layout_fit_label :: proc(using self: ^Layout, label: Label) {
 	assert(self != nil)
-	if side == .left || side == .right {
-		size = measure_label(label).x + box.h / 2 + margin[.left] + margin[.right]
+	if side == .Left || side == .Right {
+		size = measure_label(label).x + box.h / 2 + margin[.Left] + margin[.Right]
 	} else {
-		size = measure_label(label).y + box.h / 2 + margin[.top] + margin[.bottom]
+		size = measure_label(label).y + box.h / 2 + margin[.Top] + margin[.Bottom]
 	}
 }
 cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
 	layout := current_layout()
 	amount := amount
 	if relative {
-		if side == .left || side == .right {
+		if side == .Left || side == .Right {
 			amount *= layout.box.w
 		} else {
 			amount *= layout.box.h
@@ -177,7 +177,7 @@ fake_cut :: proc(side: Box_Side, amount: f32, relative := false) -> Box {
 	layout := current_layout()
 	amount := amount
 	if relative {
-		if side == .left || side == .right {
+		if side == .Left || side == .Right {
 			amount *= layout.box.w
 		} else {
 			amount *= layout.box.h

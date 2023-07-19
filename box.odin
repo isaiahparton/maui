@@ -6,39 +6,39 @@ Box :: struct {
 }
 
 Box_Side :: enum {
-	top,
-	bottom,
-	left,
-	right,
+	Top,
+	Bottom,
+	Left,
+	Right,
 }
 
 Box_Sides :: bit_set[Box_Side;u8]
 
 Box_Corner :: enum {
-	top_left,
-	top_right,
-	bottom_right,
-	bottom_left,
+	Top_Left,
+	Top_Right,
+	Bottom_Right,
+	Bottom_Left,
 }
 
 Box_Corners :: bit_set[Box_Corner;u8]
 
 Clip :: enum {
-	none,		// completely visible
-	partial,	// partially visible
-	full,		// hidden
+	None,		// completely visible
+	Partial,	// partially visible
+	Full,		// hidden
 }
 
 get_clip :: proc(clip, subject: Box) -> Clip {
 	if subject.x > clip.x + clip.w || subject.x + subject.w < clip.x ||
 	   subject.y > clip.y + clip.h || subject.y + subject.h < clip.y { 
-		return .full 
+		return .Full 
 	}
 	if subject.x >= clip.x && subject.x + subject.w <= clip.x + clip.w &&
 	   subject.y >= clip.y && subject.y + subject.h <= clip.y + clip.h { 
-		return .none
+		return .None
 	}
-	return .partial
+	return .Partial
 }
 
 update_bounding_box :: proc(bounds, subject: Box) -> Box {
@@ -100,28 +100,28 @@ squish_box_bottom :: proc(box: Box, amount: f32) -> Box {
 }
 squish_box :: proc(box: Box, side: Box_Side, amount: f32) -> (result: Box) {
 	switch side {
-		case .bottom: 	result = squish_box_bottom(box, amount)
-		case .top: 		result = squish_box_top(box, amount)
-		case .left: 	result = squish_box_left(box, amount)
-		case .right: 	result = squish_box_right(box, amount)
+		case .Bottom: result = squish_box_bottom(box, amount)
+		case .Top: 		result = squish_box_top(box, amount)
+		case .Left: 	result = squish_box_left(box, amount)
+		case .Right: 	result = squish_box_right(box, amount)
 	}
 	return
 }
 
 child_box :: proc(parent: Box, size: [2]f32, align: [2]Alignment) -> Box {
 	box := Box{0, 0, size.x, size.y}
-	if align.x == .near {
+	if align.x == .Near {
 		box.x = parent.x
-	} else if align.x == .middle {
+	} else if align.x == .Middle {
 		box.x = parent.x + parent.w / 2 - box.w / 2
-	} else if align.x == .far {
+	} else if align.x == .Far {
 		box.x = parent.x + parent.w - box.w
 	}
-	if align.y == .near {
+	if align.y == .Near {
 		box.y = parent.y
-	} else if align.y == .middle {
+	} else if align.y == .Middle {
 		box.y = parent.y + parent.h / 2 - box.h / 2
-	} else if align.y == .far {
+	} else if align.y == .Far {
 		box.y = parent.y + parent.h - box.h
 	}
 	return box
@@ -178,10 +178,10 @@ box_cut_bottom :: proc(box: ^Box, amount: f32) -> (result: Box) {
 }
 box_cut :: proc(box: ^Box, side: Box_Side, amount: f32) -> Box {
 	switch side {
-		case .bottom: 	return box_cut_bottom(box, amount)
-		case .top: 		return box_cut_top(box, amount)
-		case .left: 	return box_cut_left(box, amount)
-		case .right: 	return box_cut_right(box, amount)
+		case .Bottom: 	return box_cut_bottom(box, amount)
+		case .Top: 		return box_cut_top(box, amount)
+		case .Left: 	return box_cut_left(box, amount)
+		case .Right: 	return box_cut_right(box, amount)
 	}
 	return {}
 }
@@ -201,10 +201,10 @@ get_box_bottom :: proc(b: Box, a: f32) -> Box {
 }
 get_box_cut :: proc(box: Box, side: Box_Side, amount: f32) -> Box {
 	switch side {
-		case .bottom: 	return get_box_bottom(box, amount)
-		case .top: 		return get_box_top(box, amount)
-		case .left: 	return get_box_left(box, amount)
-		case .right: 	return get_box_right(box, amount)
+		case .Bottom: 	return get_box_bottom(box, amount)
+		case .Top: 		return get_box_top(box, amount)
+		case .Left: 	return get_box_left(box, amount)
+		case .Right: 	return get_box_right(box, amount)
 	}
 	return {}
 }
@@ -224,19 +224,19 @@ attach_box_bottom :: proc(box: Box, amount: f32) -> Box {
 }
 attach_box :: proc(box: Box, side: Box_Side, size: f32) -> Box {
 	switch side {
-		case .bottom: 	return attach_box_bottom(box, size)
-		case .top: 		return attach_box_top(box, size)
-		case .left: 	return attach_box_left(box, size)
-		case .right: 	return attach_box_right(box, size)
+		case .Bottom: 	return attach_box_bottom(box, size)
+		case .Top: 		return attach_box_top(box, size)
+		case .Left: 	return attach_box_left(box, size)
+		case .Right: 	return attach_box_right(box, size)
 	}
 	return {}
 }
 side_corners :: proc(side: Box_Side) -> Box_Corners {
 	switch side {
-		case .bottom:  	return {.top_left, .top_right}
-		case .top:  	return {.bottom_left, .bottom_right}
-		case .left:  	return {.top_right, .bottom_right}
-		case .right:  	return {.top_left, .bottom_left}
+		case .Bottom:  	return {.Top_Left, .Top_Right}
+		case .Top:  	return {.Bottom_Left, .Bottom_Right}
+		case .Left:  	return {.Top_Right, .Bottom_Right}
+		case .Right:  	return {.Top_Left, .Bottom_Left}
 	}
 	return ALL_CORNERS
 }

@@ -18,41 +18,41 @@ WIDGET_TEXT_MARGIN :: 2
 
 // Default color schemes
 DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
-	.accent 			= {45, 105, 238, 255},
-	.base 				= {238, 238, 243, 255},
-	.base_shade 		= {0, 0, 0, 255},
-	.base_stroke		= {112, 113, 116, 255},
-	.widget_bg 			= {255, 255, 255, 255},
-	.widget	 			= {165, 165, 175, 255},
-	.widget_shade 		= {0, 0, 15, 255},
-	.widget_stroke 		= {105, 105, 105, 255},
-	.intense 			= {62, 62, 67, 255},
-	.intense_shade 		= {230, 239, 255, 255},
-	.shadow 			= {0, 0, 0, 35},
-	.text_inverted 		= {218, 218, 218, 255},
-	.text 				= {45, 45, 45, 255},
-	.tooltip_fill 		= {45, 45, 77, 255},
-	.tooltip_stroke  	= {},
-	.tooltip_text 		= {255, 255, 255, 255},
-	.scrollbar  		= {255, 255, 255, 255},
-	.scroll_thumb 		= {165, 185, 185, 255},
-	.scroll_thumb_shade = {255, 255, 255, 255},
+	.Accent 							= {45, 105, 238, 255},
+	.Base 								= {238, 238, 243, 255},
+	.Base_Shade 					= {0, 0, 0, 255},
+	.Base_Stroke					= {112, 113, 116, 255},
+	.Widget_BG						= {255, 255, 255, 255},
+	.Widget	 							= {165, 165, 175, 255},
+	.Widget_Shade 				= {0, 0, 15, 255},
+	.Widget_Stroke 				= {105, 105, 105, 255},
+	.Intense 							= {62, 62, 67, 255},
+	.Intense_Shade 				= {230, 239, 255, 255},
+	.Shadow 							= {0, 0, 0, 35},
+	.Text_Inverted 				= {218, 218, 218, 255},
+	.Text 								= {45, 45, 45, 255},
+	.Tooltip_Fill 				= {45, 45, 77, 255},
+	.Tooltip_Stroke  			= {},
+	.Tooltip_Text 				= {255, 255, 255, 255},
+	.Scrollbar  					= {255, 255, 255, 255},
+	.Scroll_Thumb 				= {165, 185, 185, 255},
+	.Scroll_Thumb_Shade 	= {255, 255, 255, 255},
 
-	.button_base 		= {82, 82, 92, 255},
-	.button_shade		= {0, 0, 0, 255},
-	.button_text 		= {255, 255, 255, 255},
+	.Button_Base 					= {82, 82, 92, 255},
+	.Button_Shade					= {0, 0, 0, 255},
+	.Button_Text 					= {255, 255, 255, 255},
 }
 /*DEFAULT_COLORS_DARK :: [Color_Index]Color {
 	.accent 			= {45, 135, 248, 255},
-	.base 				= {28, 28, 28, 255},
-	.base_shade 			= {255, 255, 255, 255},
-	.base_stroke			= {112, 113, 116, 255},
-	.widget_bg 	= {54, 54, 54, 255},
-	.widget	 			= {74, 74, 74, 255},
-	.widget_shade 		= {255, 255, 255, 255},
-	.widget_stroke 		= {105, 105, 105, 255},
-	.intense 			= {178, 178, 178, 255},
-	.intense_shade 		= {0, 0, 0, 255},
+	.Base 				= {28, 28, 28, 255},
+	.Base_Shade 			= {255, 255, 255, 255},
+	.Base_stroke			= {112, 113, 116, 255},
+	.Widget_bg 	= {54, 54, 54, 255},
+	.Widget	 			= {74, 74, 74, 255},
+	.Widget_Shade 		= {255, 255, 255, 255},
+	.Widget_stroke 		= {105, 105, 105, 255},
+	.Intense 			= {178, 178, 178, 255},
+	.Intense_Shade 		= {0, 0, 0, 255},
 	.shadow 			= {0, 0, 0, 55},
 	.text_inverted 		= {25, 25, 25, 255},
 	.text 				= {215, 215, 215, 255},
@@ -66,49 +66,49 @@ DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 
 Color_Index :: enum {
 	// Base color
-	base,
+	Base,
 	// Hover or click shading for base color
-	base_shade,
+	Base_Shade,
 	// Outlining for base color
-	base_stroke,
+	Base_Stroke,
 	// Color of focused or selected widgets
-	accent,
+	Accent,
 	// Background of a slider
-	widget_bg,
+	Widget_BG,
 	// Base color for widgets
-	widget,
+	Widget,
 	// How widgets are shaded when hovered or pressed
-	widget_shade,
+	Widget_Shade,
 	// Widget outline
-	widget_stroke,
+	Widget_Stroke,
 	// Outline
-	intense,
+	Intense,
 	// Outline shading
-	intense_shade,
+	Intense_Shade,
 	// Shadows
-	shadow,
+	Shadow,
 	// Color of text
-	text,
+	Text,
 	// Text color when highlighted
-	text_inverted,
+	Text_Inverted,
 	// Tooltips
-	tooltip_fill,
-	tooltip_stroke,
-	tooltip_text,
+	Tooltip_Fill,
+	Tooltip_Stroke,
+	Tooltip_Text,
 	// Scrollbars
-	scrollbar,
-	scroll_thumb,
-	scroll_thumb_shade,
+	Scrollbar,
+	Scroll_Thumb,
+	Scroll_Thumb_Shade,
 
-	button_base,
-	button_shade,
-	button_text,
+	Button_Base,
+	Button_Shade,
+	Button_Text,
 }
 Rule_Index :: enum {
-	window_roundness,
-	tab_roundness,
-	widget_text_offset,
-	window_title_size,
+	Window_Roundness,
+	Tab_Roundness,
+	Widget_Text_Offset,
+	Window_Title_Size,
 }
 
 MAX_COLOR_CHANGES :: 64
@@ -125,9 +125,9 @@ Rule_Change :: struct {
 
 // Style
 Style :: struct {
-	fontSizes: 			[Font_Index]int,
-	colors: 			[Color_Index]Color,
-	rules:				[Rule_Index]f32,
+	font_sizes: 				[Font_Index]int,
+	colors: 						[Color_Index]Color,
+	rules:							[Rule_Index]f32,
 
 	rule_change_stack:	[MAX_RULE_CHANGES]Rule_Change,
 	rule_change_count: 	int,
@@ -180,14 +180,14 @@ get_color :: proc(index: Color_Index, alpha: f32 = 1) -> Color {
 }
 
 style_shade :: proc(base: Color, amount: f32) -> Color {
-	return alpha_blend_colors(base, painter.style.colors[.widget_shade], amount * 0.1)
+	return alpha_blend_colors(base, painter.style.colors[.Widget_Shade], amount * 0.1)
 }
 style_intense_shaded :: proc(amount: f32) -> Color {
-	return alpha_blend_colors(painter.style.colors[.intense], painter.style.colors[.intense_shade], amount * 0.15)
+	return alpha_blend_colors(painter.style.colors[.Intense], painter.style.colors[.Intense_Shade], amount * 0.15)
 }
 style_widget_shaded :: proc(amount: f32) -> Color {
-	return alpha_blend_colors(painter.style.colors[.widget], painter.style.colors[.widget_shade], amount * 0.1)
+	return alpha_blend_colors(painter.style.colors[.Widget], painter.style.colors[.Widget_Shade], amount * 0.1)
 }
 style_base_shaded :: proc(amount: f32) -> Color {
-	return alpha_blend_colors(painter.style.colors[.base], painter.style.colors[.base_shade], amount * 0.1)
+	return alpha_blend_colors(painter.style.colors[.Base], painter.style.colors[.Base_Shade], amount * 0.1)
 }

@@ -12,71 +12,71 @@ import "core:unicode/utf8"
 TEXT_BREAK :: "..."
 
 Icon :: enum rune {
-	Cloud 				= 0xEB9C,
-	Hard_Drive 			= 0xF394,
-	Sliders 			= 0xEC9C,
-	Tree_Nodes 			= 0xEF90,
-	Ball_Pen  			= 0xEA8D,
+	Cloud 						= 0xEB9C,
+	Hard_Drive 				= 0xF394,
+	Sliders 					= 0xEC9C,
+	Tree_Nodes 				= 0xEF90,
+	Ball_Pen  				= 0xEA8D,
 	More_Horizontal 	= 0xEF78,
-	Code 				= 0xeba8,
-	Github 				= 0xedca,
-	Check 				= 0xEB7A,
-	Error 				= 0xECA0,
-	Close 				= 0xEB98,
-	Heart 				= 0xEE0E,
-	Alert 				= 0xEA20,
-	Edit 				= 0xEC7F,
-	Home 				= 0xEE18,
-	Server 				= 0xF0DF,
-	Add 				= 0xEA12,
-	Undo 				= 0xEA58,
+	Code 							= 0xeba8,
+	Github 						= 0xedca,
+	Check 						= 0xEB7A,
+	Error 						= 0xECA0,
+	Close 						= 0xEB98,
+	Heart 						= 0xEE0E,
+	Alert 						= 0xEA20,
+	Edit 							= 0xEC7F,
+	Home 							= 0xEE18,
+	Server 						= 0xF0DF,
+	Add 							= 0xEA12,
+	Undo 							= 0xEA58,
 	Shopping_Cart 		= 0xF11D,
-	Attach_File			= 0xEA84,
-	Remove 				= 0xF1AE,
-	Delete 				= 0xEC1D,
-	User 				= 0xF25F,
-	Format_Italic		= 0xe23f,
-	Format_Bold			= 0xe238,
+	Attach_File				= 0xEA84,
+	Remove 						= 0xF1AE,
+	Delete 						= 0xEC1D,
+	User 							= 0xF25F,
+	Format_Italic			= 0xe23f,
+	Format_Bold				= 0xe238,
 	Format_Underline	= 0xe249,
-	Chevron_Down 		= 0xEA4E,
-	Chevron_Left 		= 0xEA64,
+	Chevron_Down 			= 0xEA4E,
+	Chevron_Left 			= 0xEA64,
 	Chevron_Right 		= 0xEA6E,
-	Chevron_Up			= 0xEA78,
-	Folder 				= 0xED57,
-	Admin 				= 0xEA14,
+	Chevron_Up				= 0xEA78,
+	Folder 						= 0xED57,
+	Admin 						= 0xEA14,
 	Shopping_Basket 	= 0xF11A,
-	Shopping_Bag 		= 0xF115,
-	Receipt 			= 0xEAC2,
-	File_Paper 			= 0xECF8,
-	File_New 			= 0xECC2,
-	Calendar 			= 0xEB20,
-	Inventory 			= 0xF1C6,
-	History 			= 0xEE17,
-	Copy 				= 0xECD2,
+	Shopping_Bag 			= 0xF115,
+	Receipt 					= 0xEAC2,
+	File_Paper 				= 0xECF8,
+	File_New 					= 0xECC2,
+	Calendar 					= 0xEB20,
+	Inventory 				= 0xF1C6,
+	History 					= 0xEE17,
+	Copy 							= 0xECD2,
 	Checkbox_Multiple	= 0xEB88,
-	Eye 				= 0xECB4,
-	Eye_Off 			= 0xECB6,
-	Box 				= 0xF2F3,
-	Archive 			= 0xEA47,
-	Cog 				= 0xF0ED,
-	Group 				= 0xEDE2,
-	Flow_Chart 			= 0xEF59,
-	Pie_Chart 			= 0xEFF5,
-	Keyboard 			= 0xEE74,
-	Spreadsheet			= 0xECDE,
-	Contact_Book 		= 0xEBCB,
-	Pin 				= 0xF038,
-	Unpin 				= 0xF376,
-	Filter 				= 0xED26,
-	Filter_Off 			= 0xED28,
-	Search 				= 0xF0CD,
-	Printer 			= 0xF028,
-	Draft_Fill 			= 0xEC5B,
-	Check_List 			= 0xEEB9,
-	Numbers 			= 0xEFA9,
-	Refund 				= 0xF067,
-	Wallet 				= 0xF2AB,
-	Bank_Card 			= 0xEA91,
+	Eye 							= 0xECB4,
+	Eye_Off 					= 0xECB6,
+	Box 							= 0xF2F3,
+	Archive 					= 0xEA47,
+	Cog 							= 0xF0ED,
+	Group 						= 0xEDE2,
+	Flow_Chart 				= 0xEF59,
+	Pie_Chart 				= 0xEFF5,
+	Keyboard 					= 0xEE74,
+	Spreadsheet				= 0xECDE,
+	Contact_Book 			= 0xEBCB,
+	Pin 							= 0xF038,
+	Unpin 						= 0xF376,
+	Filter 						= 0xED26,
+	Filter_Off 				= 0xED28,
+	Search 						= 0xF0CD,
+	Printer 					= 0xF028,
+	Draft_Fill 				= 0xEC5B,
+	Check_List 				= 0xEEB9,
+	Numbers 					= 0xEFA9,
+	Refund 						= 0xF067,
+	Wallet 						= 0xF2AB,
+	Bank_Card 				= 0xEA91,
 }
 
 // Text formatting for short term usage
@@ -183,15 +183,15 @@ paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: 
 	next_word_index: int
 
 	total_size: [2]f32
-	if info.align.x != .near || info.align.y != .near {
+	if info.align.x != .Near || info.align.y != .Near {
 		total_size = measure_string(font, text)
 		#partial switch info.align.x {
-			case .far: point.x += box.w - total_size.x
-			case .middle: point.x += box.w / 2 - total_size.x / 2
+			case .Far: point.x += box.w - total_size.x
+			case .Middle: point.x += box.w / 2 - total_size.x / 2
 		}
 		#partial switch info.align.y {
-			case .far: point.y += box.h - total_size.y
-			case .middle: point.y += box.h / 2 - total_size.y / 2
+			case .Far: point.y += box.h - total_size.y
+			case .Middle: point.y += box.h / 2 - total_size.y / 2
 		}
 	}
 
@@ -284,16 +284,16 @@ String_Paint_Info :: struct {
 paint_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, color: Color, info: String_Paint_Info = {}) -> [2]f32 {
 	origin := origin
 	size: [2]f32
-	if info.align.x != .near || info.align.y != .near {
+	if info.align.x != .Near || info.align.y != .Near {
 		size = measure_string(font, text)
 	}
 	#partial switch info.align.x {
-		case .middle: origin.x -= math.trunc(size.x / 2)
-		case .far: origin.x -= size.x
+		case .Middle: origin.x -= math.trunc(size.x / 2)
+		case .Far: origin.x -= size.x
 	}
 	#partial switch info.align.y {
-		case .middle: origin.y -= math.trunc(size.y / 2)
-		case .far: origin.y -= size.y
+		case .Middle: origin.y -= math.trunc(size.y / 2)
+		case .Far: origin.y -= size.y
 	}
 	size = {}
 	point := origin
@@ -324,14 +324,14 @@ paint_aligned_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, col
 paint_aligned_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
    	box := glyph.src
 	switch align.x {
-		case .far: box.x = origin.x - box.w
-		case .middle: box.x = origin.x - math.floor(box.w / 2)
-		case .near: box.x = origin.x
+		case .Far: box.x = origin.x - box.w
+		case .Middle: box.x = origin.x - math.floor(box.w / 2)
+		case .Near: box.x = origin.x
 	}
 	switch align.y {
-		case .far: box.y = origin.y - box.h
-		case .middle: box.y = origin.y - math.floor(box.h / 2)
-		case .near: box.y = origin.y
+		case .Far: box.y = origin.y - box.h
+		case .Middle: box.y = origin.y - math.floor(box.h / 2)
+		case .Near: box.y = origin.y
 	}
     paint_texture(glyph.src, box, color)
 
@@ -344,14 +344,14 @@ paint_aligned_icon :: proc(font_data: ^Font_Data, icon: Icon, origin: [2]f32, si
 	box.w *= size
 	box.h *= size
 	switch align.x {
-		case .far: box.x = origin.x - box.w
-		case .middle: box.x = origin.x - box.w / 2
-		case .near: box.x = origin.x
+		case .Far: box.x = origin.x - box.w
+		case .Middle: box.x = origin.x - box.w / 2
+		case .Near: box.x = origin.x
 	}
 	switch align.y {
-		case .far: box.y = origin.y - box.h
-		case .middle: box.y = origin.y - box.h / 2
-		case .near: box.y = origin.y
+		case .Far: box.y = origin.y - box.h
+		case .Middle: box.y = origin.y - box.h / 2
+		case .Near: box.y = origin.y
 	}
     paint_texture(glyph.src, box, color)
     return {box.w, box.h}
@@ -394,11 +394,10 @@ paint_clipped_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, clip: Box, color:
 
 // Advanced interactive text
 Selectable_Text_Bit :: enum {
-	password,
+	Password,
 	mutable,
-	select_all,
-	multiline,
-	no_paint,
+	Select_All,
+	No_Paint,
 }
 
 Selectable_Text_Bits :: bit_set[Selectable_Text_Bit]
@@ -428,7 +427,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	//FIXME: fix me!
 	state := &core.typing_agent
 	// Should paint?
-	should_paint := .no_paint not_in info.bits
+	should_paint := .No_Paint not_in info.bits
 	// For calculating hovered glyph
 	hover_index := 0
 	min_dist: f32 = math.F32_MAX
@@ -436,22 +435,22 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	origin: [2]f32 = {info.box.x, info.box.y}
 	// Get text size if necessary
 	text_size: [2]f32
-	if info.align.x != .near || info.align.y != .near {
+	if info.align.x != .Near || info.align.y != .Near {
 		text_size = measure_string(info.font_data, string(info.data))
 	}
 	// Handle alignment
 	switch info.align.x {
-		case .near: origin.x += info.padding.x
-		case .middle: origin.x += info.box.w / 2 - text_size.x / 2
-		case .far: origin.x += info.box.w - text_size.x - info.padding.x
+		case .Near: origin.x += info.padding.x
+		case .Middle: origin.x += info.box.w / 2 - text_size.x / 2
+		case .Far: origin.x += info.box.w - text_size.x - info.padding.x
 	}
 	switch info.align.y {
-		case .near: origin.y += info.padding.y
-		case .middle: origin.y += info.box.h / 2 - text_size.y / 2
-		case .far: origin.y += info.box.h - text_size.y - info.padding.y
+		case .Near: origin.y += info.padding.y
+		case .Middle: origin.y += info.box.h / 2 - text_size.y / 2
+		case .Far: origin.y += info.box.h - text_size.y - info.padding.y
 	}
 	// Offset view when currently focused
-	if .got_focus not_in widget.state {
+	if .Got_Focus not_in widget.state {
 		origin -= info.view_offset
 	}
 	point := origin
@@ -461,7 +460,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	cursor_low: [2]f32 = 3.40282347E+38
 	cursor_high: [2]f32
 	// Reset view offset when just focused
-	if .got_focus in widget.state {
+	if .Got_Focus in widget.state {
 		state.index = 0
 		state.length = 0
 		state.last_index = 0
@@ -469,10 +468,10 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		state.anchor = 0
 		result.view_offset = {}
 	}
-	if .focused in widget.state {
+	if .Focused in widget.state {
 		// Content copy
-		if key_down(.control) {
-			if key_pressed(.c) {
+		if key_down(.Control) {
+			if key_pressed(.C) {
 				if state.length > 0 {
 					set_clipboard_string(string(info.data[state.index:][:state.length]))
 				} else {
@@ -490,7 +489,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			glyph, bytes = utf8.decode_rune_in_bytes(info.data[index:])
 		}
 		// Password placeholder glyph
-		if .password in info.bits {
+		if .Password in info.bits {
 			glyph = '•'
 		}
 		is_tab := glyph == '\t'
@@ -503,7 +502,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		}
 		highlight := false
 		// Draw cursors
-		if should_paint && .focused in widget.state && .got_focus not_in widget.state {
+		if should_paint && .Focused in widget.state && .Got_Focus not_in widget.state {
 			// Draw cursor/selection if allowed
 			if state.length == 0 {
 				if state.index == index && point.x >= info.box.x && point.x < info.box.x + info.box.w {
@@ -517,7 +516,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 							1, 
 							info.font_data.size,
 						}, info.box), 
-						color = get_color(.text),
+						color = get_color(.Text),
 						)
 				}
 			} else if index >= state.index && index < state.index + state.length {
@@ -530,7 +529,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 						glyph_width,
 						info.font_data.size,
 					}, info.box), 
-					color = get_color(.text),
+					color = get_color(.Text),
 					)
 				highlight = true
 			}
@@ -542,7 +541,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			min_dist = dist
 			hover_index = index
 		}
-		if .focused in widget.state {
+		if .Focused in widget.state {
 			if index == state.index {
 				cursor_low = point - origin
 			}
@@ -561,7 +560,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			size.y += info.font_data.size
 			result.line_count += 1
 		} else if should_paint && glyph != '\t' && glyph != ' ' {
-			paint_clipped_glyph(glyph_data, point, info.box, get_color(.text_inverted if highlight else .text, 1))
+			paint_clipped_glyph(glyph_data, point, info.box, get_color(.Text_Inverted if highlight else .Text, 1))
 		}
 		// Finished, move index and point
 		point.x += glyph_width
@@ -569,15 +568,15 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		index += bytes
 	}
 	// Handle initial text selection
-	if .select_all in info.bits {
-		if .got_focus in widget.state {
+	if .Select_All in info.bits {
+		if .Got_Focus in widget.state {
 			state.index = 0
 			state.anchor = 0
 			state.length = len(info.data)
 		}
 	}
 	// Text selection by clicking
-	if .got_press in widget.state {
+	if .Got_Press in widget.state {
 		if widget.click_count == 1 {
 			// Select the hovered word
 			// Move index to the beginning of the hovered word
@@ -615,7 +614,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	// Get desired bounds for cursor
 	inner_size: [2]f32 = {info.box.w, info.box.h} - info.padding * 2
 	// View offset
-	if widget.state >= {.pressed} && widget.click_count == 0 {
+	if widget.state >= {.Pressed} && widget.click_count == 0 {
 		// Selection by dragging
 		if hover_index < state.anchor {
 			state.index = hover_index
@@ -641,7 +640,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			}
 		}
 		core.paint_next_frame = true
-	} else if .focused in widget.state && .lost_press not_in widget.state {
+	} else if .Focused in widget.state && .Lost_Press not_in widget.state {
 		// Handle view offset
 		if state.index != state.last_index || state.length != state.last_length {
 			if cursor_low.x < result.view_offset.x {

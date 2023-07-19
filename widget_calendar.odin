@@ -12,24 +12,24 @@ Date_Picker_Info :: struct {
 do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (changed: bool) {
 	if self, ok := do_widget(hash(loc), layout_next(current_layout()), {}); ok {
 
-		hover_time := animate_bool(self.id, .hovered in self.state, 0.1)
+		hover_time := animate_bool(self.id, .Hovered in self.state, 0.1)
 
 		year, month, day := time.date(info.value^)
-		if .should_paint in self.bits {
-			paint_box_fill(self.box, alpha_blend_colors(get_color(.widget_bg), get_color(.widget_shade), 0.2 if .pressed in self.state else hover_time * 0.1))
-			paint_box_stroke(self.box, 1, get_color(.widget_stroke, 0.5 + 0.5 * hover_time))
-			paint_label_box(text_format("%2i-%2i-%4i", day, int(month), year), shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.button_base), {.near, .middle})
-			paint_aligned_icon(get_font_data(.default), .Calendar, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.button_base), {.middle, .middle})
+		if .Should_Paint in self.bits {
+			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
+			paint_box_stroke(self.box, 1, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
+			paint_label_box(text_format("%2i-%2i-%4i", day, int(month), year), shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.Button_Base), {.Near, .Middle})
+			paint_aligned_icon(get_font_data(.Default), .Calendar, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.Button_Base), {.Middle, .Middle})
 		}
 
-		if .active in self.bits {
+		if .Active in self.bits {
 			box: Box = {0, 0, CALENDAR_WIDTH, CALENDAR_HEIGHT}
 			box.x = self.box.x + self.box.w / 2 - box.w / 2
 			box.y = self.box.y + self.box.h
 			if layer, ok := do_layer({
 				box = box,
-				order = .background,
-				options = {.attached},
+				order = .Background,
+				options = {.Attached},
 				shadow = Layer_Shadow_Info({
 					roundness = WINDOW_ROUNDNESS,
 					offset = SHADOW_OFFSET,
@@ -40,10 +40,10 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				year, month, day := time.date(info.temp_value^)
 
 				// Fill
-				paint_rounded_box_fill(layer.box, WINDOW_ROUNDNESS, get_color(.widget_bg))
+				paint_rounded_box_fill(layer.box, WINDOW_ROUNDNESS, get_color(.Widget_BG))
 				shrink(10)
-				if do_layout(.top, 20) {
-					set_side(.left); set_size(135); set_align(.middle)
+				if do_layout(.Top, 20) {
+					set_side(.Left); set_size(135); set_align(.Middle)
 					month_days := int(time.days_before[int(month)])
 					if int(month) > 0 {
 						month_days -= int(time.days_before[int(month) - 1])
@@ -86,8 +86,8 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					}
 				}
 				space(10)
-				if do_layout(.top, 20) {
-					set_side(.left); set_size(70)
+				if do_layout(.Top, 20) {
+					set_side(.Left); set_size(70)
 					// Subtract one year
 					if do_button({label = "<<<", style = .Filled}) {
 						year -= 1
@@ -127,8 +127,8 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 				}
-				if do_layout(.top, 20) {
-					set_side(.left); set_size(60); set_align(.middle)
+				if do_layout(.Top, 20) {
+					set_side(.Left); set_size(60); set_align(.Middle)
 					for day in ([]string)({"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}) {
 						do_text({text = day})
 					}
@@ -137,50 +137,50 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				OFFSET :: i64(time.Hour * 72)
 				t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
 				day_time := (t._nsec / WEEK_DURATION) * WEEK_DURATION - OFFSET
-				if do_layout(.top, 20) {
-					set_side(.left); set_size(60)
+				if do_layout(.Top, 20) {
+					set_side(.Left); set_size(60)
 					for i in 0..<42 {
 						if (i > 0) && (i % 7 == 0) {
 							pop_layout()
-							push_layout(cut(.top, 20))
-							set_side(.left); set_size(60)
+							push_layout(cut(.Top, 20))
+							set_side(.Left); set_size(60)
 						}
 						_, _month, _day := time.date(transmute(time.Time)day_time)
 						push_id(i)
-							if do_button({label = format(_day), style = .Filled if (_month == month && _day == day) else .Outlined, color = get_color(.button_base, 0.5) if time.month(transmute(time.Time)day_time) != month else nil}) {
+							if do_button({label = format(_day), style = .Filled if (_month == month && _day == day) else .Outlined, color = get_color(.Button_Base, 0.5) if time.month(transmute(time.Time)day_time) != month else nil}) {
 								info.temp_value^ = transmute(time.Time)day_time
 							}
 						pop_id()
 						day_time += i64(time.Hour * 24)
 					}
 				}
-				if do_layout(.bottom, 30) {
-					set_side(.right); set_size(60)
+				if do_layout(.Bottom, 30) {
+					set_side(.Right); set_size(60)
 					if do_button({label = "Cancel", style = .Outlined}) {
 						info.temp_value^ = info.value^
-						self.bits -= {.active}
+						self.bits -= {.Active}
 					}
 					space(10)
 					if do_button({label = "Save"}) {
 						info.value^ = info.temp_value^
-						self.bits -= {.active}
+						self.bits -= {.Active}
 						changed = true
 					}
-					set_side(.left); set_size(60)
+					set_side(.Left); set_size(60)
 					if do_button({label = "Today", style = .Outlined}) {
 						info.temp_value^ = time.now()
 					}
 				}
 				// Stroke
-				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, true, get_color(.base_stroke))
+				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, true, get_color(.Base_Stroke))
 
 				info.temp_value._nsec = max(info.temp_value._nsec, 0)
 			}
 		}
 
-		if widget_clicked(self, .left) {
-			self.bits ~= {.active}
-			if self.bits >= {.active} {
+		if widget_clicked(self, .Left) {
+			self.bits ~= {.Active}
+			if self.bits >= {.Active} {
 				info.temp_value^ = info.value^
 			}
 		}

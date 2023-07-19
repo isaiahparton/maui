@@ -9,10 +9,10 @@ import "core:math/linalg"
 
 // Layer interaction state
 Layer_Status :: enum {
-	got_hover,
-	hovered,
-	lost_hover,
-	focused,
+	Got_Hover,
+	Hovered,
+	Lost_Hover,
+	Focused,
 }
 
 Layer_State :: bit_set[Layer_Status]
@@ -20,16 +20,16 @@ Layer_State :: bit_set[Layer_Status]
 // General purpose booleans
 Layer_Bit :: enum {
 	// If the layer should stay alive
-	stay_alive,
+	Stay_Alive,
 	// If the layer requires clipping
-	clipped,
+	Clipped,
 	// If the layer requires scrollbars on either axis
-	scroll_x,
-	scroll_y,
+	Scroll_X,
+	Scroll_Y,
 	// If the layer was dismissed by an input
-	dismissed,
+	Dismissed,
 	// If the layer pushed to the id stack this frame
-	did_push_id,
+	Did_Push_ID,
 }
 
 Layer_Bits :: bit_set[Layer_Bit]
@@ -37,23 +37,23 @@ Layer_Bits :: bit_set[Layer_Bit]
 // Options
 Layer_Option :: enum {
 	// If the layer is attached (fixed) to it's parent
-	attached,
+	Attached,
 	// If the layer is spawned with 0 or 1 opacity
-	invisible,
+	Invisible,
 	// Disallow scrolling on either axis
-	no_scroll_x,
-	no_scroll_y,
+	No_Scroll_X,
+	No_Scroll_Y,
 	// Scroll bars won't affect layout size
-	no_scroll_margin_x,
-	no_scroll_margin_y,
+	No_Scroll_Margin_X,
+	No_Scroll_Margin_Y,
 	// Doesn't push the layers's id to the stack
-	no_id,
+	No_ID,
 	// Forces the layer to always clip its contents
-	force_clip,
+	Force_Clip,
 	// Forces the layer to fit inside its parent
-	clip_to_parent,
+	Clip_To_Parent,
 	// The layer does not move
-	no_sort,
+	No_Sorting,
 	// Steal focus
 	Steal_Focus,
 }
@@ -65,13 +65,13 @@ Layer_Options :: bit_set[Layer_Option]
 */
 Layer_Order :: enum {
 	// Allways in the background, fixed order
-	background,
+	Background,
 	// Free floating layers, dynamic order
-	floating,
+	Floating,
 	// Allways in the foreground, fixed order
-	tooltip,
+	Tooltip,
 	// Special layer for debug drawing
-	debug,
+	Debug,
 }
 
 // A layer's own data
@@ -159,7 +159,7 @@ layer_agent_begin_root :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 		id = 0,
 		box = core.fullscreen_box, 
 		layout_size = ([2]f32){core.fullscreen_box.w, core.fullscreen_box.h},
-		options = {.no_id},
+		options = {.No_ID},
 	})
 	return
 }
@@ -173,13 +173,13 @@ layer_agent_step :: proc(using self: ^Layer_Agent) {
 	last_hover_id = hover_id
 	hover_id = 0
 	for layer, i in list {
-		if .stay_alive in layer.bits {
-			layer.bits -= {.stay_alive}
+		if .Stay_Alive in layer.bits {
+			layer.bits -= {.Stay_Alive}
 			if point_in_box(input.mouse_point, layer.box) {
 				hover_id = layer.id
-				if mouse_pressed(.left) {
+				if mouse_pressed(.Left) {
 					focus_id = layer.id
-					if .no_sort not_in layer.options {
+					if .No_Sorting not_in layer.options {
 						sorted_layer = layer
 					}
 				}
@@ -204,7 +204,7 @@ layer_agent_step :: proc(using self: ^Layer_Agent) {
 		for child.parent != nil {
 			top_id = child.id
 			sorted_layer = child
-			if child.options >= {.attached} {
+			if child.options >= {.Attached} {
 				child = child.parent
 			} else {
 				break
@@ -260,13 +260,13 @@ layer_agent_create :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Opti
 	layer^ = {
 		reserved = true,
 		id = id,
-		opacity = 0 if .invisible in options else 1,
+		opacity = 0 if .Invisible in options else 1,
 	}
 	// Append the new layer
 	append(&list, layer)
 	pool[id] = layer
 	if stack.height > 0 {
-		parent := current_layer if .attached in options else root_layer
+		parent := current_layer if .Attached in options else root_layer
 		append(&parent.children, layer)
 		layer.parent = parent
 		layer.index = len(parent.children)
@@ -320,10 +320,10 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 		inner_box = shrink_box(box, info.scrollbar_padding.? or_else 0),
 		layout_size = info.layout_size, 
 		id = hash(loc), 
-		options = info.options + {.clip_to_parent, .attached, .no_sort},
+		options = info.options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
 	if ok {
-		paint_box_fill(self.box, info.fill_color.? or_else get_color(.base_shade, 0.075))
+		paint_box_fill(self.box, info.fill_color.? or_else get_color(.Base_Shade, 0.075))
 	}
 	return
 }
@@ -332,7 +332,7 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 _do_frame :: proc(ok: bool) {
 	if ok {
 		assert(core.layer_agent.current_layer != nil)
-		paint_box_stroke(core.layer_agent.current_layer.box, 1, get_color(.base_stroke))
+		paint_box_stroke(core.layer_agent.current_layer.box, 1, get_color(.Base_Stroke))
 		end_layer(core.layer_agent.current_layer)
 	}
 }
@@ -401,15 +401,15 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		}
 
 		// Begin id context for layer contents
-		if .no_id not_in self.options {
+		if .No_ID not_in self.options {
 			push_id(self.id)
-			self.bits += {.did_push_id}
+			self.bits += {.Did_Push_ID}
 		} else {
-			self.bits -= {.did_push_id}
+			self.bits -= {.Did_Push_ID}
 		}
 
 		// Reset stuff
-		self.bits += {.stay_alive}
+		self.bits += {.Stay_Alive}
 		self.command_offset = 0
 
 		// Get box
@@ -420,24 +420,24 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.state = self.next_state
 		self.next_state = {}
 		if agent.hover_id == self.id {
-			self.state += {.hovered}
+			self.state += {.Hovered}
 			if agent.last_hover_id != self.id {
-				self.state += {.got_hover}
+				self.state += {.Got_Hover}
 			}
 		} else if agent.last_hover_id == self.id {
-			self.state += {.lost_hover}
+			self.state += {.Lost_Hover}
 		}
 		if agent.focus_id == self.id {
-			self.state += {.focused}
+			self.state += {.Focused}
 		}
 
 		// Attachment
-		if .attached in self.options {
+		if .Attached in self.options {
 			assert(self.parent != nil)
 			parent := self.parent
 			for parent != nil {
 				parent.next_state += self.state
-				if .attached not_in parent.options {
+				if .Attached not_in parent.options {
 					break
 				}
 				parent = parent.parent
@@ -445,8 +445,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		}
 
 		// Update clip status
-		self.bits -= {.clipped}
-		if .clip_to_parent in self.options && self.parent != nil && !box_in_box(self.parent.box, self.box) {
+		self.bits -= {.Clipped}
+		if .Clip_To_Parent in self.options && self.parent != nil && !box_in_box(self.parent.box, self.box) {
 			self.box = clamp_box(self.box, self.parent.box)
 		}
 
@@ -457,7 +457,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 
 		// Shadows
 		if shadow, ok := info.shadow.?; ok {
-			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, get_color(.shadow))
+			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, get_color(.Shadow))
 		}
 		self.clip_command = push_command(self, Command_Clip)
 		self.clip_command.box = core.fullscreen_box
@@ -473,14 +473,14 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		SCROLL_LERP_SPEED :: 7
 
 		// Horizontal scrolling
-		if self.layout_size.x > self.box.w && .no_scroll_x not_in self.options {
-			self.bits += {.scroll_x}
+		if self.layout_size.x > self.box.w && .No_Scroll_X not_in self.options {
+			self.bits += {.Scroll_X}
 			self.x_scroll_time = min(1, self.x_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
-			self.bits -= {.scroll_x}
+			self.bits -= {.Scroll_X}
 			self.x_scroll_time = max(0, self.x_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
 		}
-		if .no_scroll_margin_y not_in self.options && self.layout_size.y <= self.box.h {
+		if .No_Scroll_Margin_Y not_in self.options && self.layout_size.y <= self.box.h {
 			self.layout_size.y -= self.x_scroll_time * SCROLL_BAR_SIZE
 		}
 		if self.x_scroll_time > 0 && self.x_scroll_time < 1 {
@@ -488,14 +488,14 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		}
 
 		// Vertical scrolling
-		if self.layout_size.y > self.box.h && .no_scroll_y not_in self.options {
-			self.bits += {.scroll_y}
+		if self.layout_size.y > self.box.h && .No_Scroll_Y not_in self.options {
+			self.bits += {.Scroll_Y}
 			self.y_scroll_time = min(1, self.y_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
-			self.bits -= {.scroll_y}
+			self.bits -= {.Scroll_Y}
 			self.y_scroll_time = max(0, self.y_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
 		}
-		if .no_scroll_margin_x not_in self.options && self.layout_size.x <= self.box.w {
+		if .No_Scroll_Margin_X not_in self.options && self.layout_size.x <= self.box.w {
 			self.layout_size.x -= self.y_scroll_time * SCROLL_BAR_SIZE
 		}
 		if self.y_scroll_time > 0 && self.y_scroll_time < 1 {
@@ -520,15 +520,15 @@ end_layer :: proc(self: ^Layer) {
 	if self != nil {
 		// Debug stuff
 		when ODIN_DEBUG {
-			if .show_window in core.debug_bits && self.id != 0 && core.layer_agent.debug_id == self.id {
+			if .Show_Window in core.debug_bits && self.id != 0 && core.layer_agent.debug_id == self.id {
 				paint_box_fill(self.box, {255, 0, 255, 20})
 				paint_box_stroke(self.box, 1, {255, 0, 255, 255})
 			}
 		}
 
 		// Detect clipping
-		if (self.box != core.fullscreen_box && !box_in_box(self.box, self.content_box)) || .force_clip in self.options {
-			self.bits += {.clipped}
+		if (self.box != core.fullscreen_box && !box_in_box(self.box, self.content_box)) || .Force_Clip in self.options {
+			self.bits += {.Clipped}
 		}
 
 		// End layout
@@ -545,7 +545,7 @@ end_layer :: proc(self: ^Layer) {
 		}
 
 		// Update scroll offset
-		if .hovered in self.state {
+		if .Hovered in self.state {
 			self.scroll_target -= input.mouse_scroll * SCROLL_STEP
 		}
 		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
@@ -593,7 +593,7 @@ end_layer :: proc(self: ^Layer) {
 		}
 
 		// Handle content clipping
-		if .clipped in self.bits {
+		if .Clipped in self.bits {
 			// Apply clipping
 			assert(self.clip_command != nil)
 			self.box.h = max(0, self.box.h)
@@ -602,12 +602,12 @@ end_layer :: proc(self: ^Layer) {
 		// Push a new clip command to end clipping
 		push_command(self, Command_Clip).box = core.fullscreen_box
 		
-		if .attached in self.options {
+		if .Attached in self.options {
 			self.parent.content_box = update_bounding_box(self.parent.content_box, self.inner_box)
 		}
 		
 		// End id context
-		if .did_push_id in self.bits {
+		if .Did_Push_ID in self.bits {
 			pop_id()
 		}
 	}

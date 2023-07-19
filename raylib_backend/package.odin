@@ -33,24 +33,24 @@ uninit :: proc() {
 begin_frame :: proc() {
 	ui.set_screen_size(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
 	ui.set_mouse_point(f32(rl.GetMouseX()), f32(rl.GetMouseY()))
-	ui.set_mouse_bit(.left, rl.IsMouseButtonDown(.LEFT))
-	ui.set_mouse_bit(.right, rl.IsMouseButtonDown(.RIGHT))
-	ui.set_mouse_bit(.middle, rl.IsMouseButtonDown(.MIDDLE))
+	ui.set_mouse_bit(.Left, rl.IsMouseButtonDown(.LEFT))
+	ui.set_mouse_bit(.Right, rl.IsMouseButtonDown(.RIGHT))
+	ui.set_mouse_bit(.Middle, rl.IsMouseButtonDown(.MIDDLE))
 
-	ui.set_key_bit(.control, rl.IsKeyDown(.LEFT_CONTROL) || rl.IsKeyDown(.RIGHT_CONTROL))
-	shift_down := rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT); ui.set_key_bit(.shift, shift_down)
-	ui.set_key_bit(.backspace, rl.IsKeyDown(.BACKSPACE))
-	ui.set_key_bit(.tab, rl.IsKeyDown(.TAB))
-	ui.set_key_bit(.left, rl.IsKeyDown(.LEFT))
-	ui.set_key_bit(.right, rl.IsKeyDown(.RIGHT))
-	ui.set_key_bit(.up, rl.IsKeyDown(.UP))
-	ui.set_key_bit(.down, rl.IsKeyDown(.DOWN))
-	ui.set_key_bit(.alt, rl.IsKeyDown(.LEFT_ALT))
-	ui.set_key_bit(.enter, rl.IsKeyDown(.ENTER))
-	ui.set_key_bit(.a, rl.IsKeyDown(.A))
-	ui.set_key_bit(.x, rl.IsKeyDown(.X))
-	ui.set_key_bit(.c, rl.IsKeyDown(.C))
-	ui.set_key_bit(.v, rl.IsKeyDown(.V))
+	ui.set_key_bit(.Control, rl.IsKeyDown(.LEFT_CONTROL) || rl.IsKeyDown(.RIGHT_CONTROL))
+	shift_down := rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT); ui.set_key_bit(.Shift, shift_down)
+	ui.set_key_bit(.Backspace, rl.IsKeyDown(.BACKSPACE))
+	ui.set_key_bit(.Tab, rl.IsKeyDown(.TAB))
+	ui.set_key_bit(.Left, rl.IsKeyDown(.LEFT))
+	ui.set_key_bit(.Right, rl.IsKeyDown(.RIGHT))
+	ui.set_key_bit(.Up, rl.IsKeyDown(.UP))
+	ui.set_key_bit(.Down, rl.IsKeyDown(.DOWN))
+	ui.set_key_bit(.Alt, rl.IsKeyDown(.LEFT_ALT))
+	ui.set_key_bit(.Enter, rl.IsKeyDown(.ENTER))
+	ui.set_key_bit(.A, rl.IsKeyDown(.A))
+	ui.set_key_bit(.X, rl.IsKeyDown(.X))
+	ui.set_key_bit(.C, rl.IsKeyDown(.C))
+	ui.set_key_bit(.V, rl.IsKeyDown(.V))
 
 	if shift_down {
 		ui.set_mouse_scroll(rl.GetMouseWheelMove(), 0)
@@ -70,7 +70,7 @@ begin_frame :: proc() {
 render :: proc() {
 	using ui
 
-	if core.cursor == .none {
+	if core.cursor == .None {
 		rl.HideCursor()
 	} else {
 		rl.ShowCursor()
