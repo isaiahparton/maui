@@ -178,8 +178,8 @@ Core :: struct {
 	next_tooltip: Maybe(Tooltip_Info),
 }
 
-_get_clipboard_string: proc() -> string = ---
-_set_clipboard_string: proc(string) = ---
+_get_clipboard_string: proc() -> string
+_set_clipboard_string: proc(string)
 
 get_clipboard_string :: proc() -> string {
 	if _get_clipboard_string != nil {

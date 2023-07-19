@@ -162,16 +162,16 @@ paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: 
 	size: [2]f32
 	next_word_index: int
 
-	totalSize: [2]f32
+	total_size: [2]f32
 	if info.align.x != .near || info.align.y != .near {
-		totalSize = measure_string(font, text)
+		total_size = measure_string(font, text)
 		#partial switch info.align.x {
-			case .far: point.x += box.w - totalSize.x
-			case .middle: point.x += box.w / 2 - totalSize.x / 2
+			case .far: point.x += box.w - total_size.x
+			case .middle: point.x += box.w / 2 - total_size.x / 2
 		}
 		#partial switch info.align.y {
-			case .far: point.y += box.h - totalSize.y
-			case .middle: point.y += box.h / 2 - totalSize.y / 2
+			case .far: point.y += box.h - total_size.y
+			case .middle: point.y += box.h / 2 - total_size.y / 2
 		}
 	}
 
@@ -403,29 +403,22 @@ Selectable_Text_Result :: struct {
 // Displays clipped, selectable text that can be copied to clipboard
 selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result: Selectable_Text_Result) {
 	assert(widget != nil)
-
 	result.view_offset = info.view_offset
-
 	// Alias scribe state
 	//FIXME: fix me!
 	state := &core.typing_agent
-
 	// Should paint?
 	should_paint := .no_paint not_in info.bits
-
 	// For calculating hovered glyph
 	hover_index := 0
 	min_dist: f32 = math.F32_MAX
-
 	// Determine text origin
 	origin: [2]f32 = {info.box.x, info.box.y}
-
 	// Get text size if necessary
 	text_size: [2]f32
 	if info.align.x != .near || info.align.y != .near {
 		text_size = measure_string(info.font_data, string(info.data))
 	}
-
 	// Handle alignment
 	switch info.align.x {
 		case .near: origin.x += info.padding.x
@@ -437,27 +430,25 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		case .middle: origin.y += info.box.h / 2 - text_size.y / 2
 		case .far: origin.y += info.box.h - text_size.y - info.padding.y
 	}
-
 	// Offset view when currently focused
 	if .got_focus not_in widget.state {
 		origin -= info.view_offset
 	}
-
 	point := origin
-
 	// Total text size
 	size: [2]f32
-
 	// Cursor start and end position
 	cursor_low: [2]f32 = 3.40282347E+38
 	cursor_high: [2]f32
-
 	// Reset view offset when just focused
 	if .got_focus in widget.state {
 		state.index = 0
+		state.length = 0
+		state.last_index = 0
+		state.last_length = 0
+		state.anchor = 0
 		result.view_offset = {}
 	}
-
 	if .focused in widget.state {
 		// Content copy
 		if key_down(.control) {
@@ -470,24 +461,19 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			}
 		}
 	}
-
 	// Iterate over the bytes
 	for index := 0; index <= len(info.data); {
-
 		// Decode the next glyph
 		bytes := 1
 		glyph: rune
 		if index < len(info.data) {
 			glyph, bytes = utf8.decode_rune_in_bytes(info.data[index:])
 		}
-
 		// Password placeholder glyph
 		if .password in info.bits {
 			glyph = '•'
 		}
-
 		is_tab := glyph == '\t'
-
 		// Get glyph data
 		glyph_data := get_glyph_data(info.font_data, 32 if is_tab else glyph)
 		glyph_width := glyph_data.advance + GLYPH_SPACING
@@ -495,7 +481,6 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			TAB_SPACES :: 3
 			glyph_width *= TAB_SPACES
 		}
-
 		highlight := false
 		// Draw cursors
 		if should_paint && .focused in widget.state && .got_focus not_in widget.state {
@@ -530,7 +515,6 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 				highlight = true
 			}
 		}
-
 		// Decide the hovered glyph
 		glyph_point := point + {0, info.font_data.size / 2}
 		dist := linalg.length(glyph_point - input.mouse_point)
@@ -538,7 +522,6 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			min_dist = dist
 			hover_index = index
 		}
-
 		if .focused in widget.state {
 			if index == state.index {
 				cursor_low = point - origin
@@ -547,12 +530,10 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 				cursor_high = (point + {0, info.font_data.size}) - origin
 			}
 		}
-
 		// Anything past here requires a valid glyph
 		if index == len(info.data) {
 			break
 		}
-
 		// Draw the glyph
 		if glyph == '\n' {
 			point.x = origin.x
@@ -562,13 +543,11 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		} else if should_paint && glyph != '\t' && glyph != ' ' {
 			paint_clipped_glyph(glyph_data, point, info.box, get_color(.text_inverted if highlight else .text, 1))
 		}
-
 		// Finished, move index and point
 		point.x += glyph_width
 		size.x = max(size.x, point.x - origin.x)
 		index += bytes
 	}
-
 	// Handle initial text selection
 	if .select_all in info.bits {
 		if .got_focus in widget.state {
@@ -577,10 +556,10 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			state.length = len(info.data)
 		}
 	}
-
 	// Text selection by clicking
 	if .got_press in widget.state {
 		if widget.click_count == 1 {
+			// Select the hovered word
 			// Move index to the beginning of the hovered word
 			for i := min(state.index, len(info.data) - 1); ; i -= 1 {
 				if i == 0 {
@@ -602,18 +581,19 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 				}
 			}
 		} else if widget.click_count == 2 {
+			// Select everything
 			state.index = 0
 			state.anchor = 0
 			state.length = len(info.data)
 		} else {
+			// Normal select
 			state.index = hover_index
 			state.anchor = hover_index
 			state.length = 0
 		}
 	}
-
+	// Get desired bounds for cursor
 	inner_size: [2]f32 = {info.box.w, info.box.h} - info.padding * 2
-
 	// View offset
 	if widget.state >= {.pressed} && widget.click_count == 0 {
 		// Selection by dragging
@@ -662,7 +642,6 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 		state.last_index = state.index
 		state.last_length = state.length
 	}
-
 	// Clamp view offset
 	if size.x >= inner_size.x {
 		result.view_offset.x = clamp(result.view_offset.x, 0, (size.x - info.box.w) + info.padding.x * 2)
@@ -674,9 +653,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	} else {
 		result.view_offset.y = 0
 	}
-
 	result.text_size = size
 	result.font_data = info.font_data
-
 	return
 }

@@ -128,8 +128,8 @@ Number_Input_Info :: struct($T: typeid) {
 	text_align: Maybe([2]Alignment),
 	no_outline: bool,
 }
-do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (newValue: T) {
-	newValue = info.value
+do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (new_value: T) {
+	new_value = info.value
 	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.draggable, .can_key_select}); ok {
 		using self
 		// Animation values
@@ -138,10 +138,8 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 		if state & {.hovered, .pressed} != {} {
 			core.cursor = .beam
 		}
-
 		// Formatting
 		text := text_format_slice(info.format.? or_else "%v", info.value)
-
 		// Painting
 		text_align := info.text_align.? or_else {
 			.near,
@@ -188,15 +186,15 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				switch typeid_of(T) {
 					case f64, f32, f16:  		
 					if temp, ok := strconv.parse_f64(str); ok {
-						newValue = T(temp)
+						new_value = T(temp)
 					}
 					case int, i128, i64, i32, i16, i8: 
 					if temp, ok := strconv.parse_i128(str); ok {
-						newValue = T(temp)
+						new_value = T(temp)
 					}
 					case u128, u64, u32, u16, u8:
 					if temp, ok := strconv.parse_u128(str); ok {
-						newValue = T(temp)
+						new_value = T(temp)
 					}
 				}
 				state += {.changed}

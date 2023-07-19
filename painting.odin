@@ -35,8 +35,8 @@ DEFAULT_FONT :: "IBMPlexSans-Medium_Remixicon.ttf"
 // Default horizontal spacing between glyphs
 GLYPH_SPACING :: 1
 
-Pixel_Format 	:: rl.PixelFormat
-Image 			:: rl.Image
+Pixel_Format :: rl.PixelFormat
+Image :: rl.Image
 
 // Builtin text styles
 Font_Index :: enum {
