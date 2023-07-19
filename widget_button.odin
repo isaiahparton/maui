@@ -4,9 +4,15 @@ import "core:math/linalg"
 import rl "vendor:raylib"
 
 Button_Style :: enum {
-	filled,
-	outlined,
-	subtle,
+	Filled,
+	Outlined,
+	Subtle,
+}
+Button_Shape :: enum {
+	Square,
+	Pill,
+	Left_Arrow,
+	Right_Arrow,
 }
 // Standalone button for major actions
 Pill_Button_Info :: struct {
@@ -34,8 +40,8 @@ do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clic
 		// Graphics
 		if .should_paint in bits {
 			roundness := box.h / 2
-			switch info.style.? or_else .filled {
-				case .filled:
+			switch info.style.? or_else .Filled {
+				case .Filled:
 				paint_pill_fill_h(self.box, alpha_blend_colors(get_color(.button_base), get_color(.button_shade), 0.3 if .pressed in self.state else hover_time * 0.15))
 				if info.loading {
 					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.button_text, 0.5))
@@ -44,7 +50,7 @@ do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clic
 					paint_label_box(info.label, self.box, get_color(.button_text), {.middle, .middle})
 				}
 				
-				case .outlined:
+				case .Outlined:
 				paint_pill_fill_h(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
 				paint_pill_stroke_h(self.box, true, get_color(.button_base))
 				if info.loading {
@@ -54,7 +60,7 @@ do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clic
 					paint_label_box(info.label, self.box, get_color(.button_base), {.middle, .middle})
 				}
 			
-				case .subtle:
+				case .Subtle:
 				paint_pill_fill_h(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
 				if info.loading {
 					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.button_base, 0.5))
@@ -79,8 +85,8 @@ Button_Info :: struct {
 	label: Label,
 	align: Maybe(Alignment),
 	join: Box_Sides,
-	fit_to_label: bool,
 	color: Maybe(Color),
+	fit_to_label: bool,
 	style: Button_Style,
 }
 do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
@@ -99,11 +105,11 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 		if .should_paint in self.bits {
 			color := info.color.? or_else get_color(.button_base)
 			switch info.style {
-				case .filled:
+				case .Filled:
 				paint_box_fill(self.box, alpha_blend_colors(color, get_color(.button_shade), 0.3 if .pressed in self.state else hover_time * 0.15))
 				paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), get_color(.button_text), {info.align.? or_else .middle, .middle})
 
-				case .outlined:
+				case .Outlined:
 				paint_box_fill(self.box, fade(color, 0.2 if .pressed in self.state else hover_time * 0.1))
 				if .left not_in info.join {
 					paint_box_fill({self.box.x, self.box.y, 1, self.box.h}, color)
@@ -116,13 +122,13 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 				
 				paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, {info.align.? or_else .middle, .middle})
 
-				case .subtle:
+				case .Subtle:
 				paint_box_fill(self.box, get_color(.button_base, 0.2 if .pressed in self.state else hover_time * 0.1))
 				paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, {info.align.? or_else .middle, .middle})
 			}
 		}
 		// Result
-		clicked = .clicked in self.state && self.click_button == .left
+		clicked = widget_clicked(self, .left)
 	}
 	return
 }
@@ -132,6 +138,7 @@ Toggle_Button_Info :: struct {
 	label: Label,
 	state: bool,
 	align: Maybe(Alignment),
+	color: Maybe(Color),
 	fit_to_label: bool,
 	join: Box_Sides,
 }

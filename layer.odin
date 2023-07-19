@@ -48,12 +48,14 @@ Layer_Option :: enum {
 	no_scroll_margin_y,
 	// Doesn't push the layers's id to the stack
 	no_id,
-	// Forces the self to always clip its contents
+	// Forces the layer to always clip its contents
 	force_clip,
-	// Forces the self to fit inside its parent
+	// Forces the layer to fit inside its parent
 	clip_to_parent,
 	// The layer does not move
 	no_sort,
+	// Steal focus
+	Steal_Focus,
 }
 
 Layer_Options :: bit_set[Layer_Option]
@@ -68,7 +70,7 @@ Layer_Order :: enum {
 	floating,
 	// Allways in the foreground, fixed order
 	tooltip,
-	// Spetial self for debug drawing
+	// Special layer for debug drawing
 	debug,
 }
 
@@ -139,6 +141,8 @@ Layer_Agent :: struct {
 	last_hover_id,
 	focus_id,
 	debug_id: 		Id,
+	// If a layer is stealing focus
+	exclusive_id: Maybe(Id),
 }
 
 layer_agent_destroy :: proc(using self: ^Layer_Agent) {
@@ -230,6 +234,10 @@ layer_agent_step :: proc(using self: ^Layer_Agent) {
 	}
 	// Reset rendered layer
 	paint_index = 0
+	if id, ok := exclusive_id.?; ok {
+		hover_id = id
+		exclusive_id = nil
+	}
 }
 
 layer_agent_allocate :: proc(using self: ^Layer_Agent) -> (layer: ^Layer, ok: bool) {
@@ -314,6 +322,9 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 		id = hash(loc), 
 		options = info.options + {.clip_to_parent, .attached, .no_sort},
 	})
+	if ok {
+		paint_box_fill(self.box, info.fill_color.? or_else get_color(.base_shade, 0.075))
+	}
 	return
 }
 
@@ -385,6 +396,10 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Update user options
 		self.options = info.options
 
+		if .Steal_Focus in self.options {
+			agent.exclusive_id = self.id
+		}
+
 		// Begin id context for layer contents
 		if .no_id not_in self.options {
 			push_id(self.id)
@@ -433,6 +448,11 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.bits -= {.clipped}
 		if .clip_to_parent in self.options && self.parent != nil && !box_in_box(self.parent.box, self.box) {
 			self.box = clamp_box(self.box, self.parent.box)
+		}
+
+		// Uh yeah
+		if agent.exclusive_id == self.id {
+			paint_box_fill(core.fullscreen_box, {0, 0, 0, 100})
 		}
 
 		// Shadows

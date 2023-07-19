@@ -89,12 +89,12 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				if do_layout(.top, 20) {
 					set_side(.left); set_size(70)
 					// Subtract one year
-					if do_button({label = "<<<", style = .filled}) {
+					if do_button({label = "<<<", style = .Filled}) {
 						year -= 1
 						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 					// Subtract one month
-					if do_button({label = "<<", style = .filled}) {
+					if do_button({label = "<<", style = .Filled}) {
 						month = time.Month(int(month) - 1)
 						if int(month) <= 0 {
 							month = time.Month(12)
@@ -103,17 +103,17 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 					// Subtract one day
-					if do_button({label = "<", style = .filled}) {
+					if do_button({label = "<", style = .Filled}) {
 						info.temp_value^._nsec -= i64(time.Hour * 24)
 						year, month, day = time.date(info.temp_value^)
 					}
 					// Add one day
-					if do_button({label = ">", style = .filled}) {
+					if do_button({label = ">", style = .Filled}) {
 						info.temp_value^._nsec += i64(time.Hour * 24)
 						year, month, day = time.date(info.temp_value^)
 					}
 					// Add one month
-					if do_button({label = ">>", style = .filled}) {
+					if do_button({label = ">>", style = .Filled}) {
 						month = time.Month(int(month) + 1)
 						if int(month) >= 13 {
 							month = time.Month(1)
@@ -122,7 +122,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 					// Add one year
-					if do_button({label = ">>>", style = .filled}) {
+					if do_button({label = ">>>", style = .Filled}) {
 						year += 1
 						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
@@ -147,7 +147,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						}
 						_, _month, _day := time.date(transmute(time.Time)day_time)
 						push_id(i)
-							if do_button({label = format(_day), style = .filled if (_month == month && _day == day) else .outlined, color = get_color(.button_base, 0.5) if time.month(transmute(time.Time)day_time) != month else nil}) {
+							if do_button({label = format(_day), style = .Filled if (_month == month && _day == day) else .Outlined, color = get_color(.button_base, 0.5) if time.month(transmute(time.Time)day_time) != month else nil}) {
 								info.temp_value^ = transmute(time.Time)day_time
 							}
 						pop_id()
@@ -156,7 +156,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				}
 				if do_layout(.bottom, 30) {
 					set_side(.right); set_size(60)
-					if do_button({label = "Cancel", style = .outlined}) {
+					if do_button({label = "Cancel", style = .Outlined}) {
 						info.temp_value^ = info.value^
 						self.bits -= {.active}
 					}
@@ -167,7 +167,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						changed = true
 					}
 					set_side(.left); set_size(60)
-					if do_button({label = "Today", style = .outlined}) {
+					if do_button({label = "Today", style = .Outlined}) {
 						info.temp_value^ = time.now()
 					}
 				}

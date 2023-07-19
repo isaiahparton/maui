@@ -116,6 +116,11 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 					paint_string(font_data, info.placeholder.?, {box.x + padding.x, box.y + padding.y}, get_color(.text, 0.5))
 				}
 			}
+
+			if info.title != nil {
+				box.y -= 10
+				box.h += 10
+			}
 		}
 	}
 	return
@@ -124,8 +129,10 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 Number_Input_Info :: struct($T: typeid) {
 	value: T,
 	title,
+	suffix,
 	format: Maybe(string),
 	text_align: Maybe([2]Alignment),
+	trim_decimal,
 	no_outline: bool,
 }
 do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (new_value: T) {
@@ -138,8 +145,16 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 		if state & {.hovered, .pressed} != {} {
 			core.cursor = .beam
 		}
+		// Has decimal?
+		has_decimal := false 
+		switch typeid_of(T) {
+			case f16, f32, f64: has_decimal = true
+		}
 		// Formatting
 		text := text_format_slice(info.format.? or_else "%v", info.value)
+		if info.trim_decimal && has_decimal {
+			text = transmute([]u8)text_remove_trailing_zeroes(string(text))
+		}
 		// Painting
 		text_align := info.text_align.? or_else {
 			.near,
@@ -155,8 +170,10 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				offset = WIDGET_TEXT_OFFSET, 
 				thickness = 1, 
 				color = stroke_color,
-				)
+			)
 		}
+		select_result: Selectable_Text_Result
+
 		// Update text input
 		if state >= {.focused} {
 			buffer := typing_agent_get_buffer(&core.typing_agent, id)
@@ -168,7 +185,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			switch typeid_of(T) {
 				case f16, f32, f64: text_edit_bits -= {.integer}
 			}
-			select_result := selectable_text(self, {
+			select_result = selectable_text(self, {
 				font_data = font_data, 
 				data = buffer[:], 
 				box = box, 
@@ -185,27 +202,28 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				str := string(buffer[:])
 				switch typeid_of(T) {
 					case f64, f32, f16:  		
-					if temp, ok := strconv.parse_f64(str); ok {
-						new_value = T(temp)
-					}
+					new_value = T(strconv.parse_f64(str) or_else 0)
 					case int, i128, i64, i32, i16, i8: 
-					if temp, ok := strconv.parse_i128(str); ok {
-						new_value = T(temp)
-					}
+					new_value = T(strconv.parse_i128(str) or_else 0)
 					case u128, u64, u32, u16, u8:
-					if temp, ok := strconv.parse_u128(str); ok {
-						new_value = T(temp)
-					}
+					new_value = T(strconv.parse_u128(str) or_else 0)
 				}
 				state += {.changed}
 			}
 		} else {
-			selectable_text(self, {
+			select_result = selectable_text(self, {
 				font_data = font_data, 
 				data = text, 
 				box = box, 
 				padding = {box.h * 0.25, box.h / 2 - font_data.size / 2},
 				align = text_align,
+			})
+		}
+
+		if suffix, ok := info.suffix.?; ok {
+			paint_string(font_data, suffix, {box.x + box.h * 0.25, box.y + box.h / 2} + select_result.view_offset + {select_result.text_size.x, 0}, get_color(.text, 0.5), {
+				align = {.near, .middle},
+				clip_box = box,
 			})
 		}
 	}

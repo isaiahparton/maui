@@ -70,13 +70,19 @@ set_align_x :: proc(align: Alignment) {
 set_align_y :: proc(align: Alignment) {
 	current_layout().align.y = align
 }
-set_margin :: proc(margin: f32) {
+set_margin_all :: proc(margin: f32) {
 	current_layout().margin = {
 		.top = margin, 
 		.bottom = margin, 
 		.left = margin, 
 		.right = margin,
 	}
+}
+set_margin_side :: proc(side: Box_Side, margin: f32) {
+	current_layout().margin[side] = margin
+}
+set_margin_any :: proc(margin: [Box_Side]f32) {
+	current_layout().margin = margin
 }
 set_margin_x :: proc(margin: f32) {
 	layout := current_layout()
@@ -87,6 +93,11 @@ set_margin_y :: proc(margin: f32) {
 	layout := current_layout()
 	layout.margin[.top] = margin
 	layout.margin[.bottom] = margin
+}
+set_margin :: proc {
+	set_margin_all,
+	set_margin_side,
+	set_margin_any,
 }
 set_size :: proc(size: f32, relative := false) {
 	layout := current_layout()
