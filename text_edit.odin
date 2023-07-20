@@ -102,7 +102,7 @@ get_next_line :: proc(data: []u8, index: int) -> (int, bool) {
 	return len(data) - 1, false
 }
 is_seperator :: proc(glyph: u8) -> bool {
-	return glyph == ' ' || glyph == '\n' || glyph == '\t' || glyph == '\\' || glyph == '/'
+	return glyph == ' ' || glyph == '\"' || glyph == '\n' || glyph == '\t' || glyph == '\\' || glyph == '/'
 }
 find_next_seperator :: proc(slice: []u8) -> int {
 	for i in 1 ..< len(slice) {

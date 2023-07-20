@@ -35,9 +35,10 @@ main :: proc() {
 	rl.SetConfigFlags({.MSAA_4X_HINT})
 	rl.InitWindow(1200, 900, "a window")
 	rl.SetTargetFPS(75)
-	ui.init()
 	ui_backend.init()
+	ui.init()
 
+	image, _ := ui.load_image("logo.png")
 	for true {
 		{
 			using ui
@@ -58,12 +59,11 @@ main :: proc() {
 			}
 			if do_layout(.Left, 1, true) {
 				shrink(10)
-				set_size(30)
-				do_text_input({data = &text_buffer})
-				space(20)
-				do_text_input({data = &text_buffer})
-				space(20)
-				do_text_input({data = &text_buffer})
+				set_size(500)
+				do_image({
+					image = image,
+					uniform = true,
+				})
 			}
 
 			end_frame()
@@ -80,6 +80,8 @@ main :: proc() {
 			break
 		}
 	}
+
+	ui.unload_image(image)
 
 	rl.CloseWindow()
 

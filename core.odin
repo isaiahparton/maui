@@ -358,31 +358,32 @@ begin_frame :: proc() {
 		defer delete(array)
 
 		anchor: int
-		for widget in &widget_agent.list {
+		for widget in widget_agent.list {
 			if .Can_Key_Select in widget.options && .Disabled not_in widget.bits {
-				if widget.id == core.widget_agent.focus_id {
-					anchor = len(array)
-				}
 				append(&array, widget)
 			}
 		}
 
 		if len(array) > 1 {
-			slice.sort_by(array[:], proc(a, b: ^Widget) -> bool {
-				if a.box.y == b.box.y {
-					if a.box.x < b.box.x {
+			slice.stable_sort_by(array[:], proc(a, b: ^Widget) -> bool {
+				if a.box.x == b.box.x {
+					if a.box.y < b.box.y {
 						return true
 					}
-				} else if a.box.y < b.box.y {
+				} else if a.box.x < b.box.x {
 					return true
 				}
 				return false
 			})
+			for entry, i in array {
+				if entry.id == core.widget_agent.focus_id {
+					anchor = i
+				}
+			}
 			core.widget_agent.focus_id = array[(anchor + 1) % len(array)].id
 			core.is_key_selecting = true
 		}
 	}
-	
 
 	// Reset dragging state
 	dragging = false

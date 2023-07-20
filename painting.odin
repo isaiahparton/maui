@@ -38,6 +38,8 @@ DEFAULT_FONT :: "IBMPlexSans-Medium_Remixicon.ttf"
 GLYPH_SPACING :: 1
 
 Pixel_Format :: rl.PixelFormat
+// Private abstracted image type
+@private
 Image :: rl.Image
 
 // Builtin text styles
@@ -63,14 +65,30 @@ Patch_Data :: struct {
 	amount: i32,
 }
 
+Texture_Id :: u32
+
+// User imported images
+Image_Data :: struct {
+	texture_id: Texture_Id,
+	size: [2]int,
+}
+
+MAX_IMAGES :: 64
+
+Image_Index :: int
+
 // Context for painting graphics stuff
 Painter :: struct {
-	circles: 		[CIRCLE_SIZES * CIRCLE_ROWS]Patch_Data,
-	fonts: 			[Font_Index]Font_Data,
+	circles: 			[CIRCLE_SIZES * CIRCLE_ROWS]Patch_Data,
+	fonts: 				[Font_Index]Font_Data,
 	// Style
-	style: 			Style,
-	// Texture atlas src
-	image: 			Image,
+	style: 				Style,
+	// User Images
+	image_exists: [MAX_IMAGES]bool,
+	images:  			[MAX_IMAGES]Image_Data,
+	// Main texture atlas
+	image: 				Image,
+	default_texture_id: Texture_Id,
 }
 // Global instance pointer
 painter: ^Painter
@@ -86,13 +104,17 @@ painter_init :: proc() -> bool {
 			.Header = 28,
 			.Monospace = 18,
 		}
-		return painter_make_atlas(painter)
+		if !painter_make_atlas(painter) {
+			return false 
+		}
+		painter.default_texture_id, _ = load_texture(painter.image)
+		return true
 	}
 	return false
 }
 painter_uninit :: proc() {
 	if painter != nil {
-		//rl.UnloadImage(painter.image)
+		unload_texture(painter.default_texture_id)
 
 		for font in &painter.fonts {
 			delete(font.glyphs)
@@ -103,9 +125,84 @@ painter_uninit :: proc() {
 	}
 }
 
+_load_texture: proc(image: Image) -> (id: Texture_Id, ok: bool)
+_unload_texture: proc(id: Texture_Id)
+
+load_texture :: proc(image: Image) -> (id: Texture_Id, ok: bool) {
+	assert(_load_texture != nil)
+	return _load_texture(image)
+}
+unload_texture :: proc(id: Texture_Id) {
+	assert(_unload_texture != nil)
+	_unload_texture(id)
+}
+
+load_image_data :: proc(image: Image) -> (index: Image_Index, ok: bool) {
+	for i in 0..<MAX_IMAGES {
+		if !painter.image_exists[i] {
+			index = Image_Index(i)
+
+			ok = rl.IsImageReady(image) 
+			if ok {
+				texture_id: Texture_Id
+				texture_id, ok = load_texture(image)
+				if ok {
+					painter.image_exists[i] = true 
+					painter.images[i] = Image_Data({
+						texture_id = texture_id,
+						size = {
+							int(image.width),
+							int(image.height),
+						},
+					})
+				}
+			}
+			break
+		}
+	}
+	return
+}
+load_image_file :: proc(file: string) -> (index: Image_Index, ok: bool) {
+	for i in 0..<MAX_IMAGES {
+		if !painter.image_exists[i] {
+			index = Image_Index(i)
+
+			cstr := strings.clone_to_cstring(file)
+			defer delete(cstr)
+			image := rl.LoadImage(cstr)
+			ok = rl.IsImageReady(image) 
+			if ok {
+				texture_id: Texture_Id
+				texture_id, ok = load_texture(image)
+				if ok {
+					painter.image_exists[i] = true 
+					painter.images[i] = Image_Data({
+						texture_id = texture_id,
+						size = {
+							int(image.width),
+							int(image.height),
+						},
+					})
+				}
+			}
+			break
+		}
+	}
+	return
+}
+load_image :: proc {
+	load_image_file,
+	load_image_data,
+}
+
+unload_image :: proc(index: Image_Index) {
+	painter.image_exists[index] = false 
+	unload_texture(painter.images[index].texture_id)
+}
+
 // Color manip
 normalize_color :: proc(color: Color) -> [4]f32 {
-    return {f32(color.r) / 255, f32(color.g) / 255, f32(color.b) / 255, f32(color.a) / 255}
+	return {f32(color.r) / 255, f32(color.g) / 255, f32(color.b) / 255, f32(color.a) / 255}
 }
 set_color_brightness :: proc(color: Color, value: f32) -> Color {
 	delta := clamp(i32(255.0 * value), -255, 255)
@@ -121,8 +218,8 @@ color_to_hsv :: proc(color: Color) -> [4]f32 {
 	return hsva.xyzw
 }
 color_from_hsv :: proc(hue, saturation, value: f32) -> Color {
-    rgba := linalg.vector4_hsl_to_rgb(hue, saturation, value, 1.0)
-    return {u8(rgba.r * 255.0), u8(rgba.g * 255.0), u8(rgba.b * 255.0), u8(rgba.a * 255.0)}
+		rgba := linalg.vector4_hsl_to_rgb(hue, saturation, value, 1.0)
+		return {u8(rgba.r * 255.0), u8(rgba.g * 255.0), u8(rgba.b * 255.0), u8(rgba.a * 255.0)}
 }
 fade :: proc(color: Color, alpha: f32) -> Color {
 	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
@@ -228,41 +325,41 @@ make_font :: proc(origin: [2]f32, path: string, size: i32, runes: []rune) -> (fo
 	raw_array := transmute(runtime.Raw_Slice)runes
 	// Get the file extension
 	extension := filepath.ext(path)
-    if extension == ".ttf" || extension == ".otf" {
-    	if file_data, ok := os.read_entire_file(path); ok {
-    		defer delete(file_data)
-	        glyph_count := i32(len(runes))
-	        glyph_padding := i32(1)
-	        glyph_info := rl.LoadFontData((transmute(runtime.Raw_Slice)file_data).data, i32(len(file_data)), size, transmute([^]rune)(raw_array.data), glyph_count, .DEFAULT)
+		if extension == ".ttf" || extension == ".otf" {
+			if file_data, ok := os.read_entire_file(path); ok {
+				defer delete(file_data)
+					glyph_count := i32(len(runes))
+					glyph_padding := i32(1)
+					glyph_info := rl.LoadFontData((transmute(runtime.Raw_Slice)file_data).data, i32(len(file_data)), size, transmute([^]rune)(raw_array.data), glyph_count, .DEFAULT)
 
-	        if glyph_info != nil {
-	        	font.size = f32(size)
-	        	// Temporary array
-	        	boxs: [^]rl.Rectangle
-	            // Create FontData from raylib font
-	            font.image = rl.GenImageFontAtlas(glyph_info, &boxs, glyph_count, size, glyph_padding, 1);
-	            font.glyphs = make([]Glyph_Data, glyph_count)
-	            for index in 0 ..< glyph_count {
-	            	box := boxs[index]
-	            	codepoint := glyph_info[index].value
-	            	if codepoint > unicode.MAX_LATIN1 {
-	            		glyph_info[index].offsetY = i32(font.size / 2 - box.height / 2)
-	            	}
-	            	font.glyphs[index] = {
-	            		src = {origin.x + box.x, origin.y + box.y, box.width, box.height},
-	            		offset = {f32(glyph_info[index].offsetX), f32(glyph_info[index].offsetY)},
-	            		advance = f32(glyph_info[index].advanceX),
-	            	}
-	            	font.glyph_map[codepoint] = index
-	            }
-	            // Free boxangles
-	            //free(rawptr(boxs))
-	        }
-	        rl.UnloadFontData(glyph_info, glyph_count)
-	        success = true
-    	}
-    }
-    return
+					if glyph_info != nil {
+						font.size = f32(size)
+						// Temporary array
+						boxs: [^]rl.Rectangle
+							// Create FontData from raylib font
+							font.image = rl.GenImageFontAtlas(glyph_info, &boxs, glyph_count, size, glyph_padding, 1);
+							font.glyphs = make([]Glyph_Data, glyph_count)
+							for index in 0 ..< glyph_count {
+								box := boxs[index]
+								codepoint := glyph_info[index].value
+								if codepoint > unicode.MAX_LATIN1 {
+									glyph_info[index].offsetY = i32(font.size / 2 - box.height / 2)
+								}
+								font.glyphs[index] = {
+									src = {origin.x + box.x, origin.y + box.y, box.width, box.height},
+									offset = {f32(glyph_info[index].offsetX), f32(glyph_info[index].offsetY)},
+									advance = f32(glyph_info[index].advanceX),
+								}
+								font.glyph_map[codepoint] = index
+							}
+							// Free boxangles
+							//free(rawptr(boxs))
+					}
+					rl.UnloadFontData(glyph_info, glyph_count)
+					success = true
+			}
+		}
+		return
 }
 painter_make_atlas :: proc(using painter: ^Painter) -> (result: bool) {
 	default_runes: []rune = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 0x2022}
@@ -332,7 +429,7 @@ get_font_data :: proc(index: Font_Index) -> ^Font_Data {
 // Draw commands
 Command_Texture :: struct {
 	using command: Command,
-	index: int,
+	id: Texture_Id,
 	uv_min, 
 	uv_max,
 	min, 
@@ -454,40 +551,40 @@ paint_box_fill :: proc(box: Box, color: Color) {
 	)
 }
 paint_triangle_strip_fill :: proc(points: [][2]f32, color: Color) {
-    if len(points) < 4 {
-    	return
-    }
-    for i in 2 ..< len(points) {
-        if i % 2 == 0 {
-            paint_triangle_fill(
-            	{points[i].x, points[i].y},
-            	{points[i - 2].x, points[i - 2].y},
-            	{points[i - 1].x, points[i - 1].y},
-            	color,
-            )
-        } else {
-        	paint_triangle_fill(
-           	 	{points[i].x, points[i].y},
-            	{points[i - 1].x, points[i - 1].y},
-            	{points[i - 2].x, points[i - 2].y},
-            	color,
-            )
-        }
-    }
+		if len(points) < 4 {
+			return
+		}
+		for i in 2 ..< len(points) {
+				if i % 2 == 0 {
+						paint_triangle_fill(
+							{points[i].x, points[i].y},
+							{points[i - 2].x, points[i - 2].y},
+							{points[i - 1].x, points[i - 1].y},
+							color,
+						)
+				} else {
+					paint_triangle_fill(
+							{points[i].x, points[i].y},
+							{points[i - 1].x, points[i - 1].y},
+							{points[i - 2].x, points[i - 2].y},
+							color,
+						)
+				}
+		}
 }
 paint_line :: proc(start, end: [2]f32, thickness: f32, color: Color) {
 	delta := end - start
-    length := math.sqrt(f32(delta.x * delta.x + delta.y * delta.y))
-    if length > 0 && thickness > 0 {
-        scale := thickness / (2 * length)
-        radius := [2]f32{ -scale * delta.y, scale * delta.x }
-        paint_triangle_strip_fill({
-            { start.x - radius.x, start.y - radius.y },
-            { start.x + radius.x, start.y + radius.y },
-            { end.x - radius.x, end.y - radius.y },
-            { end.x + radius.x, end.y + radius.y },
-        }, color)
-    }
+		length := math.sqrt(f32(delta.x * delta.x + delta.y * delta.y))
+		if length > 0 && thickness > 0 {
+				scale := thickness / (2 * length)
+				radius := [2]f32{ -scale * delta.y, scale * delta.x }
+				paint_triangle_strip_fill({
+						{ start.x - radius.x, start.y - radius.y },
+						{ start.x + radius.x, start.y + radius.y },
+						{ end.x - radius.x, end.y - radius.y },
+						{ end.x + radius.x, end.y + radius.y },
+				}, color)
+		}
 }
 paint_box_stroke :: proc(box: Box, thickness: f32, color: Color) {
 	paint_box_fill({box.x + thickness, box.y, box.w - thickness * 2, thickness}, color)
@@ -509,14 +606,14 @@ paint_circle_sector_fill :: proc(center: [2]f32, radius, start, end: f32, segmen
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
-        paint_triangle_fill(
-        	center, 
-        	center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, 
-        	center + {math.cos(angle) * radius, math.sin(angle) * radius}, 
-        	color,
-    	)
-        angle += step;
-    }
+				paint_triangle_fill(
+					center, 
+					center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, 
+					center + {math.cos(angle) * radius, math.sin(angle) * radius}, 
+					color,
+			)
+				angle += step;
+		}
 }
 paint_ring_fill :: proc(center: [2]f32, inner, outer: f32, segments: i32, color: Color) {
 	paint_ring_sector_fill(center, inner, outer, 0, math.TAU, segments, color)
@@ -525,15 +622,15 @@ paint_ring_sector_fill :: proc(center: [2]f32, inner, outer, start, end: f32, se
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
-        paint_quad_fill(
-        	center + {math.cos(angle) * outer, math.sin(angle) * outer},
-        	center + {math.cos(angle) * inner, math.sin(angle) * inner},
-        	center + {math.cos(angle + step) * inner, math.sin(angle + step) * inner},
-        	center + {math.cos(angle + step) * outer, math.sin(angle + step) * outer},
-        	color,
-    	)
-        angle += step;
-    }
+				paint_quad_fill(
+					center + {math.cos(angle) * outer, math.sin(angle) * outer},
+					center + {math.cos(angle) * inner, math.sin(angle) * inner},
+					center + {math.cos(angle + step) * inner, math.sin(angle + step) * inner},
+					center + {math.cos(angle + step) * outer, math.sin(angle + step) * outer},
+					color,
+			)
+				angle += step;
+		}
 }
 paint_box_sweep :: proc(r: Box, t: f32, c: Color) {
 	if t >= 1 {
@@ -553,8 +650,19 @@ paint_box_sweep :: proc(r: Box, t: f32, c: Color) {
 paint_texture :: proc(src, dst: Box, color: Color) {
 	layer := core.layer_agent.current_layer
 	cmd := push_command(layer, Command_Texture)
+	cmd.id = painter.default_texture_id
 	cmd.uv_min = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
 	cmd.uv_max = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}
+	cmd.min = {dst.x, dst.y}
+	cmd.max = {dst.x + dst.w, dst.y + dst.h}
+	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}
+}
+paint_image :: proc(image: Image_Index, src, dst: Box, color: Color) {
+	layer := core.layer_agent.current_layer
+	cmd := push_command(layer, Command_Texture)
+	cmd.id = painter.images[image].texture_id
+	cmd.uv_min = {src.x, src.y}
+	cmd.uv_max = {src.x + src.w, src.y + src.h}
 	cmd.min = {dst.x, dst.y}
 	cmd.max = {dst.x + dst.w, dst.y + dst.h}
 	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}

@@ -1217,6 +1217,7 @@ do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) 
 			paint_rounded_box_corners_fill(self.box, ROUNDNESS, side_corners(side), get_color(.Base, 1 if info.state else 0.5 * hover_time))
 
 			opacity: f32 = 0.5 + min(state_time + hover_time, 1)
+			paint_rounded_box_corners_fill(self.box, ROUNDNESS, {.Top_Left, .Top_Right}, get_color(.Base_Shade, (1 - state_time) * 0.1))
 			paint_rounded_box_sides_stroke(self.box, ROUNDNESS, true, {.Left, .Top, .Bottom, .Right} - {side}, get_color(.Base_Stroke, opacity))
 			if info.state {
 				paint_box_fill({self.box.x + 1, self.box.y + self.box.h, self.box.w - 2, 1}, get_color(.Base))
@@ -1368,5 +1369,29 @@ do_list_item :: proc(active: bool, loc := #caller_location) -> (result: List_Ite
 _do_list_item :: proc(_: List_Item_Result, ok: bool) {
 	if ok {
 		pop_layout()
+	}
+}
+
+Image_Info :: struct {
+	image: Image_Index,
+	uniform: bool,
+	color: Maybe(Color),
+}
+do_image :: proc(info: Image_Info) {
+	box := layout_next(current_layout())
+	if get_clip(core.clip_box, box) != .Full {
+		if info.uniform {
+			size := linalg.array_cast(painter.images[info.image].size, f32)
+			if size.x > box.w {
+				size.y *= box.w / size.x
+				size.x = box.w 
+			}
+			if size.y > box.h {
+				size.x *= box.h / size.y
+				size.y = box.h
+			}
+			box = child_box(box, size, {.Middle, .Middle})
+		}
+		paint_image(info.image, {0, 0, 1, 1}, box, info.color.? or_else 255)
 	}
 }

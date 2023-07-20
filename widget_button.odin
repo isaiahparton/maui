@@ -197,14 +197,16 @@ do_toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := 
 }
 do_enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T) {
 	new_value = value
+	layout := current_layout()
+	horizontal := layout.side == .Left || layout.side == .Right
 	for member, i in T {
 		push_id(int(member))
 			sides: Box_Sides
 			if i > 0 {
-				sides += {.Left}
+				sides += {.Left} if horizontal else {.Top}
 			}
 			if i < len(T) - 1 {
-				sides += {.Right}
+				sides += {.Right} if horizontal else {.Bottom}
 			}
 			if do_toggle_button({label = format(member), state = value == member, join = sides}) {
 				new_value = member

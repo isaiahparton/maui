@@ -5,29 +5,25 @@ import "core:fmt"
 
 import "core:strings"
 
-@private texture: rl.Texture
-
 init :: proc() {
+	using ui
 	assert(rl.IsWindowReady())
 
-	image := transmute(rl.Image)ui.painter.image
-	texture = rl.LoadTextureFromImage(image)
-	rl.SetTextureFilter(texture, .POINT)
-
-	ui._set_clipboard_string = proc(str: string) {
+	_set_clipboard_string = proc(str: string) {
 		cstr := strings.clone_to_cstring(str)
 		defer delete(cstr)
 		rl.SetClipboardText(cstr)
 	}
-	ui._get_clipboard_string = proc() -> string {
+	_get_clipboard_string = proc() -> string {
 		return string(rl.GetClipboardText())
 	}
-}
-update_texture :: proc() {
-	rl.UpdateTexture(texture, ui.painter.image.data)
-}
-uninit :: proc() {
-	rl.UnloadTexture(texture)
+	_load_texture = proc(image: rl.Image) -> (id: Texture_Id, ok: bool) {
+		texture := rl.LoadTextureFromImage(image)
+		return texture.id, rl.IsTextureReady(texture)
+	}
+	_unload_texture = proc(id: Texture_Id) {
+		rl.UnloadTexture({id = id})
+	}
 }
 
 begin_frame :: proc() {
@@ -82,7 +78,7 @@ render :: proc() {
 	for next_command(&cmd) {
 		switch v in cmd.variant {
 			case ^Command_Texture:
-			rl.rlSetTexture(texture.id)
+			rl.rlSetTexture(v.id)
 			rl.rlBegin(rl.RL_QUADS)
 
 			rl.rlNormal3f(0, 0, 1)
