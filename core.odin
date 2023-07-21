@@ -193,6 +193,13 @@ set_clipboard_string :: proc(str: string) {
 	}
 }
 
+/*
+	Scoped interactability toggling
+
+	if enabled(condition) {
+		do_button()
+	}
+*/
 @(deferred_none=_enabled)
 enabled :: proc(condition: bool) -> bool {
 	if !condition {
@@ -205,6 +212,9 @@ _enabled :: proc() {
 	core.disabled = false
 }
 
+/*
+	Groups widget states
+*/
 begin_group :: proc() {
 	stack_push(&core.group_stack, Group({}))
 }
@@ -243,8 +253,6 @@ get_animation :: proc(id: Id) -> ^f32 {
 
 /*
 	The global state
-
-	TODO(isaiah): Add manual state swapping
 */
 set_next_id :: proc(id: Id) {
 	core.next_id = id
@@ -352,7 +360,6 @@ begin_frame :: proc() {
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
 	//FIXME(isaiah): Text inputs selected with 'tab' do not behave correctly
-	
 	if key_pressed(.Tab) && core.widget_agent.focus_id != 0 {
 		array: [dynamic]^Widget
 		defer delete(array)

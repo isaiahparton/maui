@@ -419,6 +419,7 @@ Selectable_Text_Result :: struct {
 	font_data: ^Font_Data,
 }
 
+//TODO: Fix cuursor appearing for one frame on previously focused widget when selecting another
 // Displays clipped, selectable text that can be copied to clipboard
 selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result: Selectable_Text_Result) {
 	assert(widget != nil)
@@ -459,13 +460,9 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	// Cursor start and end position
 	cursor_low: [2]f32 = 3.40282347E+38
 	cursor_high: [2]f32
+	
 	// Reset view offset when just focused
 	if .Got_Focus in widget.state {
-		state.index = 0
-		state.length = 0
-		state.last_index = 0
-		state.last_length = 0
-		state.anchor = 0
 		result.view_offset = {}
 	}
 	if .Focused in widget.state {
