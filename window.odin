@@ -51,6 +51,7 @@ Window :: struct {
 	// Current occupying boxangle
 	box, draw_box: Box,
 	// Collapse
+	opacity,
 	how_collapsed: f32,
 }
 
@@ -171,6 +172,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				roundness = WINDOW_ROUNDNESS,
 			}),
 			options = {.No_Scroll_Y},
+			opacity = self.opacity,
 		}); ok {
 			// Body
 			if .Collapsed not_in self.bits {
@@ -246,7 +248,17 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				options = layer_options,
 				layout_size = self.min_layout_size,
 				order = .Background,
+				opacity = self.opacity,
 			})
+		}
+
+		if .Moving in self.bits {
+			self.opacity += (0.5 - self.opacity) * core.delta_time * 10
+		} else {
+			self.opacity += (1 - self.opacity) * core.delta_time * 10
+		}
+		if self.opacity > 0 && self.opacity < 1 {
+			core.paint_next_frame = true
 		}
 
 		// Get resize click

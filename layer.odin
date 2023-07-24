@@ -356,6 +356,8 @@ Layer_Info :: struct {
 	shadow: Maybe(Layer_Shadow_Info),
 	// Optional options
 	options: Layer_Options,
+	// Opacity
+	opacity: Maybe(f32),
 }
 
 @(deferred_out=_do_layer)
@@ -434,6 +436,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Attachment
 		if .Attached in self.options {
 			assert(self.parent != nil)
+			self.opacity = self.parent.opacity
 			parent := self.parent
 			for parent != nil {
 				parent.next_state += self.state
@@ -454,6 +457,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		if agent.exclusive_id == self.id {
 			paint_box_fill(core.fullscreen_box, {0, 0, 0, 100})
 		}
+
+		self.opacity = info.opacity.? or_else self.opacity
 
 		// Shadows
 		if shadow, ok := info.shadow.?; ok {
