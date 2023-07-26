@@ -687,6 +687,62 @@ paint_circle_stroke_texture :: proc(center: [2]f32, size: f32, thin: bool, color
 	paint_texture(src, {center.x - src.w / 2, center.y - src.h / 2, src.w, src.h}, color)
 }
 
+clip_dst_src :: proc(dst, src: ^Box, clip: Box) {
+	 if dst.x < clip.x {
+  	delta := clip.x - dst.x
+  	dst.w -= delta
+  	dst.x += delta
+  	src.x += delta
+  }
+  if dst.y < clip.y {
+  	delta := clip.y - dst.y
+  	dst.h -= delta
+  	dst.y += delta
+  	src.y += delta
+  }
+  if dst.x + dst.w > clip.x + clip.w {
+  	dst.w = (clip.x + clip.w) - dst.x
+  }
+  if dst.y + dst.h > clip.y + clip.h {
+  	dst.h = (clip.y + clip.h) - dst.y
+  }
+  src.w = dst.w
+  src.h = dst.h
+}
+
+paint_pill_fill_clipped_h :: proc(box, clip: Box, color: Color) {
+	radius := math.floor(box.h / 2)
+
+	if box.w == 0 || box.h == 0 {
+		return
+	}
+	index := int(box.h - 1) - MIN_CIRCLE_SIZE
+	if index < 0 || index >= CIRCLE_SIZES {
+		return
+	}
+	src := painter.circles[index].src
+	half_size := math.trunc(src.w / 2)
+
+	half_width := min(half_size, box.w / 2)
+
+	src_left: Box = {src.x, src.y, half_width, src.h}
+	dst_left: Box = {box.x, box.y, half_width, box.h}
+	clip_dst_src(&dst_left, &src_left, clip)
+	src_right: Box = {src.x + src.w - half_width, src.y, half_width, src.h}
+	dst_right: Box = {box.x + box.w - half_width, box.y, half_width, box.h}
+	clip_dst_src(&dst_right, &src_right, clip)
+
+	if dst_left.w > 0 {
+		paint_texture(src_left, dst_left, color)
+	}
+	if dst_right.w > 0 {
+		paint_texture(src_right, dst_right, color)
+	}
+
+	if box.w > box.h {
+		paint_box_fill(clip_box({box.x + radius, box.y, box.w - radius * 2, box.h}, clip), color)
+	}
+}
 paint_pill_fill_h :: proc(box: Box, color: Color) {
 	radius := math.floor(box.h / 2)
 

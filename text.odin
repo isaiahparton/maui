@@ -428,7 +428,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	//FIXME: fix me!
 	state := &core.typing_agent
 	// Should paint?
-	should_paint := .No_Paint not_in info.bits
+	should_paint := .Should_Paint in widget.bits && .No_Paint not_in info.bits
 	// For calculating hovered glyph
 	hover_index := 0
 	min_dist: f32 = math.F32_MAX
@@ -460,7 +460,6 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	// Cursor start and end position
 	cursor_low: [2]f32 = 3.40282347E+38
 	cursor_high: [2]f32
-	
 	// Reset view offset when just focused
 	if .Got_Focus in widget.state {
 		result.view_offset = {}
@@ -475,6 +474,23 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 					set_clipboard_string(string(info.data[:]))
 				}
 			}
+		}
+	}
+	// Draw chippies
+	if core.chips.height > 0 {
+		if do_layout_box(move_box(info.box, -info.view_offset)) {
+			set_side(.Left); set_margin_any({.Left = 5, .Top = 5, .Bottom = 5, .Right = 0})
+			for i in 0..<core.chips.height {
+				push_id(i)
+					if do_chip({
+						text = core.chips.items[i].text,
+						clip_box = info.box,
+					}) {
+						core.chips.items[i].clicked = true
+					}
+				pop_id()
+			}
+			point.x += info.box.w - current_layout().box.w - 5
 		}
 	}
 	// Iterate over the bytes

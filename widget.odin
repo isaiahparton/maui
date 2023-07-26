@@ -1107,13 +1107,14 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 
 Chip_Info :: struct {
 	text: string,
+	clip_box: Maybe(Box),
 }
 
 do_chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	font_data := get_font_data(.Label)
 	if layout.side == .Left || layout.side == .Right {
-		layout.size = measure_string(font_data, info.text).x + layout.box.h + layout.margin[.Left] + layout.margin[.Right]
+		layout.size = measure_string(font_data, info.text).x + (layout.box.h - layout.margin[.Top] - layout.margin[.Bottom]) + layout.margin[.Left] + layout.margin[.Right]
 	}
 	if self, ok := do_widget(hash(loc), layout_next(layout)); ok {
 		using self
@@ -1122,8 +1123,13 @@ do_chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
 		if .Should_Paint in bits {
 			fill_color: Color
 			fill_color = style_widget_shaded(2 if .Pressed in self.state else hover_time)
-			paint_pill_fill_h(self.box, fill_color)
-			paint_aligned_string(font_data, info.text, {box.x + box.w / 2, box.y + box.h / 2}, get_color(.Text), {.Middle, .Middle}) 
+			if clip, ok := info.clip_box.?; ok {
+				paint_pill_fill_clipped_h(self.box, clip, fill_color)
+				paint_string(font_data, info.text, {box.x + box.w / 2, box.y + box.h / 2}, get_color(.Text), {align = {.Middle, .Middle}, clip_box = clip}) 
+			} else {
+				paint_pill_fill_h(self.box, fill_color)
+				paint_aligned_string(font_data, info.text, {box.x + box.w / 2, box.y + box.h / 2}, get_color(.Text), {.Middle, .Middle}) 
+			}
 		}
 		clicked = .Clicked in state && click_button == .Left
 	}
