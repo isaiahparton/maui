@@ -411,7 +411,7 @@ begin_frame :: proc() {
 end_frame :: proc() {
 	using core
 	// Built-in debug window
-	//TODO(isaiah): Make this better
+	//TODO: Make this better
 	when ODIN_DEBUG {
 		layer_agent.debug_id = 0
 		if key_down(.Control) && key_pressed(.Backspace) {
@@ -456,13 +456,33 @@ end_frame :: proc() {
 						pop_id()
 					}
 				} else if debug_mode == .Controls {
-					do_text({font = .Monospace, text = text_format("Layer: %i", layer_agent.hover_id), fit = true})
+					do_text({
+						font = .Monospace, 
+						text = text_format("Layer: %i", layer_agent.hover_id), 
+						fit = true,
+					})
 					space(20)
-					do_text({font = .Monospace, text = text_format("Hovered: %i", widget_agent.hover_id), fit = true})
-					do_text({font = .Monospace, text = text_format("Focused: %i", widget_agent.focus_id), fit = true})
-					do_text({font = .Monospace, text = text_format("Pressed: %i", widget_agent.press_id), fit = true})
+					do_text({
+						font = .Monospace, 
+						text = text_format("Hovered: %i", widget_agent.hover_id), 
+						fit = true,
+					})
+					do_text({
+						font = .Monospace, 
+						text = text_format("Focused: %i", widget_agent.focus_id), 
+						fit = true,
+					})
+					do_text({
+						font = .Monospace, 
+						text = text_format("Pressed: %i", widget_agent.press_id), 
+						fit = true,
+					})
 					space(20)
-					do_text({font = .Monospace, text = text_format("Count: %i", len(widget_agent.list)), fit = true})
+					do_text({
+						font = .Monospace, 
+						text = text_format("Count: %i", len(widget_agent.list)), 
+						fit = true,
+					})
 				}
 			}
 		}

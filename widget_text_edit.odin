@@ -29,6 +29,10 @@ Text_Input_Info :: struct {
 	select_bits: Selectable_Text_Bits,
 	edit_bits: Text_Edit_Bits,
 }
+Text_Input_Result :: struct {
+	changed: bool,
+	chip_clicked: Maybe(int),
+}
 do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
 	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .Can_Key_Select}); ok {
 		using self
@@ -39,9 +43,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 
 		// Animation values
 		hover_time := animate_bool(self.id, .Hovered in state, 0.1)
-
 		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
-
 		font_data := get_font_data(.Default)
 
 		// Text edit
@@ -64,7 +66,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			data_slice = type[:]
 		}
 
-		padding: [2]f32 = {line_height * 0.25, y_padding}
+		padding: [2]f32 = {WIDGET_TEXT_OFFSET, y_padding}
 
 		text_bits: Selectable_Text_Bits
 		if .Should_Paint not_in bits {

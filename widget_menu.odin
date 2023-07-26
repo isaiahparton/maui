@@ -12,7 +12,7 @@ Attached_Layer_Info :: struct {
 	parent: Attached_Layer_Parent,
 	size: [2]f32,
 	layout_size: Maybe([2]f32),
-	side: Box_Side,
+	side: Maybe(Box_Side),
 	align: Maybe(Alignment),
 	fill_color: Maybe(Color),
 	stroke_color: Maybe(Color),
@@ -32,13 +32,17 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 		if .Got_Press in widget.state {
 			widget.bits ~= {.Menu_Open}
 		}
+		if .Focused in widget.state && .Menu_Open not_in widget.bits {
+			widget.bits += {.Menu_Open}
+		}
 	}
 	if ok {
+		side := info.side.? or_else .Bottom
 		// Determine layout
-		horizontal := info.side == .Left || info.side == .Right
+		horizontal := side == .Left || side == .Right
 		anchor_box := info.parent.(Box) or_else info.parent.(^Widget).box
 
-		box: Box = attach_box(anchor_box, info.side, info.size.x if horizontal else info.size.y)
+		box: Box = attach_box(anchor_box, side, info.size.x if horizontal else info.size.y)
 
 		if horizontal {
 			box.h = max(info.size.y, anchor_box.h)

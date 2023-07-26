@@ -419,7 +419,7 @@ Selectable_Text_Result :: struct {
 	font_data: ^Font_Data,
 }
 
-//TODO: Fix cuursor appearing for one frame on previously focused widget when selecting another
+//TODO: Fix cursor appearing for one frame on previously focused widget when selecting another
 // Displays clipped, selectable text that can be copied to clipboard
 selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result: Selectable_Text_Result) {
 	assert(widget != nil)
