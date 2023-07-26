@@ -38,6 +38,7 @@ FMT_BUFFER_SIZE 	:: 128
 
 TEMP_BUFFER_COUNT 	:: 2
 GROUP_STACK_SIZE 	:: 32
+CHIP_STACK_SIZE :: 32
 MAX_CLIP_RECTS 		:: #config(MAUI_MAX_CLIP_RECTS, 32)
 MAX_CONTROLS 		:: #config(MAUI_MAX_CONTROLS, 1024)
 LAYER_ARENA_SIZE 	:: 128
@@ -115,6 +116,11 @@ stack_top_ref :: proc(stack: ^Stack($T, $N)) -> (ref: ^T, ok: bool) #optional_ok
 	return &stack.items[stack.height - 1], true
 }
 
+Deferred_Chip :: struct {
+	text: string,
+	clicked: bool,
+}
+
 Core :: struct {
 	// Time
 	current_time: f64,
@@ -144,6 +150,9 @@ Core :: struct {
 
 	// Hash stack
 	id_stack: Stack(Id, ID_STACK_SIZE),
+
+	// Text chips
+	chips: Stack(Deferred_Chip, CHIP_STACK_SIZE),
 
 	// Group stack
 	group_stack: Stack(Group, GROUP_STACK_SIZE),
@@ -407,6 +416,8 @@ begin_frame :: proc() {
 	input.last_key_bits = input.key_bits
 	input.last_mouse_bits = input.mouse_bits
 	input.last_mouse_point = input.mouse_point
+
+	chips.height = 0
 }
 end_frame :: proc() {
 	using core

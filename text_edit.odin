@@ -186,8 +186,10 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 	}
 	// Backspacing
 	if key_pressed(.Backspace) {
-		typing_agent_backspace(self, info.array)
-		change = true
+		if len(info.array) > 0 {
+			typing_agent_backspace(self, info.array)
+			change = true
+		}
 	}
 	// Arrowkey navigation
 	// TODO(isaiah): Implement up/down navigation for multiline text input

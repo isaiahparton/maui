@@ -1,6 +1,7 @@
 package demo
 
 import "core:time"
+import "core:strings"
 import rl "vendor:raylib"
 import ui "../"
 import ui_backend "../raylib_backend"
@@ -29,12 +30,15 @@ main :: proc() {
 	multiline_buffer: [dynamic]u8
 	section_state: bool
 
+	chips: [dynamic]string
+
 	button_load_timer: f32
 
 
 	rl.SetConfigFlags({.MSAA_4X_HINT})
 	rl.InitWindow(1200, 900, "a window")
 	rl.SetTargetFPS(75)
+
 	ui_backend.init()
 	ui.init()
 
@@ -51,11 +55,33 @@ main :: proc() {
 			if do_layout(.Left, 0.5, true) {
 				shrink(10)
 				set_size(30)
-				do_text_input({data = &text_buffer})
-				space(20)
-				do_text_input({data = &text_buffer})
-				space(20)
-				do_text_input({data = &text_buffer})
+				for &entry in chips {
+					stack_push(&core.chips, Deferred_Chip{text = entry})
+				}
+				enter := key_pressed(.Enter)
+				change := do_text_input({
+					data = &text_buffer,
+				})
+				if change || enter {
+					if len(text_buffer) > 0 {
+						if (text_buffer[len(text_buffer) - 1] == ',') {
+							append(&chips, strings.clone(string(text_buffer[:len(text_buffer) - 1])))
+							clear(&text_buffer)
+						} else if enter {
+							append(&chips, strings.clone(string(text_buffer[:])))
+							clear(&text_buffer)
+						}
+					}
+				} else if len(chips) > 0 && key_pressed(.Backspace) {
+					pop(&chips)
+				}
+				for i in 0..<core.chips.height {
+					if core.chips.items[i].clicked {
+						ordered_remove(&chips, i)
+						break
+					}
+				}
+				core.chips.height = 0
 			}
 			if do_layout(.Left, 1, true) {
 				shrink(10)
