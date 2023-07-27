@@ -10,14 +10,16 @@ Orientation :: enum {
 }
 
 // Integer spinner (compound widget)
-Spinner_Info :: struct {
+Spinner_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 	value,
 	low,
-	high: int,
+	high: T,
+	increment: Maybe(T),
 	orientation: Orientation,
+	trim_decimal: bool,
 }
 
-do_spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: int) {
+do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_value: T) {
 	loc := loc
 	new_value = info.value
 	// Sub-widget boxes
@@ -31,15 +33,17 @@ do_spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: i
 		increase_box = get_box_top(box, box.w / 2)
 		decrease_box = get_box_bottom(box, box.w / 2)
 	}
+	increment := info.increment.? or_else T(1)
 	// Number input
 	set_next_box(box)
 	paint_box_fill(box, get_color(.Widget_BG))
-	new_value = clamp(do_number_input(Number_Input_Info(int){
+	new_value = clamp(do_number_input(Number_Input_Info(T){
 		value = info.value,
 		text_align = ([2]Alignment){
 			.Middle, 
 			.Middle,
 		} if info.orientation == .Vertical else nil,
+		trim_decimal = info.trim_decimal,
 	}, loc), info.low, info.high)
 	// Step buttons
 	loc.column += 1
@@ -49,7 +53,7 @@ do_spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: i
 		align = .Middle,
 		style = .Subtle,
 	}, loc) {
-		new_value = max(info.low, info.value - 1)
+		new_value = max(info.low, info.value - increment)
 	}
 	loc.column += 1
 	set_next_box(increase_box)
@@ -58,7 +62,7 @@ do_spinner :: proc(info: Spinner_Info, loc := #caller_location) -> (new_value: i
 		align = .Middle,
 		style = .Subtle,
 	}, loc) {
-		new_value = min(info.high, info.value + 1)
+		new_value = min(info.high, info.value + increment)
 	}
 	return
 }

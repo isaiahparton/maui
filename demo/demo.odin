@@ -82,6 +82,63 @@ main :: proc() {
 					}
 				}
 				core.chips.height = 0
+
+				space(10)
+				if do_pill_button({
+					label = "Bruh",
+					load_time = f32(min(1, core.current_time * 0.1)),
+				}) {
+
+				}
+				space(10)
+				if do_menu({
+					label = "Menu",
+					size = {0, 90},
+				}) {
+					set_size(30)
+					if do_option({
+						label = "Option A",
+					}) {
+
+					}
+					if do_option({
+						label = "Option B",
+					}) {
+
+					}
+					if do_submenu({
+						label = "Submenu A",
+						size = {200, 90},
+					}) {
+						set_size(30)
+						if do_option({
+							label = "Option C",
+						}) {
+
+						}
+						if do_option({
+							label = "Option D",
+						}) {
+
+						}
+						if do_submenu({
+							label = "Submenu B",
+							size = {200, 60},
+						}) {
+							set_size(30)
+							if do_option({
+								label = "Option E",
+							}) {
+
+							}
+							if do_option({
+								label = "Option F",
+							}) {
+
+							}
+						}
+					}
+				}
 			}
 			if do_layout(.Left, 1, true) {
 				shrink(10)

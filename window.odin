@@ -253,7 +253,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 		}
 
 		if .Moving in self.bits {
-			self.opacity += (0.5 - self.opacity) * core.delta_time * 10
+			self.opacity += (0.75 - self.opacity) * core.delta_time * 10
 		} else {
 			self.opacity += (1 - self.opacity) * core.delta_time * 10
 		}

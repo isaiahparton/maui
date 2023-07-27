@@ -314,7 +314,7 @@ Frame_Info :: struct {
 @(deferred_out=_do_frame)
 do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	self: ^Layer
-	box := layout_next(current_layout())
+	box := use_next_box() or_else layout_next(current_layout())
 	self, ok = begin_layer({
 		box = box,
 		inner_box = shrink_box(box, info.scrollbar_padding.? or_else 0),
@@ -419,8 +419,12 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.inner_box = info.inner_box.? or_else self.box
 
 		// Hovering and stuff
-		self.state = self.next_state
-		self.next_state = {}
+		if .Attached in self.options {
+			self.state += self.next_state
+			self.next_state = {}
+		} else {
+			self.state = {}
+		}
 		if agent.hover_id == self.id {
 			self.state += {.Hovered}
 			if agent.last_hover_id != self.id {

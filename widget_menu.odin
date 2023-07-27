@@ -145,7 +145,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
 			paint_labeled_widget_frame(box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
 			paint_rotating_arrow({box.x + box.w - box.h / 2, box.y + box.h / 2}, 6, -1 + state_time, get_color(.Text))
-			paint_label_box(info.label, shrink_box_separate(box, {box.h * 0.25, 0}), get_color(.Text), {info.align.? or_else .Near, .Middle})
+			paint_label_box(info.label, shrink_box_separate(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), {info.align.? or_else .Near, .Middle})
 		}
 		// Begin layer if expanded
 		result: Attached_Layer_Result
@@ -180,38 +180,27 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
 	if self, ok := do_widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
 		using self
-		active = .Active in bits
 		// Animation
-		hover_time := animate_bool(self.id, .Hovered in state || active, 0.15)
+		hover_time := animate_bool(self.id, .Hovered in state, 0.15)
 		// Paint
 		if .Should_Paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
-			paint_flipping_arrow({box.x + box.w - box.h / 2, box.y + box.h / 2}, 8, 0, get_color(.Text))
-			paint_label_box(info.label, box, get_color(.Text), {info.align.? or_else .Near, .Middle})
+			paint_flipping_arrow({box.x + box.w - box.h / 2, box.y + box.h / 2}, 6, 0, get_color(.Text))
+			paint_label_box(info.label, shrink_box_separate(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), {info.align.? or_else .Near, .Middle})
 		}
-		// Swap state when clicked
-		if state & {.Hovered, .Lost_Hover} != {} {
-			bits += {.Active}
-		} else if .Hovered in self.layer.state && .Got_Hover not_in self.layer.state {
-			bits -= {.Active}
-		}
+		side := info.side.? or_else .Right
 		// Begin layer
+		result: Attached_Layer_Result
+		result, active = begin_attached_layer({
+			id = shared_id,
+			parent = self,
+			side = side,
+			size = info.size,
+			layout_size = info.layout_size,
+			align = info.layer_align,
+		})
 		if active {
-			layer_result, _ := begin_attached_layer({
-				id = shared_id,
-				parent = self.box,
-				side = .Right,
-				size = info.size,
-				layout_size = info.layout_size,
-				align = info.layer_align,
-				fill_color = get_color(.Widget_BG),
-			})
-			if layer_result.self.state & {.Hovered, .Lost_Hover} != {} {
-				bits += {.Active}
-			}
-			if layer_result.dismissed {
-				bits -= {.Active}
-			}
+			push_color(.Base, get_color(.Widget_BG))
 		}
 	}
 	return
@@ -223,6 +212,7 @@ _do_submenu :: proc(active: bool) {
 		end_attached_layer({
 			stroke_color = get_color(.Base_Stroke),
 		}, current_layer())
+		pop_color()
 	}
 }
 

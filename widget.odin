@@ -1378,26 +1378,38 @@ _do_list_item :: proc(_: List_Item_Result, ok: bool) {
 	}
 }
 
+Image_Fitting :: enum {
+	Width,
+	Height,
+}
 Image_Info :: struct {
 	image: Image_Index,
-	uniform: bool,
+	fit: Maybe(Image_Fitting),
 	color: Maybe(Color),
 }
 do_image :: proc(info: Image_Info) {
 	box := layout_next(current_layout())
-	if get_clip(core.clip_box, box) != .Full {
-		if info.uniform {
-			size := linalg.array_cast(painter.images[info.image].size, f32)
-			if size.x > box.w {
-				size.y *= box.w / size.x
-				size.x = box.w 
-			}
-			if size.y > box.h {
-				size.x *= box.h / size.y
-				size.y = box.h
-			}
-			box = child_box(box, size, {.Middle, .Middle})
+	size := linalg.array_cast(painter.images[info.image].size, f32)
+	if info.fit == .Width {
+		if size.x > box.w {
+			size.y *= box.w / size.x
+			size.x = box.w 
 		}
-		paint_image(info.image, {0, 0, 1, 1}, box, info.color.? or_else 255)
+	} else if info.fit == .Height {
+		if size.y > box.h {
+			size.x *= box.h / size.y
+			size.y = box.h
+		}
+	}
+	set_next_box(box)
+	if do_frame({
+		layout_size = size,
+		options = {.No_Scroll_Margin_X},
+	}) {
+		set_size(size.y)
+		image_box := layout_next(current_layout())
+		paint_image(info.image, {0, 0, 1, 1}, image_box, info.color.? or_else 255)
+		layer := current_layer()
+		layer.content_box = update_bounding_box(layer.content_box, image_box)
 	}
 }

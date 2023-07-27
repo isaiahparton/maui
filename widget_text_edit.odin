@@ -128,7 +128,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 	return
 }
 // Edit number values
-Number_Input_Info :: struct($T: typeid) {
+Number_Input_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 	value: T,
 	title,
 	suffix,

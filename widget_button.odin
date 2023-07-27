@@ -18,6 +18,7 @@ Button_Shape :: enum {
 Pill_Button_Info :: struct {
 	label: Label,
 	loading: bool,
+	load_time: Maybe(f32),
 	fit_to_label: Maybe(bool),
 	style: Maybe(Button_Style),
 	fill_color: Maybe(Color),
@@ -43,6 +44,12 @@ do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clic
 			switch info.style.? or_else .Filled {
 				case .Filled:
 				paint_pill_fill_h(self.box, alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
+				if load_time, ok := info.load_time.?; ok {
+					paint_pill_fill_clipped_h(self.box, {self.box.x, self.box.y, self.box.w * load_time, self.box.h}, get_color(.Button_Shade, 0.25))
+					if load_time > 0 && load_time < 1 {
+						core.paint_next_frame = true
+					}
+				}
 				if info.loading {
 					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.Button_Text, 0.5))
 					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.Button_Text, 0.5), {.Far, .Middle})
