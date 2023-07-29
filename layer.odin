@@ -78,6 +78,8 @@ Layer_Order :: enum {
 Layer :: struct {
 	// Reserved in data table
 	reserved: bool,
+	// Owner widget
+	owner: Maybe(^Widget),
 	// Relations
 	parent: ^Layer,
 	children: [dynamic]^Layer,
@@ -358,6 +360,8 @@ Layer_Info :: struct {
 	options: Layer_Options,
 	// Opacity
 	opacity: Maybe(f32),
+	// Owner widget
+	owner: Maybe(^Widget),
 }
 
 @(deferred_out=_do_layer)
@@ -398,6 +402,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Update user options
 		self.options = info.options
 
+		self.owner = info.owner
+
 		if .Steal_Focus in self.options {
 			agent.exclusive_id = self.id
 		}
@@ -419,12 +425,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.inner_box = info.inner_box.? or_else self.box
 
 		// Hovering and stuff
-		if .Attached in self.options {
-			self.state += self.next_state
-			self.next_state = {}
-		} else {
-			self.state = {}
-		}
+		self.state = self.next_state
+		self.next_state = {}
 		if agent.hover_id == self.id {
 			self.state += {.Hovered}
 			if agent.last_hover_id != self.id {
@@ -441,13 +443,15 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		if .Attached in self.options {
 			assert(self.parent != nil)
 			self.opacity = self.parent.opacity
-			parent := self.parent
-			for parent != nil {
-				parent.next_state += self.state
-				if .Attached not_in parent.options {
-					break
+			if self.state != {} {
+				parent := self.parent
+				for parent != nil {
+					parent.next_state += self.state
+					if .Attached not_in parent.options {
+						break
+					}
+					parent = parent.parent
 				}
-				parent = parent.parent
 			}
 		}
 

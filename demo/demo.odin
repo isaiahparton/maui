@@ -37,6 +37,7 @@ main :: proc() {
 
 	rl.SetConfigFlags({.MSAA_4X_HINT})
 	rl.InitWindow(1200, 900, "a window")
+	rl.SetExitKey(.KEY_NULL)
 	rl.SetTargetFPS(75)
 
 	ui_backend.init()
@@ -145,7 +146,7 @@ main :: proc() {
 				set_size(500)
 				do_image({
 					image = image,
-					uniform = true,
+					fit = .Width,
 				})
 			}
 

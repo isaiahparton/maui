@@ -64,8 +64,9 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 		result.self, ok = begin_layer({
 			id = info.id.? or_else info.parent.(^Widget).id, 
 			box = box, 
+			owner = info.parent.(^Widget) or_else nil,
 			layout_size = info.layout_size.? or_else {},
-			options = info.layer_options + {.Attached},
+			options = info.layer_options,
 			shadow = Layer_Shadow_Info({
 				offset = SHADOW_OFFSET,
 			}),
@@ -76,14 +77,6 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 			if info.fill_color != nil {
 				paint_box_fill(result.self.box, info.fill_color.?)
 			}
-
-			// Check if the layer was dismissed by input
-			if widget, ok := info.parent.(^Widget); ok {
-				if .Dismissed in result.self.bits || (.Focused not_in result.self.state && .Focused not_in widget.state) {
-					widget.bits -= {.Menu_Open}
-					core.paint_next_frame = true
-				}
-			}
 		}
 	}
 	return
@@ -91,9 +84,13 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 
 @private
 end_attached_layer :: proc(info: Attached_Layer_Info, layer: ^Layer) {
-	if (.Hovered not_in layer.state && .Hovered not_in layer.parent.state && mouse_pressed(.Left)) || key_pressed(.Escape) {
-		layer.bits += {.Dismissed}
-	}	
+	// Check if the layer was dismissed by input
+	if widget, ok := layer.owner.?; ok {
+		if .Dismissed in layer.bits || (.Focused not_in widget.state && .Focused not_in layer.next_state && .Focused not_in layer.state) || key_pressed(.Escape) {
+			widget.bits -= {.Menu_Open}
+			core.paint_next_frame = true
+		}
+	}
 
 	// Paint stroke color
 	if info.stroke_color != nil {
@@ -198,6 +195,7 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			size = info.size,
 			layout_size = info.layout_size,
 			align = info.layer_align,
+			layer_options = {.Attached},
 		})
 		if active {
 			push_color(.Base, get_color(.Widget_BG))
