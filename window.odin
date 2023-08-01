@@ -180,7 +180,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			}
 			// Draw title bar and get movement dragging
 			if .Title in self.options {
-				title_box := cut(.Top, WINDOW_TITLE_SIZE)
+				title_box := cut(.Top, Pt(WINDOW_TITLE_SIZE))
 				// Draw title boxangle
 				if .Collapsed in self.bits {
 					paint_rounded_box_fill(title_box, WINDOW_ROUNDNESS, get_color(.Intense))
@@ -224,7 +224,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 		}
 		
 		inner_box := self.draw_box
-		box_cut(&inner_box, .Top, WINDOW_TITLE_SIZE)
+		cut_box(&inner_box, .Top, Pt(WINDOW_TITLE_SIZE))
 
 		if .Initialized not_in self.bits {
 			self.min_layout_size = {inner_box.w, inner_box.h}
@@ -264,10 +264,10 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 		// Get resize click
 		if .Resizable in self.options && self.decor_layer.state >= {.Hovered} && .Collapsed not_in self.bits {
 			RESIZE_MARGIN :: 5
-			top_hover 		:= point_in_box(input.mouse_point, get_box_top(self.box, RESIZE_MARGIN))
-			left_hover 		:= point_in_box(input.mouse_point, get_box_left(self.box, RESIZE_MARGIN))
-			bottom_hover 	:= point_in_box(input.mouse_point, get_box_bottom(self.box, RESIZE_MARGIN))
-			right_hover 	:= point_in_box(input.mouse_point, get_box_right(self.box, RESIZE_MARGIN))
+			top_hover 		:= point_in_box(input.mouse_point, get_box_top(self.box, Pt(RESIZE_MARGIN)))
+			left_hover 		:= point_in_box(input.mouse_point, get_box_left(self.box, Pt(RESIZE_MARGIN)))
+			bottom_hover 	:= point_in_box(input.mouse_point, get_box_bottom(self.box, Pt(RESIZE_MARGIN)))
+			right_hover 	:= point_in_box(input.mouse_point, get_box_right(self.box, Pt(RESIZE_MARGIN)))
 			if top_hover || bottom_hover {
 				core.cursor = .Resize_NS
 				core.widget_agent.hover_id = 0

@@ -7,16 +7,24 @@ Attached_Layer_Parent :: union {
 	^Widget,
 }
 
+Attached_Layer_Mode :: enum {
+	Focus,
+	Hover,
+}
+
 Attached_Layer_Info :: struct {
 	id: Maybe(Id),
+	mode: Attached_Layer_Mode,
 	parent: Attached_Layer_Parent,
 	size: [2]f32,
 	layout_size: Maybe([2]f32),
+	extend: Maybe(Box_Side),
 	side: Maybe(Box_Side),
 	align: Maybe(Alignment),
 	fill_color: Maybe(Color),
 	stroke_color: Maybe(Color),
 	layer_options: Layer_Options,
+	opacity: Maybe(f32),
 }
 
 Attached_Layer_Result :: struct {
@@ -29,11 +37,17 @@ Attached_Layer_Result :: struct {
 begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Layer_Result, ok: bool) {
 	if widget, is_widget := info.parent.(^Widget); is_widget {
 		ok = .Menu_Open in widget.bits
-		if .Got_Press in widget.state {
-			widget.bits ~= {.Menu_Open}
-		}
-		if .Focused in widget.state && .Menu_Open not_in widget.bits {
-			widget.bits += {.Menu_Open}
+		if .Menu_Open not_in widget.bits {
+			switch info.mode {
+				case .Focus:
+				if .Focused in widget.state && .Menu_Open not_in widget.bits {
+					widget.bits += {.Menu_Open}
+				}
+				case .Hover:
+				if .Hovered in widget.state && .Menu_Open not_in widget.bits {
+					widget.bits += {.Menu_Open}
+				}
+			}
 		}
 	}
 	if ok {
@@ -46,6 +60,9 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 
 		if horizontal {
 			box.h = max(info.size.y, anchor_box.h)
+			if info.extend == .Top {
+				box.y += anchor_box.h
+			}
 			if info.align == .Middle {
 				box.y = anchor_box.y + anchor_box.h / 2 - info.size.y / 2
 			} else if info.align == .Far {
@@ -53,11 +70,17 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 			}
 		} else {
 			box.w = max(info.size.x, anchor_box.w)
+			if info.extend == .Left {
+				box.x += anchor_box.w
+			}
 			if info.align == .Middle {
 				box.x = anchor_box.x + anchor_box.w / 2 - info.size.x / 2
 			} else if info.align == .Far {
 				box.x = anchor_box.x + anchor_box.w - info.size.x
 			}	
+		}
+		if info.extend != nil {
+			box.h = 0
 		}
 
 		// Begin the new layer
@@ -66,7 +89,9 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 			box = box, 
 			owner = info.parent.(^Widget) or_else nil,
 			layout_size = info.layout_size.? or_else {},
+			extend = info.extend,
 			options = info.layer_options,
+			opacity = info.opacity,
 			shadow = Layer_Shadow_Info({
 				offset = SHADOW_OFFSET,
 			}),
@@ -86,9 +111,19 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 end_attached_layer :: proc(info: Attached_Layer_Info, layer: ^Layer) {
 	// Check if the layer was dismissed by input
 	if widget, ok := layer.owner.?; ok {
-		if .Dismissed in layer.bits || (.Focused not_in widget.state && .Focused not_in layer.next_state && .Focused not_in layer.state) || key_pressed(.Escape) {
+		dismiss: bool
+		switch info.mode {
+			case .Focus:
+			dismiss = .Focused not_in widget.state && layer.next_state & {.Focused} == {} && layer.state & {.Focused} == {}
+			case .Hover:
+			dismiss = .Hovered not_in widget.state && layer.next_state & {.Hovered} == {} && layer.state & {.Hovered, .Lost_Hover} == {}
+		}
+		if .Dismissed in layer.bits || dismiss || key_pressed(.Escape) {
 			widget.bits -= {.Menu_Open}
 			core.paint_next_frame = true
+			if dismiss {
+				core.open_menus = false
+			}
 		}
 	}
 
@@ -135,13 +170,13 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		// Animation
 		push_id(id) 
 			hover_time := animate_bool(hash_int(0), .Hovered in state, 0.15)
-			state_time := animate_bool(hash_int(1), active, 0.125)
+			state_time := animate_bool(hash_int(1), .Menu_Open in bits, 0.15)
 		pop_id()
 		// Painting
 		if .Should_Paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
 			paint_labeled_widget_frame(box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
-			paint_rotating_arrow({box.x + box.w - box.h / 2, box.y + box.h / 2}, 6, -1 + state_time, get_color(.Text))
+			paint_aligned_icon(get_font_data(.Header), .Chevron_Down, {box.x + box.w - box.h / 2, box.y + box.h / 2}, 1, get_color(.Text), {.Middle, .Middle})
 			paint_label_box(info.label, shrink_box_separate(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), {info.align.? or_else .Near, .Middle})
 		}
 		// Begin layer if expanded
@@ -152,7 +187,9 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			side = .Bottom,
 			size = info.size,
 			layout_size = info.layout_size,
+			extend = .Bottom,
 			align = info.layer_align,
+			opacity = state_time,
 		})
 		if active {
 			push_color(.Base, get_color(.Widget_BG))
@@ -178,11 +215,14 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	if self, ok := do_widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
 		using self
 		// Animation
-		hover_time := animate_bool(self.id, .Hovered in state, 0.15)
+		push_id(self.id)
+			hover_time := animate_bool(hash_int(0), .Hovered in state, 0.15)
+			open_time := animate_bool(hash_int(1), .Menu_Open in bits, 0.15)
+		pop_id()
 		// Paint
 		if .Should_Paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
-			paint_flipping_arrow({box.x + box.w - box.h / 2, box.y + box.h / 2}, 6, 0, get_color(.Text))
+			paint_aligned_icon(get_font_data(.Header), .Chevron_Right, {box.x + box.w - box.h / 2, box.y + box.h / 2}, 1, get_color(.Text), {.Middle, .Middle})
 			paint_label_box(info.label, shrink_box_separate(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), {info.align.? or_else .Near, .Middle})
 		}
 		side := info.side.? or_else .Right
@@ -190,12 +230,15 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		result: Attached_Layer_Result
 		result, active = begin_attached_layer({
 			id = shared_id,
+			mode = .Hover,
 			parent = self,
 			side = side,
 			size = info.size,
 			layout_size = info.layout_size,
+			extend = .Bottom,
 			align = info.layer_align,
 			layer_options = {.Attached},
+			opacity = open_time,
 		})
 		if active {
 			push_color(.Base, get_color(.Widget_BG))
@@ -208,6 +251,7 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 _do_submenu :: proc(active: bool) {
 	if active {
 		end_attached_layer({
+			mode = .Hover,
 			stroke_color = get_color(.Base_Stroke),
 		}, current_layer())
 		pop_color()

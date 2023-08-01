@@ -42,14 +42,14 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				// Fill
 				paint_rounded_box_fill(layer.box, WINDOW_ROUNDNESS, get_color(.Widget_BG))
 				shrink(10)
-				if do_layout(.Top, 20) {
-					set_side(.Left); set_size(135); set_align(.Middle)
+				if do_layout(.Top, Pt(20)) {
+					set_side(.Left); set_size(Pt(135)); set_align(.Middle)
 					month_days := int(time.days_before[int(month)])
 					if int(month) > 0 {
 						month_days -= int(time.days_before[int(month) - 1])
 					}
+					set_size(Pt(20))
 					if do_menu({label = format(day), size = {0, 120}, layout_size = ([2]f32){0, f32(month_days) * 20}}) {
-						set_size(20)
 						for i in 1..=month_days {
 							push_id(i)
 								if do_option({label = format(i)}) {
@@ -61,7 +61,6 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					}
 					space(10)
 					if do_menu({label = format(month), size = {0, 120}, layout_size = ([2]f32){0, 240}}) {
-						set_size(20)
 						for member in time.Month {
 							push_id(int(member))
 								if do_option({label = format(member)}) {
@@ -73,7 +72,6 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					}
 					space(10)
 					if do_menu({label = format(year), size = {0, 120}, layout_size = ([2]f32){0, 180}}) {
-						set_size(20)
 						low := max(year - 4, 1970)
 						for i in low..=(low + 8) {
 							push_id(i)
@@ -86,8 +84,8 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					}
 				}
 				space(10)
-				if do_layout(.Top, 20) {
-					set_side(.Left); set_size(70)
+				if do_layout(.Top, Pt(20)) {
+					set_side(.Left); set_size(Pt(70))
 					// Subtract one year
 					if do_button({label = "<<<", style = .Filled}) {
 						year -= 1
@@ -127,8 +125,8 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 				}
-				if do_layout(.Top, 20) {
-					set_side(.Left); set_size(60); set_align(.Middle)
+				if do_layout(.Top, Pt(20)) {
+					set_side(.Left); set_size(Pt(60)); set_align(.Middle)
 					for day in ([]string)({"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}) {
 						do_text({text = day})
 					}
@@ -137,13 +135,13 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				OFFSET :: i64(time.Hour * 72)
 				t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
 				day_time := (t._nsec / WEEK_DURATION) * WEEK_DURATION - OFFSET
-				if do_layout(.Top, 20) {
-					set_side(.Left); set_size(60)
+				if do_layout(.Top, Pt(20)) {
+					set_side(.Left); set_size(Pt(60))
 					for i in 0..<42 {
 						if (i > 0) && (i % 7 == 0) {
 							pop_layout()
-							push_layout(cut(.Top, 20))
-							set_side(.Left); set_size(60)
+							push_layout(cut(.Top, Pt(20)))
+							set_side(.Left)
 						}
 						_, _month, _day := time.date(transmute(time.Time)day_time)
 						push_id(i)
@@ -154,8 +152,8 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						day_time += i64(time.Hour * 24)
 					}
 				}
-				if do_layout(.Bottom, 30) {
-					set_side(.Right); set_size(60)
+				if do_layout(.Bottom, Pt(30)) {
+					set_side(.Right); set_size(Pt(60))
 					if do_button({label = "Cancel", style = .Outlined}) {
 						info.temp_value^ = info.value^
 						self.bits -= {.Active}
@@ -166,7 +164,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						self.bits -= {.Active}
 						changed = true
 					}
-					set_side(.Left); set_size(60)
+					set_side(.Left);
 					if do_button({label = "Today", style = .Outlined}) {
 						info.temp_value^ = time.now()
 					}

@@ -4,7 +4,7 @@ import "core:fmt"
 Box :: struct {
 	x, y, w, h: f32,
 }
-
+//NOTE: Never change order!
 Box_Side :: enum {
 	Top,
 	Bottom,
@@ -150,56 +150,91 @@ move_box :: proc(box: Box, delta: [2]f32) -> Box {
 }
 
 // cut a box and return the cut piece
-box_cut_left :: proc(box: ^Box, amount: f32) -> (result: Box) {
-	amount := min(box.w, amount)
-	result = {box.x, box.y, amount, box.h}
-	box.x += amount
-	box.w -= amount
+cut_box_left :: proc(box: ^Box, amount: Unit) -> (result: Box) {
+	a := min(box.w, amount.(Points) or_else Pt(f32(amount.(Percent)) * 0.01 * box.w))
+	result = {box.x, box.y, a, box.h}
+	box.x += a
+	box.w -= a
 	return
 }
-box_cut_top :: proc(box: ^Box, amount: f32) -> (result: Box) {
-	amount := min(box.h, amount)
-	result = {box.x, box.y, box.w, amount}
-	box.y += amount
-	box.h -= amount
+cut_box_top :: proc(box: ^Box, amount: Unit) -> (result: Box) {
+	a := min(box.h, amount.(Points) or_else Pt(f32(amount.(Percent)) * 0.01 * box.h))
+	result = {box.x, box.y, box.w, a}
+	box.y += a
+	box.h -= a
 	return
 }
-box_cut_right :: proc(box: ^Box, amount: f32) -> (result: Box) {
-	amount := min(box.w, amount)
-	box.w -= amount
-	result = {box.x + box.w, box.y, amount, box.h}
+cut_box_right :: proc(box: ^Box, amount: Unit) -> (result: Box) {
+	a := min(box.w, amount.(Points) or_else Pt(f32(amount.(Percent)) * 0.01 * box.w))
+	box.w -= a
+	result = {box.x + box.w, box.y, a, box.h}
 	return
 }
-box_cut_bottom :: proc(box: ^Box, amount: f32) -> (result: Box) {
-	amount := min(box.h, amount)
-	box.h -= amount
-	result = {box.x, box.y + box.h, box.w, amount}
+cut_box_bottom :: proc(box: ^Box, amount: Unit) -> (result: Box) {
+	a := min(box.h, amount.(Points) or_else Pt(f32(amount.(Percent)) * 0.01 * box.h))
+	box.h -= a
+	result = {box.x, box.y + box.h, box.w, a}
 	return
 }
-box_cut :: proc(box: ^Box, side: Box_Side, amount: f32) -> Box {
+cut_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
 	switch side {
-		case .Bottom: 	return box_cut_bottom(box, amount)
-		case .Top: 		return box_cut_top(box, amount)
-		case .Left: 	return box_cut_left(box, amount)
-		case .Right: 	return box_cut_right(box, amount)
+		case .Bottom: 	return cut_box_bottom(box, amount)
+		case .Top: 			return cut_box_top(box, amount)
+		case .Left: 		return cut_box_left(box, amount)
+		case .Right: 		return cut_box_right(box, amount)
+	}
+	return {}
+}
+
+// cut a box and return the cut piece
+extend_box_left :: proc(box: ^Box, amount: f32) -> (result: Box) {
+	box.x -= amount
+	box.w += amount
+	result = {box.x, box.y, amount, box.h}
+	return
+}
+extend_box_top :: proc(box: ^Box, amount: f32) -> (result: Box) {
+	box.y -= amount
+	box.h += amount
+	result = {box.x, box.y, box.w, amount}
+	return
+}
+extend_box_right :: proc(box: ^Box, amount: f32) -> (result: Box) {
+	result = {box.x + box.w, box.y, amount, box.h}
+	box.w += amount
+	return
+}
+extend_box_bottom :: proc(box: ^Box, amount: f32) -> (result: Box) {
+	result = {box.x, box.y + box.h, box.w, amount}
+	box.h += amount
+	return
+}
+extend_box :: proc(box: ^Box, side: Box_Side, amount: f32) -> Box {
+	switch side {
+		case .Top: 			return extend_box_top(box, amount)
+		case .Bottom: 	return extend_box_bottom(box, amount)
+		case .Left: 		return extend_box_left(box, amount)
+		case .Right: 		return extend_box_right(box, amount)
 	}
 	return {}
 }
 
 // get a cut piece of a box
-get_box_left :: proc(b: Box, a: f32) -> Box {
-	return {b.x, b.y, a, b.h}
+get_box_left :: proc(b: Box, a: Unit) -> Box {
+	return {b.x, b.y, a.(Points) or_else Pt(f32(a.(Percent)) * 0.01 * b.w), b.h}
 }
-get_box_top :: proc(b: Box, a: f32) -> Box {
-	return {b.x, b.y, b.w, a}
+get_box_top :: proc(b: Box, a: Unit) -> Box {
+	return {b.x, b.y, b.w, a.(Points) or_else Pt(f32(a.(Percent)) * 0.01 * b.h)}
 }
-get_box_right :: proc(b: Box, a: f32) -> Box {
-	return {b.x + b.w - a, b.y, a, b.h}
+get_box_right :: proc(b: Box, a: Unit) -> Box {
+	t := a.(Points) or_else Pt(f32(a.(Percent)) * 0.01 * b.w)
+	return {b.x + b.w - t, b.y, t, b.h}
 }
-get_box_bottom :: proc(b: Box, a: f32) -> Box {
-	return {b.x, b.y + b.h - a, b.w, a}
+get_box_bottom :: proc(b: Box, a: Unit) -> Box {
+	t := a.(Points) or_else Pt(f32(a.(Percent)) * 0.01 * b.h)
+	return {b.x, b.y + b.h - t, b.w, t}
 }
-get_box_cut :: proc(box: Box, side: Box_Side, amount: f32) -> Box {
+get_cut_box :: proc(box: Box, side: Box_Side, amount: Unit) -> Box {
 	switch side {
 		case .Bottom: 	return get_box_bottom(box, amount)
 		case .Top: 		return get_box_top(box, amount)

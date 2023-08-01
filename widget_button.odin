@@ -9,100 +9,46 @@ Button_Style :: enum {
 	Subtle,
 }
 Button_Shape :: enum {
-	Square,
+	Rectangle,
 	Pill,
 	Left_Arrow,
 	Right_Arrow,
 }
-// Standalone button for major actions
-Pill_Button_Info :: struct {
-	label: Label,
-	loading: bool,
-	load_time: Maybe(f32),
-	fit_to_label: Maybe(bool),
-	style: Maybe(Button_Style),
-	fill_color: Maybe(Color),
-	text_color: Maybe(Color),
-}
-do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clicked: bool) {
-	layout := current_layout()
-	if (info.fit_to_label.? or_else true) && (layout.side == .Left || layout.side == .Right) {
-		layout.size = measure_label(info.label).x + (layout.box.h - (layout.margin[.Top] + layout.margin[.Bottom])) + layout.margin[.Left] + layout.margin[.Right]
-		if info.loading {
-			layout.size += layout.box.h * 0.75
-		}
-	}
-	if self, ok := do_widget(hash(loc), layout_next(layout)); ok {
-		using self
-		hover_time := animate_bool(self.id, .Hovered in state, 0.1)
-		if .Hovered in self.state {
-			core.cursor = .Hand
-		}
-		// Graphics
-		if .Should_Paint in bits {
-			roundness := box.h / 2
-			switch info.style.? or_else .Filled {
-				case .Filled:
-				paint_pill_fill_h(self.box, alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
-				if load_time, ok := info.load_time.?; ok {
-					paint_pill_fill_clipped_h(self.box, {self.box.x, self.box.y, self.box.w * load_time, self.box.h}, get_color(.Button_Shade, 0.25))
-					if load_time > 0 && load_time < 1 {
-						core.paint_next_frame = true
-					}
-				}
-				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.Button_Text, 0.5))
-					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.Button_Text, 0.5), {.Far, .Middle})
-				} else {
-					paint_label_box(info.label, self.box, get_color(.Button_Text), {.Middle, .Middle})
-				}
-				
-				case .Outlined:
-				paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-				paint_pill_stroke_h(self.box, true, get_color(.Button_Base))
-				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.Button_Base, 0.5))
-					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.Button_Base, 0.5), {.Far, .Middle})
-				} else {
-					paint_label_box(info.label, self.box, get_color(.Button_Base), {.Middle, .Middle})
-				}
-			
-				case .Subtle:
-				paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.Button_Base, 0.5))
-					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.Button_Base, 0.5), {.Far, .Middle})
-				} else {
-					paint_label_box(info.label, self.box, get_color(.Button_Base), {.Middle, .Middle})
-				}
-			}
 
-			if info.loading {
-				core.paint_next_frame = true
-			}
-		}
-		// Click result
-		clicked = widget_clicked(self, .Left)
-	}
-	return
+get_size_for_label :: proc(layout: ^Layout, label: Label) -> Pt {
+	return measure_label(label).x + (layout.box.h - get_layout_margin(layout, .Top) - get_layout_margin(layout, .Bottom)) + get_layout_margin(layout, .Left) + get_layout_margin(layout, .Right)
 }
 
 // Square buttons
 Button_Info :: struct {
 	label: Label,
 	align: Maybe(Alignment),
-	join: Box_Sides,
 	color: Maybe(Color),
-	fit_to_label: bool,
+	fit_to_label: Maybe(bool),
+	loading: bool,
+	load_time: Maybe(f32),
+	join: Box_Sides,
 	style: Button_Style,
+	shape: Button_Shape,
 }
 do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
-	if info.fit_to_label {
-		layout_fit_label(layout, info.label)
+
+	box: Box
+	if next_box, ok := use_next_box(); ok {
+		box = next_box
+	} else if int(layout.placement.side) > 1 && (info.fit_to_label.? or_else true) {
+		size := get_size_for_label(layout, info.label)
+		if info.shape == .Left_Arrow || info.shape == .Right_Arrow {
+			size += get_layout_height(layout) / 2
+		}
+		box = layout_next_of_size(layout, size)
+	} else {
+		box = layout_next(layout)
 	}
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
+	if self, ok := do_widget(hash(loc), box); ok {
 		// Animations
+		push_id(self.id)
 		hover_time := animate_bool(self.id, .Hovered in self.state, 0.1)
 		// Cursor
 		if .Hovered in self.state {
@@ -110,32 +56,88 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 		}
 		// Graphics
 		if .Should_Paint in self.bits {
-			color := info.color.? or_else get_color(.Button_Base)
-			switch info.style {
-				case .Filled:
-				paint_box_fill(self.box, alpha_blend_colors(color, get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
-				paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), get_color(.Button_Text), {info.align.? or_else .Middle, .Middle})
+			base_color := info.color.? or_else get_color(.Button_Base)
+			#partial switch info.shape {
+				case .Rectangle:
+				switch info.style {
+					case .Filled:
+					paint_box_fill(self.box, alpha_blend_colors(base_color, get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
 
-				case .Outlined:
-				paint_box_fill(self.box, fade(color, 0.2 if .Pressed in self.state else hover_time * 0.1))
-				if .Left not_in info.join {
-					paint_box_fill({self.box.x, self.box.y, 1, self.box.h}, color)
+					case .Outlined:
+					paint_box_fill(self.box, fade(base_color, 0.2 if .Pressed in self.state else hover_time * 0.1))
+					if .Left not_in info.join {
+						paint_box_fill({self.box.x, self.box.y, 1, self.box.h}, base_color)
+					}
+					if .Right not_in info.join {
+						paint_box_fill({self.box.x + self.box.w - 1, self.box.y, 1, self.box.h}, base_color)
+					}
+					paint_box_fill({self.box.x, self.box.y, self.box.w, 1}, base_color)
+					paint_box_fill({self.box.x, self.box.y + self.box.h - 1, self.box.w, 1}, base_color)
+
+					case .Subtle:
+					paint_box_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
 				}
-				if .Right not_in info.join {
-					paint_box_fill({self.box.x + self.box.w - 1, self.box.y, 1, self.box.h}, color)
-				}
-				paint_box_fill({self.box.x, self.box.y, self.box.w, 1}, color)
-				paint_box_fill({self.box.x, self.box.y + self.box.h - 1, self.box.w, 1}, color)
+
+				case .Pill: 
+				switch info.style {
+					case .Filled:
+					paint_pill_fill_h(self.box, alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
+					
+					case .Outlined:
+					paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
+					paint_pill_stroke_h(self.box, true, get_color(.Button_Base))
 				
-				paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, {info.align.? or_else .Middle, .Middle})
+					case .Subtle:
+					paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
+				}
 
-				case .Subtle:
-				paint_box_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-				paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, {info.align.? or_else .Middle, .Middle})
+				case .Left_Arrow:
+				#partial switch info.style {
+					case .Filled:
+					n := self.box.h * 0.5
+					fill_color := alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15)
+					paint_left_ribbon_fill(self.box, fill_color)
+
+					case .Outlined:
+					n := self.box.h * 0.5
+					fill_color := get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1)
+					paint_left_ribbon_fill(self.box, fill_color)
+					stroke_color := get_color(.Button_Base)
+					paint_left_ribbon_stroke(self.box, stroke_color)
+				
+					case .Subtle:
+					paint_left_ribbon_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
+				}
+
+				case .Right_Arrow:
+				#partial switch info.style {
+					case .Filled:
+					n := self.box.h * 0.5
+					fill_color := alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15)
+					paint_right_ribbon_fill(self.box, fill_color)
+
+					case .Outlined:
+					n := self.box.h * 0.5
+					fill_color := get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1)
+					paint_right_ribbon_fill(self.box, fill_color)
+					stroke_color := get_color(.Button_Base)
+					paint_right_ribbon_stroke(self.box, stroke_color)
+				
+					case .Subtle:
+					paint_right_ribbon_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
+				}
+			}
+			label_color := get_color(.Button_Text if info.style == .Filled else .Button_Base)
+			if info.loading {
+				loader_time := animate_bool_start_zero(hash_int(1), info.loading, 0.25)
+				paint_loader(box_center(self.box), self.box.h * 0.3, f32(core.current_time), fade(label_color, loader_time))
+			} else {
+				paint_label_box(info.label, self.box, label_color, {.Middle, .Middle})
 			}
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)
+		pop_id()
 	}
 	return
 }
@@ -151,10 +153,16 @@ Toggle_Button_Info :: struct {
 }
 do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
-	if info.fit_to_label {
-		layout_fit_label(layout, info.label)
+	
+	box: Box
+	if next_box, ok := use_next_box(); ok {
+		box = next_box
+	} else if int(layout.placement.side) > 1 {
+		box = layout_next_of_size(layout, get_size_for_label(layout, info.label))
+	} else {
+		box = layout_next(layout)
 	}
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
+	if self, ok := do_widget(hash(loc), box); ok {
 		// Animations
 		hover_time := animate_bool(self.id, .Hovered in self.state, 0.1)
 		// Paintions

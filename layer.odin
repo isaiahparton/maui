@@ -13,6 +13,7 @@ Layer_Status :: enum {
 	Hovered,
 	Lost_Hover,
 	Focused,
+	Lost_Focus,
 }
 
 Layer_State :: bit_set[Layer_Status]
@@ -142,6 +143,7 @@ Layer_Agent :: struct {
 	hover_id,
 	last_hover_id,
 	focus_id,
+	last_focus_id,
 	debug_id: 		Id,
 	// If a layer is stealing focus
 	exclusive_id: Maybe(Id),
@@ -172,6 +174,7 @@ layer_agent_end_root :: proc(using self: ^Layer_Agent) {
 
 layer_agent_step :: proc(using self: ^Layer_Agent) {
 	sorted_layer: ^Layer
+	last_focus_id = focus_id
 	last_hover_id = hover_id
 	hover_id = 0
 	for layer, i in list {
@@ -362,6 +365,8 @@ Layer_Info :: struct {
 	opacity: Maybe(f32),
 	// Owner widget
 	owner: Maybe(^Widget),
+	// If the layer auto extends
+	extend: Maybe(Box_Side),
 }
 
 @(deferred_out=_do_layer)
@@ -421,7 +426,13 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.command_offset = 0
 
 		// Get box
-		self.box = info.box.? or_else self.box
+		if _, ok := info.extend.?; ok {
+			if self.box == {} {
+				self.box = info.box.? or_else self.box
+			}
+		} else {
+			self.box = info.box.? or_else self.box
+		}
 		self.inner_box = info.inner_box.? or_else self.box
 
 		// Hovering and stuff
@@ -437,6 +448,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		}
 		if agent.focus_id == self.id {
 			self.state += {.Focused}
+		} else if agent.last_focus_id == self.id {
+			self.state += {.Lost_Focus}
 		}
 
 		// Attachment
@@ -517,13 +530,50 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.content_box = {self.box.x + self.box.w, self.box.y + self.box.h, 0, 0}
 
 		// Layers currently have their own layouts, but this is subject to change
-		layout_box: Box = {
-			self.box.x - self.scroll.x,
-			self.box.y - self.scroll.y,
-			self.layout_size.x,
-			self.layout_size.y,
+		layout_box: Box
+		if side, ok := info.extend.?; ok {
+			switch side {
+				case .Top:
+				layout_box = {
+					self.box.x,
+					self.box.y + self.box.h,
+					self.box.w,
+					0,
+				}
+				case .Bottom:
+				layout_box = {
+					self.box.x,
+					self.box.y,
+					self.box.w,
+					0,
+				}
+				case .Left:
+				layout_box = {
+					self.box.x,
+					self.box.y,
+					0,
+					self.box.h,
+				}
+				case .Right:
+				layout_box = {
+					self.box.x + self.box.w,
+					self.box.y,
+					0,
+					self.box.h,
+				}
+			}
+			layout := push_layout(layout_box, .Extending)
+			layout.side = side
+			layout.ignore_parent = true
+		} else {
+			layout_box = {
+				self.box.x - self.scroll.x,
+				self.box.y - self.scroll.y,
+				self.layout_size.x,
+				self.layout_size.y,
+			}
+			push_layout(layout_box)
 		}
-		push_layout(layout_box)
 	}
 	return
 }
@@ -545,6 +595,15 @@ end_layer :: proc(self: ^Layer) {
 		}
 
 		// End layout
+		layout := current_layout()
+		if layout.mode == .Extending {
+			#partial switch layout.side.? {
+				case .Top:
+				self.box = {self.box.x, layout.box.y, self.box.w, layout.box.h}
+				case .Bottom:
+				self.box = {self.box.x, self.box.y, self.box.w, layout.box.h}
+			}
+		}
 		pop_layout()
 
 		// Handle scrolling

@@ -710,6 +710,39 @@ clip_dst_src :: proc(dst, src: ^Box, clip: Box) {
   src.h = dst.h
 }
 
+paint_right_ribbon_fill :: proc(box: Box, color: Color) {
+	n := box.h / 2
+	paint_box_fill({box.x + n, box.y, box.w - n * 2, box.h}, color)
+	paint_triangle_fill({box.x + box.w, box.y}, {box.x + box.w - n, box.y}, {box.x + box.w - n, box.y + n}, color)
+	paint_triangle_fill({box.x + box.w - n, box.y + n}, {box.x + box.w - n, box.y + box.h}, {box.x + box.w, box.y + box.h}, color)
+	paint_triangle_fill({box.x, box.y + n}, {box.x + n, box.y + box.h}, {box.x + n, box.y}, color)
+}
+paint_right_ribbon_stroke :: proc(box: Box, color: Color) {
+	n := box.h / 2
+	paint_box_fill({box.x + n, box.y, box.w - n, 1}, color)
+	paint_box_fill({box.x + n, box.y + box.h - 1, box.w - n, 1}, color)
+	paint_line({box.x + box.w, box.y}, {box.x + box.w - n, box.y + n}, 1, color)
+	paint_line({box.x + box.w, box.y + box.h}, {box.x + box.w - n, box.y + n}, 1, color)
+	paint_line({box.x + n, box.y}, {box.x, box.y + n}, 1, color)
+	paint_line({box.x + n, box.y + box.h}, {box.x, box.y + n}, 1, color)
+}
+paint_left_ribbon_fill :: proc(box: Box, color: Color) {
+	n := box.h / 2
+	paint_box_fill({box.x + n, box.y, box.w - n * 2, box.h}, color)
+	paint_triangle_fill({box.x + n, box.y}, {box.x, box.y}, {box.x + n, box.y + n}, color)
+	paint_triangle_fill({box.x + n, box.y + n}, {box.x, box.y + box.h}, {box.x + n, box.y + box.h}, color)
+	paint_triangle_fill({box.x + box.w, box.y + n}, {box.x + box.w - n, box.y}, {box.x + box.w - n, box.y + box.h}, color)
+}
+paint_left_ribbon_stroke :: proc(box: Box, color: Color) {
+	n := box.h / 2
+	paint_box_fill({box.x, box.y, box.w - n, 1}, color)
+	paint_box_fill({box.x, box.y + box.h - 1, box.w - n, 1}, color)
+	paint_line({box.x, box.y}, {box.x + n, box.y + n}, 1, color)
+	paint_line({box.x, box.y + box.h}, {box.x + n, box.y + n}, 1, color)
+	paint_line({box.x + box.w - n, box.y}, {box.x + box.w, box.y + n}, 1, color)
+	paint_line({box.x + box.w - n, box.y + box.h}, {box.x + box.w, box.y + n}, 1, color)
+}
+
 paint_pill_fill_clipped_h :: proc(box, clip: Box, color: Color) {
 	radius := math.floor(box.h / 2)
 
@@ -1030,4 +1063,5 @@ paint_loader :: proc(center: [2]f32, radius, time: f32, color: Color) {
 	start := time * math.TAU
 	paint_ring_sector_fill(center, radius - 3, radius, start, start + 2.2 + math.sin(time * 4) * 0.8, 24, color)
 	core.paint_this_frame = true
+	core.paint_next_frame = true
 }

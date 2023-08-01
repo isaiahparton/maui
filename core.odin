@@ -133,6 +133,7 @@ Core :: struct {
 
 	disabled, 
 	dragging, 
+	open_menus,
 	is_key_selecting: bool,
 
 	// Should ui be repainted
@@ -241,6 +242,19 @@ animate_bool :: proc(id: Id, condition: bool, duration: f32) -> f32 {
 		animation = map_insert(&core.animations, id, Animation({
 			value = f32(int(condition)),
 		}))
+	}
+	animation.keep_alive = true
+	if condition {
+		animation.value = min(1, animation.value + core.delta_time / duration)
+	} else {
+		animation.value = max(0, animation.value - core.delta_time / duration)
+	}
+	return animation.value
+}
+animate_bool_start_zero :: proc(id: Id, condition: bool, duration: f32) -> f32 {
+	animation, ok := &core.animations[id]
+	if !ok {
+		animation = map_insert(&core.animations, id, Animation({}))
 	}
 	animation.keep_alive = true
 	if condition {
@@ -437,12 +451,12 @@ end_frame :: proc() {
 					debug_bits -= {.Show_Window}
 				}
 
-				set_size(30)
+				set_size(Pt(30))
 				debug_mode = do_enum_tabs(debug_mode, 0)
 
-				shrink(10); set_size(24)
+				shrink(10); set_size(Pt(24))
 				if debug_mode == .Layers {
-					set_side(.Bottom); set_size(TEXTURE_HEIGHT)
+					set_side(.Bottom); set_size(Pt(TEXTURE_HEIGHT))
 					if do_frame({
 						layout_size = {TEXTURE_WIDTH, TEXTURE_HEIGHT},
 						fill_color = Color{0, 0, 0, 255},
@@ -519,7 +533,7 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 }
 @private
 _debug_layer_widget :: proc(layer: ^Layer) {
-	if do_layout(.Top, 24) {
+	if do_layout(.Top, Pt(24)) {
 		push_id(layer.id)
 			n := 0
 			x := layer
@@ -527,7 +541,7 @@ _debug_layer_widget :: proc(layer: ^Layer) {
 				x = x.parent
 				n += 1
 			}
-			cut(.Left, f32(n) * 24); set_side(.Left); set_size(1, true)
+			cut(.Left, Pt(f32(n) * 24)); set_side(.Left); set_size(Percent(100))
 			do_button({
 				label = format(layer.id),
 				align = .Near,

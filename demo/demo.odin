@@ -17,23 +17,12 @@ Choice :: enum {
 
 Choice_Set :: bit_set[Choice]
 
-main :: proc() {
-	choice: Choice
-	choice_set: Choice_Set
-	switch_state: bool
-	slider_value_f32: f32
-	slider_value_i32: i32
-	calendar_time: time.Time
-	temp_calendar_time: time.Time
-	spinner_value: int
+_main :: proc() {
+	boolean: bool
 	text_buffer: [dynamic]u8
-	multiline_buffer: [dynamic]u8
-	section_state: bool
-
 	chips: [dynamic]string
 
-	button_load_timer: f32
-
+	buttons: [ui.Button_Style][ui.Button_Shape]f32
 
 	rl.SetConfigFlags({.MSAA_4X_HINT})
 	rl.InitWindow(1200, 900, "a window")
@@ -43,7 +32,6 @@ main :: proc() {
 	ui_backend.init()
 	ui.init()
 
-	image, _ := ui.load_image("logo.png")
 	for true {
 		{
 			using ui
@@ -53,9 +41,9 @@ main :: proc() {
 			core.current_time = rl.GetTime()
 
 			shrink(100)
-			if do_layout(.Left, 0.5, true) {
+			if do_layout(.Left, Percent(50)) {
 				shrink(10)
-				set_size(30)
+				set_size(Pt(30))
 				for &entry in chips {
 					stack_push(&core.chips, Deferred_Chip{text = entry})
 				}
@@ -84,70 +72,85 @@ main :: proc() {
 				}
 				core.chips.height = 0
 
-				space(10)
-				if do_pill_button({
-					label = "Bruh",
-					load_time = f32(min(1, core.current_time * 0.1)),
-				}) {
+				space(Pt(10))
+				do_checkbox({
+					state = &boolean,
+					text = "Checkbox",
+					text_side = .Bottom,
+				})
+				space(Pt(10))
+				boolean = do_toggle_switch({
+					state = &boolean,
+				})
+				space(Pt(10))
 
-				}
-				space(10)
-				if do_menu({
-					label = "Menu",
-					size = {0, 90},
-				}) {
-					set_size(30)
-					if do_option({
-						label = "Option A",
-					}) {
-
-					}
-					if do_option({
-						label = "Option B",
-					}) {
-
-					}
-					if do_submenu({
-						label = "Submenu A",
-						size = {200, 90},
-					}) {
-						set_size(30)
-						if do_option({
-							label = "Option C",
-						}) {
-
+				for style in Button_Style {
+					if do_layout(.Top, Pt(30)) {
+						set_side(.Left)
+						for shape in Button_Shape {
+							push_id(int(style) + int(shape) * len(Button_Shape))
+								if do_button({
+									label = format(style),
+									style = style,
+									shape = shape,
+									loading = buttons[style][shape] > 0,
+								}) {
+									buttons[style][shape] = 3
+								}
+								buttons[style][shape] = max(0, buttons[style][shape] - core.delta_time)
+							pop_id()
+							space(Pt(10))
 						}
-						if do_option({
-							label = "Option D",
+					}
+					space(Pt(10))
+				}
+				
+				CHIPS: []string : {"Elithor", "Alminor", "Ucrith", "Malnicus", "Pydrinorium"}
+				if do_layout(.Left, Pt(200)) {
+					if do_layout(.Top, Pt(20)) {
+						set_side(.Left)
+						for t, i in CHIPS {
+							push_id(i)
+								do_toggled_chip({
+									state = false,
+									text = t,
+									row_spacing = Pt(10),
+								})
+							pop_id()
+							space(Pt(10))
+						}
+					}
+					space(Pt(10)); set_size(Pt(30))
+					if do_menu({
+						label = "Menu",
+					}) {
+						set_height(Pt(30))
+						do_option({label = "Option A"})
+						do_option({label = "Option B"})
+						if do_submenu({
+							label = "Submenu A",
+							size = {200, 0},
 						}) {
-
+							set_height(Pt(30))
+							do_option({label = "Option C"})
+							do_option({label = "Option D"})
 						}
 						if do_submenu({
 							label = "Submenu B",
-							size = {200, 60},
+							size = {200, 0},
 						}) {
-							set_size(30)
-							if do_option({
-								label = "Option E",
+							do_option({label = "Option E"})
+							do_option({label = "Option F"})
+							if do_submenu({
+								label = "Submenu C",
+								size = {200, 0},
 							}) {
-
-							}
-							if do_option({
-								label = "Option F",
-							}) {
-
+								do_option({label = "Option G"})
+								do_option({label = "Option H"})
 							}
 						}
 					}
 				}
-			}
-			if do_layout(.Left, 1, true) {
-				shrink(10)
-				set_size(500)
-				do_image({
-					image = image,
-					fit = .Width,
-				})
 			}
 
 			end_frame()
@@ -165,9 +168,23 @@ main :: proc() {
 		}
 	}
 
-	ui.unload_image(image)
-
 	rl.CloseWindow()
 
 	ui.uninit()
+}
+
+main :: proc() {
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	defer mem.tracking_allocator_destroy(&track)
+	context.allocator = mem.tracking_allocator(&track)
+
+	_main()
+
+	for _, leak in track.allocation_map {
+		fmt.printf("%v leaked %v bytes\n", leak.location, leak.size)
+	}
+	for bad_free in track.bad_free_array {
+		fmt.printf("%v allocation %p was freed badly\n", bad_free.location, bad_free.memory)
+	}
 }

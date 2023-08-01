@@ -479,7 +479,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	// Draw chippies
 	if core.chips.height > 0 {
 		if do_layout_box(move_box(info.box, -info.view_offset)) {
-			set_side(.Left); set_margin_any({.Left = 5, .Top = 5, .Bottom = 5, .Right = 0})
+			set_side(.Left); set_margin_any({.Left = Pt(5), .Top = Pt(5), .Bottom = Pt(5), .Right = Pt(0)})
 			for i in 0..<core.chips.height {
 				push_id(i)
 					if do_chip({
