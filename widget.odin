@@ -5,6 +5,7 @@ import "core:math"
 import "core:runtime"
 import "core:unicode/utf8"
 import "core:math/linalg"
+import "core:math/ease"
 import "core:strconv"
 import "core:strings"
 import "core:slice"
@@ -1149,7 +1150,7 @@ do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (cl
 	state_time := animate_bool(id, info.state, 0.15)
 	if layout.side == .Left || layout.side == .Right {
 		min_size := measure_string(font_data, info.text).x + layout.box.h + layout.margin[.Left] + layout.margin[.Right]
-		min_size += font_data.size * state_time
+		min_size += font_data.size * ease.quadratic_in_out(state_time)
 		if min_size > layout.box.w {
 			pop_layout()
 			if info.row_spacing != nil {
