@@ -1,4 +1,11 @@
+/*
+	TODO: Implement descrete text formatting and painting options
+*/
+
 package maui
+
+import "core:runtime"
+import "core:os"
 
 import "core:math"
 import "core:math/bits"
@@ -9,7 +16,32 @@ import "core:fmt"
 import "core:unicode"
 import "core:unicode/utf8"
 
+import ttf "vendor:stb/truetype"
+
 TEXT_BREAK :: "..."
+
+Font_Handle :: int
+
+// The different uses of fonts
+
+Font_Size :: struct {
+	ascent,
+	line_gap,
+	scale: f32,
+	glyphs: map[rune]Glyph_Data,
+	// Helpers
+	break_size: f32,
+}
+Font :: struct {
+	data: ttf.fontinfo,
+	sizes: map[f32]Font_Size,
+}
+Glyph_Data :: struct {
+	image: Image,
+	src: Box,
+	offset: [2]f32,
+	advance: f32,
+}
 
 Icon :: enum rune {
 	Cloud 						= 0xEB9C,
@@ -79,24 +111,26 @@ Icon :: enum rune {
 	Bank_Card 				= 0xEA91,
 }
 
+FMT_BUFFER_COUNT 		:: 16
+FMT_BUFFER_SIZE 		:: 256
 // Text formatting for short term usage
 // each string is valid until it's home buffer is reused
-@private fmtBuffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
-@private fmtBufferIndex: u8
-text_format :: proc(text: string, args: ..any) -> string {
-	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+@private fmt_buffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
+@private fmt_buffer_index: u8
+
+tmp_print :: proc(args: ..any) -> string {
+	str := fmt.bprint(fmt_buffers[fmt_buffer_index][:], ..args)
+	fmt_buffer_index = (fmt_buffer_index + 1) % FMT_BUFFER_COUNT
 	return str
 }
-text_format_slice :: proc(text: string, args: ..any) -> []u8 {
-	str := fmt.bprintf(fmtBuffers[fmtBufferIndex][:], text, ..args)
-	slice := fmtBuffers[fmtBufferIndex][:len(str)]
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return slice
+tmp_printf :: proc(text: string, args: ..any) -> string {
+	str := fmt.bprintf(fmt_buffers[fmt_buffer_index][:], text, ..args)
+	fmt_buffer_index = (fmt_buffer_index + 1) % FMT_BUFFER_COUNT
+	return str
 }
-text_join :: proc(args: []string, sep := " ") -> string {
+tmp_join :: proc(args: []string, sep := " ") -> string {
 	size := 0
-	buffer := &fmtBuffers[fmtBufferIndex]
+	buffer := &fmt_buffers[fmt_buffer_index]
 	for arg, index in args {
 		copy(buffer[size:size + len(arg)], arg[:])
 		size += len(arg)
@@ -106,18 +140,10 @@ text_join :: proc(args: []string, sep := " ") -> string {
 		}
 	}
 	str := string(buffer[:size])
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	fmt_buffer_index = (fmt_buffer_index + 1) % FMT_BUFFER_COUNT
 	return str
 }
-text_capitalize :: proc(str: string) -> string {
-	buffer := &fmtBuffers[fmtBufferIndex]
-	copy(buffer[:], str[:])
-	buffer[0] = u8(unicode.to_upper(rune(buffer[0])))
-	str := string(buffer[:len(str)])
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return str
-}
-text_remove_trailing_zeroes :: proc(text: string) -> string {
+tmp_print_real :: proc(text: string) -> string {
 	text := text
 	for i := len(text) - 1; i >= 0; i -= 1 {
 		if text[i] != '0' {
@@ -131,28 +157,16 @@ text_remove_trailing_zeroes :: proc(text: string) -> string {
 	}
 	return text
 }
-// Format types to text
-format :: proc(args: ..any) -> string {
-	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return str
-}
-format_to_slice :: proc(args: ..any) -> []u8 {
-	str := fmt.bprint(fmtBuffers[fmtBufferIndex][:], ..args)
-	buf := fmtBuffers[fmtBufferIndex][:len(str)]
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
-	return buf
-}
-format_bit_set :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
+tmp_print_bit_set :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 	size := 0
-	buffer := &fmtBuffers[fmtBufferIndex]
+	buffer := &fmt_buffers[fmt_buffer_index]
 	count := 0
 	max := card(set)
 	for member in E {
 		if member not_in set {
 			continue
 		}
-		name := TextCapitalize(Format(member))
+		name := fprint(member)
 		copy(buffer[size:size + len(name)], name[:])
 		size += len(name)
 		if count < max - 1 {
@@ -162,183 +176,243 @@ format_bit_set :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 		count += 1
 	}
 	str := string(buffer[:size])
-	fmtBufferIndex = (fmtBufferIndex + 1) % FMT_BUFFER_COUNT
+	fmt_buffer_index = (fmt_buffer_index + 1) % FMT_BUFFER_COUNT
 	return str
 }
 
-String_Paint_Option :: enum {
-	wrap,
-	word_wrap,
+Text_Align :: enum {
+	Left,
+	Middle,
+	Right,
 }
-String_Paint_Options :: bit_set[String_Paint_Option]
-Contained_String_Info :: struct {
-	wrap,
+Text_Baseline :: enum {
+	Top,
+	Middle,
+	Bottom,
+}
+Text_Info :: struct {
+	font: Font_Handle,
+	text: string,
+	align: Text_Align,
+	baseline: Text_Baseline,
+	size: f32,
+	line_limit: Maybe(f32),
 	word_wrap: bool,
-	align: [2]Alignment,
 }
-paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: Color, info: Contained_String_Info) -> [2]f32 {
+Text_Iterator :: struct {
+	// Font
+	font: ^Font,
+	size: ^Font_Size,
+	// Ending
+	tail: Maybe(int),
+	// Current line size
+	line_limit: Maybe(f32),
+	line_size: f32,
+	new_line: bool,
+	// Glyph offset
+	offset: [2]f32,
+	// Current codepoint and glyph data
+	codepoint: rune,
+	glyph: ^Glyph_Data,
+	// Current byte index
+	next_word,
+	index,
+	next_index: int,
+	// Do offset
+	do_offset: bool,
+}
+make_text_iterator :: proc(info: Text_Info) -> (it: Text_Iterator) {
+	it.font = &painter.fonts[info.font]
+	it.size, _ = get_font_size(it.font, info.size)
+	it.line_limit = info.line_limit
+	return
+}
+iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
+	
+	// Update index
+	it.index = it.next_index
+	// Decode next codepoint
+	codepoint, bytes := utf8.decode_rune(info.text[it.index:])
+	// Update next index
+	it.next_index += bytes
+	// Update horizontal offset with last glyph
+	if it.new_line {
+		it.line_size = 0
+	}
+	if it.glyph != nil {
+		it.offset.x += it.glyph.advance
+		it.line_size += it.glyph.advance
+	}
+	// Get current glyph data
+	if glyph, ok := get_font_glyph(it.font, it.size, codepoint); ok {
+		it.glyph = glyph
+	}
+	space: f32 = it.glyph.advance if it.glyph != nil else 0
+	if info.word_wrap && it.next_index >= it.next_word && codepoint != ' ' {
+		for i := it.next_word; i < len(info.text); {
+			c, b := utf8.decode_rune(info.text[i:])
+			if g, ok := get_font_glyph(it.font, it.size, codepoint); ok {
+				space += g.advance
+			}
+			if c == ' ' {
+				it.next_word = i + b
+				break
+			}
+			i += b
+		}
+	}
 
-	point: [2]f32 = {box.x, box.y}
+	it.new_line = false
+	new_line := false
+	if codepoint == '\n' || (it.line_limit != nil && it.line_size + space >= it.line_limit.?) {
+		new_line = true
+	}
+	// Update vertical offset
+	if new_line {
+		it.new_line = true
+		it.offset.y += it.size.ascent + it.size.line_gap
+	}
+	// Reset offset if new line
+	if it.do_offset && (new_line || it.index == 0) {
+		it.offset.x = 0
+		#partial switch info.align {
+			case .Center: it.offset.x -= measure_next_line(info, it^) / 2
+			case .Right: it.offset.x -= measure_next_line(info, it^)
+		}
+	}
+	it.codepoint = codepoint
+	
+	return it.index < len(info.text)
+}
+
+/*
+	String processing procedures
+*/
+measure_next_line :: proc(info: Text_Info, it: Text_Iterator) -> f32 {
+	it := it
+	it.do_offset = false
+	for iterate_text(&it, info) {
+		if it.new_line {
+			break
+		}
+	}
+	return it.line_size
+}
+measure_next_word :: proc(info: Text_Info, it: Text_Iterator) -> (size: f32, end: int) {
+	it := it
+	it.do_offset = false
+	it.line_size = 0
+	for iterate_text(&it, info) {
+		if it.codepoint == ' ' {
+			break
+		}
+	}
+	return it.line_size, it.next_index
+}
+measure_text :: proc(info: Text_Info) -> [2]f32 {
 	size: [2]f32
-	next_word_index: int
-
-	total_size: [2]f32
-	if info.align.x != .Near || info.align.y != .Near {
-		total_size = measure_string(font, text)
-		#partial switch info.align.x {
-			case .Far: point.x += box.w - total_size.x
-			case .Middle: point.x += box.w / 2 - total_size.x / 2
-		}
-		#partial switch info.align.y {
-			case .Far: point.y += box.h - total_size.y
-			case .Middle: point.y += box.h / 2 - total_size.y / 2
+	it := make_text_iterator(info)
+	for iterate_text(&it, info) {
+		size.x = max(size.x, it.line_size)
+		if it.new_line {
+			size.y += it.size.ascent
 		}
 	}
-
-	break_size: f32
-	if !info.wrap {
-		//TODO(isaiah): Optimize this
-		break_size = measure_string(font, TEXT_BREAK).x
-	}
-
-	for codepoint, index in text {
-		glyph := get_glyph_data(font, codepoint)
-		total_advance := glyph.advance + GLYPH_SPACING
-		space := total_advance
-
-		if info.wrap {
-			if info.word_wrap && index >= next_word_index {
-				for word_rune, word_index in text[index:] {
-					text_index := index + word_index
-					if word_rune == ' ' {
-						next_word_index = text_index
-						break
-					} else if text_index >= len(text) - 1 {
-						next_word_index = text_index + 1
-						break
+	size.y += it.size.ascent
+	return size
+}
+// Load a font and store it in the given document
+load_font :: proc(painter: ^Painter, file: string) -> (handle: Font_Handle, success: bool) {
+	font: Font
+	if file_data, ok := os.read_entire_file(file); ok {
+		if ttf.InitFont(&font.data, transmute([^]u8)(transmute(runtime.Raw_Slice)file_data).data, 0) {
+			for i in 0..<MAX_FONTS {
+				if !painter.font_exists[i] {
+					painter.font_exists[i] = true
+					painter.fonts[i] = font
+					// Add the font to the atlas
+					default_runes: []rune = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 0x2022}
+					for r in default_runes {
+						
 					}
-				}
-				if next_word_index > index {
-					space = measure_string(font, text[index:next_word_index]).x
-				}
-			}
-			if point.x + space > box.x + box.w && codepoint != ' ' {
-				if info.wrap {
-					point.x = box.x
-					point.y += font.size
+
+					handle = Font_Handle(i)
+					success = true
+					break
 				}
 			}
-		} else if point.x + total_advance + break_size >= box.x + box.w {
-			paint_string(font, TEXT_BREAK, point, color)
-			break
 		}
-
-		if codepoint == '\n' {
-			point.x = box.x
-			point.y += font.size
-		} else {
-			if point.y + font.size >= box.y + box.h {
-				paint_clipped_glyph(glyph, point, box, color)
-			} else {
-				paint_texture(glyph.src, {math.trunc(point.x + glyph.offset.x), point.y + glyph.offset.y, glyph.src.w, glyph.src.h}, color)
+	}
+	return
+}
+// Get the data for a given pixel size of the font
+get_font_size :: proc(font: ^Font, size: f32) -> (data: ^Font_Size, ok: bool) {
+	data, ok = &font.sizes[size]
+	if !ok {
+		data = map_insert(&font.sizes, size, Font_Size{})
+		// Compute glyph scale
+		data.scale = ttf.ScaleForPixelHeight(&font.data, f32(size))
+		// Compute vertical metrics
+		ascent, descent, line_gap: i32
+		ttf.GetFontVMetrics(&font.data, &ascent, &descent, &line_gap)
+		data.baseline = f32(f32(ascent) * data.scale)
+		data.line_gap = f32(f32(line_gap) * data.scale)
+		// Yup
+		ok = true
+	}
+	return
+}
+// First creates the glyph if it doesn't exist, then returns its data
+get_font_glyph :: proc(font: ^Font, size: ^Font_Size, codepoint: rune) -> (data: ^Glyph_Data, success: bool) {
+	// Try fetching from map
+	glyph_data, found_glyph := &size.glyphs[codepoint]
+	// If the glyph doesn't exist, we create and render it
+	if !found_glyph {
+		// Get codepoint index
+		index := ttf.FindGlyphIndex(&font.data, codepoint)
+		// Get metrics
+		advance, left_side_bearing: i32
+		ttf.GetGlyphHMetrics(&font.data, index, &advance, &left_side_bearing)
+		// Generate bitmap
+		image_width, image_height, glyph_offset_x, glyph_offset_y: i32
+		image_data := ttf.GetGlyphBitmap(
+			&font.data, 
+			size.scale, 
+			size.scale, 
+			index,
+			&image_width,
+			&image_height,
+			&glyph_offset_x,
+			&glyph_offset_y,
+			)
+		image: Image 
+		if image_data != nil {
+			image = {
+				data = transmute([]u8)runtime.Raw_Slice({data = image_data, len = int(image_width * image_height)}),
+				channels = 1,
+				width = int(image_width),
+				height = int(image_height),
 			}
-			point.x += total_advance
 		}
-		size.x = max(size.x, point.x - box.x)
-
-		if point.y >= box.y + box.h {
-			break
-		}
+		// Set glyph data
+		glyph_data = map_insert(&size.glyphs, codepoint, Glyph_Data({
+			image = image,
+			offset = {f32(glyph_offset_x), f32(glyph_offset_y) + size.ascent},
+			advance = f32(f32(advance) * size.scale),
+		}))
+		success = true
+	} else {
+		success = true
 	}
-	size.y = point.y - box.y
-
-	return size
+	data = glyph_data
+	return
 }
 
-// Text painting
-measure_string :: proc(font: ^Font_Data, text: string) -> (size: [2]f32) {
-	line_size: [2]f32
-	lines := 1
-	for codepoint in text {
-		glyph := get_glyph_data(font, codepoint)
-		line_size.x += glyph.advance + GLYPH_SPACING
-		// Update the maximum width
-		if codepoint == '\n' {
-			size.x = max(size.x, line_size.x)
-			line_size = {}
-			lines += 1
-		}
-	}
-	// Account for the last line
-	size.x = max(size.x, line_size.x)
-	// Height is simple
-	size.y = font.size * f32(lines)
-	return size
+paint_and_save_text :: proc(info: Text_Info, buffer: ^[dynamic]Vertex) -> [2]f32 {
+	
 }
 
-String_Paint_Info :: struct {
-	align: [2]Alignment,
-	clip_box: Maybe(Box),
-}
-
-paint_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, color: Color, info: String_Paint_Info = {}) -> [2]f32 {
-	origin := origin
-	size: [2]f32
-	if info.align.x != .Near || info.align.y != .Near {
-		size = measure_string(font, text)
-	}
-	#partial switch info.align.x {
-		case .Middle: origin.x -= math.trunc(size.x / 2)
-		case .Far: origin.x -= size.x
-	}
-	#partial switch info.align.y {
-		case .Middle: origin.y -= math.trunc(size.y / 2)
-		case .Far: origin.y -= size.y
-	}
-	size = {}
-	point := origin
-	for codepoint in text {
-		glyph := get_glyph_data(font, codepoint)
-		if codepoint == '\n' {
-			point.x = origin.x
-			point.y += font.size
-			size.y += font.size
-		} else {
-			if info.clip_box != nil {
-				paint_clipped_glyph(glyph, point, info.clip_box.?, color)
-			} else {
-				paint_texture(glyph.src, {math.trunc(point.x + glyph.offset.x), point.y + glyph.offset.y, glyph.src.w, glyph.src.h}, color)
-			}
-			point.x += glyph.advance + GLYPH_SPACING
-		}
-		size.x = max(size.x, point.x - origin.x)
-	}
-	size.y += font.size
-	return size
-}
-
-paint_aligned_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
-	return paint_string(font, text, origin, color, {align = align})
-}
-
-paint_aligned_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
-   	box := glyph.src
-	switch align.x {
-		case .Far: box.x = origin.x - box.w
-		case .Middle: box.x = origin.x - math.floor(box.w / 2)
-		case .Near: box.x = origin.x
-	}
-	switch align.y {
-		case .Far: box.y = origin.y - box.h
-		case .Middle: box.y = origin.y - math.floor(box.h / 2)
-		case .Near: box.y = origin.y
-	}
-    paint_texture(glyph.src, box, color)
-
-    return {box.w, box.h}
-}
-
-paint_aligned_icon :: proc(font_data: ^Font_Data, icon: Icon, origin: [2]f32, size: f32, color: Color, align: [2]Alignment) -> [2]f32 {
+paint_aligned_icon :: proc(font: Font_Handle, icon: Icon, origin: [2]f32, size: f32, color: Color, align: [2]Alignment) -> [2]f32 {
 	glyph := get_glyph_data(font_data, rune(icon))
 	box := glyph.src
 	box.w *= size
@@ -353,49 +427,49 @@ paint_aligned_icon :: proc(font_data: ^Font_Data, icon: Icon, origin: [2]f32, si
 		case .Middle: box.y = origin.y - box.h / 2
 		case .Near: box.y = origin.y
 	}
-    paint_texture(glyph.src, box, color)
-    return {box.w, box.h}
+	paint_texture(painter.atlas_agent.texture, glyph.src, box, color)
+	return {box.w, box.h}
 }
 
 // Draw a glyph, mathematically clipped to 'clipBox'
 paint_clipped_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, clip: Box, color: Color) {
-  	src := glyph.src
-    dst := Box{ 
-        f32(i32(origin.x + glyph.offset.x)), 
-        f32(i32(origin.y + glyph.offset.y)), 
-        src.w, 
-        src.h,
-    }
-    if dst.x < clip.x {
-    	delta := clip.x - dst.x
-    	dst.w -= delta
-    	dst.x += delta
-    	src.x += delta
-    }
-    if dst.y < clip.y {
-    	delta := clip.y - dst.y
-    	dst.h -= delta
-    	dst.y += delta
-    	src.y += delta
-    }
-    if dst.x + dst.w > clip.x + clip.w {
-    	dst.w = (clip.x + clip.w) - dst.x
-    }
-    if dst.y + dst.h > clip.y + clip.h {
-    	dst.h = (clip.y + clip.h) - dst.y
-    }
-    src.w = dst.w
-    src.h = dst.h
-    if src.w <= 0 || src.h <= 0 {
-    	return
-    }
-    paint_texture(src, dst, color)
+	src := glyph.src
+	dst := Box{ 
+			f32(i32(origin.x + glyph.offset.x)), 
+			f32(i32(origin.y + glyph.offset.y)), 
+			src.w, 
+			src.h,
+	}
+	if dst.x < clip.x {
+		delta := clip.x - dst.x
+		dst.w -= delta
+		dst.x += delta
+		src.x += delta
+	}
+	if dst.y < clip.y {
+		delta := clip.y - dst.y
+		dst.h -= delta
+		dst.y += delta
+		src.y += delta
+	}
+	if dst.x + dst.w > clip.x + clip.w {
+		dst.w = (clip.x + clip.w) - dst.x
+	}
+	if dst.y + dst.h > clip.y + clip.h {
+		dst.h = (clip.y + clip.h) - dst.y
+	}
+	src.w = dst.w
+	src.h = dst.h
+	if src.w <= 0 || src.h <= 0 {
+		return
+	}
+	paint_texture(painter.atlas_agent.texture, src, dst, color)
 }
 
 // Advanced interactive text
 Selectable_Text_Bit :: enum {
 	Password,
-	mutable,
+	Mutable,
 	Select_All,
 	No_Paint,
 }
@@ -403,7 +477,7 @@ Selectable_Text_Bit :: enum {
 Selectable_Text_Bits :: bit_set[Selectable_Text_Bit]
 
 Selectable_Text_Info :: struct {
-	font_data: ^Font_Data,
+	font_data: ^Font,
 	data: []u8,
 	box: Box,
 	view_offset: [2]f32,
@@ -416,7 +490,7 @@ Selectable_Text_Result :: struct {
 	text_size,
 	view_offset: [2]f32,
 	line_count: int,
-	font_data: ^Font_Data,
+	font: ^Font,
 }
 
 //TODO: Fix cursor appearing for one frame on previously focused widget when selecting another
@@ -425,7 +499,6 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	assert(widget != nil)
 	result.view_offset = info.view_offset
 	// Alias scribe state
-	//FIXME: fix me!
 	state := &core.typing_agent
 	// Should paint?
 	should_paint := .Should_Paint in widget.bits && .No_Paint not_in info.bits
@@ -479,7 +552,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	// Draw chippies
 	if core.chips.height > 0 {
 		if do_layout_box(move_box(info.box, -info.view_offset)) {
-			set_side(.Left); set_margin_any({.Left = Pt(5), .Top = Pt(5), .Bottom = Pt(5), .Right = Pt(0)})
+			placement.side = .Left; placement.margin = {.Left = Exact(5), .Top = Exact(5), .Bottom = Exact(5), .Right = Exact(0)}
 			for i in 0..<core.chips.height {
 				push_id(i)
 					if do_chip({

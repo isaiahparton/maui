@@ -1,3 +1,25 @@
+/*
+	Maui 1.0
+
+	TODO:
+		[x] Nice shiny global variables for placement instead of yucky set functions
+		[x] Move animations to widget struct (duh)
+		[ ] Customizable fonts (default themes provides default fonts)
+		[ ] Implement new texture atlas system 4096x4096
+		[ ] Figure out if dynamic fonts are feasable
+			[ ] Implement dynamic font loading
+				* Painting text will query the painter for that text size, if it does not exist
+				the painter will render it and update the texture (might require updating the whole texture (not good))
+				* Will require usage of 'stb_truetype' (which 'raylib' uses anyways)
+				* How does 'egui' do it?
+		[ ] Cached text painting
+			* Save commands and just copy them when needed
+		[ ] Remove animation map
+		[ ] Widget code takes on a more flexible form: assert->layout->update->paint->result
+		[ ] Lazy resizing for label fitting widgets
+		[ ] Clipped loader painting proc for cool loading animation on buttons
+*/
+
 package maui
 
 import "core:fmt"
@@ -12,9 +34,8 @@ import "core:unicode"
 import "core:unicode/utf8"
 
 import "core:math"
+import "core:math/ease"
 import "core:math/linalg"
-
-import rl "vendor:raylib"
 
 Cursor_Type :: enum {
 	None = -1,
@@ -30,10 +51,6 @@ Cursor_Type :: enum {
 	Resize_all,
 	Disabled,
 }
-
-
-FMT_BUFFER_COUNT 		:: 16
-FMT_BUFFER_SIZE 		:: 128
 
 TEMP_BUFFER_COUNT 	:: 2
 GROUP_STACK_SIZE 		:: 32
@@ -157,9 +174,6 @@ Core :: struct {
 	// Group stack
 	group_stack: Stack(Group, GROUP_STACK_SIZE),
 
-	// Retained animation values
-	animations: map[Id]Animation,
-
 	// Handles text editing
 	typing_agent: Typing_Agent,
 
@@ -236,41 +250,13 @@ end_group :: proc() -> (result: ^Group) {
 /*
 	Animation management
 */
-animate_bool :: proc(id: Id, condition: bool, duration: f32) -> f32 {
-	animation, ok := &core.animations[id]
-	if !ok {
-		animation = map_insert(&core.animations, id, Animation({
-			value = f32(int(condition)),
-		}))
-	}
-	animation.keep_alive = true
+animate_bool :: proc(value: ^f32, condition: bool, duration: f32, easing: ease.Ease = .Linear) -> f32 {
 	if condition {
-		animation.value = min(1, animation.value + core.delta_time / duration)
+		value^ = min(1, value^ + core.delta_time * (1 / duration))
 	} else {
-		animation.value = max(0, animation.value - core.delta_time / duration)
+		value^ = max(0, value^ - core.delta_time * (1 / duration))
 	}
-	return animation.value
-}
-animate_bool_start_zero :: proc(id: Id, condition: bool, duration: f32) -> f32 {
-	animation, ok := &core.animations[id]
-	if !ok {
-		animation = map_insert(&core.animations, id, Animation({}))
-	}
-	animation.keep_alive = true
-	if condition {
-		animation.value = min(1, animation.value + core.delta_time / duration)
-	} else {
-		animation.value = max(0, animation.value - core.delta_time / duration)
-	}
-	return animation.value
-}
-get_animation :: proc(id: Id) -> ^f32 {
-	if id not_in core.animations {
-		core.animations[id] = {}
-	}
-	animation := &core.animations[id]
-	animation.keep_alive = true
-	return &animation.value
+	return ease.ease(easing, value^)
 }
 
 /*
@@ -307,8 +293,6 @@ init :: proc() -> bool {
 }
 uninit :: proc() {
 	if core != nil {
-		// Free animation pool
-		delete(core.animations)
 		// Free text buffers
 		typing_agent_destroy(&core.typing_agent)
 		// Free layer data
@@ -318,7 +302,7 @@ uninit :: proc() {
 		// Free widgets
 		widget_agent_destroy(&core.widget_agent)
 		//
-		painter_uninit()
+		painter_destroy()
 		//
 		free(core)
 	}
@@ -346,19 +330,6 @@ begin_frame :: proc() {
 	// Decide if rendering is needed next frame
 	if input.last_mouse_point != input.mouse_point || input.last_key_bits != input.key_bits|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
 		paint_this_frame = true
-	}
-
-	// Delete unused animations
-	for key, &value in animations {
-		if value.keep_alive {
-			value.keep_alive = false
-			if value.last_value != value.value {
-				paint_this_frame = true
-				value.last_value = value.value
-			}
-		} else {
-			delete_key(&animations, key)
-		}
 	}
 
 	// Reset cursor to default state
@@ -442,73 +413,7 @@ end_frame :: proc() {
 			debug_bits ~= {.Show_Window}
 		}
 		if debug_bits >= {.Show_Window} {
-			if do_window({
-				title = "Debug", 
-				box = {0, 0, 500, 700}, 
-				options = {.Collapsable, .Closable, .Title, .Resizable},
-			}) {
-				if current_window().bits >= {.Should_Close} {
-					debug_bits -= {.Show_Window}
-				}
-
-				set_size(Pt(30))
-				debug_mode = do_enum_tabs(debug_mode, 0)
-
-				shrink(10); set_size(Pt(24))
-				if debug_mode == .Layers {
-					set_side(.Bottom); set_size(Pt(TEXTURE_HEIGHT))
-					if do_frame({
-						layout_size = {TEXTURE_WIDTH, TEXTURE_HEIGHT},
-						fill_color = Color{0, 0, 0, 255},
-						options = {.No_Scroll_Margin_X, .No_Scroll_Margin_Y},
-					}) {
-						paint_box_fill(current_layout().box, {0, 0, 0, 255})
-						paint_texture({0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT}, current_layout().box, 255)
-						layer_agent.current_layer.content_box = update_bounding_box(layer_agent.current_layer.content_box, current_layout().box)
-					}
-					_debug_layer_widget(core.layer_agent.root_layer)
-				} else if debug_mode == .Windows {
-					for id, window in window_agent.pool {
-						push_id(window.id)
-							do_button({
-								label = format(window.id), 
-								align = .Near,
-							})
-							if last_widget().state >= {.Hovered} {
-								layer_agent.debug_id = window.layer.id
-							}
-						pop_id()
-					}
-				} else if debug_mode == .Controls {
-					do_text({
-						font = .Monospace, 
-						text = text_format("Layer: %i", layer_agent.hover_id), 
-						fit = true,
-					})
-					space(20)
-					do_text({
-						font = .Monospace, 
-						text = text_format("Hovered: %i", widget_agent.hover_id), 
-						fit = true,
-					})
-					do_text({
-						font = .Monospace, 
-						text = text_format("Focused: %i", widget_agent.focus_id), 
-						fit = true,
-					})
-					do_text({
-						font = .Monospace, 
-						text = text_format("Pressed: %i", widget_agent.press_id), 
-						fit = true,
-					})
-					space(20)
-					do_text({
-						font = .Monospace, 
-						text = text_format("Count: %i", len(widget_agent.list)), 
-						fit = true,
-					})
-				}
-			}
+			
 		}
 	}
 	// End root layer
@@ -533,7 +438,7 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 }
 @private
 _debug_layer_widget :: proc(layer: ^Layer) {
-	if do_layout(.Top, Pt(24)) {
+	if do_layout(.Top, Exact(24)) {
 		push_id(layer.id)
 			n := 0
 			x := layer
@@ -541,9 +446,9 @@ _debug_layer_widget :: proc(layer: ^Layer) {
 				x = x.parent
 				n += 1
 			}
-			cut(.Left, Pt(f32(n) * 24)); set_side(.Left); set_size(Percent(100))
+			cut(.Left, Exact(f32(n) * 24)); placement.side = .Left; placement.size = Relative(1.0)
 			do_button({
-				label = format(layer.id),
+				label = tmp_print(layer.id),
 				align = .Near,
 			})
 			if last_widget().state >= {.Hovered} {

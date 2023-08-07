@@ -1,3 +1,9 @@
+/*
+	Handles the main texture atlas
+		* Newly created fonts are added at the bottom of the existing content
+		* When the texture is full, it is repainted entirely
+*/
+
 package maui
 // Core dependencies
 import "core:os"
@@ -13,14 +19,15 @@ import "core:unicode/utf8"
 
 import "core:math"
 import "core:math/linalg"
-// For image/font processing
-import rl "vendor:raylib"
+
+import ttf "vendor:stb/truetype"
+import img "vendor:stb/image"
 
 // Path to resrcs folder
 RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, ".")
 // Main texture size
 TEXTURE_WIDTH :: 4096
-TEXTURE_HEIGHT :: 256
+TEXTURE_HEIGHT :: 4096
 // Triangle helper
 TRIANGLE_STEP :: math.TAU / 3
 // What sizes of circles to pre-render
@@ -37,39 +44,26 @@ DEFAULT_FONT :: "IBMPlexSans-Medium_Remixicon.ttf"
 // Default horizontal spacing between glyphs
 GLYPH_SPACING :: 1
 
-Pixel_Format :: rl.PixelFormat
-// Private abstracted image type
-@private
-Image :: rl.Image
-
-// Builtin text styles
-Font_Index :: enum {
-	Default,
-	Header,
-	Monospace,
-	Label,
-}
-Font_Data :: struct {
-	size: f32,
-	image: rl.Image,
-	glyphs: []Glyph_Data,
-	glyph_map: map[rune]i32,
-}
-Glyph_Data :: struct {
-	src: Box,
-	offset: [2]f32,
-	advance: f32,
-}
 Patch_Data :: struct {
 	src: Box,
 	amount: i32,
 }
 
-Texture_Id :: u32
+Image ::struct {
+	width, height: int,
+	data: []u8,
+	channels: int,
+}
+
+Texture :: struct {
+	width, height: int,
+	id: u32,
+	channels: int,
+}
 
 // User imported images
 Image_Data :: struct {
-	texture_id: Texture_Id,
+	texture_id: u32,
 	size: [2]int,
 }
 
@@ -77,123 +71,188 @@ MAX_IMAGES :: 64
 
 Image_Index :: int
 
+Vertex :: struct {
+	point,
+	uv: [2]f32,
+	color: [4]u8,
+}
+
+DRAW_COMMAND_SIZE :: 1024
+// A draw command
+Draw_Command :: struct {
+	clip: Maybe(Box),
+	vertices: [DRAW_COMMAND_SIZE]Vertex,
+	vertices_offset: u16,
+	indices: [DRAW_COMMAND_SIZE]u16,
+	indices_offset: u16,
+}
+// Push a command to a given layer
+paint_vertices :: proc(cmd: ^Draw_Command, vertices: ..Vertex) {
+	if int(cmd.vertices_offset) + len(vertices) <= DRAW_COMMAND_SIZE {
+		copy(cmd.vertices[cmd.vertices_offset:], vertices[:])
+		cmd.vertices_offset += u16(len(vertices))
+	}
+}
+paint_vertices_translated :: proc(cmd: ^Draw_Command, delta: [2]f32, vertices: ..Vertex) {
+	if int(cmd.vertices_offset) + len(vertices) <= DRAW_COMMAND_SIZE {
+		for v in vertices {
+			cmd.vertices[cmd.vertices_offset] = v 
+			cmd.vertices[cmd.vertices_offset].point += delta 
+			cmd.vertices_offset += 1 
+		}
+	}
+}
+paint_indices :: proc(cmd: ^Draw_Command, indices: ..u16) {
+	if int(cmd.vertices_offset) + len(indices) <= DRAW_COMMAND_SIZE {
+		copy(cmd.indices[cmd.indices_offset:], indices[:])
+		cmd.indices_offset += u16(len(indices))
+	}
+}
+
+// Maximum radius of pre-rasterized circles
+MAX_CIRCLE_RADIUS :: 30
+/*
+	Handles dynamics of the texture atlas, can load new assets at runtime
+*/
+Atlas_Agent :: struct {
+	texture: Texture,
+	image: Image,
+	cursor: [2]f32,
+	row_height: f32,
+	// If resetting the atlas would free space
+	should_reset: bool,
+	// Pre-rasterized circles
+	circles: [MAX_CIRCLE_RADIUS]Box,
+	rings: []Box,
+}
+atlas_agent_destroy :: proc(using self: ^Atlas_Agent) {
+	delete(image.data)
+}
+atlas_agent_reset :: proc(using self: ^Atlas_Agent) {
+
+}
+atlas_agent_add :: proc(using self: ^Atlas_Agent, content: Image) -> (src: Box, ok: bool) {
+
+	return
+}
+atlas_agent_get_box :: proc(using self: ^Atlas_Agent, size: [2]f32) -> (box: Box) {
+	if cursor.x + size.x > f32(image.width) {
+		cursor.y += row_height
+	}
+	if cursor.y + size.y > f32(image.height) {
+		atlas_agent_reset(self)
+	}
+	box = {
+		cursor.x,
+		cursor.y,
+		size.x,
+		size.y,
+	}
+	cursor.x += size.x
+	row_height = max(row_height, size.y)
+	return
+}
+atlas_agent_add_ring :: proc(using self: ^Atlas_Agent, inner, outer: f32) -> (src: Box, ok: bool) {
+	box := atlas_agent_get_box(self, outer * 2)
+	center: [2]f32 = {box.x, box.y} + outer
+
+	for x in int(box.x)..<int(box.x + box.w) {
+		for y in int(box.y)..<int(box.y + box.h) {
+			point: [2]f32 = {f32(x), f32(y)}
+			diff := point - center
+			dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
+			if dist < inner || dist > outer {
+				continue
+			}
+			alpha := min(1, dist - inner) - max(0, dist - outer)
+			i := x + y * image.width
+			image.data[i] = 255
+			image.data[i + 1] = 255
+			image.data[i + 2] = 255
+			image.data[i + 3] = u8(255.0 * alpha)
+		}
+	}
+	return
+}
+
+MAX_FONTS :: 32
+MAX_DRAW_COMMANDS :: 32
+
 // Context for painting graphics stuff
 Painter :: struct {
 	circles: 			[CIRCLE_SIZES * CIRCLE_ROWS]Patch_Data,
-	fonts: 				[Font_Index]Font_Data,
+	font_exists: 	[MAX_FONTS]bool,
+	fonts: 				[MAX_FONTS]Font,
 	// Style
 	style: 				Style,
 	// User Images
 	image_exists: [MAX_IMAGES]bool,
 	images:  			[MAX_IMAGES]Image_Data,
 	// Main texture atlas
-	image: 				Image,
-	default_texture_id: Texture_Id,
+	atlas_agent: Atlas_Agent,
+	// Draw commands
+	commands: [MAX_DRAW_COMMANDS]Draw_Command,
+	commands_offset: u16,
 }
 // Global instance pointer
 painter: ^Painter
 
+style_default_fonts :: proc(style: ^Style) -> bool {
+	main_font := load_font(painter, "IBMPlexSans-Medium_Remixicon.ttf") or_return
+	monospace_font := load_font(painter, "Inconsolata_Condensed-SemiBold") or_return
+	style.button_font = main_font
+	style.button_font_size = 20
+	style.default_font = main_font
+	style.default_font_size = 18
+	style.title_font = main_font
+	style.title_font_size = 12
+	style.monospace_font = monospace_font
+	style.monospace_font_size = 18
+	return true
+}
 painter_init :: proc() -> bool {
 	if painter == nil {
 		painter = new(Painter)
 		// Default style
 		painter.style.colors = DEFAULT_COLORS_LIGHT
-		painter.style.font_sizes = {
-			.Label = 16,
-			.Default = 18,
-			.Header = 28,
-			.Monospace = 18,
-		}
-		if !painter_make_atlas(painter) {
-			return false 
-		}
-		painter.default_texture_id, _ = load_texture(painter.image)
+		style_default_fonts(&painter.style)
+		atlas_agent_reset(&painter.atlas_agent)
+		painter.default_texture_id, _ = load_texture(painter.atlas_agent.image)
 		return true
 	}
 	return false
 }
-painter_uninit :: proc() {
+painter_destroy :: proc() {
 	if painter != nil {
+		atlas_agent_destroy(&painter.atlas_agent)
 		unload_texture(painter.default_texture_id)
 
 		for font in &painter.fonts {
-			delete(font.glyphs)
-			delete(font.glyph_map)
+			for _, size in font.sizes {
+				for _, glyph in size.glyphs {
+					delete(glyph.image.data)
+				}
+				delete(size.glyphs)
+			}
+			delete(font.sizes)
 		}
 
 		free(painter)
 	}
 }
 
-_load_texture: proc(image: Image) -> (id: Texture_Id, ok: bool)
-_unload_texture: proc(id: Texture_Id)
+_load_texture: proc(image: Image) -> (id: u32, ok: bool)
+_unload_texture: proc(id: u32)
 
-load_texture :: proc(image: Image) -> (id: Texture_Id, ok: bool) {
+load_texture :: proc(image: Image) -> (id: u32, ok: bool) {
 	assert(_load_texture != nil)
 	return _load_texture(image)
 }
-unload_texture :: proc(id: Texture_Id) {
+unload_texture :: proc(id: u32) {
 	assert(_unload_texture != nil)
 	_unload_texture(id)
 }
 
-load_image_data :: proc(image: Image) -> (index: Image_Index, ok: bool) {
-	for i in 0..<MAX_IMAGES {
-		if !painter.image_exists[i] {
-			index = Image_Index(i)
-
-			ok = rl.IsImageReady(image) 
-			if ok {
-				texture_id: Texture_Id
-				texture_id, ok = load_texture(image)
-				if ok {
-					painter.image_exists[i] = true 
-					painter.images[i] = Image_Data({
-						texture_id = texture_id,
-						size = {
-							int(image.width),
-							int(image.height),
-						},
-					})
-				}
-			}
-			break
-		}
-	}
-	return
-}
-load_image_file :: proc(file: string) -> (index: Image_Index, ok: bool) {
-	for i in 0..<MAX_IMAGES {
-		if !painter.image_exists[i] {
-			index = Image_Index(i)
-
-			cstr := strings.clone_to_cstring(file)
-			defer delete(cstr)
-			image := rl.LoadImage(cstr)
-			ok = rl.IsImageReady(image) 
-			if ok {
-				texture_id: Texture_Id
-				texture_id, ok = load_texture(image)
-				if ok {
-					painter.image_exists[i] = true 
-					painter.images[i] = Image_Data({
-						texture_id = texture_id,
-						size = {
-							int(image.width),
-							int(image.height),
-						},
-					})
-				}
-			}
-			break
-		}
-	}
-	return
-}
-load_image :: proc {
-	load_image_file,
-	load_image_data,
-}
 
 unload_image :: proc(index: Image_Index) {
 	painter.image_exists[index] = false 
@@ -239,43 +298,30 @@ blend_colors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
 	}
 	return
 }
-alpha_blend_colors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
-	return transmute(Color)rl.ColorAlphaBlend(transmute(rl.Color)bg, transmute(rl.Color)fg, rl.Fade(rl.WHITE, amount))
-}
+alpha_blend_colors :: proc(dst, src, tint: Color) -> (out: Color) {
+	out = 255
 
-image_paint_smooth_circle :: proc(image: ^rl.Image, center: [2]f32, radius, smooth: f32) {
-	size := radius * 2
-	top_left := center - radius
+	src := src
+	src.r = u8((u32(src.r) * (u32(tint.r) + 1)) >> 8)
+	src.g = u8((u32(src.g) * (u32(tint.g) + 1)) >> 8)
+	src.b = u8((u32(src.b) * (u32(tint.b) + 1)) >> 8)
+	src.a = u8((u32(src.a) * (u32(tint.a) + 1)) >> 8)
 
-	for x in i32(top_left.x) ..= i32(top_left.x + size) {
-		for y in i32(top_left.y) ..= i32(top_left.y + size) {
-			point := [2]f32{f32(x), f32(y)}
-			diff := point - center
-			dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
-			if dist > radius + smooth {
-				continue
-			}
-			alpha := 1 - max(0, dist - radius) / smooth
-			rl.ImageDrawPixel(image, x, y, rl.Fade(rl.WHITE, alpha)) 
+	if (src.a == 0) {
+		out = dst
+	} else if src.a == 255 {
+		out = src
+	} else {
+		alpha := u32(src.a) + 1
+		out.a = u8((u32(alpha) * 256 + u32(dst.a) * (256 - alpha)) >> 8)
+
+		if out.a > 0 {
+			out.r = u8(((u32(src.r) * alpha * 256 + u32(dst.r) * u32(dst.a) * (256 - alpha)) / u32(out.a)) >> 8)
+			out.g = u8(((u32(src.g) * alpha * 256 + u32(dst.g) * u32(dst.a) * (256 - alpha)) / u32(out.a)) >> 8)
+			out.b = u8(((u32(src.b) * alpha * 256 + u32(dst.b) * u32(dst.a) * (256 - alpha)) / u32(out.a)) >> 8)
 		}
 	}
-}
-image_paint_smooth_ring :: proc(image: ^rl.Image, center: [2]f32, inner, outer, smooth: f32) {
-	size := outer * 2
-	top_left := center - outer
-
-	for x in i32(top_left.x) ..= i32(top_left.x + size) {
-		for y in i32(top_left.y) ..= i32(top_left.y + size) {
-			point := [2]f32{f32(x), f32(y)}
-			diff := point - center
-			dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
-			if dist < inner - smooth || dist > outer + smooth {
-				continue
-			}
-			alpha := min(1, dist - inner) / smooth - max(0, dist - outer) / smooth
-			rl.ImageDrawPixel(image, x, y, rl.Fade(rl.WHITE, alpha)) 
-		}
-	}
+	return
 }
 painter_gen_circles :: proc(painter: ^Painter, origin: [2]f32) -> [2]f32 {
 
@@ -320,207 +366,6 @@ painter_gen_circles :: proc(painter: ^Painter, origin: [2]f32) -> [2]f32 {
 	}
 	return offset
 }
-make_font :: proc(origin: [2]f32, path: string, size: i32, runes: []rune) -> (font: Font_Data, success: bool) {
-	// Character set
-	raw_array := transmute(runtime.Raw_Slice)runes
-	// Get the file extension
-	extension := filepath.ext(path)
-		if extension == ".ttf" || extension == ".otf" {
-			if file_data, ok := os.read_entire_file(path); ok {
-				defer delete(file_data)
-					glyph_count := i32(len(runes))
-					glyph_padding := i32(1)
-					glyph_info := rl.LoadFontData((transmute(runtime.Raw_Slice)file_data).data, i32(len(file_data)), size, transmute([^]rune)(raw_array.data), glyph_count, .DEFAULT)
-
-					if glyph_info != nil {
-						font.size = f32(size)
-						// Temporary array
-						boxs: [^]rl.Rectangle
-							// Create FontData from raylib font
-							font.image = rl.GenImageFontAtlas(glyph_info, &boxs, glyph_count, size, glyph_padding, 1);
-							font.glyphs = make([]Glyph_Data, glyph_count)
-							for index in 0 ..< glyph_count {
-								box := boxs[index]
-								codepoint := glyph_info[index].value
-								if codepoint > unicode.MAX_LATIN1 {
-									glyph_info[index].offsetY = i32(font.size / 2 - box.height / 2)
-								}
-								font.glyphs[index] = {
-									src = {origin.x + box.x, origin.y + box.y, box.width, box.height},
-									offset = {f32(glyph_info[index].offsetX), f32(glyph_info[index].offsetY)},
-									advance = f32(glyph_info[index].advanceX),
-								}
-								font.glyph_map[codepoint] = index
-							}
-							// Free boxangles
-							//free(rawptr(boxs))
-					}
-					rl.UnloadFontData(glyph_info, glyph_count)
-					success = true
-			}
-		}
-		return
-}
-painter_make_atlas :: proc(using painter: ^Painter) -> (result: bool) {
-	default_runes: []rune = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 0x2022}
-	runes := make([]rune, len(default_runes) + len(Icon))
-	defer delete(runes)
-
-	copy(runes[:], default_runes[:len(default_runes)])
-	for icon, index in Icon {
-		runes[len(default_runes) + index] = rune(icon)
-	}
-	first_icon_index: int
-	for codepoint, index in runes {
-		if codepoint > unicode.MAX_LATIN1 {
-			first_icon_index = index
-			break
-		}
-	}
-
-	// Create the image
-	image = rl.GenImageColor(TEXTURE_WIDTH, TEXTURE_HEIGHT, {})
-	image.format = .UNCOMPRESSED_GRAY_ALPHA
-	// Solid white at texture origin for 'untextured' stuff
-	rl.ImageDrawPixel(&image, 0, 0, rl.WHITE)
-	// Draw some pre-smoothed circles and rings of different sizes
-	circle_space := painter_gen_circles(painter, {1, 0})
-
-	offset: f32 = 0
-	for index in Font_Index {
-		font, success := make_font({circle_space.x + offset, 0}, text_format("%s/fonts/%s", RESOURCES_PATH, MONOSPACE_FONT if index == .Monospace else DEFAULT_FONT), i32(style.font_sizes[index]), runes[:first_icon_index] if index == .Monospace else runes)
-		if !success {
-			fmt.printf("Failed to load font %v\n", index)
-			result = false
-			continue
-		}
-		fonts[index] = font
-		offset += f32(font.image.width)
-	}
-
-	offset = 0
-	for font in fonts {
-		rl.ImageDraw(&image, font.image, {0, 0, f32(font.image.width), f32(font.image.height)}, {circle_space.x + offset, 0, f32(font.image.width), f32(font.image.height)}, rl.WHITE)
-		offset += f32(font.image.width)
-		rl.UnloadImage(font.image)
-	}
-
-	result = true
-	return
-}
-painter_free_atlas :: proc(using painter: ^Painter) {
-	for font in &painter.fonts {
-		delete(font.glyphs)
-		delete(font.glyph_map)
-	}
-	rl.UnloadImage(image)
-}
-get_glyph_data :: proc(font: ^Font_Data, codepoint: rune) -> Glyph_Data {
-	index, ok := font.glyph_map[codepoint]
-	if ok {
-		return font.glyphs[index]
-	}
-	return {}
-}
-get_font_data :: proc(index: Font_Index) -> ^Font_Data {
-	return &painter.fonts[index]
-}
-
-// Draw commands
-Command_Texture :: struct {
-	using command: Command,
-	id: Texture_Id,
-	uv_min, 
-	uv_max,
-	min, 
-	max: [2]f32,
-	color: Color,
-}
-Command_Triangle :: struct {
-	using command: Command,
-	vertices: [3][2]f32,
-	color: Color,
-}
-Command_Clip :: struct {
-	using command: Command,
-	box: Box,
-}
-Command_Variant :: union {
-	^Command_Texture,
-	^Command_Triangle,
-	^Command_Clip,
-}
-Command :: struct {
-	variant: Command_Variant,
-	size: u8,
-}
-// Push a command to a given layer
-push_command :: proc(layer: ^Layer, $Type: typeid, extra_size := 0) -> ^Type {
-	size := size_of(Type) + extra_size
-	if layer.command_offset + size >= COMMAND_BUFFER_SIZE {
-		return nil
-	}
-	//assert(layer.command_offset + size < COMMAND_BUFFER_SIZE, "push_command() Insufficient space in command buffer!")
-	cmd := transmute(^Type)&layer.commands[layer.command_offset]
-	layer.command_offset += size
-	cmd.variant = cmd
-	cmd.size = u8(size)
-	return cmd
-}
-// Get the next draw command
-next_command :: proc(pcmd: ^^Command) -> bool {
-	// Loop through layers
-	if core.layer_agent.paint_index >= len(core.layer_agent.list) {
-		return false
-	}
-	layer := core.layer_agent.list[core.layer_agent.paint_index]
-
-	cmd := pcmd^
-	defer pcmd^ = cmd
-	if cmd != nil { 
-		cmd = (^Command)(uintptr(cmd) + uintptr(cmd.size)) 
-	} else {
-		cmd = (^Command)(&layer.commands[0])
-	}
-
-	clip, ok := cmd.variant.(^Command_Clip)
-	if ok {
-		if clip.box == core.clip_box {
-			return next_command(&cmd)
-		} else {
-			core.clip_box = clip.box
-		}
-	}
-	if cmd == (^Command)(&layer.commands[layer.command_offset]) || cmd.size == 0 {
-		// At end of command buffer so reset `cmd` and go to next layer
-		core.layer_agent.paint_index += 1
-		cmd = nil
-		return next_command(&cmd)
-	}
-	return true
-}
-next_command_iterator :: proc(pcm: ^^Command) -> (Command_Variant, bool) {
-	if next_command(pcm) {
-		return pcm^.variant, true
-	}
-	return nil, false
-}
-
-// Painting procs
-begin_clip :: proc(box: Box) {
-	if core.paint_this_frame {
-		core.clip_box = box
-		cmd := push_command(current_layer(), Command_Clip)
-		cmd.box = box
-	}
-}
-end_clip :: proc() {
-	if core.paint_this_frame {
-		core.clip_box = core.fullscreen_box
-		cmd := push_command(current_layer(), Command_Clip)
-		cmd.box = core.clip_box
-	}
-}
 paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickness: f32, color: Color) {
 	if text != nil {
 		label_font := get_font_data(.Label)
@@ -535,18 +380,25 @@ paint_quad_fill :: proc(p1, p2, p3, p4: [2]f32, c: Color) {
 	paint_triangle_fill(p1, p2, p4, c)
 	paint_triangle_fill(p4, p2, p3, c)
 }
-paint_triangle_fill :: proc(p1, p2, p3: [2]f32, color: Color) {
+paint_triangle_fill :: proc(a, b, c: [2]f32, color: Color) {
 	layer := current_layer()
-	cmd := push_command(layer, Command_Triangle)
-	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}
-	cmd.vertices = {p1, p2, p3}
+	paint_indices(&layer.command, {
+		layer.command.vertices_offset,
+		layer.command.vertices_offset + 1,
+		layer.command.vertices_offset + 2,
+	})
+	paint_vertices(&layer.command, {
+		{point = a, color = color},
+		{point = b, color = color},
+		{point = c, color = color},
+	})
 }
 paint_box_fill :: proc(box: Box, color: Color) {
 	paint_quad_fill(
-		{f32(box.x), f32(box.y)},
-		{f32(box.x), f32(box.y + box.h)},
-		{f32(box.x + box.w), f32(box.y + box.h)},
-		{f32(box.x + box.w), f32(box.y)},
+		{box.x, box.y},
+		{box.x, box.y + box.h},
+		{box.x + box.w, box.y + box.h},
+		{box.x + box.w, box.y},
 		color,
 	)
 }
@@ -647,15 +499,38 @@ paint_box_sweep :: proc(r: Box, t: f32, c: Color) {
 		c,
 	)
 }
-paint_texture :: proc(src, dst: Box, color: Color) {
-	layer := core.layer_agent.current_layer
-	cmd := push_command(layer, Command_Texture)
-	cmd.id = painter.default_texture_id
-	cmd.uv_min = {src.x / TEXTURE_WIDTH, src.y / TEXTURE_HEIGHT}
-	cmd.uv_max = {(src.x + src.w) / TEXTURE_WIDTH, (src.y + src.h) / TEXTURE_HEIGHT}
-	cmd.min = {dst.x, dst.y}
-	cmd.max = {dst.x + dst.w, dst.y + dst.h}
-	cmd.color = Color{color.r, color.g, color.b, u8(f32(color.a) * layer.opacity)}
+paint_texture :: proc(tex: Texture, src, dst: Box, color: Color) {
+	layer := current_layer()
+	paint_indices(&layer.command, {
+		layer.command.vertices_offset,
+		layer.command.vertices_offset + 1,
+		layer.command.vertices_offset + 2,
+		layer.command.vertices_offset,
+		layer.command.vertices_offset + 2,
+		layer.command.vertices_offset + 3,
+	})
+	paint_vertices(&layer.command, {
+		{
+			point = {dst.x, dst.y}, 
+			uv = {src.x / f32(tex.width), src.y / f32(tex.height)}, 
+			color = color,
+		},
+		{
+			point = {dst.x + dst.w, dst.y}, 
+			uv = {(src.x + src.w) / f32(tex.width), src.y / f32(tex.height)}, 
+			color = color,
+		},
+		{
+			point = {dst.x + dst.w, dst.y + dst.h}, 
+			uv = {(src.x + src.w) / f32(tex.width), (src.y + src.h) / f32(tex.height)}, 
+			color = color,
+		},
+		{
+			point = {dst.x, dst.y + dst.h}, 
+			uv = {src.x / f32(tex.width), (src.y + src.h) / f32(tex.height)}, 
+			color = color,
+		},
+	})
 }
 paint_image :: proc(image: Image_Index, src, dst: Box, color: Color) {
 	layer := core.layer_agent.current_layer

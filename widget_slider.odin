@@ -100,7 +100,7 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> (changed: b
 				for entry in info.guides.? {
 					x := bar_box.x + HALF_HEIGHT + range * (f32(entry - info.low) / r)
 					paint_line({x, bar_box.y}, {x, bar_box.y - 10}, 1, get_color(.Widget))
-					paint_aligned_string(font_data, text_format(format, entry), {x, bar_box.y - 12}, get_color(.Widget), {.Middle, .Far})
+					paint_aligned_string(font_data, tmp_print(format, entry), {x, bar_box.y - 12}, get_color(.Widget), {.Middle, .Far})
 				}
 			}
 			if info.value < info.high {
@@ -113,7 +113,7 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> (changed: b
 			paint_circle_stroke_texture(thumb_center, thumb_radius * 2, true, get_color(.Widget_Stroke, 0.5))
 		}
 		if hover_time > 0 {
-			tooltip(self.id, text_format(format, info.value), thumb_center + {0, -shade_radius - 2}, {.Middle, .Far})
+			tooltip(self.id, tmp_print(format, info.value), thumb_center + {0, -shade_radius - 2}, {.Middle, .Far})
 		}
 
 		if .Pressed in self.state {

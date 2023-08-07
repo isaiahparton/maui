@@ -15,8 +15,8 @@ Button_Shape :: enum {
 	Right_Arrow,
 }
 
-get_size_for_label :: proc(layout: ^Layout, label: Label) -> Pt {
-	return measure_label(label).x + (layout.box.h - get_layout_margin(layout, .Top) - get_layout_margin(layout, .Bottom)) + get_layout_margin(layout, .Left) + get_layout_margin(layout, .Right)
+get_size_for_label :: proc(layout: ^Layout, label: Label) -> Exact {
+	return measure_label(label).x + (layout.box.h - get_exact_margin(layout, .Top) - get_exact_margin(layout, .Bottom)) + get_exact_margin(layout, .Left) + get_exact_margin(layout, .Right)
 }
 
 // Square buttons
@@ -32,24 +32,23 @@ Button_Info :: struct {
 	shape: Button_Shape,
 }
 do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
-	layout := current_layout()
-
-	box: Box
-	if next_box, ok := use_next_box(); ok {
-		box = next_box
-	} else if int(layout.placement.side) > 1 && (info.fit_to_label.? or_else true) {
-		size := get_size_for_label(layout, info.label)
-		if info.shape == .Left_Arrow || info.shape == .Right_Arrow {
-			size += get_layout_height(layout) / 2
+	if self, ok := do_widget(hash(loc)); ok {
+		layout := current_layout()
+		if next_box, ok := use_next_box(); ok {
+			self.box = next_box
+		} else if int(placement.side) > 1 && (info.fit_to_label.? or_else true) {
+			size := get_size_for_label(layout, info.label)
+			if info.shape == .Left_Arrow || info.shape == .Right_Arrow {
+				size += get_layout_height(layout) / 2
+			}
+			self.box = layout_next_of_size(layout, size)
+		} else {
+			self.box = layout_next(layout)
 		}
-		box = layout_next_of_size(layout, size)
-	} else {
-		box = layout_next(layout)
-	}
-	if self, ok := do_widget(hash(loc), box); ok {
 		// Animations
-		push_id(self.id)
-		hover_time := animate_bool(self.id, .Hovered in self.state, 0.1)
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
+		// Update
+		update_widget(self)
 		// Cursor
 		if .Hovered in self.state {
 			core.cursor = .Hand
@@ -61,7 +60,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 				case .Rectangle:
 				switch info.style {
 					case .Filled:
-					paint_box_fill(self.box, alpha_blend_colors(base_color, get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
+					paint_box_fill(self.box, alpha_blend_colors(base_color, get_color(.Button_Shade), fade(255, 0.3 if .Pressed in self.state else hover_time * 0.15)))
 
 					case .Outlined:
 					paint_box_fill(self.box, fade(base_color, 0.2 if .Pressed in self.state else hover_time * 0.1))
@@ -129,7 +128,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 			}
 			label_color := get_color(.Button_Text if info.style == .Filled else .Button_Base)
 			if info.loading {
-				loader_time := animate_bool_start_zero(hash_int(1), info.loading, 0.25)
+				loader_time := animate_bool(&self.timers[1], info.loading, 0.25)
 				paint_loader(box_center(self.box), self.box.h * 0.3, f32(core.current_time), fade(label_color, loader_time))
 			} else {
 				paint_label_box(info.label, self.box, label_color, {.Middle, .Middle})
@@ -137,7 +136,6 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)
-		pop_id()
 	}
 	return
 }
@@ -152,19 +150,18 @@ Toggle_Button_Info :: struct {
 	join: Box_Sides,
 }
 do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (clicked: bool) {
-	layout := current_layout()
-	
-	box: Box
-	if next_box, ok := use_next_box(); ok {
-		box = next_box
-	} else if int(layout.placement.side) > 1 {
-		box = layout_next_of_size(layout, get_size_for_label(layout, info.label))
-	} else {
-		box = layout_next(layout)
-	}
-	if self, ok := do_widget(hash(loc), box); ok {
+	if self, ok := do_widget(hash(loc)); ok {
+		layout := current_layout()
+		if next_box, ok := use_next_box(); ok {
+			self.box = next_box
+		} else if int(placement.side) > 1 {
+			self.box = layout_next_of_size(layout, get_size_for_label(layout, info.label))
+		} else {
+			self.box = layout_next(layout)
+		}
+		update_widget(self)
 		// Animations
-		hover_time := animate_bool(self.id, .Hovered in self.state, 0.1)
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 		// Paintions
 		if .Should_Paint in self.bits {
 			color := get_color(.Accent if info.state else .Widget_Stroke)
@@ -235,8 +232,10 @@ Floating_Button_Info :: struct {
 	icon: Icon,
 }
 do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) -> (clicked: bool) {
-	if self, ok := do_widget(hash(loc), child_box(use_next_box() or_else layout_next(current_layout()), {40, 40}, {.Middle, .Middle})); ok {
-		hover_time := animate_bool(self.id, self.state >= {.Hovered}, 0.1)
+	if self, ok := do_widget(hash(loc)); ok {
+		self.box = child_box(use_next_box() or_else layout_next(current_layout()), {40, 40}, {.Middle, .Middle})
+		hover_time := animate_bool(&self.timers[0], self.state >= {.Hovered}, 0.1)
+		update_widget(self)
 		// Painting
 		if self.bits >= {.Should_Paint} {
 			center := linalg.round(box_center(self.box))

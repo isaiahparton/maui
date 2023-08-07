@@ -40,116 +40,23 @@ _main :: proc() {
 
 			core.current_time = rl.GetTime()
 
-			shrink(100)
-			if do_layout(.Left, Percent(50)) {
-				shrink(10)
-				set_size(Pt(30))
-				for &entry in chips {
-					stack_push(&core.chips, Deferred_Chip{text = entry})
-				}
-				enter := key_pressed(.Enter)
-				change := do_text_input({
-					data = &text_buffer,
-				})
-				if change || enter {
-					if len(text_buffer) > 0 {
-						if (text_buffer[len(text_buffer) - 1] == ',') {
-							append(&chips, strings.clone(string(text_buffer[:len(text_buffer) - 1])))
-							clear(&text_buffer)
-						} else if enter {
-							append(&chips, strings.clone(string(text_buffer[:])))
-							clear(&text_buffer)
-						}
-					}
-				} else if len(chips) > 0 && key_pressed(.Backspace) {
-					pop(&chips)
-				}
-				for i in 0..<core.chips.height {
-					if core.chips.items[i].clicked {
-						ordered_remove(&chips, i)
-						break
-					}
-				}
-				core.chips.height = 0
+			shrink(200)
+			if do_layout(.Top, Exact(30)) {
+				placement.side = .Left
+				placement.size = Exact(30)
+				if do_button({
+					shape = .Pill,
+					label = "BUTTON",
+				}) {
 
-				space(Pt(10))
-				do_checkbox({
-					state = &boolean,
-					text = "Checkbox",
-					text_side = .Bottom,
-				})
-				space(Pt(10))
-				boolean = do_toggle_switch({
-					state = &boolean,
-				})
-				space(Pt(10))
-
-				for style in Button_Style {
-					if do_layout(.Top, Pt(30)) {
-						set_side(.Left)
-						for shape in Button_Shape {
-							push_id(int(style) + int(shape) * len(Button_Shape))
-								if do_button({
-									label = format(style),
-									style = style,
-									shape = shape,
-									loading = buttons[style][shape] > 0,
-								}) {
-									buttons[style][shape] = 3
-								}
-								buttons[style][shape] = max(0, buttons[style][shape] - core.delta_time)
-							pop_id()
-							space(Pt(10))
-						}
-					}
-					space(Pt(10))
 				}
-				
-				CHIPS: []string : {"Elithor", "Alminor", "Ucrith", "Malnicus", "Pydrinorium"}
-				if do_layout(.Left, Pt(200)) {
-					if do_layout(.Top, Pt(20)) {
-						set_side(.Left)
-						for t, i in CHIPS {
-							push_id(i)
-								do_toggled_chip({
-									state = false,
-									text = t,
-									row_spacing = Pt(10),
-								})
-							pop_id()
-							space(Pt(10))
-						}
-					}
-					space(Pt(10)); set_size(Pt(30))
-					if do_menu({
-						label = "Menu",
-					}) {
-						set_height(Pt(30))
-						do_option({label = "Option A"})
-						do_option({label = "Option B"})
-						if do_submenu({
-							label = "Submenu A",
-							size = {200, 0},
-						}) {
-							set_height(Pt(30))
-							do_option({label = "Option C"})
-							do_option({label = "Option D"})
-						}
-						if do_submenu({
-							label = "Submenu B",
-							size = {200, 0},
-						}) {
-							do_option({label = "Option E"})
-							do_option({label = "Option F"})
-							if do_submenu({
-								label = "Submenu C",
-								size = {200, 0},
-							}) {
-								do_option({label = "Option G"})
-								do_option({label = "Option H"})
-							}
-						}
-					}
+				space(Exact(10))
+				if do_button({
+					shape = .Pill,
+					style = .Outlined,
+					label = "BUTTON",
+				}) {
+
 				}
 			}
 

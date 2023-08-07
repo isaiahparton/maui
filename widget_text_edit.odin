@@ -34,15 +34,17 @@ Text_Input_Result :: struct {
 	chip_clicked: Maybe(int),
 }
 do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .Can_Key_Select}); ok {
+	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		using self
+		self.box = use_next_box() or_else layout_next(current_layout())
+		update_widget(self)
 		// Text cursor
 		if .Hovered in self.state {
 			core.cursor = .Beam
 		}
 
 		// Animation values
-		hover_time := animate_bool(self.id, .Hovered in state, 0.1)
+		hover_time := animate_bool(&self.timers[0], .Hovered in state, 0.1)
 		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
 		font_data := get_font_data(.Default)
 
@@ -142,7 +144,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .Can_Key_Select}); ok {
 		using self
 		// Animation values
-		hover_time := animate_bool(self.id, .Hovered in state, 0.1)
+		hover_time := animate_bool(&timers[0], .Hovered in state, 0.1)
 		// Cursor style
 		if state & {.Hovered, .Pressed} != {} {
 			core.cursor = .Beam

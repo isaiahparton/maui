@@ -206,7 +206,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 						index = i
 					}
 					glyph, bytes := utf8.decode_rune(info.array[i:])
-					pos += get_glyph_data(info.select_result.?.font_data, glyph).src.w + GLYPH_SPACING
+					pos += get_glyph(info.select_result.?.font, glyph).src.w + GLYPH_SPACING
 					i += bytes
 					if glyph == '\n' {
 						break

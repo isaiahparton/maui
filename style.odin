@@ -125,7 +125,15 @@ Rule_Change :: struct {
 
 // Style
 Style :: struct {
-	font_sizes: 				[Font_Index]int,
+	default_font,
+	button_font,
+	title_font,
+	monospace_font: Font_Handle,
+	default_font_size,
+	button_font_size,
+	title_font_size,
+	monospace_font_size: f32,
+
 	colors: 						[Color_Index]Color,
 	rules:							[Rule_Index]f32,
 
@@ -180,7 +188,7 @@ get_color :: proc(index: Color_Index, alpha: f32 = 1) -> Color {
 }
 
 style_shade :: proc(base: Color, amount: f32) -> Color {
-	return alpha_blend_colors(base, painter.style.colors[.Widget_Shade], amount * 0.1)
+	return alpha_blend_colors(base, painter.style.colors[.Widget_Shade], fade(255, amount * 0.1))
 }
 style_intense_shaded :: proc(amount: f32) -> Color {
 	return alpha_blend_colors(painter.style.colors[.Intense], painter.style.colors[.Intense_Shade], amount * 0.15)

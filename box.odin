@@ -151,27 +151,27 @@ move_box :: proc(box: Box, delta: [2]f32) -> Box {
 
 // cut a box and return the cut piece
 cut_box_left :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := min(box.w, amount.(Points) or_else Pt(f32(amount.(Percent)) * 0.01 * box.w))
+	a := min(box.w, amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.w))
 	result = {box.x, box.y, a, box.h}
 	box.x += a
 	box.w -= a
 	return
 }
 cut_box_top :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := min(box.h, amount.(Points) or_else Pt(f32(amount.(Percent)) * 0.01 * box.h))
+	a := min(box.h, amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.h))
 	result = {box.x, box.y, box.w, a}
 	box.y += a
 	box.h -= a
 	return
 }
 cut_box_right :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := min(box.w, amount.(Points) or_else Pt(f32(amount.(Percent)) * 0.01 * box.w))
+	a := min(box.w, amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.w))
 	box.w -= a
 	result = {box.x + box.w, box.y, a, box.h}
 	return
 }
 cut_box_bottom :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := min(box.h, amount.(Points) or_else Pt(f32(amount.(Percent)) * 0.01 * box.h))
+	a := min(box.h, amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.h))
 	box.h -= a
 	result = {box.x, box.y + box.h, box.w, a}
 	return
@@ -187,29 +187,33 @@ cut_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
 }
 
 // cut a box and return the cut piece
-extend_box_left :: proc(box: ^Box, amount: f32) -> (result: Box) {
-	box.x -= amount
-	box.w += amount
-	result = {box.x, box.y, amount, box.h}
+extend_box_left :: proc(box: ^Box, amount: Unit) -> (result: Box) {
+	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.w)
+	box.x -= a
+	box.w += a
+	result = {box.x, box.y, a, box.h}
 	return
 }
-extend_box_top :: proc(box: ^Box, amount: f32) -> (result: Box) {
-	box.y -= amount
-	box.h += amount
-	result = {box.x, box.y, box.w, amount}
+extend_box_top :: proc(box: ^Box, amount: Unit) -> (result: Box) {
+	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.h)
+	box.y -= a
+	box.h += a
+	result = {box.x, box.y, box.w, a}
 	return
 }
-extend_box_right :: proc(box: ^Box, amount: f32) -> (result: Box) {
-	result = {box.x + box.w, box.y, amount, box.h}
-	box.w += amount
+extend_box_right :: proc(box: ^Box, amount: Unit) -> (result: Box) {
+	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.w)
+	result = {box.x + box.w, box.y, a, box.h}
+	box.w += a
 	return
 }
-extend_box_bottom :: proc(box: ^Box, amount: f32) -> (result: Box) {
-	result = {box.x, box.y + box.h, box.w, amount}
-	box.h += amount
+extend_box_bottom :: proc(box: ^Box, amount: Unit) -> (result: Box) {
+	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.h)
+	result = {box.x, box.y + box.h, box.w, a}
+	box.h += a
 	return
 }
-extend_box :: proc(box: ^Box, side: Box_Side, amount: f32) -> Box {
+extend_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
 	switch side {
 		case .Top: 			return extend_box_top(box, amount)
 		case .Bottom: 	return extend_box_bottom(box, amount)
@@ -221,17 +225,17 @@ extend_box :: proc(box: ^Box, side: Box_Side, amount: f32) -> Box {
 
 // get a cut piece of a box
 get_box_left :: proc(b: Box, a: Unit) -> Box {
-	return {b.x, b.y, a.(Points) or_else Pt(f32(a.(Percent)) * 0.01 * b.w), b.h}
+	return {b.x, b.y, a.(Exact) or_else Exact(f32(a.(Relative)) * b.w), b.h}
 }
 get_box_top :: proc(b: Box, a: Unit) -> Box {
-	return {b.x, b.y, b.w, a.(Points) or_else Pt(f32(a.(Percent)) * 0.01 * b.h)}
+	return {b.x, b.y, b.w, a.(Exact) or_else Exact(f32(a.(Relative)) * b.h)}
 }
 get_box_right :: proc(b: Box, a: Unit) -> Box {
-	t := a.(Points) or_else Pt(f32(a.(Percent)) * 0.01 * b.w)
+	t := a.(Exact) or_else Exact(f32(a.(Relative)) * b.w)
 	return {b.x + b.w - t, b.y, t, b.h}
 }
 get_box_bottom :: proc(b: Box, a: Unit) -> Box {
-	t := a.(Points) or_else Pt(f32(a.(Percent)) * 0.01 * b.h)
+	t := a.(Exact) or_else Exact(f32(a.(Relative)) * b.h)
 	return {b.x, b.y + b.h - t, b.w, t}
 }
 get_cut_box :: proc(box: Box, side: Box_Side, amount: Unit) -> Box {

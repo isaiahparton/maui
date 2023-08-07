@@ -165,13 +165,13 @@ Menu_Result :: struct {
 @(deferred_out=_do_menu)
 do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
-	if self, ok := do_widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
+	if self, ok := do_widget(shared_id); ok {
 		using self
+		box = use_next_box() or_else layout_next(current_layout())
+		update_widget(self)
 		// Animation
-		push_id(id) 
-			hover_time := animate_bool(hash_int(0), .Hovered in state, 0.15)
-			state_time := animate_bool(hash_int(1), .Menu_Open in bits, 0.15)
-		pop_id()
+		hover_time := animate_bool(&timers[0], .Hovered in state, 0.15)
+		state_time := animate_bool(&timers[1], .Menu_Open in bits, 0.15)
 		// Painting
 		if .Should_Paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
@@ -212,13 +212,14 @@ _do_menu :: proc(active: bool) {
 @(deferred_out=_do_submenu)
 do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
-	if self, ok := do_widget(shared_id, use_next_box() or_else layout_next(current_layout())); ok {
+	if self, ok := do_widget(shared_id); ok {
 		using self
+		self.box = use_next_box() or_else layout_next(current_layout())
 		// Animation
-		push_id(self.id)
-			hover_time := animate_bool(hash_int(0), .Hovered in state, 0.15)
-			open_time := animate_bool(hash_int(1), .Menu_Open in bits, 0.15)
-		pop_id()
+		hover_time := animate_bool(&timers[0], .Hovered in state, 0.15)
+		open_time := animate_bool(&timers[1], .Menu_Open in bits, 0.15)
+		// Update
+		update_widget(self)
 		// Paint
 		if .Should_Paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
@@ -266,9 +267,11 @@ Option_Info :: struct {
 }
 
 do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
-	if self, ok := do_widget(hash(loc), layout_next(current_layout())); ok {
+	if self, ok := do_widget(hash(loc)); ok {
+		self.box = use_next_box() or_else layout_next(current_layout())
 		// Animation
-		hover_time := animate_bool(self.id, .Hovered in self.state, 0.1)
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
+		update_widget(self)
 		// Painting
 		if .Should_Paint in self.bits {
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))

@@ -1,7 +1,10 @@
 package maui_raylib
+
 import rl "vendor:raylib"
 import ui ".."
+
 import "core:fmt"
+import "core:runtime"
 
 import "core:strings"
 
@@ -17,8 +20,14 @@ init :: proc() {
 	_get_clipboard_string = proc() -> string {
 		return string(rl.GetClipboardText())
 	}
-	_load_texture = proc(image: rl.Image) -> (id: Texture_Id, ok: bool) {
-		texture := rl.LoadTextureFromImage(image)
+	_load_texture = proc(image: Image) -> (id: Texture_Id, ok: bool) {
+		rl_image: rl.Image = {
+			data = (transmute(runtime.Raw_Slice)image.data).data,
+			width = i32(image.width),
+			height = i32(image.height),
+
+		}
+		texture := rl.LoadTextureFromImage(rl_image)
 		return texture.id, rl.IsTextureReady(texture)
 	}
 	_unload_texture = proc(id: Texture_Id) {
@@ -73,41 +82,20 @@ render :: proc() {
 		rl.SetMouseCursor(rl.MouseCursor(int(core.cursor)))
 	}
 
-	cmd: ^Command
-	
-	for next_command(&cmd) {
-		switch v in cmd.variant {
-			case ^Command_Texture:
-			rl.rlSetTexture(v.id)
-			rl.rlBegin(rl.RL_QUADS)
-
-			rl.rlNormal3f(0, 0, 1)
+	for layer in core.layer_agent.list {
+		if clip, ok := layer.command.clip.?; ok {
+			rl.rlScissor(i32(clip.x), i32(clip.y), i32(clip.w), i32(clip.h))
+		}
+		rl.rlBegin(rl.RL_TRIANGLES)
+		for i in 0..<layer.command.indices_offset {
+			v := layer.command.vertices[layer.command.indices[i]]
 			rl.rlColor4ub(v.color.r, v.color.g, v.color.b, v.color.a)
-
-			rl.rlTexCoord2f(v.uv_min.x, v.uv_min.y)
-			rl.rlVertex2f(v.min.x, v.min.y)
-
-			rl.rlTexCoord2f(v.uv_min.x, v.uv_max.y)
-			rl.rlVertex2f(v.min.x, v.max.y)
-
-			rl.rlTexCoord2f(v.uv_max.x, v.uv_max.y)
-			rl.rlVertex2f(v.max.x, v.max.y)
-
-			rl.rlTexCoord2f(v.uv_max.x, v.uv_min.y)
-			rl.rlVertex2f(v.max.x, v.min.y)
-
-			rl.rlEnd()
-
-			case ^Command_Triangle:
-			rl.rlBegin(rl.RL_TRIANGLES)
-			rl.rlColor4ub(v.color.r, v.color.g, v.color.b, v.color.a)
-			for vertex in v.vertices {
-				rl.rlVertex2f(vertex.x, vertex.y)
-			}
-			rl.rlEnd()
-
-			case ^Command_Clip:
-			rl.BeginScissorMode(i32(v.box.x), i32(v.box.y), i32(v.box.w), i32(v.box.h))
+			rl.rlTexCoord2f(v.uv.x, v.uv.y)
+			rl.rlVertex2f(v.point.x, v.point.y)
+		}
+		rl.rlEnd()
+		if layer.command.clip != nil {
+			rl.rlDrawRenderBatchActive()
 		}
 	}
 

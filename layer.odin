@@ -112,15 +112,11 @@ Layer :: struct {
 	index: int,
 	// controls on this self
 	contents: map[Id]^Widget,
-	// draw commands for this self
-	commands: [COMMAND_BUFFER_SIZE]u8,
-	command_offset: int,
-	// Clip command stored for use after
-	// contents are already drawn
-	clip_command: ^Command_Clip,
 	// Scroll bars
 	x_scroll_time,
 	y_scroll_time: f32,
+	// Draw command
+	command: ^Draw_Command,
 }
 
 Layer_Agent :: struct {
@@ -421,9 +417,13 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			self.bits -= {.Did_Push_ID}
 		}
 
-		// Reset stuff
+		// Stay alive
 		self.bits += {.Stay_Alive}
-		self.command_offset = 0
+
+		// Reset draw command
+		self.command.clip = nil
+		self.command.vertices_offset = 0
+		self.command.indices_offset = 0
 
 		// Get box
 		if _, ok := info.extend.?; ok {
@@ -485,8 +485,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		if shadow, ok := info.shadow.?; ok {
 			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, get_color(.Shadow))
 		}
-		self.clip_command = push_command(self, Command_Clip)
-		self.clip_command.box = core.fullscreen_box
 
 		// Get layout size
 		self.layout_size = info.layout_size.? or_else self.layout_size
@@ -667,12 +665,9 @@ end_layer :: proc(self: ^Layer) {
 		// Handle content clipping
 		if .Clipped in self.bits {
 			// Apply clipping
-			assert(self.clip_command != nil)
 			self.box.h = max(0, self.box.h)
-			self.clip_command.box = self.box
+			self.command.clip = self.box
 		}
-		// Push a new clip command to end clipping
-		push_command(self, Command_Clip).box = core.fullscreen_box
 		
 		if .Attached in self.options {
 			self.parent.content_box = update_bounding_box(self.parent.content_box, self.inner_box)

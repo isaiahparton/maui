@@ -2,15 +2,18 @@ package maui
 
 import "core:fmt"
 
-// One point is currently equal to one pixel
-Points :: f32
-Pt :: Points
-// One percent is currently equal to one percent of whatever it is a percent of
-Percent :: distinct f32
+/*
+	These are user settings
+		* No user called procedure shall change them
+*/
+placement: Placement_Info
+
+Exact :: f32 
+Relative :: distinct f32
 
 Unit :: union #no_nil {
-	Points,
-	Percent,
+	Exact,
+	Relative,
 }
 
 Alignment :: enum {
@@ -26,7 +29,7 @@ Layout_Mode :: enum {
 
 Placement_Info :: struct {
 	side: Box_Side,
-	size: [2]Unit,
+	size: Unit,
 	align: [2]Alignment,
 	margin: [Box_Side]Unit,
 }
@@ -40,8 +43,8 @@ Layout :: struct {
 	// The side from which the layout was created (if any)
 	side: Maybe(Box_Side),
 	ignore_parent: bool,
-	// Placement settings
-	placement: Placement_Info,
+	// Temporary placement settings
+	last_placement: Placement_Info,
 }
 
 LAYOUT_STACK_SIZE :: 32
@@ -61,24 +64,28 @@ layout_agent_pop :: proc(using self: ^Layout_Agent) {
 }
 
 push_layout :: proc(box: Box, mode: Layout_Mode = .Fixed) -> (layout: ^Layout) {
-	placement: Placement_Info
 	if core.layout_agent.stack.height > 0 {
-		placement = current_layout().placement
+		current_layout().last_placement = placement
 	}
 	return layout_agent_push(&core.layout_agent, Layout({
 		box = box,
 		mode = mode,
-		placement = placement,
+		last_placement = placement,
 	}))
 }
 pop_layout :: proc() {
 	last_layout := current_layout()
 	layout_agent_pop(&core.layout_agent)
-	if !last_layout.ignore_parent && core.layout_agent.stack.height > 0 {
+	if core.layout_agent.stack.height > 0 {
 		layout := current_layout()
-		if last_layout.mode == .Extending {
-			if side, ok := last_layout.side.?; ok {
-				layout_cut_or_extend(layout, side, Pt(last_layout.box.w if int(side) > 1 else last_layout.box.h))	
+		// Update placement settings
+		placement = layout.last_placement
+		// Apply extending layout cut
+		if !last_layout.ignore_parent && core.layout_agent.stack.height > 0 {
+			if last_layout.mode == .Extending {
+				if side, ok := last_layout.side.?; ok {
+					layout_cut_or_extend(layout, side, Exact(last_layout.box.w if int(side) > 1 else last_layout.box.h))	
+				}
 			}
 		}
 	}
@@ -99,76 +106,22 @@ use_next_box :: proc() -> (box: Box, ok: bool) {
 	}
 	return
 }
-// Set alignment for placement
-set_align :: proc(align: Alignment) {
-	current_layout().placement.align = {align, align}
+get_exact_margin :: proc(layout: ^Layout, side: Box_Side) -> Exact {
+	return (placement.margin[side].(Exact) or_else Exact(f32(placement.margin[side].(Relative)) * (layout.box.w if int(side) > 1 else layout.box.h)))
 }
-set_align_x :: proc(align: Alignment) {
-	current_layout().placement.align.x = align
+get_layout_width :: proc(layout: ^Layout) -> Exact {
+	return layout.box.w - get_exact_margin(layout, .Left) - get_exact_margin(layout, .Right)
 }
-set_align_y :: proc(align: Alignment) {
-	current_layout().placement.align.y = align
-}
-// Set margin(s) for placement settings
-set_margin_all :: proc(margin: Unit) {
-	current_layout().placement.margin = {
-		.Top = margin, 
-		.Bottom = margin, 
-		.Left = margin, 
-		.Right = margin,
-	}
-}
-set_margin_side :: proc(side: Box_Side, margin: Unit) {
-	current_layout().placement.margin[side] = margin
-}
-set_margin_any :: proc(margin: [Box_Side]Unit) {
-	current_layout().placement.margin = margin
-}
-set_margin_x :: proc(margin: Unit) {
-	layout := current_layout()
-	layout.placement.margin[.Left] = margin
-	layout.placement.margin[.Right] = margin
-}
-set_margin_y :: proc(margin: Unit) {
-	layout := current_layout()
-	layout.placement.margin[.Top] = margin
-	layout.placement.margin[.Bottom] = margin
-}
-set_margin :: proc {
-	set_margin_all,
-	set_margin_side,
-	set_margin_any,
-}
-get_layout_margin :: proc(layout: ^Layout, side: Box_Side) -> Pt {
-	return (layout.placement.margin[side].(Points) or_else Pt(f32(layout.placement.margin[side].(Percent)) * 0.01 * (layout.box.w if int(side) > 1 else layout.box.h)))
-}
-get_layout_width :: proc(layout: ^Layout) -> Pt {
-	return layout.box.w - get_layout_margin(layout, .Left) - get_layout_margin(layout, .Right)
-}
-get_layout_height :: proc(layout: ^Layout) -> Pt {
-	return layout.box.h - get_layout_margin(layout, .Top) - get_layout_margin(layout, .Bottom)
-}
-// Set size for placement settings
-set_size :: proc(size: [2]Unit) {
-	current_layout().placement.size = size
-}
-set_width :: proc(width: Unit) {
-	current_layout().placement.size.x = width
-}
-set_height :: proc(height: Unit) {
-	current_layout().placement.size.y = height
-}
-// Set side/direction for placement settings
-set_side :: proc(side: Box_Side) {
-	current_layout().placement.side = side
+get_layout_height :: proc(layout: ^Layout) -> Exact {
+	return layout.box.h - get_exact_margin(layout, .Top) - get_exact_margin(layout, .Bottom)
 }
 // Add space
-space :: proc(amount: Pt) {
+space :: proc(amount: Unit) {
 	layout := current_layout()
-	cut_box(&layout.box, layout.placement.side, amount)
+	cut_box(&layout.box, placement.side, amount)
 }
 // Shrink the current layout (apply margin on all sides)
-shrink :: proc(amount: f32, loc := #caller_location) {
+shrink :: proc(amount: Exact, loc := #caller_location) {
 	layout := current_layout(loc)
 	layout.box = shrink_box(layout.box, amount)
 }
@@ -187,10 +140,10 @@ layout_cut_or_extend :: proc(layout: ^Layout, side: Box_Side, size: Unit) -> (re
 		case .Extending:
 		// In this case we grow the layout in the given direction
 		switch layout.side {
-			case .Bottom: 	result = extend_box_bottom(&layout.box, size.(Points) or_else 0)
-			case .Top: 			result = extend_box_top(&layout.box, size.(Points) or_else 0)
-			case .Left: 		result = extend_box_left(&layout.box, size.(Points) or_else 0)
-			case .Right: 		result = extend_box_right(&layout.box, size.(Points) or_else 0)
+			case .Bottom: 	result = extend_box_bottom(&layout.box, size)
+			case .Top: 			result = extend_box_top(&layout.box, size)
+			case .Left: 		result = extend_box_left(&layout.box, size)
+			case .Right: 		result = extend_box_right(&layout.box, size)
 		}
 	}
 	return
@@ -199,25 +152,21 @@ layout_cut_or_extend :: proc(layout: ^Layout, side: Box_Side, size: Unit) -> (re
 layout_next_of_size :: proc(using self: ^Layout, size: Unit) -> (result: Box) {
 	result = layout_cut_or_extend(self, placement.side, size)
 
-	margins: [Box_Side]Pt = {
-		.Top = 			placement.margin[.Top].(Pt) 		or_else Pt(f32(placement.margin[.Top].(Percent)) * 0.01 * box.h),
-		.Bottom = 	placement.margin[.Bottom].(Pt) 	or_else Pt(f32(placement.margin[.Bottom].(Percent)) * 0.01 * box.h),
-		.Left = 		placement.margin[.Left].(Pt) 		or_else Pt(f32(placement.margin[.Left].(Percent)) * 0.01 * box.w),
-		.Right = 		placement.margin[.Right].(Pt) 	or_else Pt(f32(placement.margin[.Right].(Percent)) * 0.01 * box.w),
-	}
+	top := placement.margin[.Top].(Exact) 		or_else Exact(f32(placement.margin[.Top].(Relative)) * box.h)
+	left := placement.margin[.Left].(Exact) 	or_else Exact(f32(placement.margin[.Left].(Relative)) * box.w)
 	// Apply margins
 	result = {
-		result.x + margins[.Left],
-		result.y + margins[.Top],
-		result.w - margins[.Left] - margins[.Right],
-		result.h - margins[.Top] - margins[.Bottom],
+		result.x + left,
+		result.y + top,
+		result.w - left - (placement.margin[.Right].(Exact) or_else Exact(f32(placement.margin[.Right].(Relative)) * box.w)),
+		result.h - top - (placement.margin[.Bottom].(Exact) or_else Exact(f32(placement.margin[.Bottom].(Relative)) * box.h)),
 	}
 	return
 }
 // Get the next box from a layout, according to the current placement settings
 layout_next :: proc(using self: ^Layout) -> (result: Box) {
 	assert(self != nil)
-	result = layout_next_of_size(self, placement.size.x if int(placement.side) > 1 else placement.size.y)
+	result = layout_next_of_size(self, placement.size)
 	// Set the last box
 	core.last_box = result
 	return
@@ -227,10 +176,10 @@ layout_next_child :: proc(using self: ^Layout, size: [2]f32) -> Box {
 	return child_box(layout_next(self), size, placement.align)
 }
 layout_fit :: proc(layout: ^Layout, size: [2]f32) {
-	if layout.placement.side == .Left || layout.placement.side == .Right {
-		layout.placement.size = size.x
+	if placement.side == .Left || placement.side == .Right {
+		placement.size = size.x
 	} else {
-		layout.placement.size = size.y
+		placement.size = size.y
 	}
 }
 cut :: proc(side: Box_Side, amount: Unit) -> Box {
