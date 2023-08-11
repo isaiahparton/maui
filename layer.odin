@@ -116,7 +116,7 @@ Layer :: struct {
 	x_scroll_time,
 	y_scroll_time: f32,
 	// Draw command
-	command: ^Draw_Command,
+	command: Draw_Command,
 }
 
 Layer_Agent :: struct {

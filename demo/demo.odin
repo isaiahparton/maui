@@ -29,10 +29,12 @@ _main :: proc() {
 	rl.SetExitKey(.KEY_NULL)
 	rl.SetTargetFPS(75)
 
+	size: f32 = 24
+
 	ui_backend.init()
 	ui.init()
-
 	for true {
+		ui.painter.style.button_font_size += rl.GetMouseWheelMove()
 		{
 			using ui
 			begin_frame()
@@ -41,43 +43,50 @@ _main :: proc() {
 			core.current_time = rl.GetTime()
 
 			shrink(200)
-			if do_layout(.Top, Exact(30)) {
+
+			for i := 0; i < int(core.size.x); i += 10 {
+				paint_box_fill({f32(i), 0, 1, core.size.y}, {255, 255, 255, 20})
+			}
+			paint_aligned_text(core.size / 2, {text = "Such text Much information (wow)", font = painter.style.default_font, size = 20, limit = {50, nil}, wrap = .Word}, .Middle, .Middle, {255, 255, 255, 255})
+
+			if do_layout(.Top, Exact(size)) {
 				placement.side = .Left
-				placement.size = Exact(30)
-				if do_button({
-					shape = .Pill,
+				do_button({
 					label = "BUTTON",
-				}) {
-
-				}
-				space(Exact(10))
-				if do_button({
 					shape = .Pill,
-					style = .Outlined,
-					label = "BUTTON",
-				}) {
-
-				}
+				})
 			}
 
 			end_frame()
+
+			if painter.atlas.should_update {
+				painter.atlas.should_update = false
+				update_texture(painter.atlas.texture, painter.atlas.image, 0, 0, 4096, 4096)
+			}
 		}
 
 		rl.BeginDrawing()
 		if ui.should_render() {
-			rl.ClearBackground(transmute(rl.Color)ui.get_color(.Base))
+			rl.ClearBackground({})
 			ui_backend.render()
-			rl.DrawText(rl.TextFormat("%.2fms", time.duration_milliseconds(ui.core.frame_duration)), 0, 0, 20, rl.BLACK)
+			rl.DrawTexture({
+				id = 3,
+				format = .UNCOMPRESSED_R8G8B8A8,
+				width = 4096,
+				height = 4096,
+				mipmaps = 1,
+			}, 0, 0, rl.WHITE)
+			rl.DrawText(rl.TextFormat("%.2fms", time.duration_milliseconds(ui.core.frame_duration)), 0, 0, 20, rl.DARKGREEN)
 		}
 		rl.EndDrawing()
 		if rl.WindowShouldClose() {
 			break
 		}
 	}
+	ui.uninit()	
 
 	rl.CloseWindow()
 
-	ui.uninit()
 }
 
 main :: proc() {

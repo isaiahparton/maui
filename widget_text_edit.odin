@@ -38,16 +38,15 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 		using self
 		self.box = use_next_box() or_else layout_next(current_layout())
 		update_widget(self)
+
 		// Text cursor
 		if .Hovered in self.state {
 			core.cursor = .Beam
 		}
-
 		// Animation values
 		hover_time := animate_bool(&self.timers[0], .Hovered in state, 0.1)
+		// Get a temporary buffer if necessary
 		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
-		font_data := get_font_data(.Default)
-
 		// Text edit
 		if state >= {.Got_Focus} {
 			if text, ok := info.data.(^string); ok {
@@ -55,11 +54,14 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 				copy(buffer[:], text[:])
 			}
 		}
-
+		// Get font data
+		font := &painter.atlas.fonts[painter.style.default_font]
+		font_size, _ := get_font_size(font, painter.style.default_font_size)
+		assert(font_size != nil)
 		// Paint!
 		paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), hover_time * 0.05))
 		line_height := info.line_height.? or_else box.h
-		y_padding := line_height / 2 - font_data.size / 2
+		y_padding := line_height / 2 - font_size.ascent / 2
 		data_slice: []u8
 		switch type in info.data {
 			case ^string:
@@ -76,6 +78,8 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 		}
 
 		// Set text offset
+		//TODO: Re-implement
+		/*
 		select_result := selectable_text(self, {
 			font_data = font_data, 
 			data = data_slice, 
@@ -100,6 +104,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 				}
 			}
 		}
+		*/
 
 		// Widget decoration
 		if .Should_Paint in bits {
@@ -117,7 +122,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
-					paint_string(font_data, info.placeholder.?, {box.x + padding.x, box.y + padding.y}, get_color(.Text, 0.5))
+					paint_text({box.x + padding.x, box.y + padding.y}, {font = painter.style.title_font, size = painter.style.title_font_size, text = info.placeholder.?}, .Left, get_color(.Text, 0.5))
 				}
 			}
 

@@ -19,8 +19,8 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 		if .Should_Paint in self.bits {
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 			paint_box_stroke(self.box, 1, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
-			paint_label_box(tmp_print("%2i-%2i-%4i", day, int(month), year), shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.Button_Base), {.Near, .Middle})
-			paint_aligned_icon(get_font_data(.Default), .Calendar, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.Button_Base), {.Middle, .Middle})
+			paint_label_box(tmp_print("%2i-%2i-%4i", day, int(month), year), shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.Button_Base), .Left, .Middle)
+			paint_aligned_icon(painter.style.default_font, .Calendar, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.Button_Base), {.Middle, .Middle})
 		}
 
 		if .Active in self.bits {
@@ -171,7 +171,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					}
 				}
 				// Stroke
-				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, true, get_color(.Base_Stroke))
+				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
 
 				info.temp_value._nsec = max(info.temp_value._nsec, 0)
 			}

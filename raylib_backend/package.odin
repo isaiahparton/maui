@@ -20,17 +20,21 @@ init :: proc() {
 	_get_clipboard_string = proc() -> string {
 		return string(rl.GetClipboardText())
 	}
-	_load_texture = proc(image: Image) -> (id: Texture_Id, ok: bool) {
+	_update_texture = proc(texture: Texture, data: []u8, x, y, w, h: f32) {
+		rl.rlUpdateTexture(texture.id, i32(x), i32(y), i32(w), i32(h), i32(rl.PixelFormat.UNCOMPRESSED_R8G8B8A8), (transmute(runtime.Raw_Slice)data).data)
+	}
+	_load_texture = proc(image: Image) -> (id: u32, ok: bool) {
 		rl_image: rl.Image = {
 			data = (transmute(runtime.Raw_Slice)image.data).data,
 			width = i32(image.width),
 			height = i32(image.height),
-
+			format = .UNCOMPRESSED_R8G8B8A8,
+			mipmaps = 1,
 		}
 		texture := rl.LoadTextureFromImage(rl_image)
 		return texture.id, rl.IsTextureReady(texture)
 	}
-	_unload_texture = proc(id: Texture_Id) {
+	_unload_texture = proc(id: u32) {
 		rl.UnloadTexture({id = id})
 	}
 }
@@ -75,6 +79,7 @@ begin_frame :: proc() {
 render :: proc() {
 	using ui
 
+	rl.rlDisableBackfaceCulling()
 	if core.cursor == .None {
 		rl.HideCursor()
 	} else {
@@ -87,6 +92,7 @@ render :: proc() {
 			rl.rlScissor(i32(clip.x), i32(clip.y), i32(clip.w), i32(clip.h))
 		}
 		rl.rlBegin(rl.RL_TRIANGLES)
+		rl.rlSetTexture(painter.atlas.texture.id)
 		for i in 0..<layer.command.indices_offset {
 			v := layer.command.vertices[layer.command.indices[i]]
 			rl.rlColor4ub(v.color.r, v.color.g, v.color.b, v.color.a)
@@ -99,6 +105,7 @@ render :: proc() {
 		}
 	}
 
-	rl.rlDrawRenderBatchActive()
+	rl.rlSetTexture(0)
 	rl.EndScissorMode()
+	rl.rlEnableBackfaceCulling()
 }

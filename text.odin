@@ -32,15 +32,29 @@ Font_Size :: struct {
 	// Helpers
 	break_size: f32,
 }
+destroy_font_size :: proc(using self: ^Font_Size) {
+	for _, &glyph in glyphs {
+		destroy_glyph_data(&glyph)
+	}
+	delete(glyphs)
+}
 Font :: struct {
 	data: ttf.fontinfo,
 	sizes: map[f32]Font_Size,
+}
+destroy_font :: proc(using self: ^Font) {
+	for _, &size in sizes {
+		destroy_font_size(&size)
+	}
 }
 Glyph_Data :: struct {
 	image: Image,
 	src: Box,
 	offset: [2]f32,
 	advance: f32,
+}
+destroy_glyph_data :: proc(using self: ^Glyph_Data) {
+	destroy_image(&image)
 }
 
 Icon :: enum rune {
@@ -180,6 +194,11 @@ tmp_print_bit_set :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 	return str
 }
 
+Text_Wrap :: enum {
+	None,
+	Regular,
+	Word,
+}
 Text_Align :: enum {
 	Left,
 	Middle,
@@ -191,14 +210,18 @@ Text_Baseline :: enum {
 	Bottom,
 }
 Text_Info :: struct {
+	// What font to use
 	font: Font_Handle,
-	text: string,
-	align: Text_Align,
-	baseline: Text_Baseline,
+	// What size
 	size: f32,
-	line_limit: Maybe(f32),
-	word_wrap: bool,
+	// What text
+	text: string,
+	// Maximum space occupied in either direction
+	limit: [2]Maybe(f32),
+	// Wrapping option
+	wrap: Text_Wrap,
 }
+
 Text_Iterator :: struct {
 	// Font
 	font: ^Font,
@@ -222,37 +245,56 @@ Text_Iterator :: struct {
 	do_offset: bool,
 }
 make_text_iterator :: proc(info: Text_Info) -> (it: Text_Iterator) {
-	it.font = &painter.fonts[info.font]
+	it.font = &painter.atlas.fonts[info.font]
 	it.size, _ = get_font_size(it.font, info.size)
-	it.line_limit = info.line_limit
+	it.line_limit = info.limit.x
 	return
 }
 iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
-	
-	// Update index
-	it.index = it.next_index
-	// Decode next codepoint
-	codepoint, bytes := utf8.decode_rune(info.text[it.index:])
-	// Update next index
-	it.next_index += bytes
+	/*
+		Post paint
+			Check for end -> Reset line size? -> Update offset
+	*/
+	if it.next_index >= len(info.text) {
+		return false
+	}
 	// Update horizontal offset with last glyph
 	if it.new_line {
 		it.line_size = 0
 	}
 	if it.glyph != nil {
 		it.offset.x += it.glyph.advance
-		it.line_size += it.glyph.advance
 	}
+	/*
+		Pre-paint
+			Decode the next codepoint -> Update glyph data -> New line if needed
+	*/
+	// Update index
+	it.index = it.next_index
+	// Decode next codepoint
+	bytes: int
+	it.codepoint, bytes = utf8.decode_rune(info.text[it.index:])
+	// Update next index
+	it.next_index += bytes
 	// Get current glyph data
-	if glyph, ok := get_font_glyph(it.font, it.size, codepoint); ok {
-		it.glyph = glyph
+	if it.codepoint != '\n' {
+		if glyph, ok := get_font_glyph(it.font, it.size, it.codepoint); ok {
+			it.glyph = glyph
+			it.line_size += it.glyph.advance
+		}
+	} else {
+		it.glyph = nil
 	}
+	// Space needed to fit this glyph/word
 	space: f32 = it.glyph.advance if it.glyph != nil else 0
-	if info.word_wrap && it.next_index >= it.next_word && codepoint != ' ' {
+	// Get the space for the next word if needed
+	if ( info.wrap == .Word ) && ( it.next_index >= it.next_word ) && ( it.codepoint != ' ' ) {
 		for i := it.next_word; i < len(info.text); {
 			c, b := utf8.decode_rune(info.text[i:])
-			if g, ok := get_font_glyph(it.font, it.size, codepoint); ok {
-				space += g.advance
+			if c != '\n' {
+				if g, ok := get_font_glyph(it.font, it.size, it.codepoint); ok {
+					space += g.advance
+				}
 			}
 			if c == ' ' {
 				it.next_word = i + b
@@ -261,40 +303,38 @@ iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
 			i += b
 		}
 	}
-
+	// Reset new line state
 	it.new_line = false
 	new_line := false
-	if codepoint == '\n' || (it.line_limit != nil && it.line_size + space >= it.line_limit.?) {
+	// Detect new line codepoint
+	if ( it.codepoint == '\n' ) {
 		new_line = true
+	// Or detect overflow
+	} else if ( it.line_limit != nil && it.line_size + space >= it.line_limit.? ) {
+		if info.wrap != .None {
+			new_line = true
+		} else {
+			//TODO: Implement text break
+		}
 	}
 	// Update vertical offset
 	if new_line {
 		it.new_line = true
 		it.offset.y += it.size.ascent + it.size.line_gap
 	}
-	// Reset offset if new line
-	if it.do_offset && (new_line || it.index == 0) {
-		it.offset.x = 0
-		#partial switch info.align {
-			case .Center: it.offset.x -= measure_next_line(info, it^) / 2
-			case .Right: it.offset.x -= measure_next_line(info, it^)
-		}
-	}
-	it.codepoint = codepoint
 	
-	return it.index < len(info.text)
+	return true
 }
 
-/*
-	String processing procedures
-*/
 measure_next_line :: proc(info: Text_Info, it: Text_Iterator) -> f32 {
 	it := it
-	it.do_offset = false
 	for iterate_text(&it, info) {
 		if it.new_line {
 			break
 		}
+	}
+	if it.codepoint != '\n' {
+		//it.line_size += it.glyph.advance
 	}
 	return it.line_size
 }
@@ -315,31 +355,24 @@ measure_text :: proc(info: Text_Info) -> [2]f32 {
 	for iterate_text(&it, info) {
 		size.x = max(size.x, it.line_size)
 		if it.new_line {
-			size.y += it.size.ascent
+			size.y += it.size.ascent + it.size.line_gap
 		}
 	}
 	size.y += it.size.ascent
 	return size
 }
-// Load a font and store it in the given document
-load_font :: proc(painter: ^Painter, file: string) -> (handle: Font_Handle, success: bool) {
+// Load a font to the atlas
+load_font :: proc(atlas: ^Atlas, file: string) -> (handle: Font_Handle, success: bool) {
 	font: Font
-	if file_data, ok := os.read_entire_file(file); ok {
-		if ttf.InitFont(&font.data, transmute([^]u8)(transmute(runtime.Raw_Slice)file_data).data, 0) {
-			for i in 0..<MAX_FONTS {
-				if !painter.font_exists[i] {
-					painter.font_exists[i] = true
-					painter.fonts[i] = font
-					// Add the font to the atlas
-					default_runes: []rune = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 0x2022}
-					for r in default_runes {
-						
-					}
-
-					handle = Font_Handle(i)
-					success = true
-					break
-				}
+	file_data := os.read_entire_file(file) or_return
+	if ttf.InitFont(&font.data, transmute([^]u8)(transmute(runtime.Raw_Slice)file_data).data, 0) {
+		for i in 0..<MAX_FONTS {
+			if !atlas.font_exists[i] {
+				atlas.font_exists[i] = true
+				atlas.fonts[i] = font
+				handle = Font_Handle(i)
+				success = true
+				break
 			}
 		}
 	}
@@ -347,6 +380,7 @@ load_font :: proc(painter: ^Painter, file: string) -> (handle: Font_Handle, succ
 }
 // Get the data for a given pixel size of the font
 get_font_size :: proc(font: ^Font, size: f32) -> (data: ^Font_Size, ok: bool) {
+	size := math.round(size)
 	data, ok = &font.sizes[size]
 	if !ok {
 		data = map_insert(&font.sizes, size, Font_Size{})
@@ -355,7 +389,7 @@ get_font_size :: proc(font: ^Font, size: f32) -> (data: ^Font_Size, ok: bool) {
 		// Compute vertical metrics
 		ascent, descent, line_gap: i32
 		ttf.GetFontVMetrics(&font.data, &ascent, &descent, &line_gap)
-		data.baseline = f32(f32(ascent) * data.scale)
+		data.ascent = f32(f32(ascent) * data.scale)
 		data.line_gap = f32(f32(line_gap) * data.scale)
 		// Yup
 		ok = true
@@ -386,6 +420,7 @@ get_font_glyph :: proc(font: ^Font, size: ^Font_Size, codepoint: rune) -> (data:
 			&glyph_offset_y,
 			)
 		image: Image 
+		src: Box
 		if image_data != nil {
 			image = {
 				data = transmute([]u8)runtime.Raw_Slice({data = image_data, len = int(image_width * image_height)}),
@@ -393,10 +428,12 @@ get_font_glyph :: proc(font: ^Font, size: ^Font_Size, codepoint: rune) -> (data:
 				width = int(image_width),
 				height = int(image_height),
 			}
+			src = atlas_add(&painter.atlas, image) or_else Box{}
 		}
 		// Set glyph data
 		glyph_data = map_insert(&size.glyphs, codepoint, Glyph_Data({
 			image = image,
+			src = src,
 			offset = {f32(glyph_offset_x), f32(glyph_offset_y) + size.ascent},
 			advance = f32(f32(advance) * size.scale),
 		}))
@@ -408,12 +445,67 @@ get_font_glyph :: proc(font: ^Font, size: ^Font_Size, codepoint: rune) -> (data:
 	return
 }
 
-paint_and_save_text :: proc(info: Text_Info, buffer: ^[dynamic]Vertex) -> [2]f32 {
-	
+/*
+	Paints text
+*/
+paint_text :: proc(origin: [2]f32, info: Text_Info, align: Text_Align, color: Color) -> [2]f32 {
+	size: [2]f32 
+	it := make_text_iterator(info)
+	it.offset.x = 0
+	#partial switch align {
+		case .Middle: it.offset.x -= measure_next_line(info, it) / 2
+		case .Right: it.offset.x -= measure_next_line(info, it)
+	}
+
+	box: Box = {origin.x, origin.y, 0, 0}
+	for iterate_text(&it, info) {
+		// Reset offset if new line
+		if it.new_line {
+			it.offset.x = 0
+			#partial switch align {
+				case .Middle: it.offset.x -= measure_next_line(info, it) / 2
+				case .Right: it.offset.x -= measure_next_line(info, it)
+			}
+		}
+		// Paint the glyph
+		if it.codepoint != '\n' && it.codepoint != ' ' && it.glyph != nil {
+			dst: Box = {math.floor(origin.x + it.offset.x + it.glyph.offset.x), math.floor(origin.y + it.offset.y + it.glyph.offset.y), it.glyph.src.w, it.glyph.src.h}
+			paint_textured_box(painter.atlas.texture, it.glyph.src, dst, color)
+			box.x = min(box.x, dst.x)
+			box.y = min(box.y, dst.y)
+			box.w = max(box.w, (dst.x + dst.w) - box.x)
+			box.h = max(box.h, (dst.y + dst.h) - box.y)
+		}
+		// Update size
+		if it.new_line {
+			size.x = max(size.x, it.line_size)
+			size.y += it.size.ascent
+		}
+	}
+	size.x = max(size.x, it.line_size)
+	size.y += it.size.ascent
+
+	paint_box_stroke(box, 1, {0, 255, 0, 255})
+	return size 
+}
+paint_aligned_text :: proc(origin: [2]f32, info: Text_Info, align: Text_Align, baseline: Text_Baseline, color: Color) -> [2]f32 {
+	origin := origin
+	size: [2]f32
+	if align != .Left || baseline != .Top {
+		size = measure_text(info)
+		#partial switch baseline {
+			case .Middle: origin.y -= size.y / 2 
+			case .Bottom: origin.y -= size.y
+		}
+	}
+	return paint_text(origin, info, align, color)
 }
 
 paint_aligned_icon :: proc(font: Font_Handle, icon: Icon, origin: [2]f32, size: f32, color: Color, align: [2]Alignment) -> [2]f32 {
-	glyph := get_glyph_data(font_data, rune(icon))
+	font := &painter.atlas.fonts[font]
+	font_size, _ := get_font_size(font, size)
+	glyph, _ := get_font_glyph(font, font_size, rune(icon))
+
 	box := glyph.src
 	box.w *= size
 	box.h *= size
@@ -427,43 +519,8 @@ paint_aligned_icon :: proc(font: Font_Handle, icon: Icon, origin: [2]f32, size: 
 		case .Middle: box.y = origin.y - box.h / 2
 		case .Near: box.y = origin.y
 	}
-	paint_texture(painter.atlas_agent.texture, glyph.src, box, color)
+	paint_textured_box(painter.atlas.texture, glyph.src, box, color)
 	return {box.w, box.h}
-}
-
-// Draw a glyph, mathematically clipped to 'clipBox'
-paint_clipped_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, clip: Box, color: Color) {
-	src := glyph.src
-	dst := Box{ 
-			f32(i32(origin.x + glyph.offset.x)), 
-			f32(i32(origin.y + glyph.offset.y)), 
-			src.w, 
-			src.h,
-	}
-	if dst.x < clip.x {
-		delta := clip.x - dst.x
-		dst.w -= delta
-		dst.x += delta
-		src.x += delta
-	}
-	if dst.y < clip.y {
-		delta := clip.y - dst.y
-		dst.h -= delta
-		dst.y += delta
-		src.y += delta
-	}
-	if dst.x + dst.w > clip.x + clip.w {
-		dst.w = (clip.x + clip.w) - dst.x
-	}
-	if dst.y + dst.h > clip.y + clip.h {
-		dst.h = (clip.y + clip.h) - dst.y
-	}
-	src.w = dst.w
-	src.h = dst.h
-	if src.w <= 0 || src.h <= 0 {
-		return
-	}
-	paint_texture(painter.atlas_agent.texture, src, dst, color)
 }
 
 // Advanced interactive text
@@ -493,9 +550,10 @@ Selectable_Text_Result :: struct {
 	font: ^Font,
 }
 
-//TODO: Fix cursor appearing for one frame on previously focused widget when selecting another
-// Displays clipped, selectable text that can be copied to clipboard
-selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result: Selectable_Text_Result) {
+// Text that can be interacted with
+//TODO: Re-implement
+/*
+do_interactable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result: Selectable_Text_Result) {
 	assert(widget != nil)
 	result.view_offset = info.view_offset
 	// Alias scribe state
@@ -510,7 +568,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	// Get text size if necessary
 	text_size: [2]f32
 	if info.align.x != .Near || info.align.y != .Near {
-		text_size = measure_string(info.font_data, string(info.data))
+		
 	}
 	// Handle alignment
 	switch info.align.x {
@@ -762,3 +820,4 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	result.font_data = info.font_data
 	return
 }
+*/

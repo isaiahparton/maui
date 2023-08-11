@@ -195,7 +195,13 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 					paint_rotating_arrow({title_box.x + title_box.h / 2, baseline}, 8, self.how_collapsed, get_color(.Base))
 					text_offset = title_box.h
 				}
-				paint_aligned_string(get_font_data(.Default), self.title, {title_box.x + text_offset, baseline}, get_color(.Base), {.Near, .Middle})
+				paint_aligned_text(
+					{title_box.x + text_offset, baseline}, 
+					{text = self.title, font = painter.style.default_font, size = painter.style.default_font_size}, 
+					.Left, 
+					.Middle, 
+					color = get_color(.Base),
+					)
 				if .Closable in self.options {
 					set_next_box(child_box(get_box_right(title_box, title_box.h), {24, 24}, {.Middle, .Middle}))
 					if do_button({
@@ -305,10 +311,10 @@ _do_window :: proc(ok: bool) {
 		// End main layer
 		if .Collapsed not_in bits {
 			// Outline
-			paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, true, get_color(.Base_Stroke))
+			paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
 			end_layer(layer)
 		}
-		paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, true, get_color(.Base_Stroke))
+		paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
 		// End decor layer
 		end_layer(decor_layer)
 		// Handle movement

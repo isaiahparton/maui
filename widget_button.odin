@@ -84,7 +84,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 					
 					case .Outlined:
 					paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-					paint_pill_stroke_h(self.box, true, get_color(.Button_Base))
+					paint_pill_stroke_h(self.box, 1, get_color(.Button_Base))
 				
 					case .Subtle:
 					paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
@@ -131,7 +131,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 				loader_time := animate_bool(&self.timers[1], info.loading, 0.25)
 				paint_loader(box_center(self.box), self.box.h * 0.3, f32(core.current_time), fade(label_color, loader_time))
 			} else {
-				paint_label_box(info.label, self.box, label_color, {.Middle, .Middle})
+				paint_label_box(info.label, self.box, label_color, .Middle, .Middle)
 			}
 		}
 		// Result
@@ -189,7 +189,7 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 				}
 			}
 
-			paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, {info.align.? or_else .Middle, .Middle})
+			paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, .Middle, .Middle)
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)
@@ -241,7 +241,7 @@ do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) 
 			center := linalg.round(box_center(self.box))
 			paint_circle_fill_texture(center + {0, 5}, 40, get_color(.Base_Shade, 0.2))
 			paint_circle_fill_texture(center, 40, alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), (2 if self.state >= {.Pressed} else hover_time) * 0.1))
-			paint_aligned_icon(get_font_data(.Header), info.icon, center, 1, get_color(.Button_Text), {.Middle, .Middle})
+			paint_aligned_icon(painter.style.button_font, info.icon, center, 1, get_color(.Button_Text), {.Middle, .Middle})
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)
