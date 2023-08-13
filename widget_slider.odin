@@ -79,14 +79,14 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> (changed: b
 	SIZE :: 16
 	HEIGHT :: SIZE / 2
 	HALF_HEIGHT :: HEIGHT / 2
-	format := info.format.? or_else "%v"
-	box := layout_next(current_layout())
-	box = child_box(box, {box.w, SIZE}, {.Near, .Middle})
-	if self, ok := do_widget(hash(loc), box, {.Draggable}); ok {
-		push_id(self.id) 
-			hover_time := animate_bool(hash_int(0), self.state & {.Hovered, .Pressed} != {}, 0.1)
-			press_time := animate_bool(hash_int(1), .Pressed in self.state, 0.1)
-		pop_id()
+	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
+		format := info.format.? or_else "%v"
+		self.box = layout_next(current_layout())
+		self.box = child_box(self.box, {self.box.w, SIZE}, {.Near, .Middle})
+		update_widget(self)
+		hover_time := animate_bool(&self.timers[0], self.state & {.Hovered, .Pressed} != {}, 0.1)	
+		press_time := animate_bool(&self.timers[1], .Pressed in self.state, 0.1)
+
 		range := self.box.w - HEIGHT
 		offset := range * clamp(f32((info.value - info.low) / info.high), 0, 1)
 		bar_box: Box = {self.box.x, self.box.y + HALF_HEIGHT, self.box.w, self.box.h - HEIGHT}
@@ -96,24 +96,23 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> (changed: b
 		if .Should_Paint in self.bits {
 			if info.guides != nil {
 				r := f32(info.high - info.low)
-				font_data := get_font_data(.Label)
 				for entry in info.guides.? {
 					x := bar_box.x + HALF_HEIGHT + range * (f32(entry - info.low) / r)
 					paint_line({x, bar_box.y}, {x, bar_box.y - 10}, 1, get_color(.Widget))
-					paint_aligned_string(font_data, tmp_print(format, entry), {x, bar_box.y - 12}, get_color(.Widget), {.Middle, .Far})
+					paint_text({x, bar_box.y - 12}, {text = tmp_print(format, entry), font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Middle, baseline = .Bottom}, get_color(.Widget))
 				}
 			}
 			if info.value < info.high {
 				paint_rounded_box_fill(bar_box, HALF_HEIGHT, get_color(.Widget_BG))
 			}
 			paint_rounded_box_fill({bar_box.x, bar_box.y, offset, bar_box.h}, HALF_HEIGHT, blend_colors(get_color(.Widget), get_color(.Accent), hover_time))
-			paint_rounded_box_stroke(bar_box, HALF_HEIGHT, true, get_color(.Widget_Stroke, 0.5))
+			paint_rounded_box_stroke(bar_box, HALF_HEIGHT, 1, get_color(.Widget_Stroke, 0.5))
 			paint_circle_fill(thumb_center, shade_radius, 12, get_color(.Base_Shade, BASE_SHADE_ALPHA * hover_time))
-			paint_circle_fill_texture(thumb_center, thumb_radius * 2, blend_colors(get_color(.Widget_BG), get_color(.Accent), hover_time))
-			paint_circle_stroke_texture(thumb_center, thumb_radius * 2, true, get_color(.Widget_Stroke, 0.5))
+			paint_circle_fill_texture(thumb_center, thumb_radius, blend_colors(get_color(.Widget_BG), get_color(.Accent), hover_time))
+			paint_ring_fill_texture(thumb_center, thumb_radius - 1, thumb_radius, get_color(.Widget_Stroke, 0.5))
 		}
 		if hover_time > 0 {
-			tooltip(self.id, tmp_print(format, info.value), thumb_center + {0, -shade_radius - 2}, {.Middle, .Far})
+			tooltip(self.id, tmp_printf(format, info.value), thumb_center + {0, -shade_radius - 2}, {.Middle, .Far})
 		}
 
 		if .Pressed in self.state {

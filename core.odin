@@ -4,18 +4,18 @@
 	TODO:
 		[x] Nice shiny global variables for placement instead of yucky set functions
 		[x] Move animations to widget struct (duh)
-		[ ] Customizable fonts (default themes provides default fonts)
-		[ ] Implement new texture atlas system 4096x4096
-		[ ] Figure out if dynamic fonts are feasable
-			[ ] Implement dynamic font loading
+		[X] Customizable fonts (default themes provides default fonts)
+		[X] Implement new texture atlas system 4096x4096
+		[X] Figure out if dynamic fonts are feasable
+			[X] Implement dynamic font loading
 				* Painting text will query the painter for that text size, if it does not exist
 				the painter will render it and update the texture (might require updating the whole texture (not good))
 				* Will require usage of 'stb_truetype' (which 'raylib' uses anyways)
 				* How does 'egui' do it?
 		[ ] Cached text painting
 			* Save commands and just copy them when needed
-		[ ] Remove animation map
-		[ ] Widget code takes on a more flexible form: assert->layout->update->paint->result
+		[X] Remove animation map
+		[X] Widget code takes on a more flexible form: assert->layout->update->paint->result
 		[ ] Lazy resizing for label fitting widgets
 		[ ] Clipped loader painting proc for cool loading animation on buttons
 */
@@ -251,12 +251,13 @@ end_group :: proc() -> (result: ^Group) {
 	Animation management
 */
 animate_bool :: proc(value: ^f32, condition: bool, duration: f32, easing: ease.Ease = .Linear) -> f32 {
+	old_value := value^
 	if condition {
 		value^ = min(1, value^ + core.delta_time * (1 / duration))
 	} else {
 		value^ = max(0, value^ - core.delta_time * (1 / duration))
 	}
-	if value^ > 0 && value^ < 1 {
+	if value^ != old_value {
 		core.paint_this_frame = true
 	}
 	return ease.ease(easing, value^)

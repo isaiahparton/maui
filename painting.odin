@@ -80,7 +80,7 @@ Vertex :: struct {
 	color: [4]u8,
 }
 
-DRAW_COMMAND_SIZE :: 1024
+DRAW_COMMAND_SIZE :: 16192
 // A draw command
 Draw_Command :: struct {
 	clip: Maybe(Box),
@@ -131,8 +131,8 @@ Atlas :: struct {
 	rings: [MAX_RING_RADIUS][MAX_RING_RADIUS]Maybe(Box),
 }
 atlas_get_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: bool) {
-	_inner := int(inner) + 1
-	_outer := int(outer) + 1
+	_inner := int(inner)
+	_outer := int(outer)
 	if _inner < 0 || _inner >= MAX_RING_RADIUS || _outer < 0 || _outer >= MAX_RING_RADIUS {
 		return {}, false
 	}
@@ -216,17 +216,22 @@ atlas_get_box :: proc(using self: ^Atlas, size: [2]f32) -> (box: Box) {
 	return
 }
 atlas_add_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: bool) {
-	box := atlas_get_box(self, outer * 2 + 1)
-	center: [2]f32 = {box.x, box.y} + outer
+	if inner >= outer {
+		return
+	}
+	box := atlas_get_box(self, outer * 2)
+	center: [2]f32 = box_center(box) - 0.5
+	outer := outer - 0.5
+	inner := inner - 0.5
 	for x in int(box.x)..<int(box.x + box.w) {
 		for y in int(box.y)..<int(box.y + box.h) {
 			point: [2]f32 = {f32(x), f32(y)}
 			diff := point - center
 			dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
-			if dist < inner - 1 || dist > outer + 1 {
+			if dist < inner || dist > outer + 1 {
 				continue
 			}
-			alpha := min(1, dist - (inner - 1)) - max(0, dist - outer)
+			alpha := min(1, dist - inner) - max(0, dist - (outer))
 			i := (x + y * image.width) * image.channels
 			image.data[i] = 255
 			image.data[i + 1] = 255
@@ -253,10 +258,10 @@ painter: ^Painter
 
 style_default_fonts :: proc(style: ^Style) -> bool {
 	// Load the fonts
-	main_font := load_font(&painter.atlas, "fonts/Muli.ttf") or_return
+	main_font := load_font(&painter.atlas, "fonts/Oxanium-Regular.ttf") or_return
 	monospace_font := load_font(&painter.atlas, "fonts/Inconsolata_Condensed-SemiBold.ttf") or_return
 	// Assign their handles and sizes
-	style.button_font = load_font(&painter.atlas, "fonts/Muli-Bold.ttf") or_return
+	style.button_font = load_font(&painter.atlas, "fonts/Oxanium-Regular.ttf") or_return
 	style.button_font_size = 20
 	style.default_font = main_font
 	style.default_font_size = 18
@@ -376,30 +381,7 @@ alpha_blend_colors_tint :: proc(dst, src, tint: Color) -> (out: Color) {
 	return
 }
 alpha_blend_colors_time :: proc(dst, src: Color, time: f32) -> (out: Color) {
-	out = 255
-
-	src := src
-	t := u8(time / 255.0)
-	src.r = u8((u32(src.r) * u32(t + 1)) >> 8)
-	src.g = u8((u32(src.g) * u32(t + 1)) >> 8)
-	src.b = u8((u32(src.b) * u32(t + 1)) >> 8)
-	src.a = u8((u32(src.a) * u32(t + 1)) >> 8)
-
-	if (src.a == 0) {
-		out = dst
-	} else if src.a == 255 {
-		out = src
-	} else {
-		alpha := u32(src.a) + 1
-		out.a = u8((u32(alpha) * 256 + u32(dst.a) * (256 - alpha)) >> 8)
-
-		if out.a > 0 {
-			out.r = u8(((u32(src.r) * alpha * 256 + u32(dst.r) * u32(dst.a) * (256 - alpha)) / u32(out.a)) >> 8)
-			out.g = u8(((u32(src.g) * alpha * 256 + u32(dst.g) * u32(dst.a) * (256 - alpha)) / u32(out.a)) >> 8)
-			out.b = u8(((u32(src.b) * alpha * 256 + u32(dst.b) * u32(dst.a) * (256 - alpha)) / u32(out.a)) >> 8)
-		}
-	}
-	return
+	return alpha_blend_colors_tint(dst, src, fade(255, time))
 }
 alpha_blend_colors :: proc {
 	alpha_blend_colors_time,
@@ -428,7 +410,7 @@ paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickn
 				font = painter.style.title_font, 
 				text = text.?, 
 			},
-			.Left, 
+			{align = .Left}, 
 			get_color(.Text),
 		)
 	} else {
@@ -528,14 +510,14 @@ paint_circle_sector_fill :: proc(center: [2]f32, radius, start, end: f32, segmen
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
-				paint_triangle_fill(
-					center, 
-					center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, 
-					center + {math.cos(angle) * radius, math.sin(angle) * radius}, 
-					color,
+		paint_triangle_fill(
+			center, 
+			center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, 
+			center + {math.cos(angle) * radius, math.sin(angle) * radius}, 
+			color,
 			)
-				angle += step;
-		}
+			angle += step;
+	}
 }
 // Paint a filled ring
 paint_ring_fill :: proc(center: [2]f32, inner, outer: f32, segments: i32, color: Color) {
@@ -639,12 +621,12 @@ paint_textured_box :: proc(tex: Texture, src, dst: Box, tint: Color) {
 // Circles
 paint_circle_fill_texture :: proc(center: [2]f32, radius: f32, color: Color) {
 	if src, ok := atlas_get_ring(&painter.atlas, 0, radius); ok {
-		paint_textured_box(painter.atlas.texture, src, {center.x - src.w / 2, center.y - src.h / 2, src.w, src.h}, color)
+		paint_textured_box(painter.atlas.texture, src, {math.round(center.x - src.w / 2), math.round(center.y - src.h / 2), src.w, src.h}, color)
 	}
 }
 paint_ring_fill_texture :: proc(center: [2]f32, inner, outer: f32, color: Color) {
 	if src, ok := atlas_get_ring(&painter.atlas, inner, outer); ok {
-		paint_textured_box(painter.atlas.texture, src, {center.x - src.w / 2, center.y - src.h / 2, src.w, src.h}, color)
+		paint_textured_box(painter.atlas.texture, src, {math.round(center.x - src.w / 2), math.round(center.y - src.h / 2), src.w, src.h}, color)
 	}
 }
 
@@ -851,7 +833,7 @@ paint_rounded_box_stroke :: proc(box: Box, radius, thickness: f32, color: Color)
 		return
 	}
 	if src, ok := atlas_get_ring(&painter.atlas, radius - thickness, radius); ok {
-		half_size := math.trunc(src.w / 2)
+		half_size := math.ceil(src.w / 2)
 		half_width := min(half_size, box.w / 2)
 		half_height := min(half_size, box.h / 2)
 

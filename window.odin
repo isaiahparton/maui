@@ -195,11 +195,10 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 					paint_rotating_arrow({title_box.x + title_box.h / 2, baseline}, 8, self.how_collapsed, get_color(.Base))
 					text_offset = title_box.h
 				}
-				paint_aligned_text(
+				paint_text(
 					{title_box.x + text_offset, baseline}, 
 					{text = self.title, font = painter.style.default_font, size = painter.style.default_font_size}, 
-					.Left, 
-					.Middle, 
+					{align = .Left, baseline = .Middle}, 
 					color = get_color(.Base),
 					)
 				if .Closable in self.options {

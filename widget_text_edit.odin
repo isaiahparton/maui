@@ -122,7 +122,12 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
-					paint_text({box.x + padding.x, box.y + padding.y}, {font = painter.style.title_font, size = painter.style.title_font_size, text = info.placeholder.?}, .Left, get_color(.Text, 0.5))
+					paint_text(
+						{box.x + padding.x, box.y + padding.y}, 
+						{font = painter.style.title_font, size = painter.style.title_font_size, text = info.placeholder.?}, 
+						{align = .Left}, 
+						get_color(.Text, 0.5),
+						)
 				}
 			}
 
@@ -146,8 +151,10 @@ Number_Input_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 }
 do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (new_value: T) {
 	new_value = info.value
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .Can_Key_Select}); ok {
+	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		using self
+		self.box = use_next_box() or_else layout_next(current_layout())
+		update_widget(self)
 		// Animation values
 		hover_time := animate_bool(&timers[0], .Hovered in state, 0.1)
 		// Cursor style
@@ -160,16 +167,15 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			case f16, f32, f64: has_decimal = true
 		}
 		// Formatting
-		text := text_format_slice(info.format.? or_else "%v", info.value)
+		text := transmute([]u8)tmp_printf(info.format.? or_else "%v", info.value)
 		if info.trim_decimal && has_decimal {
-			text = transmute([]u8)text_remove_trailing_zeroes(string(text))
+			text = transmute([]u8)trim_zeroes(string(text))
 		}
 		// Painting
 		text_align := info.text_align.? or_else {
 			.Near,
 			.Middle,
 		}
-		font_data := get_font_data(.Monospace)
 		paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), hover_time * 0.05))
 		if !info.no_outline {
 			stroke_color := get_color(.Widget_Stroke) if .Focused in self.state else get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time)

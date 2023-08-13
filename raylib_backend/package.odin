@@ -76,9 +76,10 @@ begin_frame :: proc() {
 	ui.core.delta_time = rl.GetFrameTime()
 }
 
-render :: proc() {
+render :: proc() -> int {
 	using ui
 
+	v_count := 0
 	rl.rlDisableBackfaceCulling()
 	if core.cursor == .None {
 		rl.HideCursor()
@@ -98,6 +99,7 @@ render :: proc() {
 			rl.rlColor4ub(v.color.r, v.color.g, v.color.b, v.color.a)
 			rl.rlTexCoord2f(v.uv.x, v.uv.y)
 			rl.rlVertex2f(v.point.x, v.point.y)
+			v_count += 1
 		}
 		rl.rlEnd()
 		if layer.command.clip != nil {
@@ -108,4 +110,6 @@ render :: proc() {
 	rl.rlSetTexture(0)
 	rl.EndScissorMode()
 	rl.rlEnableBackfaceCulling()
+
+	return v_count
 }

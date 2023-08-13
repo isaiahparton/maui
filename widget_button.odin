@@ -80,7 +80,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 				case .Pill: 
 				switch info.style {
 					case .Filled:
-					paint_pill_fill_h(self.box, alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
+					paint_pill_fill_h(self.box, alpha_blend_colors(base_color, get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
 					
 					case .Outlined:
 					paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
@@ -241,7 +241,7 @@ do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) 
 			center := linalg.round(box_center(self.box))
 			paint_circle_fill_texture(center + {0, 5}, 40, get_color(.Base_Shade, 0.2))
 			paint_circle_fill_texture(center, 40, alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), (2 if self.state >= {.Pressed} else hover_time) * 0.1))
-			paint_aligned_icon(painter.style.button_font, info.icon, center, 1, get_color(.Button_Text), {.Middle, .Middle})
+			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.icon, center, 1, get_color(.Button_Text), {.Middle, .Middle})
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)
