@@ -22,7 +22,7 @@ DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.Base 								= {30, 30, 32, 255},
 	.Base_Shade 					= {255, 255, 255, 255},
 	.Base_Stroke					= {112, 113, 116, 255},
-	.Widget_BG						= {12, 12, 16, 255},
+	.Widget_Back						= {12, 12, 16, 255},
 	.Widget	 							= {65, 65, 75, 255},
 	.Widget_Shade 				= {255, 255, 255, 255},
 	.Widget_Stroke 				= {105, 105, 105, 255},
@@ -31,6 +31,7 @@ DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.Shadow 							= {0, 0, 0, 35},
 	.Text_Inverted 				= {218, 218, 218, 255},
 	.Text 								= {255, 255, 255, 255},
+	.Text_Highlight  			= {0, 100, 136, 255},
 	.Tooltip_Fill 				= {45, 45, 77, 255},
 	.Tooltip_Stroke  			= {},
 	.Tooltip_Text 				= {255, 255, 255, 255},
@@ -74,7 +75,7 @@ Color_Index :: enum {
 	// Color of focused or selected widgets
 	Accent,
 	// Background of a slider
-	Widget_BG,
+	Widget_Back,
 	// Base color for widgets
 	Widget,
 	// How widgets are shaded when hovered or pressed
@@ -91,6 +92,7 @@ Color_Index :: enum {
 	Text,
 	// Text color when highlighted
 	Text_Inverted,
+	Text_Highlight,
 	// Tooltips
 	Tooltip_Fill,
 	Tooltip_Stroke,
@@ -133,6 +135,8 @@ Style :: struct {
 	button_font_size,
 	title_font_size,
 	monospace_font_size: f32,
+
+	text_box_padding: f32,
 
 	colors: 						[Color_Index]Color,
 	rules:							[Rule_Index]f32,

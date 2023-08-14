@@ -231,7 +231,7 @@ atlas_add_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: 
 			if dist < inner || dist > outer + 1 {
 				continue
 			}
-			alpha := min(1, dist - inner) - max(0, dist - (outer))
+			alpha := min(1, dist - inner) - max(0, dist - outer)
 			i := (x + y * image.width) * image.channels
 			image.data[i] = 255
 			image.data[i + 1] = 255
@@ -408,6 +408,7 @@ paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickn
 			}, 
 			{
 				font = painter.style.title_font, 
+				size = painter.style.title_font_size,
 				text = text.?, 
 			},
 			{align = .Left}, 
@@ -555,7 +556,7 @@ paint_box_sweep :: proc(r: Box, t: f32, c: Color) {
 	)
 }
 // Paint a textured box clipped to the `clip` parameter
-paint_clipped_textured_box :: proc(texture: Texture, dst, src, clip: Box, tint: Color) {
+paint_clipped_textured_box :: proc(texture: Texture, src, dst, clip: Box, tint: Color) {
 	src := src
 	dst := dst
 	if dst.x < clip.x {

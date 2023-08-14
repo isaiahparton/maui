@@ -36,7 +36,7 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	increment := info.increment.? or_else T(1)
 	// Number input
 	set_next_box(box)
-	paint_box_fill(box, get_color(.Widget_BG))
+	paint_box_fill(box, get_color(.Widget_Back))
 	new_value = clamp(do_number_input(Number_Input_Info(T){
 		value = info.value,
 		text_align = ([2]Alignment){
@@ -103,12 +103,12 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> (changed: b
 				}
 			}
 			if info.value < info.high {
-				paint_rounded_box_fill(bar_box, HALF_HEIGHT, get_color(.Widget_BG))
+				paint_rounded_box_fill(bar_box, HALF_HEIGHT, get_color(.Widget_Back))
 			}
 			paint_rounded_box_fill({bar_box.x, bar_box.y, offset, bar_box.h}, HALF_HEIGHT, blend_colors(get_color(.Widget), get_color(.Accent), hover_time))
 			paint_rounded_box_stroke(bar_box, HALF_HEIGHT, 1, get_color(.Widget_Stroke, 0.5))
 			paint_circle_fill(thumb_center, shade_radius, 12, get_color(.Base_Shade, BASE_SHADE_ALPHA * hover_time))
-			paint_circle_fill_texture(thumb_center, thumb_radius, blend_colors(get_color(.Widget_BG), get_color(.Accent), hover_time))
+			paint_circle_fill_texture(thumb_center, thumb_radius, blend_colors(get_color(.Widget_Back), get_color(.Accent), hover_time))
 			paint_ring_fill_texture(thumb_center, thumb_radius - 1, thumb_radius, get_color(.Widget_Stroke, 0.5))
 		}
 		if hover_time > 0 {
@@ -145,7 +145,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 		hover_time := animate_bool(self.id, .Hovered in self.state, 0.1)
 
 		if self.bits >= {.Should_Paint} {
-			paint_box_fill(self.box, get_color(.Widget_BG))
+			paint_box_fill(self.box, get_color(.Widget_Back))
 			if .Active not_in self.bits {
 				if info.low < info.high {
 					paint_box_fill({self.box.x, self.box.y, self.box.w * (f32(info.value - info.low) / f32(info.high - info.low)), self.box.h}, alpha_blend_colors(get_color(.Widget), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))

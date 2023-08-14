@@ -221,6 +221,8 @@ Text_Info :: struct {
 	limit: [2]Maybe(f32),
 	// Wrapping option
 	wrap: Text_Wrap,
+	// Hidden?
+	hidden: bool,
 }
 
 Text_Iterator :: struct {
@@ -248,10 +250,16 @@ make_text_iterator :: proc(info: Text_Info) -> (it: Text_Iterator, ok: bool) {
 		return
 	}
 	it.font = &painter.atlas.fonts[info.font]
-	it.size, _ = get_font_size(it.font, info.size)
+	it.size, ok = get_font_size(it.font, info.size)
 	it.line_limit = info.limit.x
-	ok = true
 	return
+}
+update_text_iterator_offset :: proc(it: ^Text_Iterator, info: Text_Info, paint_info: Text_Paint_Info) {
+	it.offset.x = 0
+	#partial switch paint_info.align {
+		case .Middle: it.offset.x -= measure_next_line(info, it^) / 2
+		case .Right: it.offset.x -= measure_next_line(info, it^)
+	}
 }
 iterate_text_codepoint :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
 	if it.next_index >= len(info.text) {
@@ -266,7 +274,7 @@ iterate_text_codepoint :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
 	it.next_index += bytes
 	// Get current glyph data
 	if it.codepoint != '\n' {
-		if glyph, ok := get_font_glyph(it.font, it.size, it.codepoint); ok {
+		if glyph, ok := get_font_glyph(it.font, it.size, '•' if info.hidden else it.codepoint); ok {
 			it.glyph = glyph
 			it.line_size += it.glyph.advance
 		}
@@ -276,11 +284,6 @@ iterate_text_codepoint :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
 	return true
 }
 iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
-	/*
-		Post paint
-			Check for end -> Reset line size? -> Update offset
-	*/
-	
 	// Update horizontal offset with last glyph
 	if it.glyph != nil {
 		it.offset.x += it.glyph.advance
@@ -481,26 +484,20 @@ paint_text :: proc(origin: [2]f32, info: Text_Info, paint_info: Text_Paint_Info,
 		}
 	}
 	if it, ok := make_text_iterator(info); ok {
-
-		it.offset.x = 0
-		#partial switch paint_info.align {
-			case .Middle: it.offset.x -= measure_next_line(info, it) / 2
-			case .Right: it.offset.x -= measure_next_line(info, it)
-		}
-
+		update_text_iterator_offset(&it, info, paint_info)
 		for iterate_text(&it, info) {
 			// Reset offset if new line
 			if it.new_line {
-				it.offset.x = 0
-				#partial switch paint_info.align {
-					case .Middle: it.offset.x -= measure_next_line(info, it) / 2
-					case .Right: it.offset.x -= measure_next_line(info, it)
-				}
+				update_text_iterator_offset(&it, info, paint_info)
 			}
 			// Paint the glyph
 			if it.codepoint != '\n' && it.codepoint != ' ' && it.glyph != nil {
 				dst: Box = {math.floor(origin.x + it.offset.x + it.glyph.offset.x), math.floor(origin.y + it.offset.y + it.glyph.offset.y), it.glyph.src.w, it.glyph.src.h}
-				paint_textured_box(painter.atlas.texture, it.glyph.src, dst, color)
+				if clip, ok := paint_info.clip.?; ok {
+					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, color)
+				} else {
+					paint_textured_box(painter.atlas.texture, it.glyph.src, dst, color)
+				}
 			}
 			// Update size
 			if it.new_line {
@@ -536,35 +533,78 @@ paint_aligned_icon :: proc(font: Font_Handle, size: f32, icon: Icon, origin: [2]
 	return {box.w, box.h}
 }
 
-// Advanced interactive text
-Selectable_Text_Bit :: enum {
-	Password,
-	Mutable,
-	Select_All,
-	No_Paint,
-}
-
-Selectable_Text_Bits :: bit_set[Selectable_Text_Bit]
-
-Selectable_Text_Result :: struct {
-	text_size,
-	view_offset: [2]f32,
-	line_count: int,
-	font: ^Font,
-}
-
-Text_Interact_State :: struct {
-	index,
-	length,
-	anchor: int,
-}
-
 Text_Interact_Info :: struct {
-
+	read_only,
+	focus_selects_all,
+	invisible: bool,
 }
 
-paint_interact_text :: proc(widget: ^Widget, info: Text_Info, interact_info: Text_Interact_Info) {
+paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agent, text_info: Text_Info, text_paint_info: Text_Paint_Info, interact_info: Text_Interact_Info) {
+	assert(widget != nil)
+	assert(agent != nil)
 
+	size: [2]f32 
+	hover_index: int
+	min_dist: f32 = math.F32_MAX
+	origin := origin
+	// Apply baseline if needed
+	if text_paint_info.baseline != .Top {
+		size = measure_text(text_info)
+		#partial switch text_paint_info.baseline {
+			case .Middle: origin.y -= size.y / 2 
+			case .Bottom: origin.y -= size.y
+		}
+	}
+	// Paint the text
+	if it, ok := make_text_iterator(text_info); ok {
+		for (iterate_text(&it, text_info) || it.next_index >= len(text_info.text)) {
+			point := origin + {it.offset.x, it.offset.y}
+			// Update hovered index
+			dist := linalg.length(point - input.mouse_point)
+			if dist < min_dist {
+				min_dist = dist 
+				hover_index = it.index
+			}
+			// Paint cursor/selection
+			if .Focused in widget.state {
+				if agent.length == 0 && !interact_info.read_only {
+					if agent.index == it.index {
+						// Bar cursor
+						box: Box = {point.x - 1, point.y, 2, it.size.ascent - it.size.descent}
+						if clip, ok := text_paint_info.clip.?; ok {
+							box = clip_box(box, clip)
+						}
+						paint_box_fill(box, get_color(.Text_Highlight))
+					}
+				} else if it.glyph != nil && it.index >= agent.index && it.index < agent.index + agent.length {
+					// Selection
+					box: Box = {point.x, point.y, it.glyph.advance, it.size.ascent - it.size.descent}
+					if clip, ok := text_paint_info.clip.?; ok {
+						box = clip_box(box, clip)
+					}
+					paint_box_fill(box, get_color(.Text_Highlight, 0.5))
+				}
+			}
+			// Paint the glyph
+			if it.glyph != nil {
+				// Paint the glyph
+				dst: Box = {point.x + it.glyph.offset.x, point.y + it.glyph.offset.y, it.glyph.src.w, it.glyph.src.h}
+				if clip, ok := text_paint_info.clip.?; ok {
+					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, get_color(.Text))
+				} else {
+					paint_textured_box(painter.atlas.texture, it.glyph.src, dst, get_color(.Text))
+				}
+			}
+
+			if it.next_index >= len(text_info.text) {
+				break
+			}
+		}
+	}
+	// Update selection
+	if mouse_pressed(.Left) {
+		agent.index = hover_index
+	}
 }
 
 // Text that can be interacted with

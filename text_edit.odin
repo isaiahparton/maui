@@ -132,7 +132,6 @@ Text_Edit_Bits :: bit_set[Text_Edit_Bit]
 
 Text_Edit_Info :: struct {
 	bits: Text_Edit_Bits,
-	select_result: Maybe(Selectable_Text_Result),
 	array: ^[dynamic]u8,
 	capacity: int,
 }
@@ -192,50 +191,6 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		}
 	}
 	// Arrowkey navigation
-	// TODO(isaiah): Implement up/down navigation for multiline text input
-	// A font is required to perform vertical navigation
-	if info.select_result != nil {
-		if key_pressed(.Up) {
-			if above_line, ok := get_last_line(info.array[:], index); ok {
-				lowest_diff: f32 = 999999
-				pos: f32
-				for i := above_line; i < len(info.array); {
-					diff := abs(left_offset - pos)
-					if diff < lowest_diff {
-						lowest_diff = diff
-						index = i
-					}
-					glyph, bytes := utf8.decode_rune(info.array[i:])
-					//pos += get_font_glyph(info.select_result.?.font, glyph).src.w + GLYPH_SPACING
-					i += bytes
-					if glyph == '\n' {
-						break
-					}
-				}
-			}
-			length = 0
-		}
-		if key_pressed(.Down) {
-			if below_line, ok := get_next_line(info.array[:], index); ok {
-				lowest_diff: f32 = 999999
-				pos: f32
-				for i := below_line + 1; i < len(info.array); {
-					diff := abs(left_offset - pos)
-					if diff < lowest_diff {
-						lowest_diff = diff
-						index = i
-					}
-					glyph, bytes := utf8.decode_rune(info.array[i:])
-					i += bytes
-					//pos += get_font_glyph(info.select_result.?.font, glyph).src.w + GLYPH_SPACING
-					if glyph == '\n' {
-						break
-					}
-				}
-			}
-			length = 0
-		}
-	}
 	if key_pressed(.Left) {
 		delta := 0
 		// How far should the cursor move?

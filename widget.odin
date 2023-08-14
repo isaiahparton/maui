@@ -665,7 +665,7 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			if active {
 				paint_rounded_box_fill(icon_box, 5, alpha_blend_colors(get_color(.Intense), get_color(.Intense_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 			} else {
-				paint_rounded_box_fill(icon_box, 5, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
+				paint_rounded_box_fill(icon_box, 5, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 				paint_rounded_box_stroke(icon_box, 5, 1, get_color(.Widget_Stroke))
 			}
 			center := box_center(icon_box)
@@ -790,7 +790,7 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 			thumb_center := start + {move * (how_on if state else how_on), 0}
 
 			if how_on < 1 {
-				paint_rounded_box_fill(base_box, base_radius, get_color(.Widget_BG))
+				paint_rounded_box_fill(base_box, base_radius, get_color(.Widget_Back))
 				paint_rounded_box_stroke(base_box, base_radius, 1, get_color(.Widget_Stroke, 0.5))
 			}
 			if how_on > 0 {
@@ -812,7 +812,7 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 					paint_circle_fill(thumb_center, 18, 18, get_color(.Base_Shade, BASE_SHADE_ALPHA * press_time))
 				}
 			}
-			paint_circle_fill(thumb_center, 11, 10, get_color(.Widget_BG))
+			paint_circle_fill(thumb_center, 11, 10, get_color(.Widget_Back))
 			paint_ring_fill_texture(thumb_center, 10, 11, blend_colors(get_color(.Widget_Stroke, 0.5), get_color(.Intense), how_on))
 			if how_on < 1 && info.off_icon != nil {
 				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.off_icon.?, thumb_center, 1, get_color(.Intense, 1 - how_on), {.Middle, .Middle})
@@ -876,12 +876,12 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 			if hover_time > 0 {
 				paint_pill_fill_h(self.box, get_color(.Base_Shade, hover_time * 0.1))
 			}
-			paint_circle_fill_texture(center, RADIUS, blend_colors(alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.1 if .Pressed in self.state else 0), alpha_blend_colors(get_color(.Intense), get_color(.Intense_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1), state_time))
+			paint_circle_fill_texture(center, RADIUS, blend_colors(alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.1 if .Pressed in self.state else 0), alpha_blend_colors(get_color(.Intense), get_color(.Intense_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1), state_time))
 			if info.on {
-				paint_circle_fill(center, ease.quadratic_in_out(state_time) * 6, 18, get_color(.Widget_BG, state_time))
+				paint_circle_fill(center, ease.quadratic_in_out(state_time) * 6, 18, get_color(.Widget_Back, state_time))
 			}
 			if state_time < 1 {
-				paint_ring_fill_texture(center, RADIUS - 1, RADIUS, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
+				paint_ring_fill_texture(center, RADIUS - 2, RADIUS, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
 			}
 			switch text_side {
 				case .Left: 	
@@ -1303,7 +1303,7 @@ do_enum_tabs :: proc(value: $T, tab_size: f32, loc := #caller_location) -> (new_
 do_progress_bar :: proc(value: f32) {
 	box := layout_next(current_layout())
 	radius := box.h / 2
-	paint_rounded_box_fill(box, radius, get_color(.Widget_BG))
+	paint_rounded_box_fill(box, radius, get_color(.Widget_Back))
 	paint_rounded_box_fill({box.x, box.y, box.w * clamp(value, 0, 1), box.h}, radius, get_color(.Accent))
 }
 

@@ -25,9 +25,7 @@ Text_Input_Info :: struct {
 	data: Text_Input_Data,
 	title: Maybe(string),
 	placeholder: Maybe(string),
-	line_height: Maybe(f32),
-	select_bits: Selectable_Text_Bits,
-	edit_bits: Text_Edit_Bits,
+	multiline: bool,
 }
 Text_Input_Result :: struct {
 	changed: bool,
@@ -35,46 +33,64 @@ Text_Input_Result :: struct {
 }
 do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
-		using self
 		self.box = use_next_box() or_else layout_next(current_layout())
 		update_widget(self)
-
 		// Text cursor
 		if .Hovered in self.state {
 			core.cursor = .Beam
 		}
 		// Animation values
-		hover_time := animate_bool(&self.timers[0], .Hovered in state, 0.1)
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 		// Get a temporary buffer if necessary
 		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
 		// Text edit
-		if state >= {.Got_Focus} {
+		if .Got_Focus in self.state {
 			if text, ok := info.data.(^string); ok {
 				resize(buffer, len(text))
 				copy(buffer[:], text[:])
 			}
 		}
-		// Get font data
-		font := &painter.atlas.fonts[painter.style.default_font]
-		font_size, _ := get_font_size(font, painter.style.default_font_size)
-		assert(font_size != nil)
 		// Paint!
-		paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), hover_time * 0.05))
-		line_height := info.line_height.? or_else box.h
-		y_padding := line_height / 2 - font_size.ascent / 2
-		data_slice: []u8
+		paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.1))
+		text: string
 		switch type in info.data {
 			case ^string:
-			data_slice = transmute([]u8)type[:]
+			text = type^
 			case ^[dynamic]u8:
-			data_slice = type[:]
+			text = string(type[:])
 		}
 
-		padding: [2]f32 = {WIDGET_TEXT_OFFSET, y_padding}
+		paint_interact_text(
+			{
+				self.box.x + WIDGET_TEXT_OFFSET, 
+				self.box.y + self.box.h / 2,
+			}, 
+			self,
+			&core.typing_agent, 
+			{
+				text = text,
+				font = painter.style.default_font,
+				size = painter.style.default_font_size,
+			},
+			{
+				baseline = .Middle,
+			},
+			{},
+			)
 
-		text_bits: Selectable_Text_Bits
-		if .Should_Paint not_in bits {
-			text_bits += {.No_Paint}
+		if .Focused in self.state {
+			change = typing_agent_edit(&core.typing_agent, {
+				array = buffer,
+				bits = {},
+			})
+			if change {
+				self.state += {.Changed}
+				core.paint_next_frame = true
+				if value, ok := info.data.(^string); ok {
+					delete(value^)
+					value^ = strings.clone_from_bytes(buffer[:])
+				}
+			}
 		}
 
 		// Set text offset
@@ -107,12 +123,12 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 		*/
 
 		// Widget decoration
-		if .Should_Paint in bits {
+		if .Should_Paint in self.bits {
 
 			// Widget decor
 			stroke_color := get_color(.Widget_Stroke, 1.0 if .Focused in self.state else (0.5 + 0.5 * hover_time))
 			paint_labeled_widget_frame(
-				box = box, 
+				box = self.box, 
 				text = info.title, 
 				offset = WIDGET_TEXT_OFFSET,
 				thickness = 1, 
@@ -123,17 +139,17 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
 					paint_text(
-						{box.x + padding.x, box.y + padding.y}, 
+						{self.box.x + WIDGET_TEXT_OFFSET, self.box.y + self.box.h / 2}, 
 						{font = painter.style.title_font, size = painter.style.title_font_size, text = info.placeholder.?}, 
-						{align = .Left}, 
+						{baseline = .Middle}, 
 						get_color(.Text, 0.5),
 						)
 				}
 			}
 
 			if info.title != nil {
-				box.y -= 10
-				box.h += 10
+				self.box.y -= 10
+				self.box.h += 10
 			}
 		}
 	}
@@ -176,7 +192,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			.Near,
 			.Middle,
 		}
-		paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), hover_time * 0.05))
+		paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.05))
 		if !info.no_outline {
 			stroke_color := get_color(.Widget_Stroke) if .Focused in self.state else get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time)
 			paint_labeled_widget_frame(

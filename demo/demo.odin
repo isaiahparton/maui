@@ -2,6 +2,7 @@ package demo
 
 import "core:time"
 import "core:strings"
+import "core:math/linalg"
 import rl "vendor:raylib"
 import ui "../"
 import ui_backend "../raylib_backend"
@@ -9,37 +10,24 @@ import ui_backend "../raylib_backend"
 import "core:fmt"
 import "core:mem"
 
-Choice :: enum {
-	First,
-	Second,
-	Third,
+Demo :: struct {
+	start: proc(rawptr),
+	run: proc(rawptr),
+	end: proc(rawptr),
 }
 
-Choice_Set :: bit_set[Choice]
-
 _main :: proc() {
-	boolean: bool
-	text_buffer: [dynamic]u8
-	chips: [dynamic]string
-
-	buttons: [ui.Button_Style][ui.Button_Shape]f32
-
 	rl.SetConfigFlags({.MSAA_4X_HINT})
 	rl.InitWindow(1200, 900, "a window")
 	rl.SetExitKey(.KEY_NULL)
 	rl.SetTargetFPS(75)
 
-	size: f32 = 24
-	limit: [2]Maybe(f32) = {50, nil}
-	text_wrap: ui.Text_Wrap
-	text_align: ui.Text_Align
-	text_baseline: ui.Text_Baseline
+	text_demo: Text_Demo
 
 	ui_backend.init()
 	ui.init()
 
 	for true {
-		size += rl.GetMouseWheelMove()
 		{
 			using ui
 			begin_frame()
@@ -47,35 +35,9 @@ _main :: proc() {
 
 			core.current_time = rl.GetTime()
 
-			shrink(200)
+			shrink(100)
 
-			paint_box_fill({0, core.size.y / 2, core.size.x, 1}, {0, 100, 0, 255})
-			paint_box_fill({core.size.x / 2, 0, 1, core.size.y}, {0, 100, 0, 255})
-
-			paint_text(core.size / 2, {text = "This is a line\nThis is another line\nHere is another\nAnd yet another still\nThis is the last one don't worry", font = painter.style.default_font, size = size, wrap = text_wrap, limit = limit}, {align = text_align, baseline = text_baseline}, {255, 255, 255, 255})
-			
-			space(Exact(20))
-			placement.size = Exact(30)
-			space(Exact(20))
-			text_align = do_enum_radio_buttons(text_align)
-			space(Exact(20))
-			text_baseline = do_enum_radio_buttons(text_baseline)
-			space(Exact(20))
-			text_wrap = do_enum_radio_buttons(text_wrap)
-			space(Exact(20))
-			if do_layout(.Top, Exact(30)) {
-				placement.side = .Left; placement.size = Exact(200)
-				if limit.x != nil {
-					if changed, new_value := do_slider(Slider_Info(f32){
-						value = limit.x.?, 
-						low = 0, 
-						high = 500,
-						format = "%.0f",
-					}); changed {
-						limit.x = new_value
-					}
-				}
-			}
+			do_text_demo(&text_demo)
 
 			end_frame()
 

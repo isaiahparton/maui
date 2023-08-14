@@ -174,7 +174,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		state_time := animate_bool(&timers[1], .Menu_Open in bits, 0.15)
 		// Painting
 		if .Should_Paint in bits {
-			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
+			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
 			paint_labeled_widget_frame(box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
 			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Down, {box.x + box.w - box.h / 2, box.y + box.h / 2}, 1, get_color(.Text), {.Middle, .Middle})
 			paint_label_box(info.label, shrink_box_separate(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
@@ -192,7 +192,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			opacity = state_time,
 		})
 		if active {
-			push_color(.Base, get_color(.Widget_BG))
+			push_color(.Base, get_color(.Widget_Back))
 		}
 	}
 	return
@@ -222,7 +222,7 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		update_widget(self)
 		// Paint
 		if .Should_Paint in bits {
-			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
+			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
 			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Right, {box.x + box.w - box.h / 2, box.y + box.h / 2}, 1, get_color(.Text), {.Middle, .Middle})
 			paint_label_box(info.label, shrink_box_separate(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
 		}
@@ -242,7 +242,7 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			opacity = open_time,
 		})
 		if active {
-			push_color(.Base, get_color(.Widget_BG))
+			push_color(.Base, get_color(.Widget_Back))
 		}
 	}
 	return
@@ -274,7 +274,7 @@ do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool)
 		update_widget(self)
 		// Painting
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
+			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 			paint_label_box(info.label, shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.Text), .Left, .Middle)
 			if info.active {
 				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Check, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.Text), {.Middle, .Middle})
