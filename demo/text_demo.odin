@@ -3,42 +3,41 @@ package demo
 import ui "../"
 
 Box_Controls :: struct {
-	drag_start,
-	drag_end: bool,
+	drag_low,
+	drag_high: bool,
 	anchor: [2]f32,
 }
 
 do_box_controls :: proc(using self: ^Box_Controls, box: ui.Box, color: ui.Color) -> ui.Box {
 	using ui
-	box := box 
-	paint_box_stroke(box, 1, {0, 100, 100, 255})
+	next_box := box 
+	paint_box_stroke(box, 1, color)
+	SIZE :: 16
 	{
-		box: Box = {box.x - 8, box.y - 8, 16, 16}
-		paint_box_fill(box, {0, 100, 100, 255})
-		if drag_start {
-			box.x = input.mouse_point.x 
-			box.y = input.mouse_point.y
+		widget_box: Box = {box.low, box.low + SIZE}
+		paint_triangle_fill(box.low, {box.low.x, box.low.y + SIZE}, {box.low.x + SIZE, box.low.y}, color)
+		if drag_low {
+			next_box.low = input.mouse_point
 			if mouse_released(.Left) {
-				drag_start = false
+				drag_low = false
 			}
-		} else if point_in_box(input.mouse_point, box) && mouse_pressed(.Left) {
-			drag_start = true
+		} else if point_in_box(input.mouse_point, widget_box) && mouse_pressed(.Left) {
+			drag_low = true
 		}
 	}
 	{
-		box: Box = {box.x + box.w - 8, box.y + box.h - 8, 16, 16}
-		paint_box_fill(box, {0, 100, 100, 255})
-		if drag_end {
-			box.w = input.mouse_point.x - box.x 
-			box.h = input.mouse_point.y - box.y
+		widget_box: Box = {box.high - SIZE, box.high}
+		paint_triangle_fill({box.high.x - SIZE, box.high.y}, box.high, {box.high.x, box.high.y - SIZE}, color)
+		if drag_high {
+			next_box.high = input.mouse_point
 			if mouse_released(.Left) {
-				drag_end = false
+				drag_high = false
 			}
-		} else if point_in_box(input.mouse_point, box) && mouse_pressed(.Left) {
-			drag_end = true
+		} else if point_in_box(input.mouse_point, widget_box) && mouse_pressed(.Left) {
+			drag_high = true
 		}
 	}
-	return box 
+	return next_box 
 }
 
 Text_Demo :: struct {
@@ -50,10 +49,14 @@ Text_Demo :: struct {
 
 do_text_demo :: proc(using self: ^Text_Demo) {
 	using ui
-	paint_box_fill({0, core.size.y / 2, core.size.x, 1}, {0, 100, 0, 255})
-	paint_box_fill({core.size.x / 2, 0, 1, core.size.y}, {0, 100, 0, 255})
+	paint_box_fill({{0, core.size.y / 2}, {core.size.x, core.size.y / 2 + 1}}, {0, 100, 0, 255})
+	paint_box_fill({{core.size.x / 2, 0}, {core.size.x / 2 + 1, core.size.y}}, {0, 100, 0, 255})
 
-	paint_text(core.size / 2, info, paint_info, {255, 255, 255, 255})
+	placement.size = Exact(50)
+	do_interactable_text({
+		text_info = info,
+		paint_info = paint_info,
+	})
 	if clip, ok := paint_info.clip.?; ok {
 		paint_info.clip = do_box_controls(&clip_controls, clip, {0, 100, 100, 255})
 	}
@@ -69,6 +72,16 @@ do_text_demo :: proc(using self: ^Text_Demo) {
 		})
 	}
 	space(Exact(20))
+	if change, new_state := do_checkbox({state = bool(paint_info.clip != nil), text = "Enable Clipping"}); change {
+		if new_state == false {
+			paint_info.clip = nil
+		} else {
+			center := core.size / 2
+			paint_info.clip = Box{center - 100, center + 100}
+		}
+	}
+	space(Exact(20))
+	placement.size = Exact(30)
 	paint_info.align = do_enum_radio_buttons(paint_info.align)
 	space(Exact(20))
 	paint_info.baseline = do_enum_radio_buttons(paint_info.baseline)
@@ -77,27 +90,49 @@ do_text_demo :: proc(using self: ^Text_Demo) {
 	space(Exact(20))
 	if do_layout(.Top, Exact(30)) {
 		placement.side = .Left; placement.size = Exact(200)
-		if changed, new_value := do_slider(Slider_Info(f32){
+		info.size = do_slider(Slider_Info(f32){
 			value = info.size, 
 			low = 8, 
 			high = 48,
 			format = "%.0f",
-		}); changed {
-			info.size = new_value
-		}
+		})
 	}
 	space(Exact(20))
+	if change, new_state := do_checkbox({state = (info.limit.x != nil), text = "Horizontal Limit"}); change {
+		if new_state && info.limit.x == nil {
+			info.limit.x = 200
+		} else {
+			info.limit.x = nil
+		}
+	}
 	if do_layout(.Top, Exact(30)) {
 		placement.side = .Left; placement.size = Exact(200)
 		if info.limit.x != nil {
-			if changed, new_value := do_slider(Slider_Info(f32){
+			info.limit.x = do_slider(Slider_Info(f32){
 				value = info.limit.x.?, 
 				low = 0, 
 				high = 500,
 				format = "%.0f",
-			}); changed {
-				info.limit.x = new_value
-			}
+			})
+		}
+	}
+	space(Exact(20))
+	if change, new_state := do_checkbox({state = (info.limit.y != nil), text = "Vertical Limit"}); change {
+		if new_state && info.limit.y == nil {
+			info.limit.y = 200
+		} else {
+			info.limit.y = nil
+		}
+	}
+	if do_layout(.Top, Exact(30)) {
+		placement.side = .Left; placement.size = Exact(200)
+		if info.limit.y != nil {
+			info.limit.y = do_slider(Slider_Info(f32){
+				value = info.limit.y.?, 
+				low = 0, 
+				high = 500,
+				format = "%.0f",
+			})
 		}
 	}
 }

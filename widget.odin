@@ -1,3 +1,7 @@
+/*
+	How to program a widget
+		Create -> Set box -> Animate -> Update -> Paint -> Result
+*/
 package maui
 
 import "core:fmt"
@@ -351,28 +355,30 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 		font = painter.style.title_font,
 		size = painter.style.title_font_size,
 	})
-	PADDING :: 4
-	box: Box = {0, 0, text_size.x + PADDING * 2, text_size.y + PADDING * 2}
+	PADDING :: 3
+	size := text_size + PADDING * 2
+	box: Box
 	switch align.x {
-		case .Near: box.x = origin.x
-		case .Far: box.x = origin.x - box.w
-		case .Middle: box.x = origin.x - box.w / 2
+		case .Near: box.low.x = origin.x
+		case .Far: box.low.x = origin.x - size.x
+		case .Middle: box.low.x = origin.x - size.x / 2
 	}
 	switch align.y {
-		case .Near: box.y = origin.y
-		case .Far: box.y = origin.y - box.h
-		case .Middle: box.y = origin.y - box.h / 2
+		case .Near: box.low.y = origin.y
+		case .Far: box.low.y = origin.y - size.y
+		case .Middle: box.low.y = origin.y - size.y / 2
 	}
+	box.high = box.low + size
 	if layer, ok := begin_layer({
 		box = box, 
 		id = id,
 		options = {.No_Scroll_X, .No_Scroll_Y},
 	}); ok {
 		layer.order = .Tooltip
-		paint_box_fill(layer.box, get_color(.Tooltip_Fill))
-		paint_box_stroke(layer.box, 1, get_color(.Tooltip_Stroke))
+		paint_rounded_box_fill(layer.box, 3, get_color(.Tooltip_Fill))
+		paint_rounded_box_stroke(layer.box, 3, 1, get_color(.Tooltip_Stroke))
 		paint_text(
-			{layer.box.x + PADDING, layer.box.y + PADDING}, 
+			layer.box.low + PADDING, 
 			{font = painter.style.title_font, size = painter.style.title_font_size, text = text}, 
 			{align = .Left}, 
 			get_color(.Tooltip_Text),
@@ -381,28 +387,28 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 	}
 }
 
-tooltip_box ::proc(id: Id, text: string, anchor_box: Box, side: Box_Side, offset: f32) {
+tooltip_box ::proc(id: Id, text: string, anchor: Box, side: Box_Side, offset: f32) {
 	origin: [2]f32
 	align: [2]Alignment
 	switch side {
 		case .Bottom:		
-		origin.x = anchor_box.x + anchor_box.w / 2
-		origin.y = anchor_box.y + anchor_box.h + offset
+		origin.x = (anchor.low.x + anchor.high.x) / 2
+		origin.y = anchor.high.y + offset
 		align.x = .Middle
 		align.y = .Near
 		case .Left:
-		origin.x = anchor_box.x - offset
-		origin.y = anchor_box.y + anchor_box.h / 2
+		origin.x = anchor.low.x - offset
+		origin.y = (anchor.low.y + anchor.high.y) / 2
 		align.x = .Near
 		align.y = .Middle
 		case .Right:
-		origin.x = anchor_box.x + anchor_box.w - offset
-		origin.y = anchor_box.y + anchor_box.h / 2
+		origin.x = anchor.high.x - offset
+		origin.y = (anchor.low.y + anchor.high.y) / 2
 		align.x = .Far
 		align.y = .Middle
 		case .Top:
-		origin.x = anchor_box.x + anchor_box.w / 2
-		origin.y = anchor_box.y - offset
+		origin.x = (anchor.low.x + anchor.high.x) / 2
+		origin.y = anchor.low.y - offset
 		align.x = .Middle
 		align.y = .Far
 	}
@@ -432,14 +438,14 @@ paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: Text_Alig
 }
 
 paint_label_box :: proc(label: Label, box: Box, color: Color, align: Text_Align, baseline: Text_Baseline) {
-	origin: [2]f32 = {box.x, box.y}
+	origin: [2]f32 = box.low
 	#partial switch align {
-		case .Right: origin.x += box.w
-		case .Middle: origin.x += box.w / 2
+		case .Right: origin.x += width(box)
+		case .Middle: origin.x += width(box) * 0.5
 	}
 	#partial switch baseline {
-		case .Bottom: origin.y += box.h
-		case .Middle: origin.y += box.h / 2
+		case .Bottom: origin.y += height(box)
+		case .Middle: origin.y += height(box) * 0.5
 	}
 	paint_label(label, origin, color, align, baseline)
 }
@@ -457,7 +463,7 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 		font := &painter.atlas.fonts[painter.style.button_font]
 		if font_size, ok := get_font_size(font, painter.style.button_font_size); ok {
 			if glyph, ok := get_font_glyph(font, font_size, rune(variant)); ok {
-				size = {glyph.src.w, glyph.src.h}
+				size = glyph.src.high - glyph.src.low
 			}
 		}
 	}
@@ -494,7 +500,7 @@ do_nav_menu :: proc(info: Nav_Menu_Info, loc := #caller_location) -> (result: Ma
 			placement.size = Exact(30)
 			if self, ok := do_widget(hash(loc)); ok {
 				self.box = layout_next(current_layout())
-				self.box.h += 1
+				self.box.high.y += 1
 				hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 				state_time := animate_bool(&self.timers[1], info.current_index == item.index, 0.15)
 				update_widget(self)
@@ -504,37 +510,18 @@ do_nav_menu :: proc(info: Nav_Menu_Info, loc := #caller_location) -> (result: Ma
 					stroke_color := alpha_blend_colors(get_color(.Base), get_color(.Intense), 0.5 * (1 - hover_time))
 					if state_time < 1 {
 						if option_counter == 0  {
-							paint_box_fill({box.x, box.y, box.w, 1}, stroke_color)
+							paint_box_fill({box.low, {box.high.x, box.high.y + 1}}, stroke_color)
 						}
-						paint_box_fill({box.x, box.y + box.h - 1, box.w, 1}, stroke_color)
+						paint_box_fill({{box.low.x, box.high.y - 1}, box.high}, stroke_color)
 					}
 
 					fill_color := fade(alpha_blend_colors(get_color(.Base), get_color(.Intense), min(0.5 + state_time, 1)), 1 if info.current_index == item.index else hover_time)
-					paint_triangle_fill(
-						{box.x + box.w + box.h / 2, box.y + box.h / 2}, 
-						{box.x + box.w, box.y}, 
-						{box.x + box.w, box.y + box.h}, 
-						fill_color,
-						)
-					paint_triangle_fill(
-						{box.x, box.y}, 
-						{box.x - box.h / 2, box.y}, 
-						{box.x, box.y + box.h / 2}, 
-						fill_color,
-						)
-					paint_triangle_fill(
-						{box.x - box.h / 2, box.y + box.h}, 
-						{box.x, box.y + box.h}, 
-						{box.x, box.y + box.h / 2}, 
-						fill_color,
-						)
-					paint_box_fill(box, fill_color)
-					//paint_rounded_box_corners_fill({box.x - 4, box.y, box.w + 4, box.h}, 4, {.Top_left, .Bottom_left}, fill_color)
+					paint_right_ribbon_fill(box, fill_color)
 
 					text_color := blend_colors(get_color(.Intense, 0.5 + hover_time), get_color(.Base), state_time)
-					paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, item.icon, {self.box.x + self.box.h / 2, self.box.y + self.box.h / 2}, 1, text_color, {.Middle, .Middle})
+					paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, item.icon, center(self.box), text_color, {.Middle, .Middle})
 					paint_text(
-						{self.box.x + self.box.h * ease.cubic_in_out(state_time) * 0.3, self.box.y + self.box.h / 2}, 
+						{self.box.low.x + height(self.box) * ease.cubic_in_out(state_time) * 0.3, center_y(self.box)}, 
 						{text = item.name, font = painter.style.default_font, size = painter.style.default_font_size}, 
 						{align = .Left, baseline = .Middle},
 						text_color,
@@ -629,44 +616,45 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 		size = SIZE
 	}
 	layout := current_layout()
-	placement.size = size.x if layout.side == .Left || layout.side == .Right else size.y
+	//placement.size = size.x if layout.side == .Left || layout.side == .Right else size.y
 
 	// Widget
 	if self, ok := do_widget(hash(loc)); ok {
 		using self
-		self.box = use_next_box() or_else child_box(layout_next(layout), size,	{.Middle, .Middle})
-		// Determine on state
+		self.box = use_next_box() or_else layout_next_child(layout, size)
+		update_widget(self)
+		// Determine state
 		active := evaluate_checkbox_state(info.state)
-
+		// Animate
 		hover_time := animate_bool(&self.timers[0], .Hovered in state, 0.15)
 		state_time := animate_bool(&self.timers[1], active, 0.3)
-		update_widget(self)
 		// Painting
 		if .Should_Paint in bits {
 			icon_box: Box
 			if has_text {
 				switch text_side {
 					case .Left: 	
-					icon_box = {box.x, box.y, SIZE, SIZE}
+					icon_box = {box.low, SIZE}
 					case .Right: 	
-					icon_box = {box.x + box.w - SIZE, box.y, SIZE, SIZE}
+					icon_box = {{box.high.x - SIZE, box.low.y}, SIZE}
 					case .Top: 		
-					icon_box = {box.x + box.w / 2 - HALF_SIZE, box.y + box.h - SIZE, SIZE, SIZE}
+					icon_box = {{center_x(box) - HALF_SIZE, box.high.y - SIZE}, SIZE}
 					case .Bottom: 	
-					icon_box = {box.x + box.w / 2 - HALF_SIZE, box.y, SIZE, SIZE}
+					icon_box = {{center_x(box) - HALF_SIZE, box.low.y}, SIZE}
 				}
+				icon_box.high += icon_box.low
 			} else {
 				icon_box = box
 			}
 
 			// Paint box
-				//paint_rounded_box_stroke(icon_box, 3, 1, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
+				paint_rounded_box_stroke(icon_box, 3, 1, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
 			paint_rounded_box_fill(box, 5, get_color(.Base_Shade, 0.1 * hover_time))
 			if active {
 				paint_rounded_box_fill(icon_box, 5, alpha_blend_colors(get_color(.Intense), get_color(.Intense_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 			} else {
 				paint_rounded_box_fill(icon_box, 5, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
-				paint_rounded_box_stroke(icon_box, 5, 1, get_color(.Widget_Stroke))
+				paint_rounded_box_stroke(icon_box, 5, 2, get_color(.Widget_Stroke))
 			}
 			center := box_center(icon_box)
 
@@ -681,8 +669,7 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 					paint_line(center + a, center + b, 2, get_color(.Text))
 					case .On: 
 					a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-					paint_line(center + a, center + b, 2, get_color(.Text))
-					paint_line(center + b, center + c, 2, get_color(.Text))
+					stroke_path({center + a, center + b, center + c}, false, 1, get_color(.Text))
 				}
 			}
 
@@ -690,13 +677,13 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			if has_text {
 				switch text_side {
 					case .Left: 	
-					paint_text({icon_box.x + icon_box.w + WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text({icon_box.high.x + WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
 					case .Right: 	
-					paint_text({icon_box.x - WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text({icon_box.low.x - WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
 					case .Top: 		
-					paint_text({box.x, box.y}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text(box.low, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
 					case .Bottom: 	
-					paint_text({box.x, box.y + box.h - text_size.y}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text({box.low.x, box.high.y - text_size.y}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
 				}
 			}
 		}
@@ -774,8 +761,10 @@ Toggle_Switch_Info :: struct {
 do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (new_state: bool) {
 	state := info.state.(bool) or_else info.state.(^bool)^
 	new_state = state
+	WIDTH :: 40
+	HEIGHT :: 28
 	if self, ok := do_widget(hash(loc)); ok {
-		self.box = layout_next_child(current_layout(), {40, 28})
+		self.box = layout_next_child(current_layout(), {WIDTH, HEIGHT})
 		// Animation
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.15)
 		press_time := animate_bool(&self.timers[1], .Pressed in self.state, 0.15)
@@ -783,11 +772,11 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 		update_widget(self)
 		// Painting
 		if .Should_Paint in self.bits {
-			base_box: Box = {self.box.x, self.box.y + 4, self.box.w, self.box.h - 8}
-			base_radius := base_box.h / 2
-			start: [2]f32 = {base_box.x + base_radius, base_box.y + base_box.h / 2}
-			move := base_box.w - base_box.h
-			thumb_center := start + {move * (how_on if state else how_on), 0}
+			base_box: Box = {{self.box.low.x, self.box.low.y + 4}, {self.box.high.x, self.box.high.y - 4}}
+			base_radius := height(base_box) * 0.5
+			start: [2]f32 = {base_box.low.x + base_radius, center_y(base_box)}
+			MOVE :: WIDTH - HEIGHT
+			knob_center := start + {MOVE * (how_on if state else how_on), 0}
 
 			if how_on < 1 {
 				paint_rounded_box_fill(base_box, base_radius, get_color(.Widget_Back))
@@ -795,7 +784,7 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 			}
 			if how_on > 0 {
 				if how_on < 1 {
-					paint_rounded_box_fill({base_box.x, base_box.y, thumb_center.x - base_box.x, base_box.h}, base_radius, get_color(.Intense))
+					paint_rounded_box_fill({base_box.low, {knob_center.x, base_box.high.y}}, base_radius, get_color(.Intense))
 				} else {
 					paint_rounded_box_fill(base_box, base_radius, get_color(.Intense))
 				}
@@ -803,22 +792,22 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 			}
 			
 			if hover_time > 0 {
-				paint_circle_fill(thumb_center, 18, 18, get_color(.Base_Shade, BASE_SHADE_ALPHA * hover_time))
+				paint_circle_fill(knob_center, 18, 18, get_color(.Base_Shade, BASE_SHADE_ALPHA * hover_time))
 			}
 			if press_time > 0 {
 				if .Pressed in self.state {
-					paint_circle_fill(thumb_center, 12 + 6 * press_time, 18, get_color(.Base_Shade, BASE_SHADE_ALPHA))
+					paint_circle_fill(knob_center, 12 + 6 * press_time, 18, get_color(.Base_Shade, BASE_SHADE_ALPHA))
 				} else {
-					paint_circle_fill(thumb_center, 18, 18, get_color(.Base_Shade, BASE_SHADE_ALPHA * press_time))
+					paint_circle_fill(knob_center, 18, 18, get_color(.Base_Shade, BASE_SHADE_ALPHA * press_time))
 				}
 			}
-			paint_circle_fill(thumb_center, 11, 10, get_color(.Widget_Back))
-			paint_ring_fill_texture(thumb_center, 10, 11, blend_colors(get_color(.Widget_Stroke, 0.5), get_color(.Intense), how_on))
+			paint_circle_fill(knob_center, 11, 10, get_color(.Widget_Back))
+			paint_ring_fill_texture(knob_center, 10, 11, blend_colors(get_color(.Widget_Stroke, 0.5), get_color(.Intense), how_on))
 			if how_on < 1 && info.off_icon != nil {
-				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.off_icon.?, thumb_center, 1, get_color(.Intense, 1 - how_on), {.Middle, .Middle})
+				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.off_icon.?, knob_center, get_color(.Intense, 1 - how_on), {.Middle, .Middle})
 			}
 			if how_on > 0 && info.on_icon != nil {
-				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.on_icon.?, thumb_center, 1, get_color(.Intense, how_on), {.Middle, .Middle})
+				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.on_icon.?, knob_center, get_color(.Intense, how_on), {.Middle, .Middle})
 			}
 		}
 		// Invert state on click
@@ -856,22 +845,22 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 	// The widget
 	if self, ok := do_widget(hash(loc)); ok {
 		self.box = use_next_box() or_else layout_next_child(current_layout(), size)
+		update_widget(self)
 		// Animation
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 		state_time := animate_bool(&self.timers[1], info.on, 0.24)
-		update_widget(self)
 		// Graphics
 		if .Should_Paint in self.bits {
 			center: [2]f32
 			switch text_side {
 				case .Left: 	
-				center = {self.box.x + RADIUS, self.box.y + RADIUS}
+				center = {self.box.low.x + RADIUS, self.box.low.y + RADIUS}
 				case .Right: 	
-				center = {self.box.x + self.box.w - RADIUS, self.box.y + RADIUS}
+				center = {self.box.high.x - RADIUS, self.box.low.y + RADIUS}
 				case .Top: 		
-				center = {self.box.x + self.box.w / 2, self.box.y + self.box.h - RADIUS}
+				center = {center_x(self.box), self.box.high.y - RADIUS}
 				case .Bottom: 	
-				center = {self.box.x + self.box.w / 2, self.box.y + RADIUS}
+				center = {center_x(self.box), self.box.low.y + RADIUS}
 			}
 			if hover_time > 0 {
 				paint_pill_fill_h(self.box, get_color(.Base_Shade, hover_time * 0.1))
@@ -885,13 +874,13 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 			}
 			switch text_side {
 				case .Left: 	
-				paint_text({self.box.x + SIZE + WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
+				paint_text({self.box.low.x + SIZE + WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
 				case .Right: 	
-				paint_text({self.box.x, center.y - text_size.y / 2}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
+				paint_text({self.box.low.x, center.y - text_size.y / 2}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
 				case .Top: 		
-				paint_text({self.box.x, self.box.y}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
+				paint_text(self.box.low, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
 				case .Bottom: 	
-				paint_text({self.box.x, self.box.y + self.box.h - text_size.y}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
+				paint_text({self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
 			}
 		}
 		// Click result
@@ -947,8 +936,8 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 		// Paint
 		if .Should_Paint in bits {
 			color := style_intense_shaded(hover_time)
-			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Down if .Active in bits else .Chevron_Right, {box.x + box.h / 2, box.y + box.h / 2}, 1, color, {.Middle, .Middle})
-			paint_text({box.x + box.h, box.y + box.h / 2}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left, baseline = .Middle}, color)
+			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Down if .Active in bits else .Chevron_Right, center(box), color, {.Middle, .Middle})
+			paint_text({box.low.x + height(box), center_y(box)}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left, baseline = .Middle}, color)
 		}
 
 		// Invert state on click
@@ -1043,17 +1032,17 @@ do_section :: proc(title: Section_Title, loc := #caller_location) -> (result: Se
 			case string:
 			text_size := measure_text({text = type, font = painter.style.title_font, size = painter.style.title_font_size})
 			paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, text_size.x + WIDGET_TEXT_MARGIN * 2, 1, get_color(.Base_Stroke))
-			paint_text({box.x + WIDGET_TEXT_OFFSET, box.y - text_size.y / 2}, {text = type, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Left}, get_color(.Text))
+			paint_text({box.low.x + WIDGET_TEXT_OFFSET, box.low.y - text_size.y / 2}, {text = type, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Left}, get_color(.Text))
 
 			case Check_Box_Info:
-			push_layout({box.x + WIDGET_TEXT_OFFSET, box.y, box.w - WIDGET_TEXT_OFFSET * 2, 0})
+			push_layout({{box.low.x + WIDGET_TEXT_OFFSET, box.low.y}, {box.high.x - WIDGET_TEXT_OFFSET, box.low.y}})
 			placement.side = .Left; placement.align.y = .Middle
 			result.changed, result.new_state = do_checkbox(type, loc)
 			if !evaluate_checkbox_state(type.state) {
 				core.disabled = true
 			}
 			pop_layout()
-			paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, core.last_box.w + WIDGET_TEXT_MARGIN * 2, 1, get_color(.Base_Stroke))
+			paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, height(core.last_box) + WIDGET_TEXT_MARGIN * 2, 1, get_color(.Base_Stroke))
 		}
 	}
 
@@ -1074,7 +1063,7 @@ Scrollbar_Info :: struct {
 	value,
 	low,
 	high,
-	thumb_size: f32,
+	knob_size: f32,
 	vertical: bool,
 }
 
@@ -1086,26 +1075,26 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 		i := int(info.vertical)
 		box := transmute([4]f32)self.box
 
-		range := box[2 + i] - info.thumb_size
+		range := box[2 + i] - info.knob_size
 		value_range := (info.high - info.low) if info.high > info.low else 1
 
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 
-		thumb_box := box
-		thumb_box[i] += range * clamp((info.value - info.low) / value_range, 0, 1)
-		thumb_box[2 + i] = min(info.thumb_size, box[2 + i])
+		knob_box := box
+		knob_box[i] += range * clamp((info.value - info.low) / value_range, 0, 1)
+		knob_box[2 + i] = min(info.knob_size, box[2 + i])
 		// Painting
 		if .Should_Paint in self.bits {
 			ROUNDNESS :: 4
 			paint_box_fill(transmute(Box)box, get_color(.Scrollbar))
-			paint_box_fill(shrink_box(transmute(Box)thumb_box, 1), blend_colors(get_color(.Scroll_Thumb), get_color(.Scroll_Thumb_Shade), (2 if .Pressed in self.state else hover_time) * 0.1))
-			paint_box_stroke(transmute(Box)thumb_box, 1, get_color(.Base_Stroke))
+			paint_box_fill(shrink_box(transmute(Box)knob_box, 1), blend_colors(get_color(.Scroll_Thumb), get_color(.Scroll_Thumb_Shade), (2 if .Pressed in self.state else hover_time) * 0.1))
+			paint_box_stroke(transmute(Box)knob_box, 1, get_color(.Base_Stroke))
 			paint_box_stroke(transmute(Box)box, 1, get_color(.Base_Stroke))
 		}
 		// Dragging
 		if .Got_Press in self.state {
-			if point_in_box(input.mouse_point, transmute(Box)thumb_box) {
-				core.drag_anchor = input.mouse_point - ([2]f32)({thumb_box.x, thumb_box.y})
+			if point_in_box(input.mouse_point, transmute(Box)knob_box) {
+				core.drag_anchor = input.mouse_point - ([2]f32)({knob_box.x, knob_box.y})
 				self.bits += {.Active}
 			}/* else {
 				normal := clamp((input.mouse_point[i] - box[i]) / range, 0, 1)
@@ -1148,10 +1137,10 @@ do_chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
 			fill_color = style_widget_shaded(2 if .Pressed in self.state else hover_time)
 			if clip, ok := info.clip_box.?; ok {
 				paint_pill_fill_clipped_h(self.box, clip, fill_color)
-				paint_text({box.x + box.w / 2, box.y + box.h / 2}, {text = info.text, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Middle, baseline = .Middle}, get_color(.Text)) 
+				paint_text(center(box), {text = info.text, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Middle, baseline = .Middle}, get_color(.Text)) 
 			} else {
 				paint_pill_fill_h(self.box, fill_color)
-				paint_text({box.x + box.w / 2, box.y + box.h / 2}, {text = info.text, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Middle, baseline = .Middle}, get_color(.Text))
+				paint_text(center(box), {text = info.text, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Middle, baseline = .Middle}, get_color(.Text))
 			}
 		}
 		clicked = .Clicked in state && click_button == .Left
@@ -1178,14 +1167,14 @@ do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (cl
 		state_time := animate_bool(&self.timers[0], info.state, 0.15)
 		size: [2]f32
 		if placement.side == .Left || placement.side == .Right {
-			size = measure_text(text_info) + {layout.box.h + get_exact_margin(layout, .Left) + get_exact_margin(layout, .Right), 0}
+			size = measure_text(text_info) + {get_layout_height(layout), 0}
 			size.x += size.y * state_time
-			if size.x > layout.box.w {
+			if size.x > width(layout.box) {
 				pop_layout()
 				if info.row_spacing != nil {
 					cut(.Top, info.row_spacing.?)
 				}
-				push_layout(cut(.Top, layout.box.h))
+				push_layout(cut(.Top, height(layout.box)))
 				placement.side = .Left
 			}
 		}
@@ -1204,10 +1193,10 @@ do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (cl
 			}
 			paint_pill_stroke_h(self.box, 2 if info.state else 1, color)
 			if state_time > 0 {
-				paint_aligned_icon(painter.style.title_font, painter.style.title_font_size, .Check, {box.x + box.h / 2, box.y + box.h / 2}, 1, fade(color, state_time), {.Near, .Middle})
-				paint_text({box.x + box.w - box.h / 2, box.y + box.h / 2}, text_info, {align = .Middle, baseline = .Middle}, color) 
+				paint_aligned_icon(painter.style.title_font, painter.style.title_font_size, .Check, {box.high.x + height(box) / 2, center_y(box)}, fade(color, state_time), {.Near, .Middle})
+				paint_text({box.high.x - height(box) / 2, center_y(box)}, text_info, {align = .Middle, baseline = .Middle}, color) 
 			} else {
-				paint_text({box.x + box.w / 2, box.y + box.h / 2}, text_info, {align = .Middle, baseline = .Middle}, color) 
+				paint_text(center(box), text_info, {align = .Middle, baseline = .Middle}, color) 
 			}
 		}
 		clicked = .Clicked in state && click_button == .Left
@@ -1241,7 +1230,7 @@ do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) 
 		update_widget(self)
 		label_box := self.box
 		if info.has_close_button {
-			set_next_box(shrink_box(cut_box_right(&label_box, label_box.h), 4))
+			set_next_box(shrink_box(cut_box_right(&label_box, height(label_box)), 4))
 		}
 
 		ROUNDNESS :: 7
@@ -1252,10 +1241,10 @@ do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) 
 			paint_rounded_box_corners_fill(self.box, ROUNDNESS, {.Top_Left, .Top_Right}, get_color(.Base_Shade, (1 - state_time) * 0.1))
 			paint_rounded_box_sides_stroke(self.box, ROUNDNESS, 1, {.Left, .Top, .Bottom, .Right} - {side}, get_color(.Base_Stroke, opacity))
 			if info.state {
-				paint_box_fill({self.box.x + 1, self.box.y + self.box.h, self.box.w - 2, 1}, get_color(.Base))
+				paint_box_fill({{self.box.low.x + 1, self.box.high.y}, {self.box.high.x - 1, self.box.high.y + 1}}, get_color(.Base))
 			}
 
-			paint_label(info.label, {self.box.x + self.box.h * 0.25, self.box.y + self.box.h / 2}, get_color(.Text, opacity), .Left, .Middle)
+			paint_label(info.label, {self.box.low.x + height(self.box) * 0.25, center_y(self.box)}, get_color(.Text, opacity), .Left, .Middle)
 		}
 
 		if info.has_close_button {
@@ -1302,9 +1291,9 @@ do_enum_tabs :: proc(value: $T, tab_size: f32, loc := #caller_location) -> (new_
 */
 do_progress_bar :: proc(value: f32) {
 	box := layout_next(current_layout())
-	radius := box.h / 2
+	radius := height(box) * 0.5
 	paint_rounded_box_fill(box, radius, get_color(.Widget_Back))
-	paint_rounded_box_fill({box.x, box.y, box.w * clamp(value, 0, 1), box.h}, radius, get_color(.Accent))
+	paint_rounded_box_fill({box.low, {box.low.x + width(box) * clamp(value, 0, 1), box.high.y}}, radius, get_color(.Accent))
 }
 
 /*

@@ -84,7 +84,7 @@ pop_layout :: proc() {
 		if !last_layout.ignore_parent && core.layout_agent.stack.height > 0 {
 			if last_layout.mode == .Extending {
 				if side, ok := last_layout.side.?; ok {
-					layout_cut_or_extend(layout, side, Exact(last_layout.box.w if int(side) > 1 else last_layout.box.h))	
+					layout_cut_or_extend(layout, side, Exact((last_layout.box.high.x - last_layout.box.low.x) if int(side) > 1 else (last_layout.box.high.y - last_layout.box.low.y)))	
 				}
 			}
 		}
@@ -106,14 +106,14 @@ use_next_box :: proc() -> (box: Box, ok: bool) {
 	}
 	return
 }
-get_exact_margin :: proc(layout: ^Layout, side: Box_Side) -> Exact {
-	return (placement.margin[side].(Exact) or_else Exact(f32(placement.margin[side].(Relative)) * (layout.box.w if int(side) > 1 else layout.box.h)))
+get_exact_margin :: proc(l: ^Layout, side: Box_Side) -> Exact {
+	return (placement.margin[side].(Exact) or_else Exact(f32(placement.margin[side].(Relative)) * ((l.box.high.x - l.box.low.x) if int(side) > 1 else (l.box.high.y - l.box.low.y))))
 }
-get_layout_width :: proc(layout: ^Layout) -> Exact {
-	return layout.box.w - get_exact_margin(layout, .Left) - get_exact_margin(layout, .Right)
+get_layout_width :: proc(l: ^Layout) -> Exact {
+	return (l.box.high.x - l.box.low.x) - get_exact_margin(l, .Left) - get_exact_margin(l, .Right)
 }
-get_layout_height :: proc(layout: ^Layout) -> Exact {
-	return layout.box.h - get_exact_margin(layout, .Top) - get_exact_margin(layout, .Bottom)
+get_layout_height :: proc(l: ^Layout) -> Exact {
+	return (l.box.high.y - l.box.low.y) - get_exact_margin(l, .Top) - get_exact_margin(l, .Bottom)
 }
 // Add space
 space :: proc(amount: Unit) {
@@ -149,18 +149,10 @@ layout_cut_or_extend :: proc(layout: ^Layout, side: Box_Side, size: Unit) -> (re
 	return
 }
 // Get a box from a layout
-layout_next_of_size :: proc(using self: ^Layout, size: Unit) -> (result: Box) {
-	result = layout_cut_or_extend(self, placement.side, size)
-
-	top := placement.margin[.Top].(Exact) 		or_else Exact(f32(placement.margin[.Top].(Relative)) * box.h)
-	left := placement.margin[.Left].(Exact) 	or_else Exact(f32(placement.margin[.Left].(Relative)) * box.w)
-	// Apply margins
-	result = {
-		result.x + left,
-		result.y + top,
-		result.w - left - (placement.margin[.Right].(Exact) or_else Exact(f32(placement.margin[.Right].(Relative)) * box.w)),
-		result.h - top - (placement.margin[.Bottom].(Exact) or_else Exact(f32(placement.margin[.Bottom].(Relative)) * box.h)),
-	}
+layout_next_of_size :: proc(using self: ^Layout, size: Unit) -> (res: Box) {
+	res = layout_cut_or_extend(self, placement.side, size)
+	res.low += {get_exact_margin(self, .Left), get_exact_margin(self, .Top)}
+	res.high -= {get_exact_margin(self, .Right), get_exact_margin(self, .Bottom)}
 	return
 }
 // Get the next box from a layout, according to the current placement settings

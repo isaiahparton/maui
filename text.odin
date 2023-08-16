@@ -293,6 +293,10 @@ iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
 			Decode the next codepoint -> Update glyph data -> New line if needed
 	*/
 	if !iterate_text_codepoint(it, info) {
+		// We might need to use the end index
+		it.index = it.next_index
+		it.glyph = nil
+		it.codepoint = 0
 		return false
 	}
 	// Space needed to fit this glyph/word
@@ -492,7 +496,8 @@ paint_text :: proc(origin: [2]f32, info: Text_Info, paint_info: Text_Paint_Info,
 			}
 			// Paint the glyph
 			if it.codepoint != '\n' && it.codepoint != ' ' && it.glyph != nil {
-				dst: Box = {math.floor(origin.x + it.offset.x + it.glyph.offset.x), math.floor(origin.y + it.offset.y + it.glyph.offset.y), it.glyph.src.w, it.glyph.src.h}
+				dst: Box = {low = linalg.floor(origin + it.offset + it.glyph.offset)}
+				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
 				if clip, ok := paint_info.clip.?; ok {
 					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, color)
 				} else {
@@ -511,26 +516,37 @@ paint_text :: proc(origin: [2]f32, info: Text_Info, paint_info: Text_Paint_Info,
 	return size 
 }
 
-paint_aligned_icon :: proc(font: Font_Handle, size: f32, icon: Icon, origin: [2]f32, scale: f32, color: Color, align: [2]Alignment) -> [2]f32 {
+paint_aligned_icon :: proc(font: Font_Handle, size: f32, icon: Icon, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
 	font := &painter.atlas.fonts[font]
 	font_size, _ := get_font_size(font, size)
 	glyph, _ := get_font_glyph(font, font_size, rune(icon))
+	icon_size := glyph.src.high - glyph.src.low
 
-	box := glyph.src
-	box.w *= scale
-	box.h *= scale
+	box: Box
 	switch align.x {
-		case .Far: box.x = origin.x - box.w
-		case .Middle: box.x = origin.x - box.w / 2
-		case .Near: box.x = origin.x
+		case .Far: 
+		box.low.x = origin.x - icon_size.x
+		box.high.x = origin.x 
+		case .Middle: 
+		box.low.x = origin.x - icon_size.x / 2 
+		box.high.x = origin.x + icon_size.x / 2
+		case .Near: 
+		box.low.x = origin.x 
+		box.high.x = origin.x + icon_size.x 
 	}
 	switch align.y {
-		case .Far: box.y = origin.y - box.h
-		case .Middle: box.y = origin.y - box.h / 2
-		case .Near: box.y = origin.y
+		case .Far: 
+		box.low.y = origin.y - icon_size.y
+		box.high.y = origin.y 
+		case .Middle: 
+		box.low.y = origin.y - icon_size.y / 2 
+		box.high.y = origin.y + icon_size.y / 2
+		case .Near: 
+		box.low.y = origin.y 
+		box.high.y = origin.y + icon_size.y 
 	}
 	paint_textured_box(painter.atlas.texture, glyph.src, box, color)
-	return {box.w, box.h}
+	return icon_size
 }
 
 Text_Interact_Info :: struct {
@@ -557,7 +573,16 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 	}
 	// Paint the text
 	if it, ok := make_text_iterator(text_info); ok {
-		for (iterate_text(&it, text_info) || it.next_index >= len(text_info.text)) {
+		at_end := false
+		update_text_iterator_offset(&it, text_info, text_paint_info)
+		for {
+			if !iterate_text(&it, text_info) {
+				at_end = true
+			}
+			if it.new_line {
+				update_text_iterator_offset(&it, text_info, text_paint_info)
+			}
+			// Get the glyph point
 			point := origin + {it.offset.x, it.offset.y}
 			// Update hovered index
 			dist := linalg.length(point - input.mouse_point)
@@ -570,17 +595,17 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 				if agent.length == 0 && !interact_info.read_only {
 					if agent.index == it.index {
 						// Bar cursor
-						box: Box = {point.x - 1, point.y, 2, it.size.ascent - it.size.descent}
+						box: Box = {{point.x - 1, point.y}, {point.x + 1, point.y + it.size.ascent - it.size.descent}}
 						if clip, ok := text_paint_info.clip.?; ok {
-							box = clip_box(box, clip)
+							box = clamp_box(box, clip)
 						}
 						paint_box_fill(box, get_color(.Text_Highlight))
 					}
 				} else if it.glyph != nil && it.index >= agent.index && it.index < agent.index + agent.length {
 					// Selection
-					box: Box = {point.x, point.y, it.glyph.advance, it.size.ascent - it.size.descent}
+					box: Box = {point, {point.x + it.glyph.advance, point.y + it.size.ascent - it.size.descent}}
 					if clip, ok := text_paint_info.clip.?; ok {
-						box = clip_box(box, clip)
+						box = clamp_box(box, clip)
 					}
 					paint_box_fill(box, get_color(.Text_Highlight, 0.5))
 				}
@@ -588,7 +613,8 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 			// Paint the glyph
 			if it.glyph != nil {
 				// Paint the glyph
-				dst: Box = {point.x + it.glyph.offset.x, point.y + it.glyph.offset.y, it.glyph.src.w, it.glyph.src.h}
+				dst: Box = {low = point + it.glyph.offset}
+				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
 				if clip, ok := text_paint_info.clip.?; ok {
 					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, get_color(.Text))
 				} else {
@@ -596,7 +622,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 				}
 			}
 
-			if it.next_index >= len(text_info.text) {
+			if at_end {
 				break
 			}
 		}
@@ -604,6 +630,50 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 	// Update selection
 	if mouse_pressed(.Left) {
 		agent.index = hover_index
+		agent.anchor = hover_index
+	}
+	// Dragging
+	if .Pressed in widget.state && widget.click_count == 0 {
+		// Selection by dragging
+		if hover_index < agent.anchor {
+			agent.index = hover_index
+			agent.length = agent.anchor - hover_index
+		} else {
+			agent.index = agent.anchor
+			agent.length = hover_index - agent.anchor
+		}
+	}
+}
+
+Interactable_Text_Info :: struct {
+	using text_info: Text_Info,
+	paint_info: Text_Paint_Info,
+	interact_info: Text_Interact_Info,
+}
+do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_location) {
+	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
+		self.box = layout_next(current_layout())
+		update_widget(self)
+
+		origin: [2]f32
+		switch placement.align.x {
+			case .Far: origin.x = self.box.high.x
+			case .Middle: origin.x = (self.box.low.x + self.box.high.x) * 0.5
+			case .Near: origin.x = self.box.low.x
+		}
+		switch placement.align.y {
+			case .Far: origin.y = self.box.high.y
+			case .Middle: origin.y = (self.box.low.y + self.box.high.y) * 0.5
+			case .Near: origin.y = self.box.low.y
+		}
+
+		array := typing_agent_get_buffer(&core.typing_agent, self.id)
+		paint_interact_text(origin, self, &core.typing_agent, info.text_info, info.paint_info, info.interact_info)
+		if .Focused in self.state {
+			typing_agent_edit(&core.typing_agent, {
+				array = array,
+			})
+		}
 	}
 }
 
@@ -672,7 +742,7 @@ do_interactable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (re
 				push_id(i)
 					if do_chip({
 						text = core.chips.items[i].text,
-						clip_box = info.box,
+						clamp_box = info.box,
 					}) {
 						core.chips.items[i].clicked = true
 					}
@@ -711,7 +781,7 @@ do_interactable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (re
 					cursor_point := linalg.floor(point)
 					cursor_point.y = max(cursor_point.y, info.box.y)
 					paint_box_fill(
-						box = clip_box({
+						box = clamp_box({
 							cursor_point.x, 
 							cursor_point.y, 
 							1, 
@@ -724,7 +794,7 @@ do_interactable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (re
 				// Selection
 				cursor_point := linalg.floor(point)
 				paint_box_fill(
-					box = clip_box({
+					box = clamp_box({
 						cursor_point.x, 
 						cursor_point.y, 
 						glyph_width,

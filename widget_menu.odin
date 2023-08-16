@@ -54,33 +54,35 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 		side := info.side.? or_else .Bottom
 		// Determine layout
 		horizontal := side == .Left || side == .Right
-		anchor_box := info.parent.(Box) or_else info.parent.(^Widget).box
+		anchor := info.parent.(Box) or_else info.parent.(^Widget).box
 
-		box: Box = attach_box(anchor_box, side, info.size.x if horizontal else info.size.y)
+		box: Box = attach_box(anchor, side, info.size.x if horizontal else info.size.y)
 
 		if horizontal {
-			box.h = max(info.size.y, anchor_box.h)
+			h := max(info.size.y, height(anchor))
 			if info.extend == .Top {
-				box.y += anchor_box.h
+				box.low.y += height(anchor)
 			}
 			if info.align == .Middle {
-				box.y = anchor_box.y + anchor_box.h / 2 - info.size.y / 2
+				box.low.y = (anchor.low.y + anchor.high.y) / 2 - info.size.y / 2
 			} else if info.align == .Far {
-				box.y = anchor_box.y + anchor_box.h - info.size.y
+				box.low.y = anchor.high.y - info.size.y
 			}
+			box.high.y = box.low.y + h
 		} else {
-			box.w = max(info.size.x, anchor_box.w)
+			w := max(info.size.x, width(anchor))
 			if info.extend == .Left {
-				box.x += anchor_box.w
+				box.low.x += width(anchor)
 			}
 			if info.align == .Middle {
-				box.x = anchor_box.x + anchor_box.w / 2 - info.size.x / 2
+				box.low.x = (anchor.low.x + anchor.high.x) / 2 - info.size.x / 2
 			} else if info.align == .Far {
-				box.x = anchor_box.x + anchor_box.w - info.size.x
+				box.low.x = anchor.high.y - info.size.x
 			}	
+			box.high.x = box.low.x + w
 		}
 		if info.extend != nil {
-			box.h = 0
+			box.high.y = box.low.y
 		}
 
 		// Begin the new layer
@@ -176,8 +178,8 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		if .Should_Paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
 			paint_labeled_widget_frame(box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
-			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Down, {box.x + box.w - box.h / 2, box.y + box.h / 2}, 1, get_color(.Text), {.Middle, .Middle})
-			paint_label_box(info.label, shrink_box_separate(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
+			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Down, center(box), get_color(.Text), {.Middle, .Middle})
+			paint_label_box(info.label, shrink_box_double(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
 		}
 		// Begin layer if expanded
 		result: Attached_Layer_Result
@@ -223,8 +225,8 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		// Paint
 		if .Should_Paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
-			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Right, {box.x + box.w - box.h / 2, box.y + box.h / 2}, 1, get_color(.Text), {.Middle, .Middle})
-			paint_label_box(info.label, shrink_box_separate(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
+			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Right, center(box), get_color(.Text), {.Middle, .Middle})
+			paint_label_box(info.label, shrink_box_double(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
 		}
 		side := info.side.? or_else .Right
 		// Begin layer
@@ -275,9 +277,9 @@ do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool)
 		// Painting
 		if .Should_Paint in self.bits {
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
-			paint_label_box(info.label, shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.Text), .Left, .Middle)
+			paint_label_box(info.label, shrink_box_double(self.box, {height(self.box) * 0.25, 0}), get_color(.Text), .Left, .Middle)
 			if info.active {
-				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Check, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.Text), {.Middle, .Middle})
+				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Check, {self.box.high.x + height(self.box) * 0.5, (self.box.low.y + self.box.high.y) * 0.5}, get_color(.Text), {.Middle, .Middle})
 			}
 		}
 		// Dismiss the root menu

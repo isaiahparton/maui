@@ -1,9 +1,11 @@
 package maui
-import "core:fmt"
+
+import "core:math/linalg"
 
 Box :: struct {
-	x, y, w, h: f32,
+	low, high: [2]f32,
 }
+
 //NOTE: Never change order!
 Box_Side :: enum {
 	Top,
@@ -24,79 +26,96 @@ Box_Corner :: enum {
 Box_Corners :: bit_set[Box_Corner;u8]
 
 Clip :: enum {
-	None,		// completely visible
-	Partial,	// partially visible
-	Full,		// hidden
+	None,				// completely visible
+	Partial,		// partially visible
+	Full,				// hidden
 }
 
-get_clip :: proc(clip, subject: Box) -> Clip {
-	if subject.x > clip.x + clip.w || subject.x + subject.w < clip.x ||
-	   subject.y > clip.y + clip.h || subject.y + subject.h < clip.y { 
+width :: proc(box: Box) -> f32 {
+	return box.high.x - box.low.x
+}
+height :: proc(box: Box) -> f32 {
+	return box.high.y - box.low.y
+}
+center_x :: proc(box: Box) -> f32 {
+	return (box.low.x + box.high.x) * 0.5
+}
+center_y :: proc(box: Box) -> f32 {
+	return (box.low.y + box.high.y) * 0.5
+}
+
+// If `a` is inside of `b`
+point_in_box :: proc(a: [2]f32, b: Box) -> bool {
+	return (a.x >= b.low.x) && (a.x <= b.high.x) && (a.y >= b.low.y) && (a.y <= b.high.y)
+}
+
+// If `a` is touching `b`
+box_vs_box :: proc(a, b: Box) -> bool {
+	return (a.high.x >= b.low.x) && (a.low.x <= b.high.x) && (a.high.y >= b.low.y) && (a.low.y <= b.high.y)
+}
+
+// If `a` is contained entirely in `b`
+box_in_box :: proc(a, b: Box) -> bool {
+	return (b.low.x >= a.low.x) && (b.high.x <= a.high.x) && (b.low.y >= a.low.y) && (b.high.y <= a.high.y)
+}
+
+// Get the clip status of `b` inside `a`
+get_clip :: proc(a, b: Box) -> Clip {
+	if a.low.x > b.high.x || a.high.x < b.low.x ||
+	   a.low.y > b.high.y || a.high.y < b.low.y { 
 		return .Full 
 	}
-	if subject.x >= clip.x && subject.x + subject.w <= clip.x + clip.w &&
-	   subject.y >= clip.y && subject.y + subject.h <= clip.y + clip.h { 
+	if a.low.x >= b.low.x && a.high.x <= b.high.x &&
+	   a.low.y >= b.low.y && a.high.y <= b.high.y { 
 		return .None
 	}
 	return .Partial
 }
 
-update_bounding_box :: proc(bounds, subject: Box) -> Box {
-	bounds := bounds
-	bounds.x = min(bounds.x, subject.x)
-	bounds.y = min(bounds.y, subject.y)
-	bounds.w = max(bounds.w, (subject.x + subject.w) - bounds.x)
-	bounds.h = max(bounds.h, (subject.y + subject.h) - bounds.y)
-	return bounds
+// Updates `a` to fit `b` inside it
+update_bounding_box :: proc(a, b: Box) -> Box {
+	a := a
+	a.low = linalg.min(a.low, b.low)
+	a.high = linalg.max(a.high, b.high)
+	return a
 }
 
-clamp_box :: proc(box, inside: Box) -> Box {
-	box := box
-	box.x = clamp(box.x, inside.x, inside.x + inside.w)
-	box.y = clamp(box.y, inside.y, inside.y + inside.h)
-	box.w = clamp(box.w, 0, inside.w - (box.x - inside.x))
-	box.h = clamp(box.h, 0, inside.h - (box.y - inside.y))
+// Clamps `a` inside `b`
+clamp_box :: proc(a, b: Box) -> Box {
+	return {
+		linalg.clamp(a.low, b.low, b.high),
+		linalg.clamp(a.high, b.low, b.high),
+	}
+}
+
+box_center :: proc(a: Box) -> [2]f32 {
+	return {(a.low.x + a.high.x) * 0.5, (a.low.y + a.high.y) * 0.5}
+}
+
+center :: proc(box: Box) -> [2]f32 {
+	return {(box.low.x + box.high.x) * 0.5, (box.low.y + box.high.y) * 0.5}
+}
+
+// Shrink a box by pushing one of its sides
+squish_box_left :: proc(box: Box, amount: f32) -> Box {
+	box := box 
+	box.low.x += amount
 	return box
 }
-
-clip_box :: proc(box, clip: Box) -> Box {
-	box := box
-	if box.x < clip.x {
-    	delta := clip.x - box.x
-    	box.w -= delta
-    	box.x += delta
-    }
-    if box.y < clip.y {
-    	delta := clip.y - box.y
-    	box.h -= delta
-    	box.y += delta
-    }
-    if box.x + box.w > clip.x + clip.w {
-    	box.w = (clip.x + clip.w) - box.x
-    }
-    if box.y + box.h > clip.y + clip.h {
-    	box.h = (clip.y + clip.h) - box.y
-    }
-    box.w = max(box.w, 0)
-    box.h = max(box.h, 0)
-    return box
-}
-
-box_center :: proc(box: Box) -> [2]f32 {
-	return {box.x + box.w / 2, box.y + box.h / 2}
-}
-
-squish_box_left :: proc(box: Box, amount: f32) -> Box {
-	return {box.x + amount, box.y, box.w - amount, box.h}
-}
 squish_box_right :: proc(box: Box, amount: f32) -> Box {
-	return {box.x, box.y, box.w - amount, box.h}
+	box := box 
+	box.high.x -= amount
+	return box
 }
 squish_box_top :: proc(box: Box, amount: f32) -> Box {
-	return {box.x, box.y + amount, box.w, box.h - amount}
+	box := box 
+	box.low.y += amount
+	return box
 }
 squish_box_bottom :: proc(box: Box, amount: f32) -> Box {
-	return {box.x, box.y, box.w, box.h - amount}
+	box := box 
+	box.high.y -= amount
+	return box
 }
 squish_box :: proc(box: Box, side: Box_Side, amount: f32) -> (result: Box) {
 	switch side {
@@ -108,72 +127,83 @@ squish_box :: proc(box: Box, side: Box_Side, amount: f32) -> (result: Box) {
 	return
 }
 
-child_box :: proc(parent: Box, size: [2]f32, align: [2]Alignment) -> Box {
-	box := Box{0, 0, size.x, size.y}
-	if align.x == .Near {
-		box.x = parent.x
-	} else if align.x == .Middle {
-		box.x = parent.x + parent.w / 2 - box.w / 2
-	} else if align.x == .Far {
-		box.x = parent.x + parent.w - box.w
+child_box :: proc(b: Box, size: [2]f32, align: [2]Alignment) -> Box {
+	a: Box
+	switch align.x {
+		case .Far:
+		a.high.x = b.high.x
+		a.low.x = b.high.x - size.x 
+		case .Middle: 
+		c := (b.low.x + b.high.x) * 0.5
+		d := size.x * 0.5
+		a.low.x = c - d
+		a.high.x = c + d
+		case .Near: 
+		a.low.x = b.low.x
+		a.high.x = b.low.x + size.x
 	}
-	if align.y == .Near {
-		box.y = parent.y
-	} else if align.y == .Middle {
-		box.y = parent.y + parent.h / 2 - box.h / 2
-	} else if align.y == .Far {
-		box.y = parent.y + parent.h - box.h
+	switch align.y {
+		case .Far:
+		a.high.y = b.high.y
+		a.low.y = b.high.y - size.y 
+		case .Middle: 
+		c := (b.low.y + b.high.y) * 0.5
+		d := size.y * 0.5
+		a.low.y = c - d
+		a.high.y = c + d
+		case .Near: 
+		a.low.y = b.low.y
+		a.high.y = b.low.y + size.y
 	}
-	return box
+	return a
 }
 
-shrink_box_uniform :: proc(box: Box, amount: f32) -> Box {
-	return {box.x + amount, box.y + amount, box.w - amount * 2, box.h - amount * 2}
+shrink_box_single :: proc(a: Box, amount: f32) -> Box {
+	return {a.low + amount, a.high - amount}
 }
-shrink_box_separate :: proc(box: Box, amount: [2]f32) -> Box {
-	return {box.x + amount.x, box.y + amount.y, box.w - amount.x * 2, box.h - amount.y * 2}
+shrink_box_double :: proc(a: Box, amount: [2]f32) -> Box {
+	return {a.low + amount, a.high - amount}
 }
 shrink_box :: proc {
-	shrink_box_separate,
-	shrink_box_uniform,
-}
-box_padding :: proc(box: Box, padding: [2]f32) -> Box {
-	return {box.x + padding.x, box.y + padding.y, box.w - padding.x * 2, box.h - padding.y * 2}
+	shrink_box_single,
+	shrink_box_double,
 }
 
-grow_box :: proc(box: Box, amount: f32) -> Box {
-	return {box.x - amount, box.y - amount, box.w + amount * 2, box.h + amount * 2}
+grow_box :: proc(a: Box, amount: f32) -> Box {
+	return {a.low - amount, a.high + amount}
 }
 
-move_box :: proc(box: Box, delta: [2]f32) -> Box {
-	return {box.x + delta.x, box.y + delta.y, box.w, box.h}
+move_box :: proc(a: Box, delta: [2]f32) -> Box {
+	return {a.low + delta, a.high + delta}
 }
 
 // cut a box and return the cut piece
-cut_box_left :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := min(box.w, amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.w))
-	result = {box.x, box.y, a, box.h}
-	box.x += a
-	box.w -= a
+cut_box_left :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+	w := box.high.x - box.low.x
+	a := min(w, amount.(Exact) or_else Exact(f32(amount.(Relative)) * w))
+	res = {box.low, {box.low.x + a, box.high.y}}
+	box.low.x += a
 	return
 }
-cut_box_top :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := min(box.h, amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.h))
-	result = {box.x, box.y, box.w, a}
-	box.y += a
-	box.h -= a
+cut_box_top :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+	h := box.high.y - box.low.y
+	a := min(h, amount.(Exact) or_else Exact(f32(amount.(Relative)) * h))
+	res = {box.low, {box.high.x, box.low.y + a}}
+	box.low.y += a
 	return
 }
-cut_box_right :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := min(box.w, amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.w))
-	box.w -= a
-	result = {box.x + box.w, box.y, a, box.h}
+cut_box_right :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+	w := box.high.x - box.low.x
+	a := min(w, amount.(Exact) or_else Exact(f32(amount.(Relative)) * w))
+	res = {{box.high.x - a, box.low.y}, box.high}
+	box.high.x -= a
 	return
 }
-cut_box_bottom :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := min(box.h, amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.h))
-	box.h -= a
-	result = {box.x, box.y + box.h, box.w, a}
+cut_box_bottom :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+	h := box.high.y - box.low.y
+	a := min(h, amount.(Exact) or_else Exact(f32(amount.(Relative)) * h))
+	res = {{box.high.x, box.low.y - a}, box.high}
+	box.high.y += a
 	return
 }
 cut_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
@@ -186,31 +216,29 @@ cut_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
 	return {}
 }
 
-// cut a box and return the cut piece
-extend_box_left :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.w)
-	box.x -= a
-	box.w += a
-	result = {box.x, box.y, a, box.h}
+// extend a box and return the attached piece
+extend_box_left :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.x - box.low.x))
+	box.low.x -= a
+	res = {box.low, {box.low.x + a, box.high.y}}
 	return
 }
-extend_box_top :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.h)
-	box.y -= a
-	box.h += a
-	result = {box.x, box.y, box.w, a}
+extend_box_top :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.y - box.low.y))
+	box.low.y -= a
+	res = {box.low, {box.high.x, box.low.y + a}}
 	return
 }
-extend_box_right :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.w)
-	result = {box.x + box.w, box.y, a, box.h}
-	box.w += a
+extend_box_right :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.x - box.low.x))
+	box.high.x -= a 
+	res = {{box.high.x - a, box.low.y}, box.high}
 	return
 }
-extend_box_bottom :: proc(box: ^Box, amount: Unit) -> (result: Box) {
-	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * box.h)
-	result = {box.x, box.y + box.h, box.w, a}
-	box.h += a
+extend_box_bottom :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.y - box.low.y))
+	box.high.y -= a 
+	res = {{box.low.x, box.high.y - a}, box.high}
 	return
 }
 extend_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
@@ -225,22 +253,20 @@ extend_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
 
 // get a cut piece of a box
 get_box_left :: proc(b: Box, a: Unit) -> Box {
-	return {b.x, b.y, a.(Exact) or_else Exact(f32(a.(Relative)) * b.w), b.h}
+	return {b.low, {b.low.x + (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x))), b.high.y}}
 }
 get_box_top :: proc(b: Box, a: Unit) -> Box {
-	return {b.x, b.y, b.w, a.(Exact) or_else Exact(f32(a.(Relative)) * b.h)}
+	return {b.low, {b.high.y, b.low.x + (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x)))}}
 }
 get_box_right :: proc(b: Box, a: Unit) -> Box {
-	t := a.(Exact) or_else Exact(f32(a.(Relative)) * b.w)
-	return {b.x + b.w - t, b.y, t, b.h}
+	return {{b.high.x - (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x))), b.low.y}, b.high}
 }
 get_box_bottom :: proc(b: Box, a: Unit) -> Box {
-	t := a.(Exact) or_else Exact(f32(a.(Relative)) * b.h)
-	return {b.x, b.y + b.h - t, b.w, t}
+	return {{b.low.x, b.high.y - (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.y - b.low.y)))}, b.high}
 }
 get_cut_box :: proc(box: Box, side: Box_Side, amount: Unit) -> Box {
 	switch side {
-		case .Bottom: 	return get_box_bottom(box, amount)
+		case .Bottom: return get_box_bottom(box, amount)
 		case .Top: 		return get_box_top(box, amount)
 		case .Left: 	return get_box_left(box, amount)
 		case .Right: 	return get_box_right(box, amount)
@@ -249,43 +275,33 @@ get_cut_box :: proc(box: Box, side: Box_Side, amount: Unit) -> Box {
 }
 
 // attach a box
-attach_box_left :: proc(box: Box, amount: f32) -> Box {
-	return {box.x - amount, box.y, amount, box.h}
+attach_box_left :: proc(box: Box, size: f32) -> Box {
+	return {{box.low.x - size, box.low.y}, {box.low.x, box.high.y}}
 }
-attach_box_top :: proc(box: Box, amount: f32) -> Box {
-	return {box.x, box.y - amount, box.w, amount}
+attach_box_top :: proc(box: Box, size: f32) -> Box {
+	return {{box.low.x, box.low.y - size}, {box.high.x, box.low.y}}
 }
-attach_box_right :: proc(box: Box, amount: f32) -> Box {
-	return {box.x + box.w, box.y, amount, box.h}
+attach_box_right :: proc(box: Box, size: f32) -> Box {
+	return {{box.high.x, box.low.y}, {box.high.x + size, box.high.y}}
 }
-attach_box_bottom :: proc(box: Box, amount: f32) -> Box {
-	return {box.x, box.y + box.h, box.w, amount}
+attach_box_bottom :: proc(box: Box, size: f32) -> Box {
+	return {{box.low.x, box.high.y}, {box.high.x, box.high.y + size}}
 }
 attach_box :: proc(box: Box, side: Box_Side, size: f32) -> Box {
 	switch side {
 		case .Bottom: 	return attach_box_bottom(box, size)
-		case .Top: 		return attach_box_top(box, size)
-		case .Left: 	return attach_box_left(box, size)
-		case .Right: 	return attach_box_right(box, size)
+		case .Top: 			return attach_box_top(box, size)
+		case .Left: 		return attach_box_left(box, size)
+		case .Right: 		return attach_box_right(box, size)
 	}
 	return {}
 }
 side_corners :: proc(side: Box_Side) -> Box_Corners {
 	switch side {
 		case .Bottom:  	return {.Top_Left, .Top_Right}
-		case .Top:  	return {.Bottom_Left, .Bottom_Right}
-		case .Left:  	return {.Top_Right, .Bottom_Right}
+		case .Top:  		return {.Bottom_Left, .Bottom_Right}
+		case .Left:  		return {.Top_Right, .Bottom_Right}
 		case .Right:  	return {.Top_Left, .Bottom_Left}
 	}
 	return ALL_CORNERS
-}
-point_in_box :: proc(point: [2]f32, box: Box) -> bool {
-	return (point.x >= box.x) && (point.x <= box.x + box.w) && (point.y >= box.y) && (point.y <= box.y + box.h)
-}
-box_vs_box :: proc(box_a, box_b: Box) -> bool {
-	return (box_a.x + box_a.w >= box_b.x) && (box_a.x <= box_b.x + box_b.w) && (box_a.y + box_a.h >= box_b.y) && (box_a.y <= box_b.y + box_b.h)
-}
-// B is contained entirely within A
-box_in_box :: proc(box_a, box_b: Box) -> bool {
-	return (box_b.x >= box_a.x) && (box_b.x + box_b.w <= box_a.x + box_a.w) && (box_b.y >= box_a.y) && (box_b.y + box_b.h <= box_a.y + box_a.h)
 }

@@ -324,6 +324,10 @@ begin_frame :: proc() {
 	// Begin frame
 	frame_start_time = time.now()
 
+	// Reset painter
+	painter.draw_index = 0
+	painter.opacity = 1
+
 	// Decide if painting is required this frame
 	paint_this_frame = false
 	if paint_next_frame {
@@ -340,7 +344,7 @@ begin_frame :: proc() {
 	cursor = .Default
 
 	// Reset fullscreen box
-	fullscreen_box = {0, 0, size.x, size.y}
+	fullscreen_box = {high = size}
 
 	// Free and delete unused text buffers
 	typing_agent_step(&typing_agent)
@@ -370,11 +374,11 @@ begin_frame :: proc() {
 
 		if len(array) > 1 {
 			slice.stable_sort_by(array[:], proc(a, b: ^Widget) -> bool {
-				if a.box.x == b.box.x {
-					if a.box.y < b.box.y {
+				if a.box.low.x == b.box.low.x {
+					if a.box.low.y < b.box.low.y {
 						return true
 					}
-				} else if a.box.x < b.box.x {
+				} else if a.box.low.x < b.box.low.x {
 					return true
 				}
 				return false

@@ -75,62 +75,84 @@ Slider_Info :: struct($T: typeid) {
 	guides: Maybe([]T),
 	format: Maybe(string),
 }
-do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> (changed: bool, new_value: T) {
-	SIZE :: 16
+do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
+	SIZE :: 20
 	HEIGHT :: SIZE / 2
 	HALF_HEIGHT :: HEIGHT / 2
+	value := info.value
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
-		format := info.format.? or_else "%v"
 		self.box = layout_next(current_layout())
-		self.box = child_box(self.box, {self.box.w, SIZE}, {.Near, .Middle})
-		update_widget(self)
+		self.box = child_box(self.box, {width(self.box), SIZE}, {.Near, .Middle})
 		hover_time := animate_bool(&self.timers[0], self.state & {.Hovered, .Pressed} != {}, 0.1)	
 		press_time := animate_bool(&self.timers[1], .Pressed in self.state, 0.1)
+		update_widget(self)
 
-		range := self.box.w - HEIGHT
-		offset := range * clamp(f32((info.value - info.low) / info.high), 0, 1)
-		bar_box: Box = {self.box.x, self.box.y + HALF_HEIGHT, self.box.w, self.box.h - HEIGHT}
-		thumb_center: [2]f32 = {self.box.x + HALF_HEIGHT + offset, self.box.y + self.box.h / 2}
-		thumb_radius: f32 = 9
-		shade_radius := thumb_radius + 5 * (press_time + hover_time)
+		// The range along which the knob may travel
+		range := width(self.box) - HEIGHT
+		// The offset of the knob for the current value
+		offset := range * clamp(f32((info.value - info.low) / (info.high - info.low)), 0, 1)
+		// The body
+		bar_box: Box = {{self.box.low.x, self.box.low.y + HALF_HEIGHT}, {self.box.high.x, self.box.high.y - HALF_HEIGHT}}
+		// The knob shape
+		knob_center: [2]f32 = {self.box.low.x + HALF_HEIGHT + offset, (self.box.low.y + self.box.high.y) * 0.5}
+		knob_radius: f32 = 9
+		// Interaction shading
+		shade_radius := knob_radius + 5 * (press_time + hover_time)
+		// Formatting for the value
+		format := info.format.? or_else "%v"
+		// Paint!
 		if .Should_Paint in self.bits {
+			// Paint guides if there are some
 			if info.guides != nil {
 				r := f32(info.high - info.low)
 				for entry in info.guides.? {
-					x := bar_box.x + HALF_HEIGHT + range * (f32(entry - info.low) / r)
-					paint_line({x, bar_box.y}, {x, bar_box.y - 10}, 1, get_color(.Widget))
-					paint_text({x, bar_box.y - 12}, {text = tmp_print(format, entry), font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Middle, baseline = .Bottom}, get_color(.Widget))
+					x := bar_box.low.x + HALF_HEIGHT + range * (f32(entry - info.low) / r)
+					paint_line({x, bar_box.low.y}, {x, bar_box.low.y - 10}, 1, get_color(.Widget))
+					paint_text(
+						{x, bar_box.low.y - 12}, 
+						{text = tmp_print(format, entry), font = painter.style.title_font, size = painter.style.title_font_size}, 
+						{align = .Middle, baseline = .Bottom}, 
+						get_color(.Widget),
+						)
 				}
 			}
+			// Paint the background if needed
 			if info.value < info.high {
 				paint_rounded_box_fill(bar_box, HALF_HEIGHT, get_color(.Widget_Back))
 			}
-			paint_rounded_box_fill({bar_box.x, bar_box.y, offset, bar_box.h}, HALF_HEIGHT, blend_colors(get_color(.Widget), get_color(.Accent), hover_time))
-			paint_rounded_box_stroke(bar_box, HALF_HEIGHT, 1, get_color(.Widget_Stroke, 0.5))
-			paint_circle_fill(thumb_center, shade_radius, 12, get_color(.Base_Shade, BASE_SHADE_ALPHA * hover_time))
-			paint_circle_fill_texture(thumb_center, thumb_radius, blend_colors(get_color(.Widget_Back), get_color(.Accent), hover_time))
-			paint_ring_fill_texture(thumb_center, thumb_radius - 1, thumb_radius, get_color(.Widget_Stroke, 0.5))
+			// Paint the filled part of the body
+			paint_rounded_box_fill({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, HALF_HEIGHT, get_color(.Widget))
+			// Paint the outline
+			paint_rounded_box_stroke(bar_box, HALF_HEIGHT, 2, get_color(.Widget))
+			// Paint the interactive shading
+			paint_circle_fill(knob_center, shade_radius, 24, get_color(.Base_Shade, BASE_SHADE_ALPHA * hover_time))
+			// Paint the knob
+			paint_circle_fill_texture(knob_center, knob_radius, blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.1))
+			paint_ring_fill_texture(knob_center, knob_radius - 2, knob_radius, get_color(.Widget_Stroke))
 		}
+		// Add a tooltip if hovered
 		if hover_time > 0 {
-			tooltip(self.id, tmp_printf(format, info.value), thumb_center + {0, -shade_radius - 2}, {.Middle, .Far})
+			tooltip(self.id, tmp_printf(format, info.value), knob_center + {0, -shade_radius - 2}, {.Middle, .Far})
 		}
-
+		// Detect press
 		if .Pressed in self.state {
-			changed = true
+			// Update the value
+			self.state += {.Changed}
 			point := input.mouse_point.x
-			new_value = clamp(info.low + T((point - self.box.x - HALF_HEIGHT) / range) * (info.high - info.low), info.low, info.high)
+			value = clamp(info.low + T((point - (self.box.low.x + HALF_HEIGHT)) / range) * (info.high - info.low), info.low, info.high)
+			// Snap to guides
 			if info.guides != nil {
 				r := info.high - info.low
 				for entry in info.guides.? {
-					x := self.box.x + HALF_HEIGHT + f32(entry / r) * range
+					x := self.box.low.x + HALF_HEIGHT + f32(entry / r) * range
 					if abs(x - point) < 10 {
-						new_value = entry
+						value = entry
 					}
 				}
 			}
 		}
 	}
-	return
+	return clamp(value, info.low, info.high)
 }
 
 // Boxangle slider with text edit

@@ -110,10 +110,10 @@ find_next_seperator :: proc(slice: []u8) -> int {
 			return i
 		}
 	}
-	return len(slice) - 1
+	return len(slice)
 }
 find_last_seperator :: proc(slice: []u8) -> int {
-	for i in len(slice) - 1 ..= 1 {
+	for i := len(slice) - 1; i > 0; i -= 1 {
 		if is_seperator(slice[i]) {
 			return i
 		}
@@ -160,6 +160,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 			if valid {
 				typing_agent_insert_string(self, info.array, info.capacity, content)
 				change = true
+				anchor = index
 			}
 		}
 	}
@@ -177,6 +178,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 			typing_agent_insert_runes(self, info.array, info.capacity, input.runes[:input.rune_count])
 			change = true
 		}
+		anchor = index
 	}
 	// Enter
 	if .Multiline in info.bits && key_pressed(.Enter) {
@@ -188,6 +190,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		if len(info.array) > 0 {
 			typing_agent_backspace(self, info.array)
 			change = true
+			anchor = index
 		}
 	}
 	// Arrowkey navigation
@@ -195,7 +198,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		delta := 0
 		// How far should the cursor move?
 		if key_down(.Control) {
-			delta = find_last_seperator(info.array[:index])
+			delta = find_last_seperator(info.array[:index]) - index
 		} else{
 			_, delta = utf8.decode_last_rune_in_bytes(info.array[:index + length])
 			delta = -delta

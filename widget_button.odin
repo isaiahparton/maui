@@ -15,8 +15,8 @@ Button_Shape :: enum {
 	Right_Arrow,
 }
 
-get_size_for_label :: proc(layout: ^Layout, label: Label) -> Exact {
-	return measure_label(label).x + (layout.box.h - get_exact_margin(layout, .Top) - get_exact_margin(layout, .Bottom)) + get_exact_margin(layout, .Left) + get_exact_margin(layout, .Right)
+get_size_for_label :: proc(l: ^Layout, label: Label) -> Exact {
+	return measure_label(label).x + get_layout_height(l) + get_exact_margin(l, .Left) + get_exact_margin(l, .Right)
 }
 
 // Square buttons
@@ -64,14 +64,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 
 					case .Outlined:
 					paint_box_fill(self.box, fade(base_color, 0.2 if .Pressed in self.state else hover_time * 0.1))
-					if .Left not_in info.join {
-						paint_box_fill({self.box.x, self.box.y, 1, self.box.h}, base_color)
-					}
-					if .Right not_in info.join {
-						paint_box_fill({self.box.x + self.box.w - 1, self.box.y, 1, self.box.h}, base_color)
-					}
-					paint_box_fill({self.box.x, self.box.y, self.box.w, 1}, base_color)
-					paint_box_fill({self.box.x, self.box.y + self.box.h - 1, self.box.w, 1}, base_color)
+					paint_box_stroke(self.box, 1, base_color)
 
 					case .Subtle:
 					paint_box_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
@@ -91,14 +84,12 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 				}
 
 				case .Left_Arrow:
-				#partial switch info.style {
+				/*#partial switch info.style {
 					case .Filled:
-					n := self.box.h * 0.5
 					fill_color := alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15)
 					paint_left_ribbon_fill(self.box, fill_color)
 
 					case .Outlined:
-					n := self.box.h * 0.5
 					fill_color := get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1)
 					paint_left_ribbon_fill(self.box, fill_color)
 					stroke_color := get_color(.Button_Base)
@@ -106,17 +97,15 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 				
 					case .Subtle:
 					paint_left_ribbon_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-				}
+				}*/
 
 				case .Right_Arrow:
-				#partial switch info.style {
+				/*#partial switch info.style {
 					case .Filled:
-					n := self.box.h * 0.5
 					fill_color := alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15)
 					paint_right_ribbon_fill(self.box, fill_color)
 
 					case .Outlined:
-					n := self.box.h * 0.5
 					fill_color := get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1)
 					paint_right_ribbon_fill(self.box, fill_color)
 					stroke_color := get_color(.Button_Base)
@@ -124,12 +113,12 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 				
 					case .Subtle:
 					paint_right_ribbon_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-				}
+				}*/
 			}
 			label_color := get_color(.Button_Text if info.style == .Filled else .Button_Base)
 			if info.loading {
 				loader_time := animate_bool(&self.timers[1], info.loading, 0.25)
-				paint_loader(box_center(self.box), self.box.h * 0.3, f32(core.current_time), fade(label_color, loader_time))
+				paint_loader(box_center(self.box), height(self.box) * 0.3, f32(core.current_time), fade(label_color, loader_time))
 			} else {
 				paint_label_box(info.label, self.box, label_color, .Middle, .Middle)
 			}
@@ -176,20 +165,20 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 			} else {
 				color := get_color(.Widget_Stroke)
 				if .Left not_in info.join {
-					paint_box_fill({self.box.x, self.box.y, 1, self.box.h}, color)
+					paint_box_fill(get_box_left(self.box, Exact(1)), color)
 				}
 				if .Right not_in info.join {
-					paint_box_fill({self.box.x + self.box.w - 1, self.box.y, 1, self.box.h}, color)
+					paint_box_fill(get_box_right(self.box, Exact(1)), color)
 				}
 				if .Top not_in info.join {
-					paint_box_fill({self.box.x, self.box.y, self.box.w, 1}, color)
+					paint_box_fill(get_box_top(self.box, Exact(1)), color)
 				}
 				if .Bottom not_in info.join {
-					paint_box_fill({self.box.x, self.box.y + self.box.h - 1, self.box.w, 1}, color)
+					paint_box_fill(get_box_bottom(self.box, Exact(1)), color)
 				}
 			}
 
-			paint_label_box(info.label, box_padding(self.box, {self.box.h * 0.25, 0}), color, .Middle, .Middle)
+			paint_label_box(info.label, shrink_box_double(self.box, {(self.box.high.y - self.box.low.y) * 0.25, 0}), color, .Middle, .Middle)
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)
@@ -241,7 +230,7 @@ do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) 
 			center := linalg.round(box_center(self.box))
 			paint_circle_fill_texture(center + {0, 5}, 40, get_color(.Base_Shade, 0.2))
 			paint_circle_fill_texture(center, 40, alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), (2 if self.state >= {.Pressed} else hover_time) * 0.1))
-			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.icon, center, 1, get_color(.Button_Text), {.Middle, .Middle})
+			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.icon, center, get_color(.Button_Text), {.Middle, .Middle})
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)

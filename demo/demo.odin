@@ -17,6 +17,10 @@ Demo :: struct {
 }
 
 _main :: proc() {
+	fmt.println("Structure sizes")
+	fmt.println("  Painter:", size_of(ui.Painter))
+	fmt.println("  Core:", size_of(ui.Core))
+
 	rl.SetConfigFlags({.MSAA_4X_HINT})
 	rl.InitWindow(1200, 900, "a window")
 	rl.SetExitKey(.KEY_NULL)
@@ -39,6 +43,8 @@ _main :: proc() {
 
 			do_text_demo(&text_demo)
 
+			stroke_path({{100, 50}, {150, 100}, {170, 200}, {260, 120}}, true, 4, 255)
+
 			end_frame()
 
 			if painter.atlas.should_update {
@@ -60,7 +66,7 @@ _main :: proc() {
 				mipmaps = 1,
 			}, 0, 0, rl.WHITE)*/
 			
-			rl.DrawText(rl.TextFormat("Vertices: %i/%i", v_count, ui.DRAW_COMMAND_SIZE), 0, 20, 20, rl.YELLOW)
+			rl.DrawText(rl.TextFormat("Vertices: %i", v_count), 0, 20, 20, rl.YELLOW)
 			rl.DrawText(rl.TextFormat("%.2fms", time.duration_milliseconds(ui.core.frame_duration)), 0, 0, 20, rl.DARKGREEN)
 		}
 		rl.EndDrawing()

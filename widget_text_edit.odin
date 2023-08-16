@@ -34,13 +34,13 @@ Text_Input_Result :: struct {
 do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		self.box = use_next_box() or_else layout_next(current_layout())
+		// Animation values
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 		update_widget(self)
 		// Text cursor
 		if .Hovered in self.state {
 			core.cursor = .Beam
 		}
-		// Animation values
-		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 		// Get a temporary buffer if necessary
 		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
 		// Text edit
@@ -52,6 +52,8 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 		}
 		// Paint!
 		paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.1))
+
+		// Get data source
 		text: string
 		switch type in info.data {
 			case ^string:
@@ -59,22 +61,13 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			case ^[dynamic]u8:
 			text = string(type[:])
 		}
-
+		// Do text interaction
 		paint_interact_text(
-			{
-				self.box.x + WIDGET_TEXT_OFFSET, 
-				self.box.y + self.box.h / 2,
-			}, 
+			{self.box.low.x + WIDGET_TEXT_OFFSET, (self.box.low.y + self.box.high.y) / 2}, 
 			self,
 			&core.typing_agent, 
-			{
-				text = text,
-				font = painter.style.default_font,
-				size = painter.style.default_font_size,
-			},
-			{
-				baseline = .Middle,
-			},
+			{text = text, font = painter.style.default_font, size = painter.style.default_font_size},
+			{baseline = .Middle},
 			{},
 			)
 
@@ -139,7 +132,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
 					paint_text(
-						{self.box.x + WIDGET_TEXT_OFFSET, self.box.y + self.box.h / 2}, 
+						{self.box.low.x + WIDGET_TEXT_OFFSET, center_y(self.box)}, 
 						{font = painter.style.title_font, size = painter.style.title_font_size, text = info.placeholder.?}, 
 						{baseline = .Middle}, 
 						get_color(.Text, 0.5),
@@ -148,8 +141,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			}
 
 			if info.title != nil {
-				self.box.y -= 10
-				self.box.h += 10
+				self.box.low.y -= 10
 			}
 		}
 	}

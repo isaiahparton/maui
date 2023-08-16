@@ -89,21 +89,27 @@ render :: proc() -> int {
 	}
 
 	for layer in core.layer_agent.list {
-		if clip, ok := layer.command.clip.?; ok {
-			rl.rlScissor(i32(clip.x), i32(clip.y), i32(clip.w), i32(clip.h))
-		}
-		rl.rlBegin(rl.RL_TRIANGLES)
-		rl.rlSetTexture(painter.atlas.texture.id)
-		for i in 0..<layer.command.indices_offset {
-			v := layer.command.vertices[layer.command.indices[i]]
-			rl.rlColor4ub(v.color.r, v.color.g, v.color.b, v.color.a)
-			rl.rlTexCoord2f(v.uv.x, v.uv.y)
-			rl.rlVertex2f(v.point.x, v.point.y)
-			v_count += 1
-		}
-		rl.rlEnd()
-		if layer.command.clip != nil {
-			rl.rlDrawRenderBatchActive()
+		for index in layer.draws {
+			draw := &painter.draws[index]
+			if clip, ok := draw.clip.?; ok {
+				rl.rlScissor(i32(clip.low.x), i32(clip.low.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))
+			}
+			if .Clipped in layer.bits {
+				rl.rlScissor(i32(layer.box.low.x), i32(layer.box.low.y), i32(layer.box.high.x - layer.box.low.x), i32(layer.box.high.y - layer.box.low.y))
+			}
+			rl.rlBegin(rl.RL_TRIANGLES)
+			rl.rlSetTexture(painter.atlas.texture.id)
+			for i in 0..<draw.indices_offset {
+				v := draw.vertices[draw.indices[i]]
+				rl.rlColor4ub(v.color.r, v.color.g, v.color.b, v.color.a)
+				rl.rlTexCoord2f(v.uv.x, v.uv.y)
+				rl.rlVertex2f(v.point.x, v.point.y)
+				v_count += 1
+			}
+			rl.rlEnd()
+			if draw.clip != nil {
+				rl.rlDrawRenderBatchActive()
+			}
 		}
 	}
 
