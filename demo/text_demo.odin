@@ -49,64 +49,48 @@ Text_Demo :: struct {
 
 do_text_demo :: proc(using self: ^Text_Demo) {
 	using ui
-	paint_box_fill({{0, core.size.y / 2}, {core.size.x, core.size.y / 2 + 1}}, {0, 100, 0, 255})
-	paint_box_fill({{core.size.x / 2, 0}, {core.size.x / 2 + 1, core.size.y}}, {0, 100, 0, 255})
-
-	placement.size = Exact(50)
-	do_interactable_text({
-		text_info = info,
-		paint_info = paint_info,
-	})
-	if clip, ok := paint_info.clip.?; ok {
-		paint_info.clip = do_box_controls(&clip_controls, clip, {0, 100, 100, 255})
-	}
 	
-	space(Exact(20))
-	placement.size = Exact(30)
-	space(Exact(20))
-	if do_layout(.Top, Exact(30)) {
-		placement.size = Exact(300); placement.side = .Left 
+	if do_layout(.Left, Exact(200)) {
+		space(Exact(20))
+		placement.size = Exact(30)
+		space(Exact(20))
 		do_text_input({
 			data = &info.text,
 			title = "Text",
 		})
-	}
-	space(Exact(20))
-	if change, new_state := do_checkbox({state = bool(paint_info.clip != nil), text = "Enable Clipping"}); change {
-		if new_state == false {
-			paint_info.clip = nil
-		} else {
-			center := core.size / 2
-			paint_info.clip = Box{center - 100, center + 100}
+		space(Exact(20))
+		do_checkbox({state = &info.hidden, text = "Hidden"})
+		space(Exact(20))
+		if change, new_state := do_checkbox({state = bool(paint_info.clip != nil), text = "Enable Clipping"}); change {
+			if new_state == false {
+				paint_info.clip = nil
+			} else {
+				center := core.size / 2
+				paint_info.clip = Box{center - 100, center + 100}
+			}
 		}
-	}
-	space(Exact(20))
-	placement.size = Exact(30)
-	paint_info.align = do_enum_radio_buttons(paint_info.align)
-	space(Exact(20))
-	paint_info.baseline = do_enum_radio_buttons(paint_info.baseline)
-	space(Exact(20))
-	info.wrap = do_enum_radio_buttons(info.wrap)
-	space(Exact(20))
-	if do_layout(.Top, Exact(30)) {
-		placement.side = .Left; placement.size = Exact(200)
+		space(Exact(20))
+		placement.size = Exact(30)
+		paint_info.align = do_enum_radio_buttons(paint_info.align)
+		space(Exact(20))
+		paint_info.baseline = do_enum_radio_buttons(paint_info.baseline)
+		space(Exact(20))
+		info.wrap = do_enum_radio_buttons(info.wrap)
+		space(Exact(20))
 		info.size = do_slider(Slider_Info(f32){
 			value = info.size, 
 			low = 8, 
 			high = 48,
 			format = "%.0f",
 		})
-	}
-	space(Exact(20))
-	if change, new_state := do_checkbox({state = (info.limit.x != nil), text = "Horizontal Limit"}); change {
-		if new_state && info.limit.x == nil {
-			info.limit.x = 200
-		} else {
-			info.limit.x = nil
+		space(Exact(20))
+		if change, new_state := do_checkbox({state = (info.limit.x != nil), text = "Horizontal Limit"}); change {
+			if new_state && info.limit.x == nil {
+				info.limit.x = 200
+			} else {
+				info.limit.x = nil
+			}
 		}
-	}
-	if do_layout(.Top, Exact(30)) {
-		placement.side = .Left; placement.size = Exact(200)
 		if info.limit.x != nil {
 			info.limit.x = do_slider(Slider_Info(f32){
 				value = info.limit.x.?, 
@@ -115,17 +99,14 @@ do_text_demo :: proc(using self: ^Text_Demo) {
 				format = "%.0f",
 			})
 		}
-	}
-	space(Exact(20))
-	if change, new_state := do_checkbox({state = (info.limit.y != nil), text = "Vertical Limit"}); change {
-		if new_state && info.limit.y == nil {
-			info.limit.y = 200
-		} else {
-			info.limit.y = nil
+		space(Exact(20))
+		if change, new_state := do_checkbox({state = (info.limit.y != nil), text = "Vertical Limit"}); change {
+			if new_state && info.limit.y == nil {
+				info.limit.y = 200
+			} else {
+				info.limit.y = nil
+			}
 		}
-	}
-	if do_layout(.Top, Exact(30)) {
-		placement.side = .Left; placement.size = Exact(200)
 		if info.limit.y != nil {
 			info.limit.y = do_slider(Slider_Info(f32){
 				value = info.limit.y.?, 
@@ -134,5 +115,20 @@ do_text_demo :: proc(using self: ^Text_Demo) {
 				format = "%.0f",
 			})
 		}
+	}
+	cut(.Left, Exact(30))
+
+	box := current_layout().box 
+	paint_box_fill(box, get_color(.Widget_Back))
+	paint_box_stroke(box, 2, get_color(.Widget_Stroke))
+	paint_box_fill({{box.low.x, center_y(box)}, {box.high.x, center_y(box) + 1}}, {0, 100, 0, 255})
+	paint_box_fill({{center_x(box), box.low.y}, {center_x(box) + 1, box.high.y}}, {0, 100, 0, 255})
+	placement.size = Relative(1); placement.align = {.Middle, .Middle}
+	do_interactable_text({
+		text_info = info,
+		paint_info = paint_info,
+	})
+	if clip, ok := paint_info.clip.?; ok {
+		paint_info.clip = do_box_controls(&clip_controls, clip, {0, 100, 100, 255})
 	}
 }

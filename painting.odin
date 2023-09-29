@@ -90,6 +90,11 @@ Draw :: struct {
 	indices: [DRAW_SIZE]u16,
 	indices_offset: u16,
 }
+
+normalize_color :: proc(color: [4]u8) -> [4]f32 {
+	return linalg.array_cast(color, f32) / 255.0
+}
+
 // Push a command to a given layer
 paint_vertices :: proc(draw: ^Draw, vertices: ..Vertex) {
 	if int(draw.vertices_offset) + len(vertices) <= DRAW_SIZE {
@@ -101,12 +106,12 @@ paint_vertices_translated :: proc(draw: ^Draw, delta: [2]f32, vertices: ..Vertex
 		for v in vertices {
 			draw.vertices[draw.vertices_offset] = v 
 			draw.vertices[draw.vertices_offset].point += delta 
-			draw.vertices_offset += 1 
 		}
+		draw.vertices_offset += u16(len(vertices)) 
 	}
 }
 paint_indices :: proc(draw: ^Draw, indices: ..u16) {
-	if int(draw.vertices_offset) + len(indices) <= DRAW_SIZE {
+	if int(draw.indices_offset) + len(indices) <= DRAW_SIZE {
 		draw.indices_offset += u16(copy(draw.indices[draw.indices_offset:], indices[:]))
 	}
 }
@@ -264,7 +269,7 @@ style_default_fonts :: proc(style: ^Style) -> bool {
 	monospace_font := load_font(&painter.atlas, "fonts/Inconsolata_Condensed-SemiBold.ttf") or_return
 	// Assign their handles and sizes
 	style.button_font = load_font(&painter.atlas, "fonts/Oxanium-Regular.ttf") or_return
-	style.button_font_size = 20
+	style.button_font_size = 18
 	style.default_font = main_font
 	style.default_font_size = 18
 	style.title_font = main_font
@@ -328,9 +333,6 @@ update_texture :: proc(texture: Texture, image: Image, x, y, w, h: f32) {
 	_update_texture(texture, image.data, x, y, w, h)
 }
 // Color processing
-normalize_color :: proc(color: Color) -> [4]f32 {
-	return {f32(color.r) / 255, f32(color.g) / 255, f32(color.b) / 255, f32(color.a) / 255}
-}
 set_color_brightness :: proc(color: Color, value: f32) -> Color {
 	delta := clamp(i32(255.0 * value), -255, 255)
 	return {
@@ -402,6 +404,9 @@ alpha_blend_colors :: proc {
 stroke_path :: proc(pts: [][2]f32, closed: bool, thickness: f32, color: Color) {
 	draw := &painter.draws[painter.target]
 	base_index := draw.vertices_offset
+	if len(pts) < 2 {
+		return
+	}
 	for i in 0..<len(pts) {
 		a := max(0, i - 1)
 		b := i 
@@ -429,7 +434,7 @@ stroke_path :: proc(pts: [][2]f32, closed: bool, thickness: f32, color: Color) {
 			paint_indices(draw, base_index + u16(i * 2))
 			paint_indices(draw, base_index + u16(i * 2 + 1))
 			paint_indices(draw, base_index)
-			paint_indices(draw, base_index + u16(i * 2))
+			paint_indices(draw, base_index + u16(i * 2 + 3))
 			paint_indices(draw, base_index)
 			paint_indices(draw, base_index + 1)
 		} else {
@@ -486,9 +491,24 @@ paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickn
 		paint_box_stroke(box, thickness, color)
 	}
 }
-paint_quad_fill :: proc(p1, p2, p3, p4: [2]f32, c: Color) {
-	paint_triangle_fill(p1, p2, p4, c)
-	paint_triangle_fill(p4, p2, p3, c)
+paint_quad_fill :: proc(a, b, c, d: [2]f32, color: Color) {
+	draw := &painter.draws[painter.target]
+	color := color
+	color.a = u8(f32(color.a) * painter.opacity)
+	paint_indices(draw, 
+		draw.vertices_offset,
+		draw.vertices_offset + 1,
+		draw.vertices_offset + 2,
+		draw.vertices_offset,
+		draw.vertices_offset + 2,
+		draw.vertices_offset + 3,
+	)
+	paint_vertices(draw, 
+		{point = a, color = color},
+		{point = b, color = color},
+		{point = c, color = color},
+		{point = d, color = color},
+	)
 }
 paint_triangle_fill :: proc(a, b, c: [2]f32, color: Color) {
 	draw := &painter.draws[painter.target]
@@ -515,26 +535,26 @@ paint_box_fill :: proc(box: Box, color: Color) {
 	)
 }
 paint_triangle_strip_fill :: proc(points: [][2]f32, color: Color) {
-		if len(points) < 4 {
-			return
+	if len(points) < 4 {
+		return
+	}
+	for i in 2 ..< len(points) {
+		if i % 2 == 0 {
+			paint_triangle_fill(
+				{points[i].x, points[i].y},
+				{points[i - 2].x, points[i - 2].y},
+				{points[i - 1].x, points[i - 1].y},
+				color,
+			)
+		} else {
+			paint_triangle_fill(
+				{points[i].x, points[i].y},
+				{points[i - 1].x, points[i - 1].y},
+				{points[i - 2].x, points[i - 2].y},
+				color,
+			)
 		}
-		for i in 2 ..< len(points) {
-				if i % 2 == 0 {
-						paint_triangle_fill(
-							{points[i].x, points[i].y},
-							{points[i - 2].x, points[i - 2].y},
-							{points[i - 1].x, points[i - 1].y},
-							color,
-						)
-				} else {
-					paint_triangle_fill(
-							{points[i].x, points[i].y},
-							{points[i - 1].x, points[i - 1].y},
-							{points[i - 2].x, points[i - 2].y},
-							color,
-						)
-				}
-		}
+	}
 }
 
 // A simple line painting procedure
@@ -542,14 +562,14 @@ paint_line :: proc(start, end: [2]f32, thickness: f32, color: Color) {
 	delta := end - start
 	length := math.sqrt(f32(delta.x * delta.x + delta.y * delta.y))
 	if length > 0 && thickness > 0 {
-			scale := thickness / (2 * length)
-			radius: [2]f32 = {-scale * delta.y, scale * delta.x}
-			paint_triangle_strip_fill({
-					{ start.x - radius.x, start.y - radius.y },
-					{ start.x + radius.x, start.y + radius.y },
-					{ end.x - radius.x, end.y - radius.y },
-					{ end.x + radius.x, end.y + radius.y },
-			}, color)
+		scale := thickness / (2 * length)
+		radius: [2]f32 = {-scale * delta.y, scale * delta.x}
+		paint_triangle_strip_fill({
+				{ start.x - radius.x, start.y - radius.y },
+				{ start.x + radius.x, start.y + radius.y },
+				{ end.x - radius.x, end.y - radius.y },
+				{ end.x + radius.x, end.y + radius.y },
+		}, color)
 	}
 }
 
@@ -583,8 +603,8 @@ paint_circle_sector_fill :: proc(center: [2]f32, radius, start, end: f32, segmen
 			center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, 
 			center + {math.cos(angle) * radius, math.sin(angle) * radius}, 
 			color,
-			)
-			angle += step;
+		)
+		angle += step;
 	}
 }
 // Paint a filled ring
@@ -596,15 +616,15 @@ paint_ring_sector_fill :: proc(center: [2]f32, inner, outer, start, end: f32, se
 	step := (end - start) / f32(segments)
 	angle := start
 	for i in 0..<segments {
-				paint_quad_fill(
-					center + {math.cos(angle) * outer, math.sin(angle) * outer},
-					center + {math.cos(angle) * inner, math.sin(angle) * inner},
-					center + {math.cos(angle + step) * inner, math.sin(angle + step) * inner},
-					center + {math.cos(angle + step) * outer, math.sin(angle + step) * outer},
-					color,
-			)
-				angle += step;
-		}
+		paint_quad_fill(
+			center + {math.cos(angle) * outer, math.sin(angle) * outer},
+			center + {math.cos(angle) * inner, math.sin(angle) * inner},
+			center + {math.cos(angle + step) * inner, math.sin(angle + step) * inner},
+			center + {math.cos(angle + step) * outer, math.sin(angle + step) * outer},
+			color,
+		)
+		angle += step;
+	}
 }
 // Paints a sweep effect over a box
 /*
@@ -1004,6 +1024,28 @@ paint_flipping_arrow :: proc(center: [2]f32, size, time: f32, color: Color) {
 			color,
 		)
 	}
+}
+rotate_point :: proc(v: [2]f32, a: f32) -> [2]f32 {
+	cosres := math.cos(a);
+  sinres := math.sin(a);
+
+  return {
+  	v.x * cosres - v.y * sinres,
+  	v.x * sinres + v.y * cosres,
+  }
+}
+paint_arrow :: proc(center: [2]f32, scale, angle, thickness: f32, color: Color) {
+	p0: [2]f32 = center + rotate_point({-1, -0.5}, angle) * scale
+	p1: [2]f32 = center + rotate_point({0, 0.5}, angle) * scale
+	p2: [2]f32 = center + rotate_point({1, -0.5}, angle) * scale
+	stroke_path({p0, p1, p2}, false, thickness, color)
+}
+paint_arrow_flip :: proc(center: [2]f32, scale, angle, thickness, time: f32, color: Color) {
+	t := (1 - time * 2)
+	p0: [2]f32 = center + rotate_point({-1, -0.5 * t}, angle) * scale
+	p1: [2]f32 = center + rotate_point({0, 0.5 * t}, angle) * scale
+	p2: [2]f32 = center + rotate_point({1, -0.5 * t}, angle) * scale
+	stroke_path({p0, p1, p2}, false, thickness, color)
 }
 paint_loader :: proc(center: [2]f32, radius, time: f32, color: Color) {
 	start := time * math.TAU

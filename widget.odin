@@ -189,77 +189,78 @@ widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
 	}
 }
 
-widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer_Agent, widget: ^Widget) {
-	assert(widget != nil)
-	// Request hover status
-	if core.layer_agent.hover_id == widget.layer.id && point_in_box(input.mouse_point, widget.box) {
-		next_hover_id = widget.id
+update_widget_hover :: proc(wdg: ^Widget, condition: bool) {
+	if core.layer_agent.hover_id == wdg.layer.id && condition {
+		core.widget_agent.next_hover_id = wdg.id
 	}
+}
+widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer_Agent, wdg: ^Widget) {
+	assert(wdg != nil)
 	// If hovered
-	if hover_id == widget.id {
-		widget.state += {.Hovered}
-		if last_hover_id != widget.id {
-			widget.state += {.Got_Hover}
+	if hover_id == wdg.id {
+		wdg.state += {.Hovered}
+		if last_hover_id != wdg.id {
+			wdg.state += {.Got_Hover}
 		}
 		pressed_buttons := input.mouse_bits - input.last_mouse_bits
 		if pressed_buttons != {} {
-			if widget.click_count == 0 {
-				widget.click_button = input.last_mouse_button
+			if wdg.click_count == 0 {
+				wdg.click_button = input.last_mouse_button
 			}
-			if widget.click_button == input.last_mouse_button && time.since(widget.click_time) <= DOUBLE_CLICK_TIME {
-				widget.click_count = (widget.click_count + 1) % MAX_CLICK_COUNT
+			if wdg.click_button == input.last_mouse_button && time.since(wdg.click_time) <= DOUBLE_CLICK_TIME {
+				wdg.click_count = (wdg.click_count + 1) % MAX_CLICK_COUNT
 			} else {
-				widget.click_count = 0
+				wdg.click_count = 0
 			}
-			widget.click_button = input.last_mouse_button
-			widget.click_time = time.now()
-			press_id = widget.id
+			wdg.click_button = input.last_mouse_button
+			wdg.click_time = time.now()
+			press_id = wdg.id
 		}
 	} else {
-		if last_hover_id == widget.id {
-			widget.state += {.Lost_Hover}
+		if last_hover_id == wdg.id {
+			wdg.state += {.Lost_Hover}
 		}
-		if press_id == widget.id {
-			if .Draggable in widget.options {
-				if .Pressed not_in widget.state {
+		if press_id == wdg.id {
+			if .Draggable in wdg.options {
+				if .Pressed not_in wdg.state {
 					press_id = 0
 				}
 			} else  {
 				press_id = 0
 			}
 		}
-		widget.click_count = 0
+		wdg.click_count = 0
 	}
 	// Press
-	if press_id == widget.id {
-		widget.state += {.Pressed}
-		if last_press_id != widget.id {
-			widget.state += {.Got_Press}
+	if press_id == wdg.id {
+		wdg.state += {.Pressed}
+		if last_press_id != wdg.id {
+			wdg.state += {.Got_Press}
 		}
 		// Just released buttons
 		released_buttons := input.last_mouse_bits - input.mouse_bits
 		if released_buttons != {} {
 			for button in Mouse_Button {
-				if button == widget.click_button {
-					widget.state += {.Clicked}
+				if button == wdg.click_button {
+					wdg.state += {.Clicked}
 					break
 				}
 			}
-			widget.state += {.Lost_Press}
+			wdg.state += {.Lost_Press}
 			press_id = 0
 		}
-		core.dragging = .Draggable in widget.options
-	} else if last_press_id == widget.id {
-		widget.state += {.Lost_Press}
+		core.dragging = .Draggable in wdg.options
+	} else if last_press_id == wdg.id {
+		wdg.state += {.Lost_Press}
 	}
 	// Focus
-	if focus_id == widget.id {
-		widget.state += {.Focused}
-		if last_focus_id != widget.id {
-			widget.state += {.Got_Focus}
+	if focus_id == wdg.id {
+		wdg.state += {.Focused}
+		if last_focus_id != wdg.id {
+			wdg.state += {.Got_Focus}
 		}
-	} else if last_focus_id == widget.id {
-		widget.state += {.Lost_Focus}
+	} else if last_focus_id == wdg.id {
+		wdg.state += {.Lost_Focus}
 	}
 }
 
@@ -648,13 +649,12 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			}
 
 			// Paint box
-				paint_rounded_box_stroke(icon_box, 3, 1, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
 			paint_rounded_box_fill(box, 5, get_color(.Base_Shade, 0.1 * hover_time))
 			if active {
 				paint_rounded_box_fill(icon_box, 5, alpha_blend_colors(get_color(.Intense), get_color(.Intense_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 			} else {
-				paint_rounded_box_fill(icon_box, 5, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
-				paint_rounded_box_stroke(icon_box, 5, 2, get_color(.Widget_Stroke))
+				paint_rounded_box_fill(icon_box, 5, blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.1 if .Pressed in self.state else 0))
+				paint_rounded_box_stroke(icon_box, 5, 2, blend_colors(get_color(.Widget), get_color(.Widget_Stroke), hover_time))
 			}
 			center := box_center(icon_box)
 
@@ -704,6 +704,7 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			}
 			change = true
 		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }
@@ -817,6 +818,8 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 				case ^bool: v^ = new_state
 			}
 		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+
 	}
 	return
 }
@@ -885,6 +888,7 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 		}
 		// Click result
 		clicked = .Clicked in self.state && self.click_button == .Left
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }

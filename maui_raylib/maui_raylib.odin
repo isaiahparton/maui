@@ -8,9 +8,10 @@ import "core:runtime"
 
 import "core:strings"
 
-init :: proc() {
+init :: proc(w, h: int, title: string) {
 	using ui
-	assert(rl.IsWindowReady())
+	rl.SetConfigFlags({.MSAA_4X_HINT})
+	rl.InitWindow(i32(w), i32(h), strings.clone_to_cstring(title))
 
 	_set_clipboard_string = proc(str: string) {
 		cstr := strings.clone_to_cstring(str)
@@ -37,6 +38,14 @@ init :: proc() {
 	_unload_texture = proc(id: u32) {
 		rl.UnloadTexture({id = id})
 	}
+}
+
+terminate :: proc() {
+	rl.CloseWindow()
+}
+
+should_close :: proc() -> bool {
+	return rl.WindowShouldClose()
 }
 
 begin_frame :: proc() {
@@ -74,13 +83,18 @@ begin_frame :: proc() {
 	}
 	
 	ui.core.delta_time = rl.GetFrameTime()
+	ui.core.current_time = rl.GetTime()
 }
 
 render :: proc() -> int {
 	using ui
 
-	v_count := 0
+	triangle_count := 0
+
+	rl.rlDrawRenderBatchActive()
 	rl.rlDisableBackfaceCulling()
+	rl.rlEnableScissorTest()
+
 	if core.cursor == .None {
 		rl.HideCursor()
 	} else {
@@ -88,28 +102,38 @@ render :: proc() -> int {
 		rl.SetMouseCursor(rl.MouseCursor(int(core.cursor)))
 	}
 
-	for layer in core.layer_agent.list {
+	for &layer in core.layer_agent.list {
 		for index in layer.draws {
 			draw := &painter.draws[index]
-			if clip, ok := draw.clip.?; ok {
-				rl.rlScissor(i32(clip.low.x), i32(clip.low.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))
-			}
+			triangle_count += int(draw.vertices_offset / 3)
+			/*
+				Set up clipping
+			*/
 			if .Clipped in layer.bits {
-				rl.rlScissor(i32(layer.box.low.x), i32(layer.box.low.y), i32(layer.box.high.x - layer.box.low.x), i32(layer.box.high.y - layer.box.low.y))
+				//rl.rlScissor(i32(layer.box.low.x), i32(layer.box.low.y), i32(layer.box.high.x - layer.box.low.x), i32(layer.box.high.y - layer.box.low.y))
 			}
+			/*
+				Draw triangles from indices
+			*/
 			rl.rlBegin(rl.RL_TRIANGLES)
-			rl.rlSetTexture(painter.atlas.texture.id)
-			for i in 0..<draw.indices_offset {
-				v := draw.vertices[draw.indices[i]]
+			rl.rlSetTexture(draw.texture)
+			for i in draw.indices[:draw.indices_offset] {
+				v := draw.vertices[i]
+				/*
+				if rl.rlCheckRenderBatchLimit(3) > 0 {
+					rl.rlBegin(rl.RL_TRIANGLES)
+					rl.rlSetTexture(draw.texture)
+				}
+				*/
 				rl.rlColor4ub(v.color.r, v.color.g, v.color.b, v.color.a)
 				rl.rlTexCoord2f(v.uv.x, v.uv.y)
 				rl.rlVertex2f(v.point.x, v.point.y)
-				v_count += 1
 			}
 			rl.rlEnd()
-			if draw.clip != nil {
-				rl.rlDrawRenderBatchActive()
-			}
+			/*
+				Draw current batch
+			*/
+			rl.rlDrawRenderBatchActive()
 		}
 	}
 
@@ -117,5 +141,5 @@ render :: proc() -> int {
 	rl.EndScissorMode()
 	rl.rlEnableBackfaceCulling()
 
-	return v_count
+	return triangle_count
 }

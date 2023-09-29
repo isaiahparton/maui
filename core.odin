@@ -328,6 +328,9 @@ begin_frame :: proc() {
 	painter.draw_index = 0
 	painter.opacity = 1
 
+	// Reset placement
+	placement = {}
+
 	// Decide if painting is required this frame
 	paint_this_frame = false
 	if paint_next_frame {

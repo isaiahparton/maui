@@ -69,7 +69,8 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			{text = text, font = painter.style.default_font, size = painter.style.default_font_size},
 			{baseline = .Middle},
 			{},
-			)
+			get_color(.Text),
+		)
 
 		if .Focused in self.state {
 			change = typing_agent_edit(&core.typing_agent, {
@@ -124,7 +125,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 				box = self.box, 
 				text = info.title, 
 				offset = WIDGET_TEXT_OFFSET,
-				thickness = 1, 
+				thickness = 2, 
 				color = stroke_color,
 				)
 
@@ -144,6 +145,9 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 				self.box.low.y -= 10
 			}
 		}
+
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+
 	}
 	return
 }

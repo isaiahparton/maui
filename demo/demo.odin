@@ -5,7 +5,7 @@ import "core:strings"
 import "core:math/linalg"
 import rl "vendor:raylib"
 import ui "../"
-import ui_backend "../raylib_backend"
+import ui_backend "../maui_glfw"
 
 import "core:fmt"
 import "core:mem"
@@ -21,63 +21,84 @@ _main :: proc() {
 	fmt.println("  Painter:", size_of(ui.Painter))
 	fmt.println("  Core:", size_of(ui.Core))
 
-	rl.SetConfigFlags({.MSAA_4X_HINT})
-	rl.InitWindow(1200, 900, "a window")
-	rl.SetExitKey(.KEY_NULL)
-	rl.SetTargetFPS(75)
+	text_demo: Text_Demo = {
+		info = {text = "This is a demonstration of text rendering and interaction in maui", size = 20},
+	}
 
-	text_demo: Text_Demo
-
-	ui_backend.init()
+	if !ui_backend.init(1200, 1000, "Maui") {
+		return
+	}
 	ui.init()
 
-	for true {
-		{
-			using ui
-			begin_frame()
-			ui_backend.begin_frame()
+	for !ui_backend.should_close() {
+		using ui
 
-			core.current_time = rl.GetTime()
+		// Beginning of ui calls
+		begin_frame()
+		ui_backend.begin_frame()
 
-			shrink(100)
+		// UI calls
+		shrink(50)
+		placement.size = Exact(30)
+		if do_button({label = "BUTTON", style = .Filled}) {
 
-			do_text_demo(&text_demo)
-
-			stroke_path({{100, 50}, {150, 100}, {170, 200}, {260, 120}}, true, 4, 255)
-
-			end_frame()
-
-			if painter.atlas.should_update {
-				painter.atlas.should_update = false
-				update_texture(painter.atlas.texture, painter.atlas.image, 0, 0, 4096, 4096)
+		}
+		space(Exact(20))
+		if do_layout(.Top, Exact(24)) {
+			placement.side = .Left; placement.size = Exact(200)
+			if do_menu({label = "menu", side = .Bottom}) {
+				placement.size = Exact(24)
+				do_option({label = "wow"})
+				do_option({label = "such option"})
+				do_option({label = "much choice"})
+				if do_submenu({label = "submenu bro", size = {220, 0}}) {
+					do_option({label = "another option bro"})
+					do_option({label = "yo! another"})
+					if do_submenu({label = "submenu bro", size = {220, 0}}) {
+						do_option({label = "another option bro"})
+						do_option({label = "yo! another"})
+					}
+				}
 			}
 		}
+		space(Exact(20))
+		if do_layout(.Top, Exact(24)) {
+			placement.side = .Left; placement.size = Exact(200)
+			if do_menu({label = "menu", side = .Bottom}) {
+				placement.size = Exact(24)
+				do_option({label = "wow"})
+				do_option({label = "such option"})
+				do_option({label = "much choice"})
+				if do_submenu({label = "submenu bro", size = {220, 0}}) {
+					do_option({label = "another option bro"})
+					do_option({label = "yo! another"})
+					if do_submenu({label = "submenu bro", size = {220, 0}}) {
+						do_option({label = "another option bro"})
+						do_option({label = "yo! another"})
+					}
+				}
+			}
+		}
+		do_text_demo(&text_demo)
+		paint_box_fill({100, 200}, {255, 0, 255, 255})
 
-		rl.BeginDrawing()
+		// End of ui calls
+		end_frame()
+		// Update texture if necessary
+		if painter.atlas.should_update {
+			painter.atlas.should_update = false
+			update_texture(painter.atlas.texture, painter.atlas.image, 0, 0, 4096, 4096)
+		}
+
+		// Render if needed
 		if ui.should_render() {
-			rl.ClearBackground(transmute(rl.Color)ui.get_color(.Base))
-			v_count := ui_backend.render()
-			
-			/*rl.DrawTexture({
-				id = 3,
-				format = .UNCOMPRESSED_R8G8B8A8,
-				width = 4096,
-				height = 4096,
-				mipmaps = 1,
-			}, 0, 0, rl.WHITE)*/
-			
-			rl.DrawText(rl.TextFormat("Vertices: %i", v_count), 0, 20, 20, rl.YELLOW)
-			rl.DrawText(rl.TextFormat("%.2fms", time.duration_milliseconds(ui.core.frame_duration)), 0, 0, 20, rl.DARKGREEN)
+			ui_backend.render()
 		}
-		rl.EndDrawing()
-		if rl.WindowShouldClose() {
-			break
-		}
+		// Poll events
+		ui_backend.poll_events()
 	}
 	ui.uninit()	
-
-	rl.CloseWindow()
-
+	ui_backend.terminate()
 }
 
 main :: proc() {

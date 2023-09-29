@@ -237,8 +237,8 @@ extend_box_right :: proc(box: ^Box, amount: Unit) -> (res: Box) {
 }
 extend_box_bottom :: proc(box: ^Box, amount: Unit) -> (res: Box) {
 	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.y - box.low.y))
-	box.high.y -= a 
-	res = {{box.low.x, box.high.y - a}, box.high}
+	res = {{box.low.x, box.high.y}, {box.high.x, box.high.y + a}}
+	box.high.y += a 
 	return
 }
 extend_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {

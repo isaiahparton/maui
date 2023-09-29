@@ -151,6 +151,7 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 				}
 			}
 		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return clamp(value, info.low, info.high)
 }
@@ -235,6 +236,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 		if .Focused not_in self.state {
 			self.bits -= {.Active}
 		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	if info.low < info.high {
 		new_value = clamp(new_value, info.low, info.high)

@@ -20,7 +20,6 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 			paint_box_stroke(self.box, 1, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
 			paint_label_box(tmp_print("%2i-%2i-%4i", day, int(month), year), shrink_box(self.box, [2]f32{height(self.box) * 0.25, 0}), get_color(.Button_Base), .Left, .Middle)
-			paint_aligned_icon(painter.style.default_font, painter.style.default_font_size, .Calendar, center(self.box), get_color(.Button_Base), {.Middle, .Middle})
 		}
 
 		if .Active in self.bits {

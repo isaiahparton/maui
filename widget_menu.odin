@@ -1,5 +1,6 @@
 package maui
 import "core:runtime"
+import "core:math"
 import "core:fmt"
 
 Attached_Layer_Parent :: union {
@@ -173,13 +174,13 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		update_widget(self)
 		// Animation
 		hover_time := animate_bool(&timers[0], .Hovered in state, 0.15)
-		state_time := animate_bool(&timers[1], .Menu_Open in bits, 0.15)
+		open_time := animate_bool(&timers[1], .Menu_Open in bits, 0.15)
 		// Painting
 		if .Should_Paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
 			paint_labeled_widget_frame(box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
-			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Down, center(box), get_color(.Text), {.Middle, .Middle})
 			paint_label_box(info.label, shrink_box_double(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
+			paint_arrow_flip({self.box.high.x - height(self.box) * 0.5, center_y(self.box)}, height(self.box) * 0.25, 0, 1, open_time, get_color(.Text))
 		}
 		// Begin layer if expanded
 		result: Attached_Layer_Result
@@ -191,11 +192,12 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			layout_size = info.layout_size,
 			extend = .Bottom,
 			align = info.layer_align,
-			opacity = state_time,
+			opacity = open_time,
 		})
 		if active {
 			push_color(.Base, get_color(.Widget_Back))
 		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }
@@ -225,8 +227,8 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		// Paint
 		if .Should_Paint in bits {
 			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
-			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Right, center(box), get_color(.Text), {.Middle, .Middle})
 			paint_label_box(info.label, shrink_box_double(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
+			paint_arrow_flip({self.box.high.x - height(self.box) * 0.5, center_y(self.box)}, height(self.box) * 0.25, -0.5 * math.PI, 1, open_time, get_color(.Text))
 		}
 		side := info.side.? or_else .Right
 		// Begin layer
@@ -246,6 +248,7 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		if active {
 			push_color(.Base, get_color(.Widget_Back))
 		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }
@@ -279,7 +282,7 @@ do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool)
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 			paint_label_box(info.label, shrink_box_double(self.box, {height(self.box) * 0.25, 0}), get_color(.Text), .Left, .Middle)
 			if info.active {
-				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Check, {self.box.high.x + height(self.box) * 0.5, (self.box.low.y + self.box.high.y) * 0.5}, get_color(.Text), {.Middle, .Middle})
+				// Paint check mark
 			}
 		}
 		// Dismiss the root menu
@@ -294,6 +297,7 @@ do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool)
 				layer.bits += {.Dismissed}
 			}
 		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }

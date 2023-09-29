@@ -15,7 +15,6 @@ Layer_Status :: enum {
 	Focused,
 	Lost_Focus,
 }
-
 Layer_State :: bit_set[Layer_Status]
 
 // General purpose booleans
@@ -32,7 +31,6 @@ Layer_Bit :: enum {
 	// If the layer pushed to the id stack this frame
 	Did_Push_ID,
 }
-
 Layer_Bits :: bit_set[Layer_Bit]
 
 // Options
@@ -58,7 +56,6 @@ Layer_Option :: enum {
 	// Steal focus
 	Steal_Focus,
 }
-
 Layer_Options :: bit_set[Layer_Option]
 
 /*

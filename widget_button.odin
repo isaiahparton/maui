@@ -125,6 +125,8 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)
+		// Update hover
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }
