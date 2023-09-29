@@ -66,7 +66,7 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 			box = box, 
 			owner = info.parent.(^Widget) or_else nil,
 			layout_size = info.layout_size.? or_else {},
-			options = info.layer_options,
+			options = info.layer_options + {.Attached},
 			shadow = Layer_Shadow_Info({
 				offset = SHADOW_OFFSET,
 			}),
@@ -86,7 +86,7 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 end_attached_layer :: proc(info: Attached_Layer_Info, layer: ^Layer) {
 	// Check if the layer was dismissed by input
 	if widget, ok := layer.owner.?; ok {
-		if .Dismissed in layer.bits || (.Focused not_in widget.state && .Focused not_in layer.next_state && .Focused not_in layer.state) || key_pressed(.Escape) {
+		if (.Dismissed in layer.bits) || (.Focused not_in widget.state && .Focused not_in layer.next_state && .Focused not_in layer.state) || (key_pressed(.Escape)) {
 			widget.bits -= {.Menu_Open}
 			core.paint_next_frame = true
 		}
@@ -149,7 +149,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		result, active = begin_attached_layer({
 			id = shared_id,
 			parent = self,
-			side = .Bottom,
+			side = info.side.? or_else .Bottom,
 			size = info.size,
 			layout_size = info.layout_size,
 			align = info.layer_align,
@@ -222,7 +222,7 @@ Option_Info :: struct {
 }
 
 do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
-	if self, ok := do_widget(hash(loc), layout_next(current_layout())); ok {
+	if self, ok := do_widget(hash(loc), layout_next(current_layout()), {}); ok {
 		// Animation
 		hover_time := animate_bool(self.id, .Hovered in self.state, 0.1)
 		// Painting

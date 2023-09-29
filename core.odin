@@ -56,6 +56,13 @@ DOUBLE_CLICK_TIME :: time.Millisecond * 200
 
 Color :: [4]u8
 
+Direction :: enum {
+	Up,
+	Down, 
+	Left,
+	Right,
+}
+
 Animation :: struct {
 	keep_alive: bool,
 	value,
@@ -133,6 +140,7 @@ Core :: struct {
 
 	disabled, 
 	dragging, 
+	focus_next_widget,
 	is_key_selecting: bool,
 
 	// Should ui be repainted
@@ -283,6 +291,7 @@ set_screen_size :: proc(w, h: f32) {
 init :: proc() -> bool {
 	if core == nil {
 		core = new(Core)
+		core.paint_next_frame = true
 		// Load graphics
 		if !painter_init() {
 			return false
@@ -332,6 +341,13 @@ begin_frame :: proc() {
 	// Decide if rendering is needed next frame
 	if input.last_mouse_point != input.mouse_point || input.last_key_bits != input.key_bits|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
 		paint_this_frame = true
+		paint_next_frame = true
+	}
+	if widget_agent.focus_id != widget_agent.last_focus_id {
+		paint_this_frame = true
+	}
+	if is_key_selecting && widget_agent.focus_id == 0 {
+		is_key_selecting = false
 	}
 
 	// Delete unused animations
@@ -374,7 +390,7 @@ begin_frame :: proc() {
 
 		anchor: int
 		for widget in widget_agent.list {
-			if .Can_Key_Select in widget.options && .Disabled not_in widget.bits {
+			if .No_Key_Select not_in widget.options && .Disabled not_in widget.bits {
 				append(&array, widget)
 			}
 		}
@@ -397,6 +413,93 @@ begin_frame :: proc() {
 			}
 			core.widget_agent.focus_id = array[(anchor + 1) % len(array)].id
 			core.is_key_selecting = true
+		}
+	}
+
+	if is_key_selecting {
+		if layer_agent.focus_id not_in layer_agent.pool {
+			layer_agent.focus_id = 0
+			widget_agent.focus_id = 0
+		}
+	}
+
+	// Determine direction
+	direction: Maybe(Direction)
+	if key_pressed(.Up) {
+		direction = .Up
+	} else if key_pressed(.Down) {
+		direction = .Down 
+	} else if key_pressed(.Left) {
+		direction = .Left
+	} else if key_pressed(.Right) {
+		direction = .Right
+	}
+	// Determine if the direction was determined
+	if direction, ok := direction.?; (ok && core.widget_agent.focus_id != 0) {
+		// Get a pointer to the currently focused widget
+		focused_widget: Maybe(^Widget)
+		for &widget in widget_agent.list {
+			if widget.id == widget_agent.focus_id {
+				focused_widget = widget
+			}
+		}
+		// Find closest widget underneath it
+		if focused_widget, ok := focused_widget.?; ok {
+			// Maybe new focused widget
+			next_focused_widget: Maybe(^Widget)
+			next_layer_focus_id: Maybe(Id)
+			// Set closest as farthest
+			closest: f32 = 0 if (int(direction) % 2 == 0) else math.F32_MAX
+			// Search for closest
+			for widget in widget_agent.list {
+				// Check if it is on the same layer or a child layer
+				layer_is_valid: bool 
+				if widget.layer.id == focused_widget.layer.id {
+					layer_is_valid = true 
+				} else if widget.layer.parent != nil && widget.layer.parent.id == focused_widget.layer.id {
+					layer_is_valid = true
+				}
+				// Get direction
+				direction_is_valid: bool
+				switch direction {
+					case .Up: 		direction_is_valid = (widget.box.y < focused_widget.box.y && widget.box.x + widget.box.w > focused_widget.box.x && widget.box.x < focused_widget.box.x + focused_widget.box.w)
+					case .Down:		direction_is_valid = (widget.box.y > focused_widget.box.y && widget.box.x + widget.box.w > focused_widget.box.x && widget.box.x < focused_widget.box.x + focused_widget.box.w)
+					case .Left:		direction_is_valid = (widget.box.x < focused_widget.box.x && widget.box.y + widget.box.h > focused_widget.box.y && widget.box.y < focused_widget.box.y + focused_widget.box.h)
+					case .Right:	direction_is_valid = (widget.box.x > focused_widget.box.x && widget.box.y + widget.box.h > focused_widget.box.y && widget.box.y < focused_widget.box.y + focused_widget.box.h)
+				}
+				// Find closest
+				if (layer_is_valid) && (direction_is_valid) && (.No_Key_Select not_in widget.options) && (.Disabled not_in widget.bits) {
+					is_closer: bool
+					point: [2]f32 = {widget.box.x, widget.box.y}
+					if widget.layer.id == focused_widget.layer.id {
+						point += widget.layer.scroll
+					}
+					// Check if its closer
+					switch direction {
+						case .Up: 		is_closer = (point.y > closest)
+						case .Down:		is_closer = (point.y < closest)
+						case .Left:		is_closer = (point.x > closest)
+						case .Right:	is_closer = (point.x < closest)
+					}
+					// Do the thing to do if its closer
+					if is_closer {
+						closest = point.y if int(direction) < 2 else point.x
+						next_focused_widget = widget
+						next_layer_focus_id = widget.layer.id
+						core.is_key_selecting = true
+					}
+				}
+			}
+			// Update focus
+			if wdg, ok := next_focused_widget.?; ok {
+				widget_agent.focus_id = wdg.id
+				// Scroll to newly focused widget if needed
+				//wdg.layer.scroll_target.y = min(wdg.layer.scroll.y, wdg.box.y - (wdg.layer.box.y - wdg.layer.scroll.y))
+				wdg.layer.scroll_target.y = max(wdg.layer.scroll.y, (wdg.box.y + wdg.box.h - wdg.layer.box.h) - (wdg.layer.box.y - wdg.layer.scroll.y))
+			}
+			if id, ok := next_layer_focus_id.?; ok {
+				layer_agent.focus_id = id
+			}
 		}
 	}
 

@@ -333,7 +333,7 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 @private
 _do_frame :: proc(ok: bool) {
 	if ok {
-		assert(core.layer_agent.current_layer != nil)
+		layer := current_layer()
 		paint_box_stroke(core.layer_agent.current_layer.box, 1, get_color(.Base_Stroke))
 		end_layer(core.layer_agent.current_layer)
 	}
@@ -556,6 +556,7 @@ end_layer :: proc(self: ^Layer) {
 			max(self.layout_size.x - self.box.w, 0),
 			max(self.layout_size.y - self.box.h, 0),
 		}
+		old_scroll := self.scroll
 
 		// Update scroll offset
 		if .Hovered in self.state {
@@ -563,9 +564,6 @@ end_layer :: proc(self: ^Layer) {
 		}
 		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
 		self.scroll_target.y = clamp(self.scroll_target.y, 0, max_scroll.y)
-		if linalg.floor(self.scroll_target - self.scroll) != {} {
-			core.paint_next_frame = true
-		}
 		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * core.delta_time
 
 		// Manifest scroll bars
@@ -603,6 +601,10 @@ end_layer :: proc(self: ^Layer) {
 				self.scroll.y = new_value
 				self.scroll_target.y = new_value
 			}
+		}
+
+		if old_scroll != self.scroll {
+			core.paint_next_frame = true
 		}
 
 		// Handle content clipping

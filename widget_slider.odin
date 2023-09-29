@@ -14,6 +14,7 @@ Spinner_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 	value,
 	low,
 	high: T,
+	title: Maybe(string),
 	increment: Maybe(T),
 	orientation: Orientation,
 	trim_decimal: bool,
@@ -39,6 +40,8 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	paint_box_fill(box, get_color(.Widget_BG))
 	new_value = clamp(do_number_input(Number_Input_Info(T){
 		value = info.value,
+		title = info.title,
+		select_all_on_focus = true,
 		text_align = ([2]Alignment){
 			.Middle, 
 			.Middle,
@@ -52,8 +55,12 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		label = "\uEA4E", 
 		align = .Middle,
 		style = .Subtle,
+		no_key_select = true,
 	}, loc) {
 		new_value = max(info.low, info.value - increment)
+		if core.group_stack.height > 0 {
+			core.group_stack.items[core.group_stack.height - 1].state += {.Changed}
+		}
 	}
 	loc.column += 1
 	set_next_box(increase_box)
@@ -61,8 +68,12 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		label = "\uEA78", 
 		align = .Middle,
 		style = .Subtle,
+		no_key_select = true,
 	}, loc) {
 		new_value = min(info.high, info.value + increment)
+		if core.group_stack.height > 0 {
+			core.group_stack.items[core.group_stack.height - 1].state += {.Changed}
+		}
 	}
 	return
 }

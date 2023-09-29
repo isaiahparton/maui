@@ -59,30 +59,14 @@ main :: proc() {
 				for &entry in chips {
 					stack_push(&core.chips, Deferred_Chip{text = entry})
 				}
-				enter := key_pressed(.Enter)
 				change := do_text_input({
 					data = &text_buffer,
 				})
-				if change || enter {
-					if len(text_buffer) > 0 {
-						if (text_buffer[len(text_buffer) - 1] == ',') {
-							append(&chips, strings.clone(string(text_buffer[:len(text_buffer) - 1])))
-							clear(&text_buffer)
-						} else if enter {
-							append(&chips, strings.clone(string(text_buffer[:])))
-							clear(&text_buffer)
-						}
-					}
-				} else if len(chips) > 0 && key_pressed(.Backspace) {
-					pop(&chips)
-				}
-				for i in 0..<core.chips.height {
-					if core.chips.items[i].clicked {
-						ordered_remove(&chips, i)
-						break
-					}
-				}
-				core.chips.height = 0
+				change = do_text_input({
+					data = &text_buffer,
+					select_all_on_focus = true,
+					hidden = true,
+				})
 
 				space(10)
 				if do_pill_button({

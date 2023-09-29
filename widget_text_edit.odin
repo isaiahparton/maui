@@ -26,15 +26,16 @@ Text_Input_Info :: struct {
 	title: Maybe(string),
 	placeholder: Maybe(string),
 	line_height: Maybe(f32),
-	select_bits: Selectable_Text_Bits,
 	edit_bits: Text_Edit_Bits,
+	select_all_on_focus: bool,
+	hidden: bool,
 }
 Text_Input_Result :: struct {
 	changed: bool,
 	chip_clicked: Maybe(int),
 }
 do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .Can_Key_Select}); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable}); ok {
 		using self
 		// Text cursor
 		if .Hovered in self.state {
@@ -54,8 +55,12 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			}
 		}
 
+		should_paint := .Should_Paint in bits && !(info.hidden && .Focused not_in state)
+
 		// Paint!
-		paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), hover_time * 0.05))
+		if should_paint {
+			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), hover_time * 0.05))
+		}
 		line_height := info.line_height.? or_else box.h
 		y_padding := line_height / 2 - font_data.size / 2
 		data_slice: []u8
@@ -71,6 +76,9 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 		text_bits: Selectable_Text_Bits
 		if .Should_Paint not_in bits {
 			text_bits += {.No_Paint}
+		}
+		if info.select_all_on_focus {
+			text_bits += {.Select_All}
 		}
 
 		// Set text offset
@@ -100,7 +108,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 		}
 
 		// Widget decoration
-		if .Should_Paint in bits {
+		if should_paint {
 
 			// Widget decor
 			stroke_color := get_color(.Widget_Stroke, 1.0 if .Focused in self.state else (0.5 + 0.5 * hover_time))
@@ -110,7 +118,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 				offset = WIDGET_TEXT_OFFSET,
 				thickness = 1, 
 				color = stroke_color,
-				)
+			)
 
 			// Draw placeholder
 			if info.placeholder != nil {
@@ -136,10 +144,11 @@ Number_Input_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 	text_align: Maybe([2]Alignment),
 	trim_decimal,
 	no_outline: bool,
+	select_all_on_focus: bool,
 }
 do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (new_value: T) {
 	new_value = info.value
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .Can_Key_Select}); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable}); ok {
 		using self
 		// Animation values
 		hover_time := animate_bool(self.id, .Hovered in state, 0.1)
@@ -179,10 +188,11 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 		// Update text input
 		if state >= {.Focused} {
 			buffer := typing_agent_get_buffer(&core.typing_agent, id)
-			if state >= {.Got_Focus} {
+			if state >= {.Got_Focus} || info.value != self.value {
 				resize(buffer, len(text))
 				copy(buffer[:], text[:])
 			}
+			self.value = info.value
 			text_edit_bits: Text_Edit_Bits = {.Numeric, .Integer}
 			switch typeid_of(T) {
 				case f16, f32, f64: text_edit_bits -= {.Integer}
@@ -193,6 +203,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				box = box, 
 				padding = {box.h * 0.25, box.h / 2 - font_data.size / 2},
 				align = text_align,
+				bits = Selectable_Text_Bits{.Select_All} if info.select_all_on_focus else {},
 			})
 			if typing_agent_edit(&core.typing_agent, {
 				array = buffer, 
@@ -207,9 +218,10 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 					new_value = T(strconv.parse_f64(str) or_else 0)
 					case int, i128, i64, i32, i16, i8: 
 					new_value = T(strconv.parse_i128(str) or_else 0)
-					case u128, u64, u32, u16, u8:
+					case uint, u128, u64, u32, u16, u8:
 					new_value = T(strconv.parse_u128(str) or_else 0)
 				}
+				self.value = new_value
 				state += {.Changed}
 			}
 		} else {
@@ -219,6 +231,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				box = box, 
 				padding = {box.h * 0.25, box.h / 2 - font_data.size / 2},
 				align = text_align,
+				bits = Selectable_Text_Bits{.Select_All} if info.select_all_on_focus else {},
 			})
 		}
 

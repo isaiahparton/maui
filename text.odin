@@ -12,13 +12,15 @@ import "core:unicode/utf8"
 TEXT_BREAK :: "..."
 
 Icon :: enum rune {
-	Cloud 						= 0xEB9C,
-	Hard_Drive 				= 0xF394,
+	Side_Bar 					= 0xF127,
+	Share 						= 0xF0FE,
+	Hard_Drive 				= 0xEDF9,
 	Sliders 					= 0xEC9C,
 	Tree_Nodes 				= 0xEF90,
-	Ball_Pen  				= 0xEA8D,
+	Pen  							= 0xF04A,
 	More_Horizontal 	= 0xEF78,
 	Code 							= 0xeba8,
+	Cube 							= 0xF2F3,
 	Github 						= 0xedca,
 	Check 						= 0xEB7A,
 	Error 						= 0xECA0,
@@ -31,10 +33,11 @@ Icon :: enum rune {
 	Add 							= 0xEA12,
 	Undo 							= 0xEA58,
 	Shopping_Cart 		= 0xF11D,
+	Shop 							= 0xF1A4,
 	Attach_File				= 0xEA84,
 	Remove 						= 0xF1AE,
 	Delete 						= 0xEC1D,
-	User 							= 0xF25F,
+	User 							= 0xF256,
 	Format_Italic			= 0xe23f,
 	Format_Bold				= 0xe238,
 	Format_Underline	= 0xe249,
@@ -45,9 +48,9 @@ Icon :: enum rune {
 	Folder 						= 0xED57,
 	Admin 						= 0xEA14,
 	Shopping_Basket 	= 0xF11A,
-	Shopping_Bag 			= 0xF115,
+	Shopping_Bag 			= 0xF114,
 	Receipt 					= 0xEAC2,
-	File_Paper 				= 0xECF8,
+	File_Paper 				= 0xECF9,
 	File_New 					= 0xECC2,
 	Calendar 					= 0xEB20,
 	Inventory 				= 0xF1C6,
@@ -58,8 +61,8 @@ Icon :: enum rune {
 	Eye_Off 					= 0xECB6,
 	Box 							= 0xF2F3,
 	Archive 					= 0xEA47,
-	Cog 							= 0xF0ED,
-	Group 						= 0xEDE2,
+	Cog 							= 0xF0EE,
+	Group 						= 0xEB03,
 	Flow_Chart 				= 0xEF59,
 	Pie_Chart 				= 0xEFF5,
 	Keyboard 					= 0xEE74,
@@ -74,7 +77,7 @@ Icon :: enum rune {
 	Draft_Fill 				= 0xEC5B,
 	Check_List 				= 0xEEB9,
 	Numbers 					= 0xEFA9,
-	Refund 						= 0xF067,
+	Refund 						= 0xF066,
 	Wallet 						= 0xF2AB,
 	Bank_Card 				= 0xEA91,
 }
@@ -176,10 +179,9 @@ Contained_String_Info :: struct {
 	word_wrap: bool,
 	align: [2]Alignment,
 }
-paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: Color, info: Contained_String_Info) -> [2]f32 {
+paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: Color, info: Contained_String_Info) -> Box {
 
 	point: [2]f32 = {box.x, box.y}
-	size: [2]f32
 	next_word_index: int
 
 	total_size: [2]f32
@@ -194,6 +196,7 @@ paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: 
 			case .Middle: point.y += box.h / 2 - total_size.y / 2
 		}
 	}
+	text_box: Box = {point.x, point.y, 0, 0}
 
 	break_size: f32
 	if !info.wrap {
@@ -201,6 +204,7 @@ paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: 
 		break_size = measure_string(font, TEXT_BREAK).x
 	}
 
+	text_box.h += font.size
 	for codepoint, index in text {
 		glyph := get_glyph_data(font, codepoint)
 		total_advance := glyph.advance + GLYPH_SPACING
@@ -226,6 +230,7 @@ paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: 
 				if info.wrap {
 					point.x = box.x
 					point.y += font.size
+					text_box.h += font.size
 				}
 			}
 		} else if point.x + total_advance + break_size >= box.x + box.w {
@@ -236,6 +241,7 @@ paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: 
 		if codepoint == '\n' {
 			point.x = box.x
 			point.y += font.size
+			text_box.h += font.size
 		} else {
 			if point.y + font.size >= box.y + box.h {
 				paint_clipped_glyph(glyph, point, box, color)
@@ -244,15 +250,14 @@ paint_contained_string :: proc(font: ^Font_Data, text: string, box: Box, color: 
 			}
 			point.x += total_advance
 		}
-		size.x = max(size.x, point.x - box.x)
+		text_box.w = max(text_box.w, point.x - text_box.x)
 
 		if point.y >= box.y + box.h {
 			break
 		}
 	}
-	size.y = point.y - box.y
 
-	return size
+	return text_box
 }
 
 // Text painting
@@ -322,7 +327,7 @@ paint_aligned_string :: proc(font: ^Font_Data, text: string, origin: [2]f32, col
 }
 
 paint_aligned_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
-   	box := glyph.src
+		box := glyph.src
 	switch align.x {
 		case .Far: box.x = origin.x - box.w
 		case .Middle: box.x = origin.x - math.floor(box.w / 2)
@@ -333,9 +338,9 @@ paint_aligned_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, color: Color, ali
 		case .Middle: box.y = origin.y - math.floor(box.h / 2)
 		case .Near: box.y = origin.y
 	}
-    paint_texture(glyph.src, box, color)
+		paint_texture(glyph.src, box, color)
 
-    return {box.w, box.h}
+		return {box.w, box.h}
 }
 
 paint_aligned_icon :: proc(font_data: ^Font_Data, icon: Icon, origin: [2]f32, size: f32, color: Color, align: [2]Alignment) -> [2]f32 {
@@ -353,49 +358,50 @@ paint_aligned_icon :: proc(font_data: ^Font_Data, icon: Icon, origin: [2]f32, si
 		case .Middle: box.y = origin.y - box.h / 2
 		case .Near: box.y = origin.y
 	}
-    paint_texture(glyph.src, box, color)
-    return {box.w, box.h}
+	box.x = math.floor(box.x)
+	box.y = math.floor(box.y)
+	paint_texture(glyph.src, box, color)
+	return {box.w, box.h}
 }
 
 // Draw a glyph, mathematically clipped to 'clipBox'
 paint_clipped_glyph :: proc(glyph: Glyph_Data, origin: [2]f32, clip: Box, color: Color) {
-  	src := glyph.src
-    dst := Box{ 
-        f32(i32(origin.x + glyph.offset.x)), 
-        f32(i32(origin.y + glyph.offset.y)), 
-        src.w, 
-        src.h,
-    }
-    if dst.x < clip.x {
-    	delta := clip.x - dst.x
-    	dst.w -= delta
-    	dst.x += delta
-    	src.x += delta
-    }
-    if dst.y < clip.y {
-    	delta := clip.y - dst.y
-    	dst.h -= delta
-    	dst.y += delta
-    	src.y += delta
-    }
-    if dst.x + dst.w > clip.x + clip.w {
-    	dst.w = (clip.x + clip.w) - dst.x
-    }
-    if dst.y + dst.h > clip.y + clip.h {
-    	dst.h = (clip.y + clip.h) - dst.y
-    }
-    src.w = dst.w
-    src.h = dst.h
-    if src.w <= 0 || src.h <= 0 {
-    	return
-    }
-    paint_texture(src, dst, color)
+		src := glyph.src
+		dst := Box{ 
+				f32(i32(origin.x + glyph.offset.x)), 
+				f32(i32(origin.y + glyph.offset.y)), 
+				src.w, 
+				src.h,
+		}
+		if dst.x < clip.x {
+			delta := clip.x - dst.x
+			dst.w -= delta
+			dst.x += delta
+			src.x += delta
+		}
+		if dst.y < clip.y {
+			delta := clip.y - dst.y
+			dst.h -= delta
+			dst.y += delta
+			src.y += delta
+		}
+		if dst.x + dst.w > clip.x + clip.w {
+			dst.w = (clip.x + clip.w) - dst.x
+		}
+		if dst.y + dst.h > clip.y + clip.h {
+			dst.h = (clip.y + clip.h) - dst.y
+		}
+		src.w = dst.w
+		src.h = dst.h
+		if src.w <= 0 || src.h <= 0 {
+			return
+		}
+		paint_texture(src, dst, color)
 }
 
 // Advanced interactive text
 Selectable_Text_Bit :: enum {
 	Password,
-	mutable,
 	Select_All,
 	No_Paint,
 }
@@ -583,6 +589,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 	// Handle initial text selection
 	if .Select_All in info.bits {
 		if .Got_Focus in widget.state {
+			widget.click_count -= 1
 			state.index = 0
 			state.anchor = 0
 			state.length = len(info.data)

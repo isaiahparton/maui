@@ -8,6 +8,7 @@ CALENDAR_HEIGHT :: 250
 Date_Picker_Info :: struct {
 	value,
 	temp_value: ^time.Time,
+	title: Maybe(string),
 }
 do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (changed: bool) {
 	if self, ok := do_widget(hash(loc), layout_next(current_layout()), {}); ok {
@@ -17,7 +18,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 		year, month, day := time.date(info.value^)
 		if .Should_Paint in self.bits {
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
-			paint_box_stroke(self.box, 1, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
+			paint_labeled_widget_frame(self.box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
 			paint_label_box(text_format("%2i-%2i-%4i", day, int(month), year), shrink_box_separate(self.box, {self.box.h * 0.25, 0}), get_color(.Button_Base), {.Near, .Middle})
 			paint_aligned_icon(get_font_data(.Default), .Calendar, {self.box.x + self.box.w - self.box.h / 2, self.box.y + self.box.h / 2}, 1, get_color(.Button_Base), {.Middle, .Middle})
 		}

@@ -224,11 +224,12 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 		}
 		
 		inner_box := self.draw_box
-		box_cut(&inner_box, .Top, WINDOW_TITLE_SIZE)
+		if .Title in self.options {
+			box_cut(&inner_box, .Top, WINDOW_TITLE_SIZE)
+		}
 
 		if .Initialized not_in self.bits {
 			self.min_layout_size = {inner_box.w, inner_box.h}
-			self.bits += {.Initialized}
 		}
 
 		layer_options := info.layer_options + {.Attached}
@@ -252,12 +253,14 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			})
 		}
 
+		// Window transparency
+		old_opacity := self.opacity
 		if .Moving in self.bits {
 			self.opacity += (0.75 - self.opacity) * core.delta_time * 10
 		} else {
-			self.opacity += (1 - self.opacity) * core.delta_time * 10
+			self.opacity = min(1, self.opacity + core.delta_time * 10)
 		}
-		if self.opacity > 0 && self.opacity < 1 {
+		if self.opacity != old_opacity {
 			core.paint_next_frame = true
 		}
 
@@ -302,6 +305,7 @@ _do_window :: proc(ok: bool) {
 	if true {
 		using self := current_window()
 		window_agent_pop(&core.window_agent)
+		self.bits += {.Initialized}
 		// End main layer
 		if .Collapsed not_in bits {
 			// Outline

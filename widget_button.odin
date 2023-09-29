@@ -32,7 +32,7 @@ do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clic
 			layout.size += layout.box.h * 0.75
 		}
 	}
-	if self, ok := do_widget(hash(loc), layout_next(layout)); ok {
+	if self, ok := do_widget(hash(loc), layout_next(layout), {.No_Key_Select}); ok {
 		using self
 		hover_time := animate_bool(self.id, .Hovered in state, 0.1)
 		if .Hovered in self.state {
@@ -95,13 +95,14 @@ Button_Info :: struct {
 	color: Maybe(Color),
 	fit_to_label: bool,
 	style: Button_Style,
+	no_key_select: bool,
 }
 do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
 	layout := current_layout()
 	if info.fit_to_label {
 		layout_fit_label(layout, info.label)
 	}
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(layout)); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(layout), {.No_Key_Select} if info.no_key_select else {}); ok {
 		// Animations
 		hover_time := animate_bool(self.id, .Hovered in self.state, 0.1)
 		// Cursor

@@ -52,7 +52,7 @@ typing_agent_step :: proc(using self: ^Typing_Agent) {
 typing_agent_insert_string :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, max_len: int, str: string) {
 	
 	if length > 0 {
-		remove_range(buf, index, index + length)
+		remove_range(buf, index, min(index + length, len(buf)))
 		length = 0
 	}
 	n := len(str)
