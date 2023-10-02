@@ -60,7 +60,6 @@ GLFW_Render_Context :: struct {
 
 	tex_uniform_loc,
 	projmtx_uniform_loc,
-	depth_uniform_loc,
 	pos_attrib_loc,
 	uv_attrib_loc,
 	col_attrib_loc: u32,
@@ -117,7 +116,6 @@ init :: proc(width, height: int, title: string) -> bool {
 	// Get uniform and attribute locations
 	ctx.projmtx_uniform_loc = cast(u32)gl.GetUniformLocation(ctx.program_handle, "ProjMtx")
 	ctx.tex_uniform_loc 		= cast(u32)gl.GetUniformLocation(ctx.program_handle, "Texture")
-	ctx.depth_uniform_loc 		= cast(u32)gl.GetUniformLocation(ctx.program_handle, "Depth")
 	ctx.pos_attrib_loc 			= cast(u32)gl.GetAttribLocation(ctx.program_handle, "Position")
 	ctx.uv_attrib_loc 			= cast(u32)gl.GetAttribLocation(ctx.program_handle, "UV")
 	ctx.col_attrib_loc 			= cast(u32)gl.GetAttribLocation(ctx.program_handle, "Color")
@@ -128,8 +126,6 @@ init :: proc(width, height: int, title: string) -> bool {
 	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
 
-	gl.Enable(gl.DEPTH_TEST)
-
 	ui._load_texture = proc(image: ui.Image) -> (id: u32, ok: bool) {
 		gl.BindTexture(gl.TEXTURE_2D, 0)
 		gl.GenTextures(1, &id)
@@ -137,11 +133,9 @@ init :: proc(width, height: int, title: string) -> bool {
 			return
 		}
 		gl.BindTexture(gl.TEXTURE_2D, id)
-		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(image.width), i32(image.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, (transmute(runtime.Raw_Slice)image.data).data)
-		/*gl.TextureParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
-		gl.TextureParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)*/
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(image.width), i32(image.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, (transmute(runtime.Raw_Slice)image.data).data)
 		gl.GenerateMipmap(gl.TEXTURE_2D)
 
 		gl.BindTexture(gl.TEXTURE_2D, 0)
@@ -187,25 +181,21 @@ begin_frame :: proc() {
 	ui.set_key_bit(.Backspace, cast(bool)glfw.GetKey(ctx.window, glfw.KEY_BACKSPACE))
 }
 render :: proc() -> int {
-  gl.ClearColor(0.05, 0.05, 0.075, 1.0)
+  gl.ClearColor(0.1, 0.1, 0.1, 1.0)
   gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
   gl.ClearDepth(1.0)
 
 	width, height := glfw.GetFramebufferSize(ctx.window)
   gl.Viewport(0, 0, width, height)
 
-  //gl.DepthMask(false)
-	gl.DepthFunc(gl.LESS)
-
 	gl.Enable(gl.BLEND);
 	gl.BlendEquation(gl.FUNC_ADD);
 	gl.BlendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
 	gl.Disable(gl.CULL_FACE)
+	gl.Disable(gl.DEPTH_TEST)
 	gl.Disable(gl.STENCIL_TEST)
 	gl.Enable(gl.SCISSOR_TEST)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
-
-	ctx.depth = 0.001
 
   // Set projection matrix
   L: f32 = 0
@@ -220,6 +210,7 @@ render :: proc() -> int {
   }
 
   gl.UseProgram(ctx.program_handle)
+	gl.Uniform1i(i32(ctx.tex_uniform_loc), 0)
   gl.UniformMatrix4fv(i32(ctx.projmtx_uniform_loc), 1, gl.FALSE, transmute([^]f32)(&ortho_projection))
 
   vao_handle: u32 
@@ -239,8 +230,7 @@ render :: proc() -> int {
 	for &layer in ui.core.layer_agent.list {
 		for index in layer.draws {
 			draw := &ui.painter.draws[index]
-			gl.Uniform1f(i32(ctx.depth_uniform_loc), ctx.depth)
-			ctx.depth += 0.001
+
 			if clip, ok := draw.clip.?; ok {
 				gl.Scissor(i32(clip.low.x), i32(-clip.low.y), i32(clip.high.x - clip.low.x), i32(-(clip.high.y - clip.low.y)))
 			}

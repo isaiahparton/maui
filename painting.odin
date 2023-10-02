@@ -176,6 +176,7 @@ atlas_reset :: proc(using self: ^Atlas) -> bool {
 	image.data[1] = 255
 	image.data[2] = 255
 	image.data[3] = 255
+
 	cursor = {1, 0}
 	if texture == {} {
 		texture = load_texture(image) or_return

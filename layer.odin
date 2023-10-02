@@ -655,4 +655,7 @@ end_layer :: proc(self: ^Layer) {
 		}
 	}
 	layer_agent_pop(&core.layer_agent)
+	if core.layer_agent.stack.height > 0 {
+		painter.target = current_layer().draws[0]
+	}
 }
