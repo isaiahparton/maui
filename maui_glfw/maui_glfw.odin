@@ -73,6 +73,7 @@ init :: proc(width, height: int, title: string) -> bool {
 	glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, 3)
 	glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, 3)
 	glfw.WindowHint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+	glfw.WindowHint(glfw.RESIZABLE, 1)
 
 	// Create temporary cstring
 	title_cstr := strings.clone_to_cstring(title)
@@ -133,8 +134,6 @@ init :: proc(width, height: int, title: string) -> bool {
 			return
 		}
 		gl.BindTexture(gl.TEXTURE_2D, id)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(image.width), i32(image.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, (transmute(runtime.Raw_Slice)image.data).data)
 		gl.GenerateMipmap(gl.TEXTURE_2D)
 
@@ -182,14 +181,13 @@ begin_frame :: proc() {
 }
 render :: proc() -> int {
   gl.ClearColor(0.1, 0.1, 0.1, 1.0)
-  gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-  gl.ClearDepth(1.0)
+  gl.Clear(gl.COLOR_BUFFER_BIT)
 
 	width, height := glfw.GetFramebufferSize(ctx.window)
   gl.Viewport(0, 0, width, height)
 
-	gl.Enable(gl.BLEND);
-	gl.BlendEquation(gl.FUNC_ADD);
+	gl.Enable(gl.BLEND)
+	gl.BlendEquation(gl.FUNC_ADD)
 	gl.BlendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
 	gl.Disable(gl.CULL_FACE)
 	gl.Disable(gl.DEPTH_TEST)
