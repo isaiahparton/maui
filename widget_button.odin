@@ -1,5 +1,6 @@
 package maui
 
+import "core:fmt"
 import "core:math/linalg"
 import rl "vendor:raylib"
 
@@ -45,10 +46,10 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 		} else {
 			self.box = layout_next(layout)
 		}
-		// Animations
-		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 		// Update
 		update_widget(self)
+		// Animations
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 		// Cursor
 		if .Hovered in self.state {
 			core.cursor = .Hand

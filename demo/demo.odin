@@ -80,7 +80,6 @@ _main :: proc() {
 			}
 		}
 		do_text_demo(&text_demo)
-		paint_box_fill({100, 200}, {255, 0, 255, 255})
 
 		// End of ui calls
 		end_frame()

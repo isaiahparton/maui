@@ -1,4 +1,4 @@
-package maui_glfw
+package maui_opengl
 
 import "core:os"
 import "core:fmt"
