@@ -599,6 +599,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		// Get line offset
 		update_text_iterator_offset(&it, text_info, text_paint_info)
 		res.bounds.low = origin + it.offset
+		res.bounds.high = res.bounds.low
 		last_line := it.offset
 		// Start iteration
 		for {

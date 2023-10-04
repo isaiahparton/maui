@@ -11,6 +11,9 @@ import "../backend/maui_opengl"
 import "core:fmt"
 import "core:mem"
 
+TARGET_FRAME_RATE :: 60
+TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
+
 Demo :: struct {
 	start: proc(rawptr),
 	run: proc(rawptr),
@@ -36,7 +39,7 @@ _main :: proc() {
 
 	ui.init()
 
-	for !maui_glfw.should_close() {
+	for maui_glfw.cycle(TARGET_FRAME_TIME) {
 		using ui
 
 		// Beginning of ui calls
@@ -98,8 +101,8 @@ _main :: proc() {
 		// Render if needed
 		if ui.should_render() {
 			maui_opengl.render(&maui_glfw.interface)
+			maui_glfw.end_frame()
 		}
-		maui_glfw.end_frame()
 	}
 
 	ui.uninit()	

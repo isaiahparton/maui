@@ -1,6 +1,7 @@
 package maui_glfw
 // Import core deps
 import "core:fmt"
+import "core:time"
 import "core:strings"
 // Import maui
 import "../../"
@@ -12,6 +13,9 @@ import "vendor:glfw"
 Platform :: struct {
 	window: glfw.WindowHandle,
 	cursors: [maui.Cursor_Type]glfw.CursorHandle,
+	last_time,
+	current_time,
+	frame_time: f64,
 }
 
 platform: Platform
@@ -102,8 +106,21 @@ begin_frame :: proc() {
 	maui.core.current_time = glfw.GetTime()
 	glfw.PollEvents()
 }
+
 end_frame :: proc() {
 	glfw.SwapBuffers(platform.window)
+}
+
+cycle :: proc(target_frame_time: f64) -> bool {
+	using platform
+	now := glfw.GetTime()
+	frame_time = now - last_time
+	if frame_time < target_frame_time {
+		time.sleep(time.Second * time.Duration(target_frame_time - frame_time))
+	}
+	last_time = current_time
+	current_time = glfw.GetTime()
+	return !should_close()
 }
 
 should_close :: proc() -> bool {

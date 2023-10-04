@@ -164,6 +164,8 @@ widget_agent_step :: proc(using self: ^Widget_Agent) {
 			}
 			free(widget)
 			ordered_remove(&list, i)
+			// Make sure we paint the next frame
+			core.paint_next_frame = true
 		}
 	}
 }

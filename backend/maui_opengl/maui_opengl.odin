@@ -154,6 +154,7 @@ destroy :: proc() {
 }
 
 render :: proc(interface: ^backend.Platform_Renderer_Interface) -> int {
+	gl.Disable(gl.SCISSOR_TEST)
   gl.ClearColor(0.1, 0.1, 0.1, 1.0)
   gl.Clear(gl.COLOR_BUFFER_BIT)
 
@@ -201,10 +202,12 @@ render :: proc(interface: ^backend.Platform_Renderer_Interface) -> int {
 	for &layer in ui.core.layer_agent.list {
 		for index in layer.draws {
 			draw := &ui.painter.draws[index]
-
 			if clip, ok := draw.clip.?; ok {
-				gl.Scissor(i32(clip.low.x), i32(clip.low.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))
+				gl.Scissor(i32(clip.low.x), interface.screen_size.y - i32(clip.high.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))
+			} else {
+				gl.Scissor(0, 0, interface.screen_size.x, interface.screen_size.y)
 			}
+
 			// Bind the texture for the draw call
 			gl.BindTexture(gl.TEXTURE_2D, u32(draw.texture))
 

@@ -34,9 +34,9 @@ Text_Input_Result :: struct {
 do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		self.box = use_next_box() or_else layout_next(current_layout())
+		update_widget(self)
 		// Animation values
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
-		update_widget(self)
 		// Text cursor
 		if .Hovered in self.state {
 			core.cursor = .Beam
@@ -141,9 +141,9 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 				}
 			}
 
-			if info.title != nil {
-				self.box.low.y -= 10
-			}
+		}
+		if info.title != nil {
+			self.box.low.y -= 10
 		}
 
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
