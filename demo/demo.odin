@@ -5,7 +5,8 @@ import "core:strings"
 import "core:math/linalg"
 import rl "vendor:raylib"
 import ui "../"
-import ui_backend "../maui_glfw"
+import "../backend/maui_glfw"
+import "../backend/maui_opengl"
 
 import "core:fmt"
 import "core:mem"
@@ -25,17 +26,22 @@ _main :: proc() {
 		info = {text = "This is a demonstration of text rendering and interaction in maui", size = 20},
 	}
 
-	if !ui_backend.init(1200, 1000, "Maui") {
+	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
 		return
 	}
+
+	if !maui_opengl.init(&maui_glfw.interface) {
+		return
+	}
+
 	ui.init()
 
-	for !ui_backend.should_close() {
+	for !maui_glfw.should_close() {
 		using ui
 
 		// Beginning of ui calls
+		maui_glfw.begin_frame()
 		begin_frame()
-		ui_backend.begin_frame()
 
 		// UI calls
 		shrink(50)
@@ -91,13 +97,14 @@ _main :: proc() {
 
 		// Render if needed
 		if ui.should_render() {
-			ui_backend.render()
+			maui_opengl.render(&maui_glfw.interface)
 		}
-		// Poll events
-		ui_backend.poll_events()
+		maui_glfw.end_frame()
 	}
+
 	ui.uninit()	
-	ui_backend.terminate()
+	maui_opengl.destroy()
+	maui_glfw.destroy()
 }
 
 main :: proc() {

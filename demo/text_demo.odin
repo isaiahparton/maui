@@ -119,16 +119,20 @@ do_text_demo :: proc(using self: ^Text_Demo) {
 	cut(.Left, Exact(30))
 
 	box := current_layout().box 
-	paint_box_fill(box, get_color(.Widget_Back))
-	paint_box_stroke(box, 2, get_color(.Widget_Stroke))
-	paint_box_fill({{box.low.x, center_y(box)}, {box.high.x, center_y(box) + 1}}, {0, 100, 0, 255})
-	paint_box_fill({{center_x(box), box.low.y}, {center_x(box) + 1, box.high.y}}, {0, 100, 0, 255})
-	placement.size = Relative(1); placement.align = {.Middle, .Middle}
-	do_interactable_text({
-		text_info = info,
-		paint_info = paint_info,
-	})
-	if clip, ok := paint_info.clip.?; ok {
-		paint_info.clip = do_box_controls(&clip_controls, clip, {0, 100, 100, 255})
+	if result, ok := do_layer({
+		box = box,
+	}); ok {
+		paint_box_fill(box, get_color(.Widget_Back))
+		paint_box_stroke(box, 2, get_color(.Widget_Stroke))
+		paint_box_fill({{box.low.x, center_y(box)}, {box.high.x, center_y(box) + 1}}, {0, 100, 0, 255})
+		paint_box_fill({{center_x(box), box.low.y}, {center_x(box) + 1, box.high.y}}, {0, 100, 0, 255})
+		placement.size = Relative(1); placement.align = {.Middle, .Middle}
+		do_interactable_text({
+			text_info = info,
+			paint_info = paint_info,
+		})
+		if clip, ok := paint_info.clip.?; ok {
+			paint_info.clip = do_box_controls(&clip_controls, clip, {0, 100, 100, 255})
+		}
 	}
 }

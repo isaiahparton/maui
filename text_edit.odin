@@ -138,7 +138,7 @@ Text_Edit_Info :: struct {
 
 typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (change: bool) {
 	// Control commands
-	if key_down(.Control) {
+	if key_down(.Left_Control) {
 		// Select all
 		if key_pressed(.A) {
 			index = 0
@@ -197,14 +197,14 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 	if key_pressed(.Left) {
 		delta := 0
 		// How far should the cursor move?
-		if key_down(.Control) {
+		if key_down(.Left_Control) || key_down(.Right_Control) {
 			delta = find_last_seperator(info.array[:index]) - index
 		} else{
 			_, delta = utf8.decode_last_rune_in_bytes(info.array[:index + length])
 			delta = -delta
 		}
 		// Highlight or not
-		if key_down(.Shift) {
+		if key_down(.Left_Shift) || key_down(.Right_Shift) {
 			if index < anchor {
 				new_index := index + delta
 				index = max(0, new_index)
@@ -229,13 +229,13 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 	if key_pressed(.Right) {
 		delta := 0
 		// How far should the cursor move
-		if key_down(.Control) {
+		if key_down(.Left_Control) || key_down(.Right_Control) {
 			delta = find_next_seperator(info.array[index + length:])
 		} else {
 			_, delta = utf8.decode_rune_in_bytes(info.array[index + length:])
 		}
 		// Highlight or not?
-		if key_down(.Shift) {
+		if key_down(.Left_Shift) || key_down(.Right_Shift) {
 			if index < anchor {
 				new_index := index + delta
 				index = new_index

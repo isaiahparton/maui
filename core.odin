@@ -139,7 +139,8 @@ Deferred_Chip :: struct {
 
 Core :: struct {
 	// Time
-	current_time: f64,
+	current_time,
+	last_time: f64,
 	delta_time: f32,
 	frame_start_time: time.Time,
 	frame_duration: time.Duration,
@@ -322,6 +323,7 @@ begin_frame :: proc() {
 	assert(group_stack.height == 0, "You forgot to end_group()")
 
 	// Begin frame
+	delta_time = f32(current_time - last_time)	
 	frame_start_time = time.now()
 
 	// Reset painter
@@ -338,11 +340,6 @@ begin_frame :: proc() {
 		paint_next_frame = false
 	}
 
-	// Decide if rendering is needed next frame
-	if input.last_mouse_point != input.mouse_point || input.last_key_bits != input.key_bits|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
-		paint_this_frame = true
-	}
-
 	// Reset cursor to default state
 	cursor = .Default
 
@@ -351,9 +348,6 @@ begin_frame :: proc() {
 
 	// Free and delete unused text buffers
 	typing_agent_step(&typing_agent)
-
-	// Update input
-	input_step(&input)
 
 	// Update control interaction ids
 	widget_agent_update_ids(&widget_agent)
@@ -407,11 +401,6 @@ begin_frame :: proc() {
 	// Reset clip box
 	clip_box = fullscreen_box
 
-	// Reset input bits
-	input.last_key_bits = input.key_bits
-	input.last_mouse_bits = input.mouse_bits
-	input.last_mouse_point = input.mouse_point
-
 	chips.height = 0
 }
 end_frame :: proc() {
@@ -420,13 +409,21 @@ end_frame :: proc() {
 	//TODO: Make this better
 	when ODIN_DEBUG {
 		layer_agent.debug_id = 0
-		if key_down(.Control) && key_pressed(.Backspace) {
+		if key_down(.Right_Control) && key_pressed(.Backspace) {
 			debug_bits ~= {.Show_Window}
 		}
 		if debug_bits >= {.Show_Window} {
 			
 		}
 	}
+	// Decide if rendering is needed next frame
+	if input.last_mouse_point != input.mouse_point || input.last_key_set != input.key_set|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
+		paint_next_frame = true
+	}
+	// Reset input bits
+	input.last_key_set = input.key_set
+	input.last_mouse_bits = input.mouse_bits
+	input.last_mouse_point = input.mouse_point
 	// End root layer
 	layer_agent_end_root(&layer_agent)
 	// Update layers
@@ -438,6 +435,7 @@ end_frame :: proc() {
 	// Update timings
 	painted_last_frame = paint_this_frame
 	frame_duration = time.since(frame_start_time)
+	last_time = current_time
 }
 @private
 _count_layer_children :: proc(layer: ^Layer) -> int {

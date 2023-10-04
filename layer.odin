@@ -566,8 +566,9 @@ end_layer :: proc(self: ^Layer) {
 		}
 
 		// Detect clipping
-		if (self.box != core.fullscreen_box && !box_in_box(self.box, self.content_box)) || .Force_Clip in self.options {
+		if (self.box != core.fullscreen_box && !box_in_box(self.content_box, self.box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
+			painter.draws[painter.target].clip = self.box
 		}
 
 		// End layout

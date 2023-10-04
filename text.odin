@@ -570,6 +570,7 @@ Text_Interact_Info :: struct {
 
 Text_Interact_Result :: struct {
 	hovered: bool,
+	bounds: Box,
 }
 
 paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agent, text_info: Text_Info, text_paint_info: Text_Paint_Info, interact_info: Text_Interact_Info, color: Color) -> (res: Text_Interact_Result) {
@@ -578,6 +579,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 
 	size := measure_text(text_info)
 	origin := origin
+
 	// Apply baseline if needed
 	#partial switch text_paint_info.baseline {
 		case .Middle: origin.y -= size.y / 2 
@@ -596,6 +598,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		line: int
 		// Get line offset
 		update_text_iterator_offset(&it, text_info, text_paint_info)
+		res.bounds.low = origin + it.offset
 		last_line := it.offset
 		// Start iteration
 		for {
@@ -660,6 +663,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 				// Paint the glyph
 				dst: Box = {low = point + it.glyph.offset}
 				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
+				res.bounds.high = linalg.max(res.bounds.high, dst.high)
 				if clip, ok := text_paint_info.clip.?; ok {
 					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, color)
 				} else {
@@ -715,6 +719,9 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 		array := typing_agent_get_buffer(&core.typing_agent, self.id)
 		res := paint_interact_text(origin, self, &core.typing_agent, info.text_info, info.paint_info, {read_only = true}, get_color(.Text))
 		update_widget_hover(self, res.hovered)
+		paint_box_stroke(res.bounds, 1, {0, 255, 0, 255})
+
+		self.layer.content_box = update_bounding_box(self.layer.content_box, res.bounds)
 		if .Hovered in self.state {
 			core.cursor = .Beam
 		}

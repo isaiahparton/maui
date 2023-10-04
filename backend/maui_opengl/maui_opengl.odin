@@ -1,23 +1,29 @@
 package maui_opengl
 
+// Import core deps
 import "core:fmt"
 import "core:strings"
 import "core:runtime"
-
 import "core:math"
 import "core:math/linalg"
-
+// Import windowing backends
+import "vendor:glfw"
+// Import opengl
 import gl "vendor:OpenGL"
+// Import maui
+import ui "../../"
+// Import backend
+import "../"
 
-import ui "../"
-
+/*
+	Error checking
+*/
 gl_check_error :: proc(loc := #caller_location) {
 	err := gl.GetError()
 	if err != 0 {
 		fmt.printf("%v: 0x%i\n", loc, err)
 	}
 }
-
 check_shader :: proc(id: u32, name: string) -> bool {
 	success: i32
 	gl.GetShaderiv(id, gl.COMPILE_STATUS, &success)
@@ -45,11 +51,11 @@ check_program :: proc(id: u32, name: string) -> bool {
 	return true
 }
 
-Render_Context :: struct {
+Context :: struct {
 	ibo_handle,
 	vbo_handle: u32,
 
-	program_handle: u32,
+	program_handle,
 	vertex_shader_handle,
 	fragment_shader_handle: u32,
 
@@ -60,22 +66,29 @@ Render_Context :: struct {
 	col_attrib_loc: u32,
 }
 
+ctx: Context
+
 /*
 	Initialize rendering context
 		Load OpenGL
 		Load shaders
 		Set texture handling procedures
 */
-init_render_context :: proc(ctx: ^Render_Context) -> bool {
-	gl.load_up_to(3, 3, glfw.gl_set_proc_address)
+init :: proc(interface: ^backend.Platform_Renderer_Interface) -> bool {
+	if interface.platform_api == .GLFW {
+		gl.load_up_to(3, 3, glfw.gl_set_proc_address)
+	}
 
 	// Set viewport
-  gl.Viewport(0, 0, w, h)
+  gl.Viewport(0, 0, interface.screen_size.x, interface.screen_size.y)
+
+  VERTEX_SHADER_330 := #load("./default.vert")
+	FRAGMENT_SHADER_330 := #load("./default.frag")
 
 	// Load stuff
-	ctx.vertex_shader_handle = load_shader_from_file(gl.VERTEX_SHADER, "../maui_glfw/default.vert") or_return
+	ctx.vertex_shader_handle = load_shader_from_data(gl.VERTEX_SHADER, transmute([]u8)VERTEX_SHADER_330)
 	check_shader(ctx.vertex_shader_handle, "vertex shader")
-	ctx.fragment_shader_handle = load_shader_from_file(gl.FRAGMENT_SHADER, "../maui_glfw/default.frag") or_return
+	ctx.fragment_shader_handle = load_shader_from_data(gl.FRAGMENT_SHADER, transmute([]u8)FRAGMENT_SHADER_330)
 	check_shader(ctx.fragment_shader_handle, "fragment shader")
 
 	ctx.program_handle = gl.CreateProgram()
@@ -133,41 +146,19 @@ init_render_context :: proc(ctx: ^Render_Context) -> bool {
 	return true
 }
 
-destroy_render_context :: proc(ctx: ^Render_Context) {
+destroy :: proc() {
 	// Delete opengl things
 	gl.DeleteProgram(ctx.program_handle)
 	gl.DeleteBuffers(1, &ctx.vbo_handle)
 	gl.DeleteBuffers(1, &ctx.ibo_handle)
 }
 
-should_close :: proc() -> bool {
-	return bool(glfw.WindowShouldClose(ctx.window))
-}
-begin_frame :: proc() {
-	x, y := glfw.GetCursorPos(ctx.window)
-	width, height := glfw.GetFramebufferSize(ctx.window)
-	ui.core.size = {f32(width), f32(height)}
-	ui.input.mouse_point = {f32(x), f32(y)}
-	ctx.last_time = ui.core.current_time
-	ui.core.current_time = glfw.GetTime()
-	ui.core.delta_time = f32(ui.core.current_time - ctx.last_time)
-
-	glfw.CreateStandardCursor(glfw.HAND_CURSOR)
-
-	ui.set_mouse_bit(.Left, cast(bool)glfw.GetMouseButton(ctx.window, glfw.MOUSE_BUTTON_LEFT))
-	ui.set_mouse_bit(.Middle, cast(bool)glfw.GetMouseButton(ctx.window, glfw.MOUSE_BUTTON_MIDDLE))
-	ui.set_mouse_bit(.Right, cast(bool)glfw.GetMouseButton(ctx.window, glfw.MOUSE_BUTTON_RIGHT))
-
-	ui.set_key_bit(.Control, cast(bool)glfw.GetKey(ctx.window, glfw.KEY_LEFT_CONTROL))
-	ui.set_key_bit(.Backspace, cast(bool)glfw.GetKey(ctx.window, glfw.KEY_BACKSPACE))
-}
-render :: proc() -> int {
+render :: proc(interface: ^backend.Platform_Renderer_Interface) -> int {
   gl.ClearColor(0.1, 0.1, 0.1, 1.0)
   gl.Clear(gl.COLOR_BUFFER_BIT)
 
-	width, height := glfw.GetFramebufferSize(ctx.window)
-  gl.Viewport(0, 0, width, height)
-
+  gl.Viewport(0, 0, interface.screen_size.x, interface.screen_size.y)
+	
 	gl.Enable(gl.BLEND)
 	gl.BlendEquation(gl.FUNC_ADD)
 	gl.BlendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
@@ -179,9 +170,9 @@ render :: proc() -> int {
 
   // Set projection matrix
   L: f32 = 0
-  R: f32 = L + f32(width)
+  R: f32 = L + f32(interface.screen_size.x)
   T: f32 = 0
-  B: f32 = T + f32(height)
+  B: f32 = T + f32(interface.screen_size.y)
   ortho_projection: linalg.Matrix4x4f32 = {
   	2.0/(R-L), 0.0,	0.0, -1.0,
   	0.0, 2.0/(T-B), 0.0, 1.0,
@@ -212,7 +203,7 @@ render :: proc() -> int {
 			draw := &ui.painter.draws[index]
 
 			if clip, ok := draw.clip.?; ok {
-				gl.Scissor(i32(clip.low.x), i32(-clip.low.y), i32(clip.high.x - clip.low.x), i32(-(clip.high.y - clip.low.y)))
+				gl.Scissor(i32(clip.low.x), i32(clip.low.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))
 			}
 			// Bind the texture for the draw call
 			gl.BindTexture(gl.TEXTURE_2D, u32(draw.texture))
@@ -234,10 +225,6 @@ render :: proc() -> int {
 	gl.BindVertexArray(0)
 	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
-	glfw.SwapBuffers(ctx.window)
 
 	return 0
-}
-poll_events :: proc() {
-	glfw.PollEvents()
 }
