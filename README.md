@@ -4,7 +4,7 @@ major WIP
 
 # design points
 - [x] made for the odin language (special support for odin types, integrates the odin core packages)
-- [x] renderer independant (draw anything with triangle, scissor and texture commands)
+- [x] renderer independant
 - [ ] blazingly fast
 - [ ] highly optimized (operation culling)
 - [x] looks kinda good
