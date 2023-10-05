@@ -155,7 +155,7 @@ format_bit_set :: proc(set: $S/bit_set[$E;$U], sep := " ") -> string {
 		if member not_in set {
 			continue
 		}
-		name := TextCapitalize(Format(member))
+		name := text_capitalize(format(member))
 		copy(buffer[size:size + len(name)], name[:])
 		size += len(name)
 		if count < max - 1 {
