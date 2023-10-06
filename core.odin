@@ -416,14 +416,6 @@ end_frame :: proc() {
 			
 		}
 	}
-	// Decide if rendering is needed next frame
-	if input.last_mouse_point != input.mouse_point || input.last_key_set != input.key_set|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
-		paint_next_frame = true
-	}
-	// Reset input bits
-	input.last_key_set = input.key_set
-	input.last_mouse_bits = input.mouse_bits
-	input.last_mouse_point = input.mouse_point
 	// End root layer
 	layer_agent_end_root(&layer_agent)
 	// Update layers
@@ -432,6 +424,14 @@ end_frame :: proc() {
 	widget_agent_step(&widget_agent)
 	// Update windows
 	window_agent_step(&window_agent)
+	// Decide if rendering is needed next frame
+	if input.last_mouse_point != input.mouse_point || input.last_key_set != input.key_set|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
+		paint_next_frame = true
+	}
+	// Reset input bits
+	input.last_key_set = input.key_set
+	input.last_mouse_bits = input.mouse_bits
+	input.last_mouse_point = input.mouse_point
 	// Update timings
 	painted_last_frame = paint_this_frame
 	frame_duration = time.since(frame_start_time)

@@ -92,6 +92,7 @@ _main :: proc() {
 
 		// End of ui calls
 		end_frame()
+		
 		// Update texture if necessary
 		if painter.atlas.should_update {
 			painter.atlas.should_update = false

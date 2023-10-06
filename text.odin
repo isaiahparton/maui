@@ -720,7 +720,6 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 		array := typing_agent_get_buffer(&core.typing_agent, self.id)
 		res := paint_interact_text(origin, self, &core.typing_agent, info.text_info, info.paint_info, {read_only = true}, get_color(.Text))
 		update_widget_hover(self, res.hovered)
-		paint_box_stroke(res.bounds, 1, {0, 255, 0, 255})
 
 		self.layer.content_box = update_bounding_box(self.layer.content_box, res.bounds)
 		if .Hovered in self.state {

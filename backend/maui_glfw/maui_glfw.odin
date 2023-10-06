@@ -33,7 +33,6 @@ init :: proc(width, height: int, title: string, api: backend.Render_API) -> bool
 	}
 	glfw.WindowHint(glfw.RESIZABLE, 1)
 
-
 	// Create temporary cstring
 	title_cstr := strings.clone_to_cstring(title)
 	defer delete(title_cstr)
@@ -54,22 +53,14 @@ init :: proc(width, height: int, title: string, api: backend.Render_API) -> bool
 	glfw.SetErrorCallback(glfw.ErrorProc(err_callback))
 
 	// Load cursors
-	/*for member in maui.Cursor_Type {
-		shape: i32 
-		#partial switch member {
-			case maui.Cursor_Type.Arrow: 				shape = glfw.ARROW_CURSOR
-			case maui.Cursor_Type.Hand: 				shape = glfw.HAND_CURSOR
-			case maui.Cursor_Type.Beam: 				shape = glfw.IBEAM_CURSOR
-			case maui.Cursor_Type.Disabled: 		shape = glfw.CURSOR_DISABLED
-			case maui.Cursor_Type.Crosshair: 		shape = glfw.CROSSHAIR_CURSOR
-			case maui.Cursor_Type.Resize_EW: 		shape = glfw.HRESIZE_CURSOR
-			case maui.Cursor_Type.Resize_NS: 		shape = glfw.VRESIZE_CURSOR
-			case maui.Cursor_Type.Resize_NESW: 	shape = glfw.RESIZE_NESW_CURSOR
-			case maui.Cursor_Type.Resize_NWSE: 	shape = glfw.RESIZE_NWSE_CURSOR
-			case maui.Cursor_Type.Default: 			shape = glfw.ARROW_CURSOR
-		}
-		platform.cursors[member] = glfw.CreateStandardCursor(shape)
-	}*/
+	platform.cursors[.Default] = glfw.CreateStandardCursor(glfw.ARROW_CURSOR)
+	platform.cursors[.Beam] = glfw.CreateStandardCursor(glfw.IBEAM_CURSOR)
+	platform.cursors[.Hand] = glfw.CreateStandardCursor(glfw.HAND_CURSOR)
+	platform.cursors[.Crosshair] = glfw.CreateStandardCursor(glfw.CROSSHAIR_CURSOR)
+	platform.cursors[.Resize_EW] = glfw.CreateStandardCursor(glfw.HRESIZE_CURSOR)
+	platform.cursors[.Resize_NS] = glfw.CreateStandardCursor(glfw.VRESIZE_CURSOR)
+	platform.cursors[.Resize_NESW] = glfw.CreateStandardCursor(glfw.RESIZE_NESW_CURSOR)
+	platform.cursors[.Resize_NWSE] = glfw.CreateStandardCursor(glfw.RESIZE_NWSE_CURSOR)
 
 	key_callback :: proc(window: glfw.WindowHandle, key, scancode, action, mods: i32) {
 		switch action {
@@ -95,6 +86,14 @@ init :: proc(width, height: int, title: string, api: backend.Render_API) -> bool
 
 	// Set up opengl
 	glfw.MakeContextCurrent(platform.window)
+
+	maui._get_clipboard_string = proc() -> string {
+		return string(glfw.GetClipboardString(platform.window))
+	}
+	maui._set_clipboard_string = proc(str: string) {
+		cstr := strings.clone_to_cstring(str)
+		glfw.SetClipboardString(platform.window, cstr)
+	}
 	
 	return true
 }
@@ -104,6 +103,12 @@ begin_frame :: proc() {
 	interface.screen_size = {width, height}
 	maui.core.size = {f32(width), f32(height)}
 	maui.core.current_time = glfw.GetTime()
+	if maui.core.cursor == .None {
+		glfw.SetInputMode(platform.window, glfw.CURSOR, glfw.CURSOR_HIDDEN)
+	} else {
+		glfw.SetInputMode(platform.window, glfw.CURSOR, glfw.CURSOR_NORMAL)
+		glfw.SetCursor(platform.window, platform.cursors[maui.core.cursor])
+	}
 	glfw.PollEvents()
 }
 

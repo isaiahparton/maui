@@ -360,10 +360,10 @@ Layer_Info :: struct {
 	shadow: Maybe(Layer_Shadow_Info),
 	// Optional options
 	options: Layer_Options,
+	// bruh
+	owner: Maybe(^Widget),
 	// Opacity
 	opacity: Maybe(f32),
-	// Owner widget
-	owner: Maybe(^Widget),
 	// If the layer auto extends
 	extend: Maybe(Box_Side),
 }

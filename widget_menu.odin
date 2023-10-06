@@ -89,12 +89,12 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 		// Begin the new layer
 		result.self, ok = begin_layer({
 			id = info.id.? or_else info.parent.(^Widget).id, 
-			box = box, 
-			owner = info.parent.(^Widget) or_else nil,
+			box = box,
 			layout_size = info.layout_size.? or_else {},
 			extend = info.extend,
 			options = info.layer_options,
 			opacity = info.opacity,
+			owner = info.parent.(^Widget) or_else nil,
 			shadow = Layer_Shadow_Info({
 				offset = SHADOW_OFFSET,
 			}),
