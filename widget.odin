@@ -16,6 +16,7 @@ import "core:slice"
 import "core:time"
 
 MAX_WIDGET_TIMERS :: 3
+DEFAULT_WIDGET_HOVER_TIME :: 0.075
 
 // General purpose booleans
 Widget_Bit :: enum {
@@ -125,6 +126,11 @@ widget_agent_create :: proc(using self: ^Widget_Agent, id: Id, layer: ^Layer) ->
 	layer.contents[id] = widget
 	core.paint_next_frame = true
 	ok = true
+
+	when ODIN_DEBUG {
+		fmt.printf("Created widget %i\n", id)
+	}
+
 	return
 }
 
@@ -157,6 +163,10 @@ widget_agent_step :: proc(using self: ^Widget_Agent) {
 		if .Stay_Alive in widget.bits {
 			widget.bits -= {.Stay_Alive}
 		} else {
+			when ODIN_DEBUG {
+				fmt.printf("Deleted widget %i\n", widget.id)
+			}
+			
 			for key, value in widget.layer.contents {
 				if key == widget.id {
 					delete_key(&widget.layer.contents, key)
@@ -671,7 +681,7 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 					paint_line(center + a, center + b, 2, get_color(.Text))
 					case .On: 
 					a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-					stroke_path({center + a, center + b, center + c}, false, 1, get_color(.Text))
+					stroke_path({center + a, center + b, center + c}, false, ICON_STROKE_THICKNESS, get_color(.Text))
 				}
 			}
 

@@ -48,46 +48,6 @@ _main :: proc() {
 
 		// UI calls
 		shrink(50)
-		placement.size = Exact(30)
-		if do_button({label = "BUTTON", style = .Filled}) {
-
-		}
-		space(Exact(20))
-		if do_layout(.Top, Exact(24)) {
-			placement.side = .Left; placement.size = Exact(200)
-			if do_menu({label = "menu", side = .Bottom}) {
-				placement.size = Exact(24)
-				do_option({label = "wow"})
-				do_option({label = "such option"})
-				do_option({label = "much choice"})
-				if do_submenu({label = "submenu bro", size = {220, 0}}) {
-					do_option({label = "another option bro"})
-					do_option({label = "yo! another"})
-					if do_submenu({label = "submenu bro", size = {220, 0}}) {
-						do_option({label = "another option bro"})
-						do_option({label = "yo! another"})
-					}
-				}
-			}
-		}
-		space(Exact(20))
-		if do_layout(.Top, Exact(24)) {
-			placement.side = .Left; placement.size = Exact(200)
-			if do_menu({label = "menu", side = .Bottom}) {
-				placement.size = Exact(24)
-				do_option({label = "wow"})
-				do_option({label = "such option"})
-				do_option({label = "much choice"})
-				if do_submenu({label = "submenu bro", size = {220, 0}}) {
-					do_option({label = "another option bro"})
-					do_option({label = "yo! another"})
-					if do_submenu({label = "submenu bro", size = {220, 0}}) {
-						do_option({label = "another option bro"})
-						do_option({label = "yo! another"})
-					}
-				}
-			}
-		}
 		do_text_demo(&text_demo)
 
 		// End of ui calls

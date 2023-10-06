@@ -188,6 +188,10 @@ layer_agent_step :: proc(using self: ^Layer_Agent) {
 				}
 			}
 		} else {
+			when ODIN_DEBUG {
+				fmt.printf("Deleted layer %i\n", layer.id)
+			}
+
 			delete_key(&pool, layer.id)
 			if layer.parent != nil {
 				for child, j in layer.parent.children {
@@ -276,6 +280,10 @@ layer_agent_create :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Opti
 	}
 	// Will sort layers this frame
 	should_sort = true
+
+	when ODIN_DEBUG {
+		fmt.printf("Created layer %i\n", id)
+	}
 
 	return
 }

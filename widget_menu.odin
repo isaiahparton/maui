@@ -169,22 +169,21 @@ Menu_Result :: struct {
 do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
 	if self, ok := do_widget(shared_id); ok {
-		using self
-		box = use_next_box() or_else layout_next(current_layout())
+		self.box = use_next_box() or_else layout_next(current_layout())
+		// Update state
 		update_widget(self)
 		// Animation
-		hover_time := animate_bool(&timers[0], .Hovered in state, 0.15)
-		open_time := animate_bool(&timers[1], .Menu_Open in bits, 0.15)
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
+		open_time := animate_bool(&self.timers[1], .Menu_Open in self.bits, 0.15)
 		// Painting
-		if .Should_Paint in bits {
-			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
-			paint_labeled_widget_frame(box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
-			paint_label_box(info.label, shrink_box_double(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
-			paint_arrow_flip({self.box.high.x - height(self.box) * 0.5, center_y(self.box)}, height(self.box) * 0.25, 0, 1, open_time, get_color(.Text))
+		if .Should_Paint in self.bits {
+			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
+			paint_labeled_widget_frame(self.box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
+			paint_label_box(info.label, shrink_box_double(self.box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
+			paint_arrow_flip({self.box.high.x - height(self.box) * 0.5, center_y(self.box)}, height(self.box) * 0.25, 0, ICON_STROKE_THICKNESS, open_time, get_color(.Text))
 		}
 		// Begin layer if expanded
-		result: Attached_Layer_Result
-		result, active = begin_attached_layer({
+		_, active = begin_attached_layer({
 			id = shared_id,
 			parent = self,
 			side = .Bottom,
@@ -194,14 +193,15 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			align = info.layer_align,
 			opacity = open_time,
 		})
+		// Push background color
 		if active {
 			push_color(.Base, get_color(.Widget_Back))
 		}
+		// Update hovered state
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }
-
 @private 
 _do_menu :: proc(active: bool) {
 	if active {
@@ -217,27 +217,27 @@ _do_menu :: proc(active: bool) {
 do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
 	if self, ok := do_widget(shared_id); ok {
-		using self
+		// Get box
 		self.box = use_next_box() or_else layout_next(current_layout())
-		// Animation
-		hover_time := animate_bool(&timers[0], .Hovered in state, 0.15)
-		open_time := animate_bool(&timers[1], .Menu_Open in bits, 0.15)
 		// Update
 		update_widget(self)
+		// Animation
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
+		open_time := animate_bool(&self.timers[1], .Menu_Open in self.bits, 0.15)
 		// Paint
-		if .Should_Paint in bits {
-			paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in state else hover_time * 0.1))
-			paint_label_box(info.label, shrink_box_double(box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
-			paint_arrow_flip({self.box.high.x - height(self.box) * 0.5, center_y(self.box)}, height(self.box) * 0.25, -0.5 * math.PI, 1, open_time, get_color(.Text))
+		if .Should_Paint in self.bits {
+			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
+			label_box := self.box
+			icon_box := cut_box_left(&label_box, height(label_box))
+			paint_label_box(info.label, label_box, get_color(.Text), .Left, .Middle)
+			paint_arrow_flip({self.box.high.x - height(self.box) * 0.5, center_y(self.box)}, height(self.box) * 0.25, -0.5 * math.PI, ICON_STROKE_THICKNESS, open_time, get_color(.Text))
 		}
-		side := info.side.? or_else .Right
 		// Begin layer
-		result: Attached_Layer_Result
-		result, active = begin_attached_layer({
+		_, active = begin_attached_layer({
 			id = shared_id,
 			mode = .Hover,
 			parent = self,
-			side = side,
+			side = info.side.? or_else .Right,
 			size = info.size,
 			layout_size = info.layout_size,
 			extend = .Bottom,
@@ -245,14 +245,15 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			layer_options = {.Attached},
 			opacity = open_time,
 		})
+		// Push background color
 		if active {
 			push_color(.Base, get_color(.Widget_Back))
 		}
+		// Update hover state with own box
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }
-
 @private
 _do_submenu :: proc(active: bool) {
 	if active {
@@ -274,16 +275,23 @@ Option_Info :: struct {
 do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := do_widget(hash(loc)); ok {
 		self.box = use_next_box() or_else layout_next(current_layout())
-		// Animation
-		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 		update_widget(self)
+		// Animation
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
 		// Painting
 		if .Should_Paint in self.bits {
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
-			paint_label_box(info.label, shrink_box_double(self.box, {height(self.box) * 0.25, 0}), get_color(.Text), .Left, .Middle)
-			if info.active {
+			label_box := self.box
+			icon_box := cut_box_left(&label_box, height(label_box))
+			if info.active || true {
 				// Paint check mark
+				center := box_center(icon_box)
+				scale: f32 = 5.5
+				a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
+				stroke_path({center + a, center + b, center + c}, false, ICON_STROKE_THICKNESS, get_color(.Text))
 			}
+			// Paint label
+			paint_label_box(info.label, label_box, get_color(.Text), .Left, .Middle)
 		}
 		// Dismiss the root menu
 		if widget_clicked(self, .Left) {

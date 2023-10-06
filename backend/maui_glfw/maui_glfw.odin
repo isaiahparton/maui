@@ -64,8 +64,8 @@ init :: proc(width, height: int, title: string, api: backend.Render_API) -> bool
 
 	key_callback :: proc(window: glfw.WindowHandle, key, scancode, action, mods: i32) {
 		switch action {
-			case glfw.PRESS: maui.input.key_set[scancode] = true
-			case glfw.RELEASE: maui.input.key_set[scancode] = false
+			case glfw.PRESS, glfw.REPEAT: maui.input.key_set[key] = true
+			case glfw.RELEASE: maui.input.key_set[key] = false
 		}
 	}
 	glfw.SetKeyCallback(platform.window, glfw.KeyProc(key_callback))

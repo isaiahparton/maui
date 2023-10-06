@@ -62,7 +62,7 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			text = string(type[:])
 		}
 		// Do text interaction
-		paint_interact_text(
+		interact_res := paint_interact_text(
 			{self.box.low.x + WIDGET_TEXT_OFFSET, (self.box.low.y + self.box.high.y) / 2}, 
 			self,
 			&core.typing_agent, 

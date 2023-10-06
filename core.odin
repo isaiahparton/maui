@@ -1,23 +1,21 @@
 /*
-	Maui 1.0
+	Maui is an immediate mode gui library, but that doesn't mean we can't have retained helper structs
 
 	TODO:
 		[x] Nice shiny global variables for placement instead of yucky set functions
 		[x] Move animations to widget struct (duh)
 		[X] Customizable fonts (default themes provides default fonts)
-		[X] Implement new texture atlas system 4096x4096
+		[X] Implement new texture atlas system
 		[X] Figure out if dynamic fonts are feasable
 			[X] Implement dynamic font loading
-				* Painting text will query the painter for that text size, if it does not exist
-				the painter will render it and update the texture (might require updating the whole texture (not good))
-				* Will require usage of 'stb_truetype' (which 'raylib' uses anyways)
-				* How does 'egui' do it?
+			[ ] Or Don't
 		[ ] Cached text painting
 			* Save commands and just copy them when needed
 		[X] Remove animation map
 		[X] Widget code takes on a more flexible form: assert->layout->update->paint->result
 		[ ] Lazy resizing for label fitting widgets
 		[ ] Clipped loader painting proc for cool loading animation on buttons
+		[ ] Implement measures to reduce the need for constant text formatting
 */
 
 package maui
