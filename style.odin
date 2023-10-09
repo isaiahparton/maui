@@ -15,7 +15,7 @@ DISABLED_SHADE_ALPHA :: 0.5
 
 ICON_STROKE_THICKNESS :: 0.5
 
-WIDGET_TEXT_OFFSET :: 8
+WIDGET_TEXT_OFFSET :: 6
 WIDGET_TEXT_MARGIN :: 2
 
 // Default color schemes
@@ -137,6 +137,7 @@ Style :: struct {
 	button_font_size,
 	title_font_size,
 	monospace_font_size: f32,
+	widget_rounding: f32,
 
 	text_box_padding: f32,
 

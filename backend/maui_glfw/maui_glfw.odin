@@ -63,12 +63,14 @@ init :: proc(width, height: int, title: string, api: backend.Render_API) -> bool
 	platform.cursors[.Resize_NWSE] = glfw.CreateStandardCursor(glfw.RESIZE_NWSE_CURSOR)
 
 	key_callback :: proc(window: glfw.WindowHandle, key, scancode, action, mods: i32) {
-		switch action {
-			case glfw.PRESS, glfw.REPEAT: 
-			maui.input.key_set[key] = true
-			
-			case glfw.RELEASE: 
-			maui.input.key_set[key] = false
+		if key >= 0 {
+			switch action {
+				case glfw.PRESS, glfw.REPEAT: 
+				maui.input.key_set[key] = true
+				
+				case glfw.RELEASE: 
+				maui.input.key_set[key] = false
+			}
 		}
 	}
 	glfw.SetKeyCallback(platform.window, glfw.KeyProc(key_callback))

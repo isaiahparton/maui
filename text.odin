@@ -133,6 +133,10 @@ FMT_BUFFER_SIZE 		:: 256
 @private fmt_buffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
 @private fmt_buffer_index: u8
 
+get_tmp_buffer :: proc() -> []u8 {
+	defer	fmt_buffer_index = (fmt_buffer_index + 1) % FMT_BUFFER_COUNT
+	return fmt_buffers[fmt_buffer_index][:]
+}
 tmp_print :: proc(args: ..any) -> string {
 	str := fmt.bprint(fmt_buffers[fmt_buffer_index][:], ..args)
 	fmt_buffer_index = (fmt_buffer_index + 1) % FMT_BUFFER_COUNT
@@ -592,7 +596,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		// Determine hovered line
 		line_height := it.size.ascent - it.size.descent + it.size.line_gap
 		line_count := int(math.floor(size.y / line_height))
-		hovered_line := clamp(int((input.mouse_point.y - origin.y) / line_height), 0, line_count)
+		hovered_line := clamp(int((input.mouse_point.y - origin.y) / line_height), 0, line_count - 1)
 
 		min_dist: f32 = math.F32_MAX
 		line: int
@@ -606,23 +610,16 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 			if !iterate_text(&it, text_info) {
 				at_end = true
 			}
-			// Update hovered index
-			if it.glyph != nil && hovered_line == line {
-				dist1 := math.abs((origin.x + it.offset.x) - input.mouse_point.x)
-				if dist1 < min_dist {
-					min_dist = dist1
-					hover_index = it.index
-				}
-				if it.new_line || it.next_index >= len(text_info.text) {
-					dist2 := math.abs((origin.x + it.offset.x + it.glyph.advance) - input.mouse_point.x)
-					if dist2 < min_dist {
-						min_dist = dist2
-						hover_index = it.next_index
-					}
-				}
-			}
 			// Get hovered state
 			if it.new_line || at_end {
+				if it.glyph != nil && hovered_line == line {
+					// Left side of glyph
+					dist1 := math.abs((origin.x + it.offset.x) - input.mouse_point.x)
+					if dist1 < min_dist {
+						min_dist = dist1
+						hover_index = it.index
+					}
+				}
 				line += 1
 				// Check for hover
 				line_box: Box = {low = origin + last_line}
@@ -634,8 +631,37 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 				update_text_iterator_offset(&it, text_info, text_paint_info)
 				last_line = it.offset
 			}
+			// Update hovered index
+			if it.glyph != nil && hovered_line == line {
+				// Left side of glyph
+				dist1 := math.abs((origin.x + it.offset.x) - input.mouse_point.x)
+				if dist1 < min_dist {
+					min_dist = dist1
+					hover_index = it.index
+				}
+				if it.new_line || it.next_index >= len(text_info.text) {
+					// Right side of glyph
+					dist2 := math.abs((origin.x + it.offset.x + it.glyph.advance) - input.mouse_point.x)
+					if dist2 < min_dist {
+						min_dist = dist2
+						hover_index = it.next_index
+					}
+				}
+			}
 			// Get the glyph point
 			point := origin + {it.offset.x, it.offset.y}
+			// Paint the glyph
+			if it.glyph != nil {
+				// Paint the glyph
+				dst: Box = {low = point + it.glyph.offset}
+				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
+				res.bounds.high = linalg.max(res.bounds.high, dst.high)
+				if clip, ok := text_paint_info.clip.?; ok {
+					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, color)
+				} else {
+					paint_textured_box(painter.atlas.texture, it.glyph.src, dst, color)
+				}
+			}
 			// Paint cursor/selection
 			if .Focused in widget.state {
 				if agent.length == 0 && !interact_info.read_only {
@@ -659,22 +685,16 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 					paint_box_fill(box, get_color(.Text_Highlight, 0.5))
 				}
 			}
-			// Paint the glyph
-			if it.glyph != nil {
-				// Paint the glyph
-				dst: Box = {low = point + it.glyph.offset}
-				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
-				res.bounds.high = linalg.max(res.bounds.high, dst.high)
-				if clip, ok := text_paint_info.clip.?; ok {
-					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, color)
-				} else {
-					paint_textured_box(painter.atlas.texture, it.glyph.src, dst, color)
-				}
-			}
 
 			if at_end {
 				break
 			}
+		}
+	}
+	// Copy
+	if .Focused in widget.state {
+		if (key_pressed(.C) && (key_down(.Left_Control) || key_down(.Right_Control))) && agent.length > 0 {
+			set_clipboard_string(text_info.text[agent.index:agent.length])
 		}
 	}
 	// Update selection
@@ -733,275 +753,3 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 		}
 	}
 }
-
-// Text that can be interacted with
-//TODO: Re-implement
-/*
-do_interactable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result: Selectable_Text_Result) {
-	assert(widget != nil)
-	result.view_offset = info.view_offset
-	// Alias scribe state
-	state := &core.typing_agent
-	// Should paint?
-	should_paint := .Should_Paint in widget.bits && .No_Paint not_in info.bits
-	// For calculating hovered glyph
-	hover_index := 0
-	min_dist: f32 = math.F32_MAX
-	// Determine text origin
-	origin: [2]f32 = {info.box.x, info.box.y}
-	// Get text size if necessary
-	text_size: [2]f32
-	if info.align.x != .Near || info.align.y != .Near {
-		
-	}
-	// Handle alignment
-	switch info.align.x {
-		case .Near: origin.x += info.padding.x
-		case .Middle: origin.x += info.box.w / 2 - text_size.x / 2
-		case .Far: origin.x += info.box.w - text_size.x - info.padding.x
-	}
-	switch info.align.y {
-		case .Near: origin.y += info.padding.y
-		case .Middle: origin.y += info.box.h / 2 - text_size.y / 2
-		case .Far: origin.y += info.box.h - text_size.y - info.padding.y
-	}
-	// Offset view when currently focused
-	if .Got_Focus not_in widget.state {
-		origin -= info.view_offset
-	}
-	point := origin
-	// Total text size
-	size: [2]f32
-	// Cursor start and end position
-	cursor_low: [2]f32 = 3.40282347E+38
-	cursor_high: [2]f32
-	// Reset view offset when just focused
-	if .Got_Focus in widget.state {
-		result.view_offset = {}
-	}
-	if .Focused in widget.state {
-		// Content copy
-		if key_down(.Control) {
-			if key_pressed(.C) {
-				if state.length > 0 {
-					set_clipboard_string(string(info.data[state.index:][:state.length]))
-				} else {
-					set_clipboard_string(string(info.data[:]))
-				}
-			}
-		}
-	}
-	// Draw chippies
-	if core.chips.height > 0 {
-		if do_layout_box(move_box(info.box, -info.view_offset)) {
-			placement.side = .Left; placement.margin = {.Left = Exact(5), .Top = Exact(5), .Bottom = Exact(5), .Right = Exact(0)}
-			for i in 0..<core.chips.height {
-				push_id(i)
-					if do_chip({
-						text = core.chips.items[i].text,
-						clamp_box = info.box,
-					}) {
-						core.chips.items[i].clicked = true
-					}
-				pop_id()
-			}
-			point.x += info.box.w - current_layout().box.w - 5
-		}
-	}
-	// Iterate over the bytes
-	for index := 0; index <= len(info.data); {
-		// Decode the next glyph
-		bytes := 1
-		glyph: rune
-		if index < len(info.data) {
-			glyph, bytes = utf8.decode_rune_in_bytes(info.data[index:])
-		}
-		// Password placeholder glyph
-		if .Password in info.bits {
-			glyph = '•'
-		}
-		is_tab := glyph == '\t'
-		// Get glyph data
-		glyph_data := get_glyph_data(info.font_data, 32 if is_tab else glyph)
-		glyph_width := glyph_data.advance + GLYPH_SPACING
-		if is_tab {
-			TAB_SPACES :: 3
-			glyph_width *= TAB_SPACES
-		}
-		highlight := false
-		// Draw cursors
-		if should_paint && .Focused in widget.state && .Got_Focus not_in widget.state {
-			// Draw cursor/selection if allowed
-			if state.length == 0 {
-				if state.index == index && point.x >= info.box.x && point.x < info.box.x + info.box.w {
-					// Bar cursor
-					cursor_point := linalg.floor(point)
-					cursor_point.y = max(cursor_point.y, info.box.y)
-					paint_box_fill(
-						box = clamp_box({
-							cursor_point.x, 
-							cursor_point.y, 
-							1, 
-							info.font_data.size,
-						}, info.box), 
-						color = get_color(.Text),
-						)
-				}
-			} else if index >= state.index && index < state.index + state.length {
-				// Selection
-				cursor_point := linalg.floor(point)
-				paint_box_fill(
-					box = clamp_box({
-						cursor_point.x, 
-						cursor_point.y, 
-						glyph_width,
-						info.font_data.size,
-					}, info.box), 
-					color = get_color(.Text),
-					)
-				highlight = true
-			}
-		}
-		// Decide the hovered glyph
-		glyph_point := point + {0, info.font_data.size / 2}
-		dist := linalg.length(glyph_point - input.mouse_point)
-		if dist < min_dist {
-			min_dist = dist
-			hover_index = index
-		}
-		if .Focused in widget.state {
-			if index == state.index {
-				cursor_low = point - origin
-			}
-			if index == state.index + state.length {
-				cursor_high = (point + {0, info.font_data.size}) - origin
-			}
-		}
-		// Anything past here requires a valid glyph
-		if index == len(info.data) {
-			break
-		}
-		// Draw the glyph
-		if glyph == '\n' {
-			point.x = origin.x
-			point.y += info.font_data.size
-			size.y += info.font_data.size
-			result.line_count += 1
-		} else if should_paint && glyph != '\t' && glyph != ' ' {
-			paint_clipped_glyph(glyph_data, point, info.box, get_color(.Text_Inverted if highlight else .Text, 1))
-		}
-		// Finished, move index and point
-		point.x += glyph_width
-		size.x = max(size.x, point.x - origin.x)
-		index += bytes
-	}
-	// Handle initial text selection
-	if .Select_All in info.bits {
-		if .Got_Focus in widget.state {
-			state.index = 0
-			state.anchor = 0
-			state.length = len(info.data)
-		}
-	}
-	// Text selection by clicking
-	if .Got_Press in widget.state {
-		if widget.click_count == 1 {
-			// Select the hovered word
-			// Move index to the beginning of the hovered word
-			for i := min(state.index, len(info.data) - 1); ; i -= 1 {
-				if i == 0 {
-					state.index = 0
-					break
-				} else if is_seperator(info.data[i]) {
-					state.index = i + 1
-					break
-				}
-			}
-			// Find length of the word
-			for j := state.index + 1; ; j += 1 {
-				if j >= len(info.data) - 1 {
-					state.length = len(info.data) - state.index
-					break
-				} else if is_seperator(info.data[j]) {
-					state.length = j - state.index
-					break
-				}
-			}
-		} else if widget.click_count == 2 {
-			// Select everything
-			state.index = 0
-			state.anchor = 0
-			state.length = len(info.data)
-		} else {
-			// Normal select
-			state.index = hover_index
-			state.anchor = hover_index
-			state.length = 0
-		}
-	}
-	// Get desired bounds for cursor
-	inner_size: [2]f32 = {info.box.w, info.box.h} - info.padding * 2
-	// View offset
-	if widget.state >= {.Pressed} && widget.click_count == 0 {
-		// Selection by dragging
-		if hover_index < state.anchor {
-			state.index = hover_index
-			state.length = state.anchor - hover_index
-		} else {
-			state.index = state.anchor
-			state.length = hover_index - state.anchor
-		}
-		// Offset view by dragging
-		DRAG_SPEED :: 15
-		if size.x > info.box.w {
-			if input.mouse_point.x < info.box.x {
-				result.view_offset.x -= (info.box.x - input.mouse_point.x) * DRAG_SPEED * core.delta_time
-			} else if input.mouse_point.x > info.box.x + info.box.w {
-				result.view_offset.x += (input.mouse_point.x - (info.box.x + info.box.w)) * DRAG_SPEED * core.delta_time
-			}
-		}
-		if size.y > info.box.h && result.line_count > 0 {
-			if input.mouse_point.y < info.box.y {
-				result.view_offset.y -= (info.box.y - input.mouse_point.y) * DRAG_SPEED * core.delta_time
-			} else if input.mouse_point.y > info.box.y + info.box.h {
-				result.view_offset.y += (input.mouse_point.y - (info.box.y + info.box.h)) * DRAG_SPEED * core.delta_time
-			}
-		}
-		core.paint_next_frame = true
-	} else if .Focused in widget.state && .Lost_Press not_in widget.state {
-		// Handle view offset
-		if state.index != state.last_index || state.length != state.last_length {
-			if cursor_low.x < result.view_offset.x {
-				result.view_offset.x = cursor_low.x
-			}
-			if cursor_low.y < result.view_offset.y {
-				result.view_offset.y = cursor_low.y
-			}
-			if cursor_high.x > result.view_offset.x + inner_size.x {
-				result.view_offset.x = cursor_high.x - inner_size.x
-			}
-			if cursor_high.y + info.font_data.size > result.view_offset.y + inner_size.y {
-				result.view_offset.y = (cursor_high.y + info.font_data.size) - inner_size.y
-			}
-		}
-		state.index = clamp(state.index, 0, len(info.data))
-		state.length = clamp(state.length, 0, len(info.data) - state.index)
-		state.last_index = state.index
-		state.last_length = state.length
-	}
-	// Clamp view offset
-	if size.x >= inner_size.x {
-		result.view_offset.x = clamp(result.view_offset.x, 0, (size.x - info.box.w) + info.padding.x * 2)
-	} else {
-		result.view_offset.x = 0
-	}
-	if size.y >= inner_size.y {
-		result.view_offset.y = clamp(result.view_offset.y, 0, (size.y - info.box.h) + info.padding.y * 2 + info.font_data.size)
-	} else {
-		result.view_offset.y = 0
-	}
-	result.text_size = size
-	result.font_data = info.font_data
-	return
-}
-*/

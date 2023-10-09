@@ -46,7 +46,7 @@ center_y :: proc(box: Box) -> f32 {
 
 // If `a` is inside of `b`
 point_in_box :: proc(a: [2]f32, b: Box) -> bool {
-	return (a.x >= b.low.x) && (a.x <= b.high.x) && (a.y >= b.low.y) && (a.y <= b.high.y)
+	return (a.x >= b.low.x) && (a.x < b.high.x) && (a.y >= b.low.y) && (a.y < b.high.y)
 }
 
 // If `a` is touching `b`

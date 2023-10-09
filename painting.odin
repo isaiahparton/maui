@@ -80,7 +80,7 @@ Vertex :: struct {
 	color: [4]u8,
 }
 
-DRAW_SIZE :: 16192
+DRAW_SIZE :: 48000
 // A draw command
 Draw :: struct {
 	clip: Maybe(Box),
@@ -177,7 +177,7 @@ atlas_reset :: proc(using self: ^Atlas) -> bool {
 	image.data[2] = 255
 	image.data[3] = 255
 
-	cursor = {1, 0}
+	cursor = {1, 1}
 	if texture == {} {
 		texture = load_texture(image) or_return
 	} else {
