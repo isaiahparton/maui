@@ -177,7 +177,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		open_time := animate_bool(&self.timers[1], .Menu_Open in self.bits, 0.15)
 		// Painting
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
+			paint_rounded_box_fill(self.box, 5, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 			paint_labeled_widget_frame(self.box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
 			paint_label_box(info.label, shrink_box_double(self.box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
 			paint_arrow_flip({self.box.high.x - height(self.box) * 0.5, center_y(self.box)}, height(self.box) * 0.25, 0, ICON_STROKE_THICKNESS, open_time, get_color(.Text))

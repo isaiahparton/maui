@@ -64,11 +64,20 @@ init :: proc(width, height: int, title: string, api: backend.Render_API) -> bool
 
 	key_callback :: proc(window: glfw.WindowHandle, key, scancode, action, mods: i32) {
 		switch action {
-			case glfw.PRESS, glfw.REPEAT: maui.input.key_set[key] = true
-			case glfw.RELEASE: maui.input.key_set[key] = false
+			case glfw.PRESS, glfw.REPEAT: 
+			maui.input.key_set[key] = true
+			
+			case glfw.RELEASE: 
+			maui.input.key_set[key] = false
 		}
 	}
 	glfw.SetKeyCallback(platform.window, glfw.KeyProc(key_callback))
+
+	char_callback :: proc(window: glfw.WindowHandle, char: i32) {
+		maui.input.runes[maui.input.rune_count] = rune(char)
+		maui.input.rune_count += 1
+	}
+	glfw.SetCharCallback(platform.window, glfw.CharProc(char_callback))
 
 	cursor_proc :: proc(window: glfw.WindowHandle, _, _: i32) {
 		x, y := glfw.GetCursorPos(window)

@@ -52,7 +52,6 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 		}
 		// Paint!
 		paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.1))
-
 		// Get data source
 		text: string
 		switch type in info.data {
@@ -71,12 +70,13 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 			{},
 			get_color(.Text),
 		)
-
+		// Focused state
 		if .Focused in self.state {
 			change = typing_agent_edit(&core.typing_agent, {
 				array = buffer,
 				bits = {},
 			})
+			// What to do if change occoured
 			if change {
 				self.state += {.Changed}
 				core.paint_next_frame = true
@@ -86,39 +86,8 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 				}
 			}
 		}
-
-		// Set text offset
-		//TODO: Re-implement
-		/*
-		select_result := selectable_text(self, {
-			font_data = font_data, 
-			data = data_slice, 
-			box = box, 
-			padding = padding,
-			view_offset = core.typing_agent.view_offset if .Focused in state else {},
-			bits = text_bits,
-		})
-		if .Focused in state {
-			core.typing_agent.view_offset = select_result.view_offset
-			change = typing_agent_edit(&core.typing_agent, {
-				array = buffer,
-				bits = info.edit_bits,
-				select_result = select_result,
-			})
-			if change {
-				state += {.Changed}
-				core.paint_next_frame = true
-				if value, ok := info.data.(^string); ok {
-					delete(value^)
-					value^ = strings.clone_from_bytes(buffer[:])
-				}
-			}
-		}
-		*/
-
 		// Widget decoration
 		if .Should_Paint in self.bits {
-
 			// Widget decor
 			stroke_color := get_color(.Widget_Stroke, 1.0 if .Focused in self.state else (0.5 + 0.5 * hover_time))
 			paint_labeled_widget_frame(
@@ -128,7 +97,6 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 				thickness = 2, 
 				color = stroke_color,
 				)
-
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
@@ -140,14 +108,13 @@ do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change
 						)
 				}
 			}
-
 		}
+		// Update hover before
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+		// Only for content clipping of title (not very elegant)
 		if info.title != nil {
 			self.box.low.y -= 10
 		}
-
-		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
-
 	}
 	return
 }

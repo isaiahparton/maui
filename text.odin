@@ -678,9 +678,10 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		}
 	}
 	// Update selection
-	if mouse_pressed(.Left) {
+	if .Got_Press in widget.state {
 		agent.index = hover_index
 		agent.anchor = hover_index
+		agent.length = 0
 	}
 	// Dragging
 	if .Pressed in widget.state && widget.click_count == 0 {

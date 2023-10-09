@@ -266,17 +266,17 @@ painter: ^Painter
 
 style_default_fonts :: proc(style: ^Style) -> bool {
 	// Load the fonts
-	main_font := load_font(&painter.atlas, "fonts/Oxanium-Regular.ttf") or_return
+	main_font := load_font(&painter.atlas, "fonts/IBMPlexSans-Regular.ttf") or_return
 	monospace_font := load_font(&painter.atlas, "fonts/Inconsolata_Condensed-SemiBold.ttf") or_return
 	// Assign their handles and sizes
-	style.button_font = load_font(&painter.atlas, "fonts/Oxanium-Regular.ttf") or_return
-	style.button_font_size = 18
+	style.button_font = load_font(&painter.atlas, "fonts/IBMPlexSans-Regular.ttf") or_return
+	style.button_font_size = 20
 	style.default_font = main_font
-	style.default_font_size = 18
+	style.default_font_size = 20
 	style.title_font = main_font
-	style.title_font_size = 12
+	style.title_font_size = 14
 	style.monospace_font = monospace_font
-	style.monospace_font_size = 18
+	style.monospace_font_size = 20
 	return true
 }
 painter_init :: proc() -> bool {

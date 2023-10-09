@@ -427,6 +427,7 @@ end_frame :: proc() {
 		paint_next_frame = true
 	}
 	// Reset input bits
+	input.rune_count = 0
 	input.last_key_set = input.key_set
 	input.last_mouse_bits = input.mouse_bits
 	input.last_mouse_point = input.mouse_point
