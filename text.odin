@@ -601,7 +601,7 @@ selectable_text :: proc(widget: ^Widget, info: Selectable_Text_Info) -> (result:
 			// Select the hovered word
 			// Move index to the beginning of the hovered word
 			for i := min(state.index, len(info.data) - 1); ; i -= 1 {
-				if i == 0 {
+				if i <= 0 {
 					state.index = 0
 					break
 				} else if is_seperator(info.data[i]) {
