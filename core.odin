@@ -44,7 +44,7 @@ LAYER_ARENA_SIZE 		:: 128
 LAYER_STACK_SIZE 		:: #config(MAUI_LAYER_STACK_SIZE, 32)
 WINDOW_STACK_SIZE 	:: #config(MAUI_WINDOW_STACK_SIZE, 32)
 // Size of each layer's command buffer
-COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 256 * 1024)
+COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 512 * 1024)
 // Size of id stack (times you can call push_id())
 ID_STACK_SIZE 			:: 32
 // Repeating key press
