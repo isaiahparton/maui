@@ -169,8 +169,11 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		if .Numeric in info.bits {
 			for i in 0 ..< input.rune_count {
 				glyph := int(input.runes[i])
+				if (glyph == 44) {
+					glyph = 46
+				}
 				if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .Integer not_in info.bits) {
-					typing_agent_insert_runes(self, info.array, info.capacity, input.runes[i:i + 1])
+					typing_agent_insert_runes(self, info.array, info.capacity, {rune(glyph)})
 					change = true
 				}
 			}
