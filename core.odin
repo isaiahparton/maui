@@ -158,6 +158,7 @@ Core :: struct {
 	paint_next_frame: bool,
 
 	// Uh
+	last_size,
 	size: [2]f32,
 	last_box, fullscreen_box: Box,
 
@@ -352,6 +353,8 @@ begin_frame :: proc() {
 
 	// Begin root layer
 	assert(layer_agent_begin_root(&layer_agent))
+	// Begin root layout
+	push_layout({{}, size})
 
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
@@ -414,6 +417,8 @@ end_frame :: proc() {
 			
 		}
 	}
+	// End root layout
+	pop_layout()
 	// End root layer
 	layer_agent_end_root(&layer_agent)
 	// Update layers
@@ -425,6 +430,10 @@ end_frame :: proc() {
 	// Decide if rendering is needed next frame
 	if input.last_mouse_point != input.mouse_point || input.last_key_set != input.key_set|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
 		paint_next_frame = true
+	}
+	if size != last_size {
+		paint_next_frame = true
+		last_size = size
 	}
 	// Reset input bits
 	input.rune_count = 0

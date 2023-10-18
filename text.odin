@@ -335,9 +335,7 @@ iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
 		if ( it.line_limit != nil && it.line_size.x + space >= it.line_limit.? ) {
 			if info.wrap == .None {
 				it.index = it.next_index
-		it.glyph = nil
-		it.codepoint = 0
-		it.offset.y += it.size.ascent - it.size.descent
+				it.offset.y += it.size.ascent - it.size.descent
 				return false
 			} else {
 				new_line = true
@@ -574,7 +572,8 @@ Text_Interact_Info :: struct {
 
 Text_Interact_Result :: struct {
 	hovered: bool,
-	bounds: Box,
+	bounds,
+	selection_bounds: Box,
 }
 
 paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agent, text_info: Text_Info, text_paint_info: Text_Paint_Info, interact_info: Text_Interact_Info, color: Color) -> (res: Text_Interact_Result) {
@@ -583,6 +582,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 
 	size := measure_text(text_info)
 	origin := origin
+	res.selection_bounds.low = core.size
 
 	// Apply baseline if needed
 	#partial switch text_paint_info.baseline {
@@ -596,8 +596,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		// Determine hovered line
 		line_height := it.size.ascent - it.size.descent + it.size.line_gap
 		line_count := int(math.floor(size.y / line_height))
-		hovered_line := clamp(int((input.mouse_point.y - origin.y) / line_height), 0, line_count - 1)
-
+		hovered_line := clamp(int((input.mouse_point.y - origin.y) / line_height), 0, line_count)
 		min_dist: f32 = math.F32_MAX
 		line: int
 		// Get line offset
@@ -628,8 +627,10 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 				if point_in_box(input.mouse_point, line_box) {
 					res.hovered = true
 				}
-				update_text_iterator_offset(&it, text_info, text_paint_info)
-				last_line = it.offset
+				if !at_end {
+					update_text_iterator_offset(&it, text_info, text_paint_info)
+					last_line = it.offset
+				}
 			}
 			// Update hovered index
 			if it.glyph != nil && hovered_line == line {
@@ -649,7 +650,34 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 				}
 			}
 			// Get the glyph point
-			point := origin + {it.offset.x, it.offset.y}
+			point := origin + {it.offset.x, last_line.y}
+			// Paint cursor/selection
+			if .Focused in widget.state {
+				if agent.length == 0 && !interact_info.read_only {
+					if agent.index == it.index {
+						// Bar cursor
+						box: Box = {{point.x - 1, point.y}, {point.x + 1, point.y + it.size.ascent - it.size.descent}}
+						res.selection_bounds.low = linalg.min(res.selection_bounds.low, box.low)
+						res.selection_bounds.high = linalg.max(res.selection_bounds.high, box.high)
+						if clip, ok := text_paint_info.clip.?; ok {
+							box = clamp_box(box, clip)
+						}
+						paint_box_fill(box, get_color(.Text_Highlight))
+					}
+				} else if it.glyph != nil && it.index >= agent.index && it.index < agent.index + agent.length {
+					// Selection
+					box: Box = {point, {point.x + it.glyph.advance, point.y + it.size.ascent - it.size.descent}}
+					res.selection_bounds.low = linalg.min(res.selection_bounds.low, box.low)
+					res.selection_bounds.high = linalg.max(res.selection_bounds.high, box.high)
+					if line < line_count {
+						box.high.y += it.size.line_gap
+					}
+					if clip, ok := text_paint_info.clip.?; ok {
+						box = clamp_box(box, clip)
+					}
+					paint_box_fill(box, get_color(.Text_Highlight, 0.5))
+				}
+			}
 			// Paint the glyph
 			if it.glyph != nil {
 				// Paint the glyph
@@ -662,29 +690,6 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 					paint_textured_box(painter.atlas.texture, it.glyph.src, dst, color)
 				}
 			}
-			// Paint cursor/selection
-			if .Focused in widget.state {
-				if agent.length == 0 && !interact_info.read_only {
-					if agent.index == it.index {
-						// Bar cursor
-						box: Box = {{point.x - 1, point.y}, {point.x + 1, point.y + it.size.ascent - it.size.descent}}
-						if clip, ok := text_paint_info.clip.?; ok {
-							box = clamp_box(box, clip)
-						}
-						paint_box_fill(box, get_color(.Text_Highlight))
-					}
-				} else if it.glyph != nil && it.index >= agent.index && it.index < agent.index + agent.length {
-					// Selection
-					box: Box = {point, {point.x + it.glyph.advance, point.y + it.size.ascent - it.size.descent}}
-					if line < line_count {
-						box.high.y += it.size.line_gap
-					}
-					if clip, ok := text_paint_info.clip.?; ok {
-						box = clamp_box(box, clip)
-					}
-					paint_box_fill(box, get_color(.Text_Highlight, 0.5))
-				}
-			}
 
 			if at_end {
 				break
@@ -694,7 +699,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 	// Copy
 	if .Focused in widget.state {
 		if (key_pressed(.C) && (key_down(.Left_Control) || key_down(.Right_Control))) && agent.length > 0 {
-			set_clipboard_string(text_info.text[agent.index:agent.length])
+			set_clipboard_string(text_info.text[agent.index:][:agent.length])
 		}
 	}
 	// Update selection
@@ -738,7 +743,7 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 			case .Near: origin.y = self.box.low.y
 		}
 
-		array := typing_agent_get_buffer(&core.typing_agent, self.id)
+		// array := typing_agent_get_buffer(&core.typing_agent, self.id)
 		res := paint_interact_text(origin, self, &core.typing_agent, info.text_info, info.paint_info, {read_only = true}, get_color(.Text))
 		update_widget_hover(self, res.hovered)
 
@@ -746,10 +751,10 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 		if .Hovered in self.state {
 			core.cursor = .Beam
 		}
-		if .Focused in self.state {
-			typing_agent_edit(&core.typing_agent, {
-				array = array,
-			})
-		}
+		// if .Focused in self.state {
+		// 	typing_agent_edit(&core.typing_agent, {
+		// 		array = array,
+		// 	})
+		// }
 	}
 }

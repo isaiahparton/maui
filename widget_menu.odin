@@ -18,8 +18,6 @@ Attached_Layer_Info :: struct {
 	mode: Attached_Layer_Mode,
 	parent: Attached_Layer_Parent,
 	size: [2]f32,
-	layout_size: Maybe([2]f32),
-	extend: Maybe(Box_Side),
 	side: Maybe(Box_Side),
 	align: Maybe(Alignment),
 	fill_color: Maybe(Color),
@@ -91,7 +89,6 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 			id = info.id.? or_else info.parent.(^Widget).id, 
 			box = box,
 			layout_size = info.layout_size.? or_else {},
-			extend = info.extend,
 			options = info.layer_options,
 			opacity = info.opacity,
 			owner = info.parent.(^Widget) or_else nil,
@@ -156,7 +153,6 @@ Menu_Info :: struct {
 	align: Maybe(Alignment),
 	side: Maybe(Box_Side),
 	layer_align: Maybe(Alignment),
-	layout_size: Maybe([2]f32),
 }
 
 Menu_Result :: struct {
@@ -178,8 +174,8 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		// Painting
 		if .Should_Paint in self.bits {
 			paint_rounded_box_fill(self.box, 5, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
-			paint_labeled_widget_frame(self.box, info.title, WIDGET_TEXT_OFFSET, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
-			paint_label_box(info.label, shrink_box_double(self.box, {WIDGET_TEXT_OFFSET, 0}), get_color(.Text), .Left, .Middle)
+			paint_labeled_widget_frame(self.box, info.title, WIDGET_PADDING, 1, get_color(.Base_Stroke, 0.5 + 0.5 * hover_time))
+			paint_label_box(info.label, shrink_box_double(self.box, {WIDGET_PADDING, 0}), get_color(.Text), .Left, .Middle)
 			paint_arrow_flip({self.box.high.x - height(self.box) * 0.5, center_y(self.box)}, height(self.box) * 0.25, 0, ICON_STROKE_THICKNESS, open_time, get_color(.Text))
 		}
 		// Begin layer if expanded
@@ -188,11 +184,11 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			parent = self,
 			side = .Bottom,
 			size = info.size,
-			layout_size = info.layout_size,
-			extend = .Bottom,
 			align = info.layer_align,
 			opacity = open_time,
 		})
+		layer := current_layer()
+		push_layer_extending_layout({layer.box.low, {layer.box.high.x, layer.box.low.y}})
 		// Push background color
 		if active {
 			push_color(.Base, get_color(.Widget_Back))
@@ -205,6 +201,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 @private 
 _do_menu :: proc(active: bool) {
 	if active {
+		pop_layer_extending_layout()
 		end_attached_layer({
 			stroke_color = get_color(.Base_Stroke),
 		}, current_layer())

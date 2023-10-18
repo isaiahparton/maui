@@ -61,11 +61,11 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 				case .Rectangle:
 				switch info.style {
 					case .Filled:
-					paint_box_fill(self.box, alpha_blend_colors(base_color, get_color(.Button_Shade), fade(255, 0.3 if .Pressed in self.state else hover_time * 0.15)))
+					paint_box_fill(self.box, alpha_blend_colors(base_color, get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
 
 					case .Outlined:
 					paint_box_fill(self.box, fade(base_color, 0.2 if .Pressed in self.state else hover_time * 0.1))
-					paint_box_stroke(self.box, 1, base_color)
+					paint_box_stroke(self.box, painter.style.stroke_thickness, base_color)
 
 					case .Subtle:
 					paint_box_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
@@ -78,14 +78,14 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 					
 					case .Outlined:
 					paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-					paint_pill_stroke_h(self.box, 1, get_color(.Button_Base))
+					paint_pill_stroke_h(self.box, painter.style.stroke_thickness, get_color(.Button_Base))
 				
 					case .Subtle:
 					paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
 				}
 
 				case .Left_Arrow:
-				/*#partial switch info.style {
+				#partial switch info.style {
 					case .Filled:
 					fill_color := alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15)
 					paint_left_ribbon_fill(self.box, fill_color)
@@ -94,14 +94,14 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 					fill_color := get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1)
 					paint_left_ribbon_fill(self.box, fill_color)
 					stroke_color := get_color(.Button_Base)
-					paint_left_ribbon_stroke(self.box, stroke_color)
+					paint_left_ribbon_stroke(self.box, painter.style.stroke_thickness, stroke_color)
 				
 					case .Subtle:
 					paint_left_ribbon_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-				}*/
+				}
 
 				case .Right_Arrow:
-				/*#partial switch info.style {
+				#partial switch info.style {
 					case .Filled:
 					fill_color := alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15)
 					paint_right_ribbon_fill(self.box, fill_color)
@@ -110,11 +110,11 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 					fill_color := get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1)
 					paint_right_ribbon_fill(self.box, fill_color)
 					stroke_color := get_color(.Button_Base)
-					paint_right_ribbon_stroke(self.box, stroke_color)
+					paint_right_ribbon_stroke(self.box, painter.style.stroke_thickness, stroke_color)
 				
 					case .Subtle:
 					paint_right_ribbon_fill(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-				}*/
+				}
 			}
 			label_color := get_color(.Button_Text if info.style == .Filled else .Button_Base)
 			if info.loading {

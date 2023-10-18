@@ -54,7 +54,7 @@ do_text_demo :: proc(using self: ^Text_Demo) {
 		space(Exact(20))
 		placement.size = Exact(30)
 		space(Exact(20))
-		do_text_input({
+		do_text_field({
 			data = &info.text,
 			title = "Text",
 		})

@@ -42,7 +42,6 @@ Layout :: struct {
 	box: Box,
 	// The side from which the layout was created (if any)
 	side: Maybe(Box_Side),
-	ignore_parent: bool,
 	// Temporary placement settings
 	last_placement: Placement_Info,
 }
@@ -63,13 +62,12 @@ layout_agent_pop :: proc(using self: ^Layout_Agent) {
 	current_layout = stack_top_ref(&stack)
 }
 
-push_layout :: proc(box: Box, mode: Layout_Mode = .Fixed) -> (layout: ^Layout) {
+push_layout :: proc(box: Box) -> (layout: ^Layout) {
 	if core.layout_agent.stack.height > 0 {
 		current_layout().last_placement = placement
 	}
 	return layout_agent_push(&core.layout_agent, Layout({
 		box = box,
-		mode = mode,
 		last_placement = placement,
 	}))
 }
@@ -80,8 +78,59 @@ pop_layout :: proc() {
 		layout := current_layout()
 		// Update placement settings
 		placement = layout.last_placement
+	}
+}
+/*
+	This creates a growing layout that cuts/extends the one below after use
+*/
+push_growing_layout :: proc(box: Box) -> ^Layout {
+	layout := push_layout(box)
+	layout.mode = .Extending
+	return layout
+}
+pop_growing_layout :: proc() {
+	last_layout := current_layout()
+	layout_agent_pop(&core.layout_agent)
+	if core.layout_agent.stack.height > 0 {
+		layout := current_layout()
+		// Update placement settings
+		placement = layout.last_placement
 		// Apply extending layout cut
-		if !last_layout.ignore_parent && core.layout_agent.stack.height > 0 {
+		if core.layout_agent.stack.height > 0 {
+			if last_layout.mode == .Extending {
+				if side, ok := last_layout.side.?; ok {
+					layout_cut_or_extend(layout, side, Exact((last_layout.box.high.x - last_layout.box.low.x) if int(side) > 1 else (last_layout.box.high.y - last_layout.box.low.y)))	
+				}
+			}
+		}
+	}
+}
+/*
+	This creates a growing layout that will fit the current layer to itself after use
+*/
+push_layer_extending_layout :: proc(box: Box) -> ^Layout {
+	layout := push_layout(box)
+	layout.mode = .Extending
+	return layout
+}
+pop_layer_extending_layout :: proc() {
+	last_layout := current_layout()
+	if last_layout.mode == .Extending {
+		layer := current_layer()
+		#partial switch last_layout.side.? {
+			case .Top:
+			last_layout.box = {{layer.box.low.x, last_layout.box.low.y}, {layer.box.high.x, last_layout.box.high.y}}
+			case .Bottom:
+			last_layout.box = {layer.box.low, {layer.box.high.x, last_layout.box.high.y}}
+		}
+	}
+	layout_agent_pop(&core.layout_agent)
+	if core.layout_agent.stack.height > 0 {
+		layout := current_layout()
+		// Update placement settings
+		placement = layout.last_placement
+		// Apply extending layout cut
+		if core.layout_agent.stack.height > 0 {
 			if last_layout.mode == .Extending {
 				if side, ok := last_layout.side.?; ok {
 					layout_cut_or_extend(layout, side, Exact((last_layout.box.high.x - last_layout.box.low.x) if int(side) > 1 else (last_layout.box.high.y - last_layout.box.low.y)))	
@@ -185,12 +234,9 @@ fake_cut :: proc(side: Box_Side, amount: Unit) -> Box {
 
 // User procs
 @(deferred_out=_do_layout)
-do_layout :: proc(side: Box_Side, size: Unit, mode: Layout_Mode = .Fixed) -> (ok: bool) {
+do_layout :: proc(side: Box_Side, size: Unit) -> (ok: bool) {
 	box := cut(side, size)
-	layout := push_layout(box, mode)
-	if mode == .Extending {
-		layout.side = side
-	}
+	layout := push_layout(box)
 	return true
 }
 @(deferred_out=_do_layout)

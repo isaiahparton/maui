@@ -82,6 +82,7 @@ Widget :: struct {
 	// Parent layer
 	layer: 					^Layer,
 	// Retained data (impossible!!)
+	offset,
 	label_size: [2]f32,
 	timers: [MAX_WIDGET_TIMERS]f32,
 }
@@ -622,7 +623,7 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			size.x = max(SIZE, text_size.x)
 			size.y = SIZE + text_size.y
 		} else {
-			size.x = SIZE + text_size.x + WIDGET_TEXT_OFFSET * 2
+			size.x = SIZE + text_size.x + WIDGET_PADDING * 2
 			size.y = SIZE
 		}
 	} else {
@@ -689,9 +690,9 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			if has_text {
 				switch text_side {
 					case .Left: 	
-					paint_text({icon_box.high.x + WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text({icon_box.high.x + WIDGET_PADDING, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
 					case .Right: 	
-					paint_text({icon_box.low.x - WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text({icon_box.low.x - WIDGET_PADDING, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
 					case .Top: 		
 					paint_text(box.low, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
 					case .Bottom: 	
@@ -854,7 +855,7 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 		size.x = max(SIZE, text_size.x)
 		size.y = SIZE + text_size.y
 	} else {
-		size.x = SIZE + text_size.x + WIDGET_TEXT_OFFSET * 2
+		size.x = SIZE + text_size.x + WIDGET_PADDING * 2
 		size.y = SIZE
 	}
 	// The widget
@@ -889,7 +890,7 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 			}
 			switch text_side {
 				case .Left: 	
-				paint_text({self.box.low.x + SIZE + WIDGET_TEXT_OFFSET, center.y - text_size.y / 2}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
+				paint_text({self.box.low.x + SIZE + WIDGET_PADDING, center.y - text_size.y / 2}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
 				case .Right: 	
 				paint_text({self.box.low.x, center.y - text_size.y / 2}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text, 1))
 				case .Top: 		
@@ -1047,18 +1048,18 @@ do_section :: proc(title: Section_Title, loc := #caller_location) -> (result: Se
 		switch type in title {
 			case string:
 			text_size := measure_text({text = type, font = painter.style.title_font, size = painter.style.title_font_size})
-			paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, text_size.x + WIDGET_TEXT_MARGIN * 2, 1, get_color(.Base_Stroke))
-			paint_text({box.low.x + WIDGET_TEXT_OFFSET, box.low.y - text_size.y / 2}, {text = type, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Left}, get_color(.Text))
+			paint_widget_frame(box, WIDGET_PADDING - WIDGET_TEXT_MARGIN, text_size.x + WIDGET_TEXT_MARGIN * 2, 1, get_color(.Base_Stroke))
+			paint_text({box.low.x + WIDGET_PADDING, box.low.y - text_size.y / 2}, {text = type, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Left}, get_color(.Text))
 
 			case Check_Box_Info:
-			push_layout({{box.low.x + WIDGET_TEXT_OFFSET, box.low.y}, {box.high.x - WIDGET_TEXT_OFFSET, box.low.y}})
+			push_layout({{box.low.x + WIDGET_PADDING, box.low.y}, {box.high.x - WIDGET_PADDING, box.low.y}})
 			placement.side = .Left; placement.align.y = .Middle
 			result.changed, result.new_state = do_checkbox(type, loc)
 			if !evaluate_checkbox_state(type.state) {
 				core.disabled = true
 			}
 			pop_layout()
-			paint_widget_frame(box, WIDGET_TEXT_OFFSET - WIDGET_TEXT_MARGIN, height(core.last_box) + WIDGET_TEXT_MARGIN * 2, 1, get_color(.Base_Stroke))
+			paint_widget_frame(box, WIDGET_PADDING - WIDGET_TEXT_MARGIN, height(core.last_box) + WIDGET_TEXT_MARGIN * 2, 1, get_color(.Base_Stroke))
 		}
 	}
 
@@ -1310,45 +1311,6 @@ do_progress_bar :: proc(value: f32) {
 	radius := height(box) * 0.5
 	paint_rounded_box_fill(box, radius, get_color(.Widget_Back))
 	paint_rounded_box_fill({box.low, {box.low.x + width(box) * clamp(value, 0, 1), box.high.y}}, radius, get_color(.Accent))
-}
-
-/*
-	Simple selectable list item	
-*/
-List_Item_Result :: struct {
-	self: ^Widget,
-	clicked: bool,
-}
-
-@(deferred_out=_do_list_item)
-do_list_item :: proc(active: bool, loc := #caller_location) -> (result: List_Item_Result, ok: bool) {
-	if self, widget_ok := do_widget(hash(loc)); widget_ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
-		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
-		update_widget(self)
-		if active {
-			paint_box_fill(self.box, get_color(.Widget))
-		} else if hover_time > 0 {
-			paint_box_fill(self.box, get_color(.Widget_Shade, BASE_SHADE_ALPHA * hover_time))
-		}
-
-		result = {
-			clicked = .Clicked in self.state && self.click_button == .Left,
-			self = self,
-		}
-		ok = get_clip(core.clip_box, self.box) != .Full
-		if ok {
-			push_layout(self.box).side = .Left
-		}
-	}
-	return
-}
-
-@private 
-_do_list_item :: proc(_: List_Item_Result, ok: bool) {
-	if ok {
-		pop_layout()
-	}
 }
 
 //TODO: Re-implement

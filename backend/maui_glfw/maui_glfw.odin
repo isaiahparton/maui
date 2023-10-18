@@ -62,11 +62,22 @@ init :: proc(width, height: int, title: string, api: backend.Render_API) -> bool
 	platform.cursors[.Resize_NESW] = glfw.CreateStandardCursor(glfw.RESIZE_NESW_CURSOR)
 	platform.cursors[.Resize_NWSE] = glfw.CreateStandardCursor(glfw.RESIZE_NWSE_CURSOR)
 
+	// resize_callback :: proc(window: glfw.WindowHandle, width, height: i32) {
+	// 	interface.screen_size = {width, height}
+	// 	maui.core.size = {f32(width), f32(height)}
+		
+	// }
+	// glfw.SetFramebufferSizeCallback(platform.window, glfw.FramebufferSizeProc(resize_callback))
+
 	key_callback :: proc(window: glfw.WindowHandle, key, scancode, action, mods: i32) {
 		if key >= 0 {
 			switch action {
-				case glfw.PRESS, glfw.REPEAT: 
+				case glfw.PRESS: 
 				maui.input.key_set[key] = true
+
+				case glfw.REPEAT: 
+				maui.input.key_set[key] = true 
+				maui.input.last_key_set[key] = false
 				
 				case glfw.RELEASE: 
 				maui.input.key_set[key] = false

@@ -55,6 +55,10 @@ Layer_Option :: enum {
 	No_Sorting,
 	// Steal focus
 	Steal_Focus,
+	// Trap key navigation
+	Trap_Key_Navigation,
+	// No layout
+	No_Layout,
 }
 Layer_Options :: bit_set[Layer_Option]
 
@@ -317,7 +321,6 @@ layer_destroy :: proc(self: ^Layer) {
 
 // Frame info
 Frame_Info :: struct {
-	layout_size: [2]f32,
 	options: Layer_Options,
 	fill_color: Maybe(Color),
 	scrollbar_padding: Maybe(f32),
@@ -330,7 +333,6 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	self, ok = begin_layer({
 		box = box,
 		inner_box = shrink_box(box, info.scrollbar_padding.? or_else 0),
-		layout_size = info.layout_size, 
 		id = hash(loc), 
 		options = info.options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
@@ -372,8 +374,6 @@ Layer_Info :: struct {
 	owner: Maybe(^Widget),
 	// Opacity
 	opacity: Maybe(f32),
-	// If the layer auto extends
-	extend: Maybe(Box_Side),
 }
 
 @(deferred_out=_do_layer)
@@ -437,11 +437,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		append(&self.draws, painter.target)
 
 		// Get box
-		if _, ok := info.extend.?; ok {
-			if self.box == {} {
-				self.box = info.box.? or_else self.box
-			}
-		} else {
+		if self.box == {} {
 			self.box = info.box.? or_else self.box
 		}
 		self.inner_box = info.inner_box.? or_else self.box
@@ -504,7 +500,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			max(self.layout_size.y, self.box.high.y - self.box.low.y),
 		}
 
-		// Detect scrollbar necessity
 		SCROLL_LERP_SPEED :: 7
 
 		// Horizontal scrolling
@@ -537,27 +532,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			core.paint_next_frame = true
 		}
 		self.content_box = {self.box.high, self.box.low}
-
-		// Layers currently have their own layouts, but this is subject to change
-		layout_box: Box
-		if side, ok := info.extend.?; ok {
-			switch side {
-				case .Top:
-				layout_box = {{self.box.low.x, self.box.high.y}, self.box.high}
-				case .Bottom:
-				layout_box = {self.box.low, {self.box.high.x, self.box.low.y}}
-				case .Left:
-				layout_box = {self.box.low, {self.box.low.x, self.box.high.y}}
-				case .Right:
-				layout_box = {{self.box.high.x, self.box.low.y}, self.box.high}
-			}
-			layout := push_layout(layout_box, .Extending)
-			layout.side = side
-			layout.ignore_parent = true
-		} else {
-			layout_box = {self.box.low - self.scroll, self.layout_size}
-			push_layout(layout_box)
-		}
 	}
 	return
 }
@@ -578,18 +552,6 @@ end_layer :: proc(self: ^Layer) {
 			self.bits += {.Clipped}
 			painter.draws[painter.target].clip = self.box
 		}
-
-		// End layout
-		layout := current_layout()
-		if layout.mode == .Extending {
-			#partial switch layout.side.? {
-				case .Top:
-				self.box = {{self.box.low.x, layout.box.low.y}, {self.box.high.x, layout.box.high.y}}
-				case .Bottom:
-				self.box = {self.box.low, {self.box.high.x, layout.box.high.y}}
-			}
-		}
-		pop_layout()
 
 		// Handle scrolling
 		SCROLL_SPEED :: 16

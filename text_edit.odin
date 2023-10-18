@@ -1,14 +1,24 @@
 package maui
 
 import "core:fmt"
+import "core:strings"
 import "core:unicode"
 import "core:unicode/utf8"
+
+Text_Location :: struct {
+	offset,
+	line, 
+	column: int,
+}
 
 Text_Buffer :: struct {
 	keep_alive: bool,
 	buffer: [dynamic]u8,
 }
 Typing_Agent :: struct {
+	//TODO: Introduce new approach!
+	// loc,
+	// last_loc: Text_Location,
 	anchor,
 	index,
 	length,
@@ -16,8 +26,6 @@ Typing_Agent :: struct {
 	last_length: int,
 
 	left_offset: f32,
-
-	view_offset: [2]f32,
 
 	buffers: map[Id]Text_Buffer,
 }
@@ -38,6 +46,8 @@ typing_agent_get_buffer :: proc(using self: ^Typing_Agent, id: Id) -> (buffer: ^
 	return &value.buffer
 }
 typing_agent_step :: proc(using self: ^Typing_Agent) {
+	last_index = index
+	last_length = length
 	for key, value in &buffers {
 		if value.keep_alive {
 			value.keep_alive = false
@@ -150,11 +160,8 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 			valid := true
 			content := get_clipboard_string()
 			if .Multiline not_in info.bits {
-				for i in 0..<len(content) {
-					if content[i] == '\n' {
-						valid = false
-						break
-					}
+				if strings.contains_rune(content, '\n') {
+					valid = false
 				}
 			}
 			if valid {

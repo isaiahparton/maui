@@ -223,7 +223,7 @@ atlas_add_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: 
 	box := atlas_get_box(self, outer * 2)
 	center: [2]f32 = box_center(box) - 0.5
 	outer := outer - 0.5
-	inner := inner - 0.5
+	inner := inner - 1
 	for y in int(box.low.y)..<int(box.high.y) {
 		for x in int(box.low.x)..<int(box.high.x) {
 			point: [2]f32 = {f32(x), f32(y)}
@@ -266,17 +266,17 @@ painter: ^Painter
 
 style_default_fonts :: proc(style: ^Style) -> bool {
 	// Load the fonts
-	main_font := load_font(&painter.atlas, "fonts/IBMPlexSans-Regular.ttf") or_return
-	monospace_font := load_font(&painter.atlas, "fonts/Inconsolata_Condensed-SemiBold.ttf") or_return
+	main_font := load_font(&painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return
+	monospace_font := load_font(&painter.atlas, "fonts/UbuntuMono-Regular.ttf") or_return
 	// Assign their handles and sizes
-	style.button_font = load_font(&painter.atlas, "fonts/IBMPlexSans-Regular.ttf") or_return
-	style.button_font_size = 20
+	style.button_font = main_font
+	style.button_font_size = 18
 	style.default_font = main_font
-	style.default_font_size = 20
+	style.default_font_size = 18
 	style.title_font = main_font
 	style.title_font_size = 14
 	style.monospace_font = monospace_font
-	style.monospace_font_size = 20
+	style.monospace_font_size = 18
 	return true
 }
 painter_init :: proc() -> bool {
@@ -726,37 +726,51 @@ paint_ring_fill_texture :: proc(center: [2]f32, inner, outer: f32, color: Color)
 	}
 }
 
-paint_right_ribbon_fill :: proc(box: Box, color: Color) {
+paint_left_ribbon_fill :: proc(box: Box, color: Color) {
 	n := height(box) / 2
 	paint_box_fill({{box.low.x + n, box.low.y}, {box.high.x - n, box.high.y}}, color)
 	paint_triangle_fill({box.high.x, box.low.y}, {box.high.x - n, box.low.y}, {box.high.x - n, box.low.y + n}, color)
 	paint_triangle_fill({box.high.x - n, box.low.y + n}, {box.high.x - n, box.high.y}, box.high, color)
 	paint_triangle_fill({box.low.x, box.low.y + n}, {box.low.x + n, box.high.y}, {box.low.x + n, box.low.y}, color)
 }
-paint_right_ribbon_stroke :: proc(box: Box, color: Color) {
+paint_left_ribbon_stroke :: proc(box: Box, t: f32, color: Color) {
 	n := height(box) / 2
-	paint_box_fill({box.low, {box.high.x, box.low.y + 1}}, color)
-	paint_box_fill({{box.low.x, box.high.y - 1}, box.high}, color)
-	paint_line({box.high.x, box.low.y}, {box.high.x - n, box.low.y + n}, 1, color)
-	paint_line(box.high, {box.high.x - n, box.low.y + n}, 1, color)
-	paint_line({box.low.x + n, box.low.y}, {box.low.x, box.low.y + n}, 1, color)
-	paint_line({box.low.x + n, box.high.y}, {box.low.x, box.low.y + n}, 1, color)
+	dt := t * math.SQRT_TWO
+	// a
+	paint_quad_fill(box.low + {n, 0}, box.low + {n - t, t}, {box.high.x - t, box.low.y + t}, {box.high.x, box.low.y}, color)
+	// b
+	paint_quad_fill({box.high.x, box.low.y}, {box.high.x - dt, box.low.y}, {box.high.x - (n + dt), box.low.y + n}, {box.high.x - n, box.low.y + n}, color)
+	// c
+	paint_quad_fill({box.high.x - n, box.low.y + n}, {box.high.x - (n + dt), box.low.y + n}, {box.high.x - dt, box.high.y}, box.high, color)
+	// d
+	paint_quad_fill({box.low.x + n - t, box.high.y - t}, {box.low.x + n, box.high.y}, box.high, box.high - t, color)
+	// e
+	paint_quad_fill({box.low.x + n, box.high.y}, {box.low.x + n + dt, box.high.y}, {box.low.x + dt, box.low.y + n}, {box.low.x, box.low.y + n}, color)
+	// f 
+	paint_quad_fill({box.low.x + n, box.low.y}, {box.low.x + n + dt, box.low.y}, {box.low.x + dt, box.low.y + n}, {box.low.x, box.low.y + n}, color)
 }
-paint_left_ribbon_fill :: proc(box: Box, color: Color) {
+paint_right_ribbon_fill :: proc(box: Box, color: Color) {
 	n := height(box) / 2
 	paint_box_fill({{box.low.x + n, box.low.y}, {box.high.x - n, box.high.y}}, color)
 	paint_triangle_fill({box.low.x + n, box.low.y}, box.low, box.low + n, color)
 	paint_triangle_fill({box.low.x + n, box.low.y + n}, {box.low.x, box.high.y}, {box.low.x + n, box.high.y}, color)
 	paint_triangle_fill({box.high.x, box.low.y + n}, {box.high.x - n, box.low.y}, {box.high.x - n, box.high.y}, color)
 }
-paint_left_ribbon_stroke :: proc(box: Box, color: Color) {
+paint_right_ribbon_stroke :: proc(box: Box, t: f32, color: Color) {
 	n := height(box) / 2
-	paint_box_fill({box.low, {box.high.x - n, box.low.y + 1}}, color)
-	paint_box_fill({{box.low.x, box.high.y - 1}, {box.high.x - n, box.high.y}}, color)
-	paint_line(box.low, box.low + n, 1, color)
-	paint_line({box.low.x, box.high.y}, box.low + n, 1, color)
-	paint_line({box.high.x - n, box.low.y}, {box.high.x, box.low.y + n}, 1, color)
-	paint_line({box.high.x - n, box.high.y}, {box.high.x, box.low.y + n}, 1, color)
+	dt := t * math.SQRT_TWO
+	// a
+	paint_quad_fill(box.low, box.low + t, {box.high.x - n + t, box.low.y + t}, {box.high.x - n, box.low.y}, color)
+	// b
+	paint_quad_fill({box.high.x - (n + dt), box.low.y}, {box.high.x - dt, box.low.y + n}, {box.high.x, box.low.y + n}, {box.high.x - n, box.low.y}, color)
+	// c
+	paint_quad_fill({box.high.x - (n + dt), box.high.y}, {box.high.x - n, box.high.y}, {box.high.x, box.low.y + n}, {box.high.x - dt, box.low.y + n}, color)
+	// d
+	paint_quad_fill({box.low.x, box.high.y}, {box.high.x - n, box.high.y}, {box.high.x - n + t, box.high.y - t}, {box.low.x + t, box.high.y - t}, color)
+	// e
+	paint_quad_fill({box.low.x + dt, box.high.y}, box.low + {n + dt, n}, box.low + n, {box.low.x, box.high.y}, color)
+	// f 
+	paint_quad_fill(box.low, box.low + n, box.low + {n + dt, n}, {box.low.x + dt, box.low.y}, color)
 }
 
 paint_pill_fill_clipped_h :: proc(box, clip: Box, color: Color) {
@@ -785,39 +799,35 @@ paint_pill_fill_clipped_h :: proc(box, clip: Box, color: Color) {
 	}*/
 }
 paint_pill_fill_h :: proc(box: Box, color: Color) {
-	/*radius := math.floor(box.h / 2)
+	radius := math.floor(height(box) / 2)
 	if src, ok := atlas_get_ring(&painter.atlas, 0, radius); ok {
-		half_size := math.trunc(src.w / 2)
-		half_width := min(half_size, box.w / 2)
+		half_size := math.trunc(width(src) / 2)
+		half_width := min(half_size, width(box) / 2)
 
-		src_left: Box = {src.x, src.y, half_width, src.h}
-		src_right: Box = {src.x + src.w - half_width, src.y, half_width, src.h}
+		src_left: Box = {src.low, {src.low.x + half_width, src.high.y}}
+		src_right: Box = {{src.high.x - half_width, src.low.y}, src.high}
 
-		paint_textured_box(painter.atlas.texture, src_left, {box.x, box.y, half_width, box.h}, color)
-		paint_textured_box(painter.atlas.texture, src_right, {box.x + box.w - half_width, box.y, half_width, box.h}, color)
+		paint_textured_box(painter.atlas.texture, src_left, {box.low, {box.low.x + half_width, box.high.y}}, color)
+		paint_textured_box(painter.atlas.texture, src_right, {{box.high.x - half_width, box.low.y}, box.high}, color)
 
-		if box.w > box.h {
-			paint_box_fill({box.x + radius, box.y, box.w - radius * 2, box.h}, color)
-		}
-	}*/
+		paint_box_fill({{box.low.x + radius, box.low.y}, {box.high.x - radius, box.high.y}}, color)
+	}
 }
 paint_pill_stroke_h :: proc(box: Box, thickness: f32, color: Color) {
-	/*radius := math.floor(box.h / 2)
-	if src, ok := atlas_get_ring(&painter.atlas, 0, radius); ok {
-		half_size := math.trunc(src.w / 2)
-		half_width := min(half_size, box.w / 2)
+	radius := math.floor(height(box) / 2)
+	if src, ok := atlas_get_ring(&painter.atlas, radius - thickness, radius); ok {
+		half_size := math.trunc(width(src) / 2)
+		half_width := min(half_size, width(box) / 2)
 
-		src_left: Box = {src.x, src.y, half_width, src.h}
-		src_right: Box = {src.x + src.w - half_width, src.y, half_width, src.h}
+		src_left: Box = {src.low, {src.low.x + half_width, src.high.y}}
+		src_right: Box = {{src.high.x - half_width, src.low.y}, src.high}
 
-		paint_textured_box(painter.atlas.texture, src_left, {box.x, box.y, half_width, box.h}, color)
-		paint_textured_box(painter.atlas.texture, src_right, {box.x + box.w - half_width, box.y, half_width, box.h}, color)
+		paint_textured_box(painter.atlas.texture, src_left, {box.low, {box.low.x + half_width, box.high.y}}, color)
+		paint_textured_box(painter.atlas.texture, src_right, {{box.high.x - half_width, box.low.y}, box.high}, color)
 
-		if box.w > box.h {
-			paint_box_fill({box.x + radius, box.y, box.w - radius * 2, thickness}, color)
-			paint_box_fill({box.x + radius, box.y + box.h - thickness, box.w - radius * 2, thickness}, color)
-		}
-	}*/
+		paint_box_fill({{box.low.x + radius, box.low.y}, {box.high.x - radius, box.low.y + thickness}}, color)
+		paint_box_fill({{box.low.x + radius, box.high.y - thickness}, {box.high.x - radius, box.high.y}}, color)
+	}
 }
 
 paint_rounded_box_corners_fill :: proc(box: Box, radius: f32, corners: Box_Corners, color: Color) {

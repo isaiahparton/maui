@@ -14,6 +14,7 @@ Numeric_Field_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 	precision: int,
 	value: T,
 	title,
+	prefix,
 	suffix: Maybe(string),
 }
 Numeric_Field_Result :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
@@ -26,14 +27,12 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		self.box = use_next_box() or_else layout_next(current_layout())
 		update_widget(self)
+		// Animation
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
 		// Cursor style
 		if self.state & {.Hovered, .Pressed} != {} {
 			core.cursor = .Beam
 		}
-		// Get the number info
-		power: f64 = math.pow(10.0, f64(info.precision))
-		base: f64 = 1.0 / power
 		// Get a temporary buffer
 		buffer := get_tmp_buffer()
 		// Format the value to text
@@ -46,9 +45,27 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 			paint_rounded_box_fill(self.box, painter.style.widget_rounding, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.05))
 			paint_rounded_box_stroke(self.box, painter.style.widget_rounding, 2, get_color(.Widget_Stroke, 1.0 if .Focused in self.state else (0.5 + 0.5 * hover_time)))
 		}
-		paint_interact_text({self.box.high.x - WIDGET_TEXT_OFFSET, (self.box.low.y + self.box.high.y) / 2}, self, &core.typing_agent, {text = text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Right, baseline = .Middle}, {read_only = true}, get_color(.Text))
+		// Text!
+		text_origin: [2]f32 = {self.box.high.x - WIDGET_PADDING, (self.box.low.y + self.box.high.y) / 2}
+		if text, ok := info.suffix.?; ok {
+			size := paint_text(text_origin, {text = text, font = painter.style.monospace_font, size = painter.style.monospace_font_size}, {align = .Right, baseline = .Middle}, get_color(.Text, 0.5))
+			text_origin.x -= size.x
+		}
+		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = painter.style.monospace_font, size = painter.style.monospace_font_size}, {align = .Right, baseline = .Middle}, {read_only = true}, get_color(.Text))
+		text_origin.x = text_res.bounds.low.x
+		if text, ok := info.prefix.?; ok {
+			paint_text(text_origin, {text = text, font = painter.style.monospace_font, size = painter.style.monospace_font_size}, {align = .Right, baseline = .Middle}, get_color(.Text, 0.5))
+		}
 		// Value manipulation
 		if (.Focused in self.state) {
+			// Get the number info
+			power: f64 = math.pow(10.0, f64(info.precision))
+			base: f64 = 1.0 / power
+			// The delete key clears the value
+			if key_pressed(.Delete) {
+				value = T(0)
+				res.changed = true
+			}
 			// Paste
 			if (key_pressed(.V) && (key_down(.Left_Control) || key_down(.Right_Control))) {
 				if n, ok := strconv.parse_f64(get_clipboard_string()); ok {
@@ -148,7 +165,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			paint_labeled_widget_frame(
 				box = box, 
 				text = info.title, 
-				offset = WIDGET_TEXT_OFFSET, 
+				offset = WIDGET_PADDING, 
 				thickness = 1, 
 				color = stroke_color,
 			)
