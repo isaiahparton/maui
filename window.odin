@@ -2,6 +2,7 @@ package maui
 
 import "core:fmt"
 import "core:math"
+import "core:math/ease"
 import "core:math/linalg"
 
 Window_Bit :: enum {
@@ -161,11 +162,11 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 
 		// Layer body
 		self.draw_box = self.box
-		self.draw_box.high.y -= ((height(self.draw_box) - WINDOW_TITLE_SIZE) if .Title in self.options else height(self.draw_box)) * self.how_collapsed
+		self.draw_box.high.y -= ((height(self.draw_box) - WINDOW_TITLE_SIZE) if .Title in self.options else height(self.draw_box)) * ease.quadratic_in(self.how_collapsed)
 
 		// Decoration layer
 		if self.decor_layer, ok = begin_layer({
-			box = self.draw_box,
+			placement = self.draw_box,
 			id = hash(rawptr(&self.id), size_of(Id)),
 			order = .Floating,
 			shadow = Layer_Shadow_Info({
@@ -182,37 +183,36 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			// Draw title bar and get movement dragging
 			if .Title in self.options {
 				title_box := cut(.Top, Exact(WINDOW_TITLE_SIZE))
-				// Draw title boxangle
-				if .Collapsed in self.bits {
-					paint_rounded_box_fill(title_box, WINDOW_ROUNDNESS, get_color(.Intense))
-				} else {
-					paint_rounded_box_corners_fill(title_box, WINDOW_ROUNDNESS, {.Top_Left, .Top_Right}, get_color(.Intense))
-				}
+				// Draw title
+				paint_rounded_box_fill(title_box, WINDOW_ROUNDNESS, blend_colors(get_color(.Base), get_color(.Base_Shade), 0.2))
+				paint_rounded_box_stroke(title_box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
 				// Title bar decoration
 				baseline := center_y(title_box)
 				text_offset := height(title_box) * 0.25
-				can_collapse := .Collapsable in self.options || .Collapsed in self.bits
+				can_collapse := (.Collapsable in self.options) || (.Collapsed in self.bits)
+				// Collapsing arrow
 				if can_collapse {
-					paint_rotating_arrow({title_box.low.x + height(title_box) / 2, baseline}, 8, self.how_collapsed, get_color(.Base))
+					paint_arrow({title_box.low.x + height(title_box) / 2, baseline}, 6, math.PI * -0.5 * self.how_collapsed, 1, get_color(.Base))
 					text_offset = height(title_box)
 				}
 				paint_text(
 					{title_box.low.x + text_offset, baseline}, 
 					{text = self.title, font = painter.style.default_font, size = painter.style.default_font_size}, 
 					{align = .Left, baseline = .Middle}, 
-					color = get_color(.Base),
-					)
+					color = get_color(.Text),
+				)
 				if .Closable in self.options {
-					set_next_box(child_box(get_box_right(title_box, height(title_box)), {24, 24}, {.Middle, .Middle}))
+					set_next_box(child_box(get_box_right(title_box, height(title_box)), {20, 20}, {.Middle, .Middle}))
 					if do_button({
-						label = Icon.Close, 
+						style = .Subtle,
 						align = .Middle,
 					}) {
 						self.bits += {.Should_Close}
 					}
+					paint_cross(box_center(core.last_box), 7, math.PI * 0.25, 2, get_color(.Base))
 				}
-				if .Resizing not_in self.bits && core.layer_agent.hover_id == self.decor_layer.id && point_in_box(input.mouse_point, title_box) {
-					if .Static not_in self.options && core.widget_agent.hover_id == 0 && mouse_pressed(.Left) {
+				if (.Resizing not_in self.bits) && point_in_box(input.mouse_point, title_box) {
+					if (.Static not_in self.options) && (core.widget_agent.hover_id == 0) && mouse_pressed(.Left) {
 						self.bits += {.Moving}
 						core.drag_anchor = self.decor_layer.box.low - input.mouse_point
 					}
@@ -248,11 +248,11 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			ok = false
 		} else {
 			self.layer, ok = begin_layer({
-				box = inner_box,
-				inner_box = shrink_box(inner_box, 10),
+				placement = inner_box,
+				scrollbar_padding = 10,
 				id = id, 
 				options = layer_options,
-				layout_size = self.min_layout_size,
+				space = self.min_layout_size,
 				order = .Background,
 				opacity = self.opacity,
 			})
@@ -317,7 +317,7 @@ _do_window :: proc(ok: bool) {
 		end_layer(decor_layer)
 		// Handle movement
 		if .Moving in bits {
-			core.cursor = .Resize_all
+			core.cursor = .Resize
 			origin := input.mouse_point + core.drag_anchor
 			size := box.high - box.low
 			box.low = linalg.clamp(origin, 0, core.size - size)

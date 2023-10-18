@@ -2,9 +2,9 @@ package maui
 
 //TODO(isaiah): Migrate these to values in Style
 WINDOW_ROUNDNESS :: 6
-WINDOW_TITLE_SIZE :: 34
+WINDOW_TITLE_SIZE :: 30
 
-SCROLL_BAR_SIZE :: 14
+SCROLL_BAR_SIZE :: 10
 SCROLL_BAR_PADDING :: 0
 
 GHOST_TEXT_ALPHA :: 0.6
@@ -30,15 +30,15 @@ DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.Widget_Stroke 				= {105, 105, 105, 255},
 	.Intense 							= {62, 62, 67, 255},
 	.Intense_Shade 				= {230, 239, 255, 255},
-	.Shadow 							= {0, 0, 0, 35},
+	.Shadow 							= {0, 0, 0, 60},
 	.Text_Inverted 				= {218, 218, 218, 255},
 	.Text 								= {255, 255, 255, 255},
 	.Text_Highlight  			= {0, 100, 136, 255},
 	.Tooltip_Fill 				= {240, 240, 250, 255},
 	.Tooltip_Stroke  			= {},
 	.Tooltip_Text 				= {50, 50, 50, 255},
-	.Scrollbar  					= {255, 255, 255, 255},
-	.Scroll_Thumb 				= {165, 185, 185, 255},
+	.Scrollbar  					= {15, 15, 18, 255},
+	.Scroll_Thumb 				= {45, 45, 49, 255},
 	.Scroll_Thumb_Shade 	= {255, 255, 255, 255},
 
 	.Button_Base 					= {215, 215, 230, 255},

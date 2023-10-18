@@ -58,74 +58,6 @@ destroy_glyph_data :: proc(using self: ^Glyph_Data) {
 	destroy_image(&image)
 }
 
-Icon :: enum rune {
-	Cloud 						= 0xEB9C,
-	Hard_Drive 				= 0xF394,
-	Sliders 					= 0xEC9C,
-	Tree_Nodes 				= 0xEF90,
-	Ball_Pen  				= 0xEA8D,
-	More_Horizontal 	= 0xEF78,
-	Code 							= 0xeba8,
-	Github 						= 0xedca,
-	Check 						= 0xEB7A,
-	Error 						= 0xECA0,
-	Close 						= 0xEB98,
-	Heart 						= 0xEE0E,
-	Alert 						= 0xEA20,
-	Edit 							= 0xEC7F,
-	Home 							= 0xEE18,
-	Server 						= 0xF0DF,
-	Add 							= 0xEA12,
-	Undo 							= 0xEA58,
-	Shopping_Cart 		= 0xF11D,
-	Attach_File				= 0xEA84,
-	Remove 						= 0xF1AE,
-	Delete 						= 0xEC1D,
-	User 							= 0xF25F,
-	Format_Italic			= 0xe23f,
-	Format_Bold				= 0xe238,
-	Format_Underline	= 0xe249,
-	Chevron_Down 			= 0xEA4E,
-	Chevron_Left 			= 0xEA64,
-	Chevron_Right 		= 0xEA6E,
-	Chevron_Up				= 0xEA78,
-	Folder 						= 0xED57,
-	Admin 						= 0xEA14,
-	Shopping_Basket 	= 0xF11A,
-	Shopping_Bag 			= 0xF115,
-	Receipt 					= 0xEAC2,
-	File_Paper 				= 0xECF8,
-	File_New 					= 0xECC2,
-	Calendar 					= 0xEB20,
-	Inventory 				= 0xF1C6,
-	History 					= 0xEE17,
-	Copy 							= 0xECD2,
-	Checkbox_Multiple	= 0xEB88,
-	Eye 							= 0xECB4,
-	Eye_Off 					= 0xECB6,
-	Box 							= 0xF2F3,
-	Archive 					= 0xEA47,
-	Cog 							= 0xF0ED,
-	Group 						= 0xEDE2,
-	Flow_Chart 				= 0xEF59,
-	Pie_Chart 				= 0xEFF5,
-	Keyboard 					= 0xEE74,
-	Spreadsheet				= 0xECDE,
-	Contact_Book 			= 0xEBCB,
-	Pin 							= 0xF038,
-	Unpin 						= 0xF376,
-	Filter 						= 0xED26,
-	Filter_Off 				= 0xED28,
-	Search 						= 0xF0CD,
-	Printer 					= 0xF028,
-	Draft_Fill 				= 0xEC5B,
-	Check_List 				= 0xEEB9,
-	Numbers 					= 0xEFA9,
-	Refund 						= 0xF067,
-	Wallet 						= 0xF2AB,
-	Bank_Card 				= 0xEA91,
-}
-
 FMT_BUFFER_COUNT 		:: 16
 FMT_BUFFER_SIZE 		:: 256
 // Text formatting for short term usage
@@ -531,7 +463,7 @@ paint_text :: proc(origin: [2]f32, info: Text_Info, paint_info: Text_Paint_Info,
 	return size 
 }
 
-paint_aligned_icon :: proc(font: Font_Handle, size: f32, icon: Icon, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
+paint_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
 	font := &painter.atlas.fonts[font]
 	font_size, _ := get_font_size(font, size)
 	glyph, _ := get_font_glyph(font, font_size, rune(icon))

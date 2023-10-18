@@ -100,11 +100,12 @@ Layer :: struct {
 	box: Box,
 	// Boxangle on which scrollbars are anchored
 	inner_box: Box,
-	// Inner layout size
-	layout_size: [2]f32,
-	// Content bounding box
+	// Bounding box of all content to be drawn
+	// for clipping purposes
 	content_box: Box,
-	// Negative content offset
+	// Space for scrolling
+	space: [2]f32,
+	// Scrolling
 	scroll, 
 	scroll_target: [2]f32,
 	// draw order
@@ -113,7 +114,7 @@ Layer :: struct {
 	index: int,
 	// controls on this self
 	contents: map[Id]^Widget,
-	// Scroll bars
+	// Scroll bar interpolation
 	x_scroll_time,
 	y_scroll_time: f32,
 	// Draw command
@@ -163,8 +164,7 @@ layer_agent_destroy :: proc(using self: ^Layer_Agent) {
 layer_agent_begin_root :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 	root_layer, ok = begin_layer({
 		id = 0,
-		box = core.fullscreen_box, 
-		layout_size = core.size,
+		placement = core.fullscreen_box, 
 		options = {.No_ID},
 	})
 	return
@@ -331,8 +331,8 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	self: ^Layer
 	box := use_next_box() or_else layout_next(current_layout())
 	self, ok = begin_layer({
-		box = box,
-		inner_box = shrink_box(box, info.scrollbar_padding.? or_else 0),
+		placement = box,
+		scrollbar_padding = info.scrollbar_padding.? or_else 0,
 		id = hash(loc), 
 		options = info.options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
@@ -356,14 +356,28 @@ Layer_Shadow_Info :: struct {
 	roundness: f32,
 }
 
+Layer_Placement_Info :: struct {
+	origin: [2]f32,
+	size: [2]Maybe(f32), 
+	align: [2]Alignment,
+}
+
+Layer_Placement :: union {
+	Box,
+	Layer_Placement_Info,
+}
+
 Layer_Info :: struct {
 	// Explicit id assignment
 	id: Maybe(Id),
-	// Explicit box assignment
-	box: Maybe(Box),
-	inner_box: Maybe(Box),
-	// Layout size
-	layout_size: Maybe([2]f32),
+	// Placement
+	placement: Layer_Placement,
+	// Scrollbar padding
+	scrollbar_padding: Maybe([2]f32),
+	// Extending layout?
+	extend: Maybe(Box_Side),
+	// Defined space or the layer size whichever is larger
+	space: Maybe([2]f32),
 	// Sorting order
 	order: Maybe(Layer_Order),
 	// Optional shadow
@@ -401,8 +415,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 	agent := &core.layer_agent
 
 	if self, ok = layer_agent_assert(
-		self = agent, 
-		id = info.id.? or_else panic("Must define a layer id", loc), 
+		self = agent,
+		id = info.id.? or_else panic("Must define a layer id", loc),
 		options = info.options,
 	); ok {
 		// Push layer stack
@@ -437,10 +451,42 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		append(&self.draws, painter.target)
 
 		// Get box
-		if self.box == {} {
-			self.box = info.box.? or_else self.box
+		switch placement in info.placement {
+			case Box: 
+			self.box = placement
+			case Layer_Placement_Info: 
+			// Use space if size is not provided
+			size: [2]f32 = {
+				placement.size.x.? or_else self.space.x,
+				placement.size.y.? or_else self.space.y,
+			}
+			// Align x
+			switch placement.align.x {
+				case .Far: 
+				self.box.high.x = placement.origin.x 
+				self.box.low.x = self.box.high.x - size.x 
+				case .Middle: 
+				self.box.low.x = placement.origin.x - size.x / 2 
+				self.box.high.x = placement.origin.x + size.x / 2
+				case .Near: 
+				self.box.low.x = placement.origin.x 
+				self.box.high.x = self.box.low.x + size.x
+			}
+			// Align y
+			switch placement.align.y {
+				case .Far: 
+				self.box.high.y = placement.origin.y 
+				self.box.low.y = self.box.high.y - size.y 
+				case .Middle: 
+				self.box.low.y = placement.origin.y - size.y / 2 
+				self.box.high.y = placement.origin.y + size.y / 2
+				case .Near: 
+				self.box.low.y = placement.origin.y 
+				self.box.high.y = self.box.low.y + size.y
+			}
 		}
-		self.inner_box = info.inner_box.? or_else self.box
+		// Apply inner padding
+		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
 
 		// Hovering and stuff
 		self.state = self.next_state
@@ -485,7 +531,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		if agent.exclusive_id == self.id {
 			paint_box_fill(core.fullscreen_box, {0, 0, 0, 100})
 		}
-
 		self.opacity = info.opacity.? or_else self.opacity
 
 		// Shadows
@@ -494,44 +539,67 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		}
 
 		// Get layout size
-		self.layout_size = info.layout_size.? or_else self.layout_size
-		self.layout_size = {
-			max(self.layout_size.x, self.box.high.x - self.box.low.x),
-			max(self.layout_size.y, self.box.high.y - self.box.low.y),
-		}
+		self.space = info.space.? or_else 0
 
 		SCROLL_LERP_SPEED :: 7
 
 		// Horizontal scrolling
-		if self.layout_size.x > width(self.box) && .No_Scroll_X not_in self.options {
+		if (self.space.x > width(self.box)) && (.No_Scroll_X not_in self.options) {
 			self.bits += {.Scroll_X}
 			self.x_scroll_time = min(1, self.x_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.Scroll_X}
 			self.x_scroll_time = max(0, self.x_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
 		}
-		if .No_Scroll_Margin_Y not_in self.options && self.layout_size.y <= height(self.box) {
-			self.layout_size.y -= self.x_scroll_time * SCROLL_BAR_SIZE
+		if .No_Scroll_Margin_Y not_in self.options && self.space.y <= height(self.box) {
+			self.space.y -= self.x_scroll_time * SCROLL_BAR_SIZE
 		}
 		if self.x_scroll_time > 0 && self.x_scroll_time < 1 {
 			core.paint_next_frame = true
 		}
 
 		// Vertical scrolling
-		if self.layout_size.y > height(self.box) && .No_Scroll_Y not_in self.options {
+		if (self.space.y > height(self.box)) && (.No_Scroll_Y not_in self.options) {
 			self.bits += {.Scroll_Y}
 			self.y_scroll_time = min(1, self.y_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.Scroll_Y}
 			self.y_scroll_time = max(0, self.y_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
 		}
-		if .No_Scroll_Margin_X not_in self.options && self.layout_size.x <= width(self.box) {
-			self.layout_size.x -= self.y_scroll_time * SCROLL_BAR_SIZE
+		if .No_Scroll_Margin_X not_in self.options && self.space.x <= width(self.box) {
+			self.space.x -= self.y_scroll_time * SCROLL_BAR_SIZE
 		}
 		if self.y_scroll_time > 0 && self.y_scroll_time < 1 {
 			core.paint_next_frame = true
 		}
 		self.content_box = {self.box.high, self.box.low}
+
+		// Get space
+		self.space = linalg.max(self.space, self.box.high - self.box.low)
+		// Copy box
+		layout_box := self.box 
+		// Apply scroll offset
+		layout_box.low -= self.scroll
+		layout_box.high -= self.scroll
+		// Push layout
+		layout := push_layout(layout_box)
+		// Extending layout
+		if side, ok := info.extend.?; ok {
+			#partial switch side {
+				case .Bottom: 
+				layout.box.high.y = layout.box.low.y
+				case .Top: 
+				layout.box.low.y = layout.box.high.y 
+				case .Left: 
+				layout.box.low.x = layout.box.high.x 
+				case .Right: 
+				layout.box.high.x = layout.box.low.x
+			}
+			layout.mode = .Extending
+			layout.side = side
+		} else {
+			layout.box.high = layout.box.low + self.space
+		}
 	}
 	return
 }
@@ -546,36 +614,41 @@ end_layer :: proc(self: ^Layer) {
 				paint_box_stroke(self.box, 1, {255, 0, 255, 255})
 			}
 		}
-
+		// Pop layout
+		layout := current_layout()
+		if layout.mode == .Extending {
+			self.space = layout.box.high - layout.box.low
+		}
+		pop_layout()
 		// Detect clipping
 		if (self.box != core.fullscreen_box && !box_in_box(self.content_box, self.box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
 			painter.draws[painter.target].clip = self.box
 		}
-
 		// Handle scrolling
 		SCROLL_SPEED :: 16
-		SCROLL_STEP :: 55
-
+		SCROLL_STEP :: 20
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {
-			max(self.layout_size.x - (self.box.high.x - self.box.low.x), 0),
-			max(self.layout_size.y - (self.box.high.y - self.box.low.y), 0),
+			max(self.space.x - (self.box.high.x - self.box.low.x), 0),
+			max(self.space.y - (self.box.high.y - self.box.low.y), 0),
 		}
-
-		// Update scroll offset
+		// Mouse wheel input
 		if .Hovered in self.state {
 			self.scroll_target -= input.mouse_scroll * SCROLL_STEP
 		}
+		// Clamp scrolling
 		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
 		self.scroll_target.y = clamp(self.scroll_target.y, 0, max_scroll.y)
+		// Repaint if scrolling with wheel
 		if linalg.floor(self.scroll_target - self.scroll) != {} {
 			core.paint_next_frame = true
 		}
+		// Interpolate scrolling
 		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * core.delta_time
-
 		// Manifest scroll bars
 		if self.x_scroll_time > 0 {
+			// Horizontal scrolling
 			box := get_box_bottom(self.inner_box, self.x_scroll_time * SCROLL_BAR_SIZE)
 			box.high.x -= self.y_scroll_time * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.y -= SCROLL_BAR_PADDING
@@ -585,13 +658,14 @@ end_layer :: proc(self: ^Layer) {
 				value = self.scroll.x, 
 				low = 0, 
 				high = max_scroll.x, 
-				knob_size = max(SCROLL_BAR_SIZE * 2, width(box) * width(self.box) / self.layout_size.x),
+				knob_size = max(SCROLL_BAR_SIZE * 2, width(box) * width(self.box) / self.space.x),
 			}); changed {
 				self.scroll.x = new_value
 				self.scroll_target.x = new_value
 			}
 		}
 		if self.y_scroll_time > 0 {
+			// Vertical scrolling
 			box := get_box_right(self.inner_box, self.y_scroll_time * SCROLL_BAR_SIZE)
 			box.high.y -= self.x_scroll_time * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.x -= SCROLL_BAR_PADDING
@@ -601,25 +675,22 @@ end_layer :: proc(self: ^Layer) {
 				value = self.scroll.y, 
 				low = 0, 
 				high = max_scroll.y, 
-				knob_size = max(SCROLL_BAR_SIZE * 2, height(box) * height(self.box) / self.layout_size.y), 
+				knob_size = max(SCROLL_BAR_SIZE * 2, height(box) * height(self.box) / self.space.y), 
 				vertical = true,
 			}); change {
 				self.scroll.y = new_value
 				self.scroll_target.y = new_value
 			}
 		}
-
 		// Handle content clipping
 		if .Clipped in self.bits {
 			// Apply clipping
 			self.box.high = linalg.max(self.box.low, self.box.high)
 		}
-		
 		// Update parent content bounds if
 		if .Attached in self.options {
 			self.parent.content_box = update_bounding_box(self.parent.content_box, self.inner_box)
 		}
-		
 		// End id context
 		if .Did_Push_ID in self.bits {
 			pop_id()

@@ -18,6 +18,7 @@ Attached_Layer_Info :: struct {
 	mode: Attached_Layer_Mode,
 	parent: Attached_Layer_Parent,
 	size: [2]f32,
+	extend: Maybe(Box_Side),
 	side: Maybe(Box_Side),
 	align: Maybe(Alignment),
 	fill_color: Maybe(Color),
@@ -52,43 +53,33 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 	if ok {
 		side := info.side.? or_else .Bottom
 		// Determine layout
-		horizontal := side == .Left || side == .Right
 		anchor := info.parent.(Box) or_else info.parent.(^Widget).box
 
-		box: Box = attach_box(anchor, side, info.size.x if horizontal else info.size.y)
+		placement_info: Layer_Placement_Info
 
-		if horizontal {
-			h := max(info.size.y, height(anchor))
-			if info.extend == .Top {
-				box.low.y += height(anchor)
-			}
-			if info.align == .Middle {
-				box.low.y = (anchor.low.y + anchor.high.y) / 2 - info.size.y / 2
-			} else if info.align == .Far {
-				box.low.y = anchor.high.y - info.size.y
-			}
-			box.high.y = box.low.y + h
-		} else {
-			w := max(info.size.x, width(anchor))
-			if info.extend == .Left {
-				box.low.x += width(anchor)
-			}
-			if info.align == .Middle {
-				box.low.x = (anchor.low.x + anchor.high.x) / 2 - info.size.x / 2
-			} else if info.align == .Far {
-				box.low.x = anchor.high.y - info.size.x
-			}	
-			box.high.x = box.low.x + w
-		}
-		if info.extend != nil {
-			box.high.y = box.low.y
+		switch side {
+			case .Bottom: 
+			placement_info.origin = {anchor.low.x, anchor.high.y}
+			placement_info.size.x = width(anchor)
+			case .Left: 
+			placement_info.origin = anchor.low
+			placement_info.align = {.Far, .Near}
+			placement_info.size.y = height(anchor)
+			case .Right: 
+			placement_info.origin = {anchor.high.x, anchor.low.y}
+			// placement_info.size.y = height(anchor)
+			placement_info.size.x = width(anchor)
+			case .Top: 
+			placement_info.origin = anchor.low
+			placement_info.align = {.Near, .Far}
+			placement_info.size.x = width(anchor)
 		}
 
 		// Begin the new layer
 		result.self, ok = begin_layer({
 			id = info.id.? or_else info.parent.(^Widget).id, 
-			box = box,
-			layout_size = info.layout_size.? or_else {},
+			placement = placement_info,
+			extend = info.extend,
 			options = info.layer_options,
 			opacity = info.opacity,
 			owner = info.parent.(^Widget) or_else nil,
@@ -183,12 +174,11 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			id = shared_id,
 			parent = self,
 			side = .Bottom,
+			extend = .Bottom,
 			size = info.size,
 			align = info.layer_align,
 			opacity = open_time,
 		})
-		layer := current_layer()
-		push_layer_extending_layout({layer.box.low, {layer.box.high.x, layer.box.low.y}})
 		// Push background color
 		if active {
 			push_color(.Base, get_color(.Widget_Back))
@@ -201,7 +191,6 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 @private 
 _do_menu :: proc(active: bool) {
 	if active {
-		pop_layer_extending_layout()
 		end_attached_layer({
 			stroke_color = get_color(.Base_Stroke),
 		}, current_layer())
@@ -235,9 +224,8 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			mode = .Hover,
 			parent = self,
 			side = info.side.? or_else .Right,
-			size = info.size,
-			layout_size = info.layout_size,
 			extend = .Bottom,
+			size = info.size,
 			align = info.layer_align,
 			layer_options = {.Attached},
 			opacity = open_time,
@@ -280,7 +268,7 @@ do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool)
 			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
 			label_box := self.box
 			icon_box := cut_box_left(&label_box, height(label_box))
-			if info.active || true {
+			if info.active {
 				// Paint check mark
 				center := box_center(icon_box)
 				scale: f32 = 5.5

@@ -46,7 +46,7 @@ Cursor_Type :: enum {
 	Resize_NS,
 	Resize_NWSE,
 	Resize_NESW,
-	Resize_all,
+	Resize,
 	Disabled,
 }
 
@@ -440,6 +440,7 @@ end_frame :: proc() {
 	input.last_key_set = input.key_set
 	input.last_mouse_bits = input.mouse_bits
 	input.last_mouse_point = input.mouse_point
+	input.mouse_scroll = {}
 	// Update timings
 	painted_last_frame = paint_this_frame
 	frame_duration = time.since(frame_start_time)

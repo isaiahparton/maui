@@ -120,7 +120,7 @@ do_text_demo :: proc(using self: ^Text_Demo) {
 
 	box := current_layout().box 
 	if result, ok := do_layer({
-		box = box,
+		placement = box,
 	}); ok {
 		paint_box_fill(box, get_color(.Widget_Back))
 		paint_box_stroke(box, 2, get_color(.Widget_Stroke))

@@ -37,7 +37,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 		layout := current_layout()
 		if next_box, ok := use_next_box(); ok {
 			self.box = next_box
-		} else if int(placement.side) > 1 && (info.fit_to_label.? or_else true) {
+		} else if int(placement.side) > 1 && (info.fit_to_label.? or_else false) {
 			size := get_size_for_label(layout, info.label)
 			if info.shape == .Left_Arrow || info.shape == .Right_Arrow {
 				size += get_layout_height(layout) / 2
@@ -143,18 +143,20 @@ Toggle_Button_Info :: struct {
 }
 do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := do_widget(hash(loc)); ok {
+		// Colocate
 		layout := current_layout()
 		if next_box, ok := use_next_box(); ok {
 			self.box = next_box
-		} else if int(placement.side) > 1 {
+		} else if info.fit_to_label && int(placement.side) > 1 {
 			self.box = layout_next_of_size(layout, get_size_for_label(layout, info.label))
 		} else {
 			self.box = layout_next(layout)
 		}
+		// Update
 		update_widget(self)
-		// Animations
-		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
-		// Paintions
+		// Animate
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
+		// Paint
 		if .Should_Paint in self.bits {
 			color := get_color(.Accent if info.state else .Widget_Stroke)
 			if info.state {
@@ -183,6 +185,8 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 
 			paint_label_box(info.label, shrink_box_double(self.box, {(self.box.high.y - self.box.low.y) * 0.25, 0}), color, .Middle, .Middle)
 		}
+		// Hover
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 		// Result
 		clicked = widget_clicked(self, .Left)
 	}
@@ -202,7 +206,7 @@ do_toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: Label, loc := 
 do_enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value: T) {
 	new_value = value
 	layout := current_layout()
-	horizontal := layout.side == .Left || layout.side == .Right
+	horizontal := placement.side == .Left || placement.side == .Right
 	for member, i in T {
 		push_id(int(member))
 			sides: Box_Sides
@@ -212,7 +216,7 @@ do_enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value
 			if i < len(T) - 1 {
 				sides += {.Right} if horizontal else {.Bottom}
 			}
-			if do_toggle_button({label = format(member), state = value == member, join = sides}) {
+			if do_toggle_button({label = tmp_printf("%v", member), state = value == member, join = sides}) {
 				new_value = member
 			}
 		pop_id()
@@ -221,7 +225,7 @@ do_enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value
 }
 // Smol subtle buttons
 Floating_Button_Info :: struct {
-	icon: Icon,
+	icon: rune,
 }
 do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	if self, ok := do_widget(hash(loc)); ok {
@@ -233,7 +237,7 @@ do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) 
 			center := linalg.round(box_center(self.box))
 			paint_circle_fill_texture(center + {0, 5}, 40, get_color(.Base_Shade, 0.2))
 			paint_circle_fill_texture(center, 40, alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), (2 if self.state >= {.Pressed} else hover_time) * 0.1))
-			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.icon, center, get_color(.Button_Text), {.Middle, .Middle})
+			paint_aligned_rune(painter.style.button_font, painter.style.button_font_size, info.icon, center, get_color(.Button_Text), {.Middle, .Middle})
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)

@@ -97,44 +97,8 @@ pop_growing_layout :: proc() {
 		placement = layout.last_placement
 		// Apply extending layout cut
 		if core.layout_agent.stack.height > 0 {
-			if last_layout.mode == .Extending {
-				if side, ok := last_layout.side.?; ok {
-					layout_cut_or_extend(layout, side, Exact((last_layout.box.high.x - last_layout.box.low.x) if int(side) > 1 else (last_layout.box.high.y - last_layout.box.low.y)))	
-				}
-			}
-		}
-	}
-}
-/*
-	This creates a growing layout that will fit the current layer to itself after use
-*/
-push_layer_extending_layout :: proc(box: Box) -> ^Layout {
-	layout := push_layout(box)
-	layout.mode = .Extending
-	return layout
-}
-pop_layer_extending_layout :: proc() {
-	last_layout := current_layout()
-	if last_layout.mode == .Extending {
-		layer := current_layer()
-		#partial switch last_layout.side.? {
-			case .Top:
-			last_layout.box = {{layer.box.low.x, last_layout.box.low.y}, {layer.box.high.x, last_layout.box.high.y}}
-			case .Bottom:
-			last_layout.box = {layer.box.low, {layer.box.high.x, last_layout.box.high.y}}
-		}
-	}
-	layout_agent_pop(&core.layout_agent)
-	if core.layout_agent.stack.height > 0 {
-		layout := current_layout()
-		// Update placement settings
-		placement = layout.last_placement
-		// Apply extending layout cut
-		if core.layout_agent.stack.height > 0 {
-			if last_layout.mode == .Extending {
-				if side, ok := last_layout.side.?; ok {
-					layout_cut_or_extend(layout, side, Exact((last_layout.box.high.x - last_layout.box.low.x) if int(side) > 1 else (last_layout.box.high.y - last_layout.box.low.y)))	
-				}
+			if side, ok := last_layout.side.?; ok {
+				layout_cut_or_extend(layout, side, Exact((last_layout.box.high.x - last_layout.box.low.x) if int(side) > 1 else (last_layout.box.high.y - last_layout.box.low.y)))	
 			}
 		}
 	}
@@ -181,10 +145,10 @@ layout_cut_or_extend :: proc(layout: ^Layout, side: Box_Side, size: Unit) -> (re
 		case .Fixed:
 		// In this case we cut a piece out of the layout
 		switch side {
-			case .Bottom: 	result = cut_box_bottom(&layout.box, size)
-			case .Top: 			result = cut_box_top(&layout.box, size)
-			case .Left: 		result = cut_box_left(&layout.box, size)
-			case .Right: 		result = cut_box_right(&layout.box, size)
+			case .Bottom:		result = cut_box_bottom(&layout.box, size)
+			case .Top:			result = cut_box_top(&layout.box, size)
+			case .Left:			result = cut_box_left(&layout.box, size)
+			case .Right:		result = cut_box_right(&layout.box, size)
 		}
 		case .Extending:
 		// In this case we grow the layout in the given direction
@@ -246,6 +210,20 @@ do_layout_box :: proc(box: Box) -> (ok: bool) {
 }
 @private 
 _do_layout :: proc(ok: bool) {
+	if ok {
+		pop_layout()
+	}
+}
+
+@(deferred_out=_do_horizontal)
+do_horizontal :: proc(size: Unit) -> (ok: bool) {
+	box := cut(placement.side, size)
+	layout := push_layout(box)
+	placement.side = .Left
+	return true
+}
+@private 
+_do_horizontal :: proc(ok: bool) {
 	if ok {
 		pop_layout()
 	}

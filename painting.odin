@@ -223,7 +223,7 @@ atlas_add_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: 
 	box := atlas_get_box(self, outer * 2)
 	center: [2]f32 = box_center(box) - 0.5
 	outer := outer - 0.5
-	inner := inner - 1
+	inner := inner - 0.5
 	for y in int(box.low.y)..<int(box.high.y) {
 		for x in int(box.low.x)..<int(box.high.x) {
 			point: [2]f32 = {f32(x), f32(y)}
@@ -250,7 +250,7 @@ MAX_DRAWS :: 32
 // Context for painting graphics stuff
 Painter :: struct {
 	// Style
-	style: 				Style,
+	style: Style,
 	// Main texture atlas
 	atlas: Atlas,
 	// Draw options
@@ -1013,29 +1013,6 @@ paint_rotating_arrow :: proc(center: [2]f32, size, time: f32, color: Color) {
 		color,
 		)
 }
-paint_flipping_arrow :: proc(center: [2]f32, size, time: f32, color: Color) {
-	TRIANGLE_NORMALS: [3][2]f32: {
-		{-0.500, -0.866},
-		{-0.500, 0.866},
-		{1.000, 0.000},
-	}
-	scale: [2]f32 = {1 - time * 2, 1} * size
-	if time > 0.5 {
-		paint_triangle_fill(
-			center + TRIANGLE_NORMALS[2] * scale,
-			center + TRIANGLE_NORMALS[1] * scale,
-			center + TRIANGLE_NORMALS[0] * scale,
-			color,
-		)
-	} else {
-		paint_triangle_fill(
-			center + TRIANGLE_NORMALS[0] * scale,
-			center + TRIANGLE_NORMALS[1] * scale,
-			center + TRIANGLE_NORMALS[2] * scale,
-			color,
-		)
-	}
-}
 rotate_point :: proc(v: [2]f32, a: f32) -> [2]f32 {
 	cosres := math.cos(a);
   sinres := math.sin(a);
@@ -1044,6 +1021,14 @@ rotate_point :: proc(v: [2]f32, a: f32) -> [2]f32 {
   	v.x * cosres - v.y * sinres,
   	v.x * sinres + v.y * cosres,
   }
+}
+paint_cross :: proc(center: [2]f32, scale, angle, thickness: f32, color: Color) {
+	p0: [2]f32 = center + rotate_point({-1, 0}, angle) * scale
+	p1: [2]f32 = center + rotate_point({1, 0}, angle) * scale
+	p2: [2]f32 = center + rotate_point({0, -1}, angle) * scale
+	p3: [2]f32 = center + rotate_point({0, 1}, angle) * scale
+	paint_line(p0, p1, thickness, color)
+	paint_line(p2, p3, thickness, color)
 }
 paint_arrow :: proc(center: [2]f32, scale, angle, thickness: f32, color: Color) {
 	p0: [2]f32 = center + rotate_point({-1, -0.5}, angle) * scale

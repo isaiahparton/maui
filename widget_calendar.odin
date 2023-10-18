@@ -1,6 +1,7 @@
 package maui
 
 import "core:time"
+import "core:math/linalg"
 
 CALENDAR_WIDTH :: 440
 CALENDAR_HEIGHT :: 250
@@ -24,8 +25,11 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 
 		if .Active in self.bits {
 			box: Box = {low = {width(self.box) * 0.5 - CALENDAR_WIDTH * 0.5, self.box.high.y}}
+			size: [2]f32 = {CALENDAR_WIDTH, 270}
+			box.low = linalg.clamp(box.low, 0, core.size - size)
+			box.high = box.low + size
 			if layer, ok := do_layer({
-				box = box,
+				placement = box,
 				order = .Background,
 				options = {.Attached},
 				shadow = Layer_Shadow_Info({
@@ -33,7 +37,6 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					offset = SHADOW_OFFSET,
 				}),
 			}); ok {
-
 				// Temporary state
 				year, month, day := time.date(info.temp_value^)
 
@@ -47,7 +50,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						month_days -= int(time.days_before[int(month) - 1])
 					}
 					placement.size = Exact(20)
-					if do_menu({label = tmp_print(day), size = {0, 120}, layout_size = ([2]f32){0, f32(month_days) * 20}}) {
+					if do_menu({label = tmp_print(day), size = {0, 120}}) {
 						for i in 1..=month_days {
 							push_id(i)
 								if do_option({label = tmp_print(i)}) {
@@ -58,7 +61,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						}
 					}
 					space(Exact(10))
-					if do_menu({label = tmp_print(month), size = {0, 120}, layout_size = ([2]f32){0, 240}}) {
+					if do_menu({label = tmp_print(month), size = {0, 120}}) {
 						for member in time.Month {
 							push_id(int(member))
 								if do_option({label = tmp_print(member)}) {
@@ -69,7 +72,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						}
 					}
 					space(Exact(10))
-					if do_menu({label = tmp_print(year), size = {0, 120}, layout_size = ([2]f32){0, 180}}) {
+					if do_menu({label = tmp_print(year), size = {0, 120}}) {
 						low := max(year - 4, 1970)
 						for i in low..=(low + 8) {
 							push_id(i)
@@ -140,6 +143,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 							pop_layout()
 							push_layout(cut(.Top, Exact(20)))
 							placement.side = .Left
+							placement.size = Exact(60)
 						}
 						_, _month, _day := time.date(transmute(time.Time)day_time)
 						push_id(i)
@@ -173,6 +177,8 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				info.temp_value._nsec = max(info.temp_value._nsec, 0)
 			}
 		}
+
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 
 		if widget_clicked(self, .Left) {
 			self.bits ~= {.Active}

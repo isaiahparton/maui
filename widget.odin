@@ -384,7 +384,7 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 	}
 	box.high = box.low + size
 	if layer, ok := begin_layer({
-		box = box, 
+		placement = box, 
 		id = id,
 		options = {.No_Scroll_X, .No_Scroll_Y},
 	}); ok {
@@ -432,7 +432,7 @@ tooltip_box ::proc(id: Id, text: string, anchor: Box, side: Box_Side, offset: f3
 // Labels
 Label :: union {
 	string,
-	Icon,
+	rune,
 }
 
 Paint_Label_Info :: struct {
@@ -445,8 +445,8 @@ paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: Text_Alig
 		case string: 	
 		return paint_text(origin, {font = painter.style.button_font, size = painter.style.button_font_size, text = variant}, {align = align, baseline = baseline}, color)
 
-		case Icon: 		
-		//return paint_aligned_icon(painter.style.button_font, rune(variant)), linalg.floor(origin), color, info.align)
+		case rune: 		
+		return paint_aligned_rune(painter.style.button_font, painter.style.button_font_size, rune(variant), linalg.floor(origin), color, {.Middle, .Middle})
 	}
 	return {}
 }
@@ -473,7 +473,7 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 			size = painter.style.button_font_size, 
 		})
 
-		case Icon:
+		case rune:
 		font := &painter.atlas.fonts[painter.style.button_font]
 		if font_size, ok := get_font_size(font, painter.style.button_font_size); ok {
 			if glyph, ok := get_font_glyph(font, font_size, rune(variant)); ok {
@@ -487,7 +487,7 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 
 Nav_Menu_Option_Info :: struct {
 	index: int,
-	icon: Icon,
+	icon: rune,
 	name: string,
 }
 Nav_Menu_Section_Info :: struct {
@@ -533,7 +533,7 @@ do_nav_menu :: proc(info: Nav_Menu_Info, loc := #caller_location) -> (result: Ma
 					paint_right_ribbon_fill(box, fill_color)
 
 					text_color := blend_colors(get_color(.Intense, 0.5 + hover_time), get_color(.Base), state_time)
-					paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, item.icon, center(self.box), text_color, {.Middle, .Middle})
+					paint_aligned_rune(painter.style.button_font, painter.style.button_font_size, item.icon, center(self.box), text_color, {.Middle, .Middle})
 					paint_text(
 						{self.box.low.x + height(self.box) * ease.cubic_in_out(state_time) * 0.3, center_y(self.box)}, 
 						{text = item.name, font = painter.style.default_font, size = painter.style.default_font_size}, 
@@ -767,8 +767,6 @@ Toggle_Switch_State :: union #no_nil {
 
 Toggle_Switch_Info :: struct {
 	state: Toggle_Switch_State,
-	off_icon,
-	on_icon: Maybe(Icon),
 }
 
 // Sliding toggle switch
@@ -817,12 +815,6 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 			}
 			paint_circle_fill(knob_center, 11, 10, get_color(.Widget_Back))
 			paint_ring_fill_texture(knob_center, 10, 11, blend_colors(get_color(.Widget_Stroke, 0.5), get_color(.Intense), how_on))
-			if how_on < 1 && info.off_icon != nil {
-				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.off_icon.?, knob_center, get_color(.Intense, 1 - how_on), {.Middle, .Middle})
-			}
-			if how_on > 0 && info.on_icon != nil {
-				paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, info.on_icon.?, knob_center, get_color(.Intense, how_on), {.Middle, .Middle})
-			}
 		}
 		// Invert state on click
 		if .Clicked in self.state {
@@ -953,7 +945,8 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 		// Paint
 		if .Should_Paint in bits {
 			color := style_intense_shaded(hover_time)
-			paint_aligned_icon(painter.style.button_font, painter.style.button_font_size, .Chevron_Down if .Active in bits else .Chevron_Right, center(box), color, {.Middle, .Middle})
+			//TODO: Replace with nice new arrow yes
+			// paint_aligned_rune(painter.style.button_font, painter.style.button_font_size, .Chevron_Down if .Active in bits else .Chevron_Right, center(box), color, {.Middle, .Middle})
 			paint_text({box.low.x + height(box), center_y(box)}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left, baseline = .Middle}, color)
 		}
 
@@ -967,8 +960,8 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 			box := cut(.Top, info.size * state_time)
 			layer: ^Layer
 			layer, active = begin_layer({
-				box = box, 
-				layout_size = [2]f32{0, info.size}, 
+				placement = box, 
+				space = [2]f32{0, info.size}, 
 				id = id, 
 				options = {.Attached, .Clip_To_Parent, .No_Scroll_Y}, 
 			})
@@ -1087,31 +1080,34 @@ Scrollbar_Info :: struct {
 do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed: bool, new_value: f32) {
 	new_value = info.value
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
+		// Colocate
 		self.box = use_next_box() or_else layout_next(current_layout())
+		// Update
 		update_widget(self)
+		// Animate
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 		i := int(info.vertical)
-		box := transmute([4]f32)self.box
 
-		range := box[2 + i] - info.knob_size
+		size := self.box.high[i] - self.box.low[i]
+		range := size - info.knob_size
 		value_range := (info.high - info.low) if info.high > info.low else 1
 
-		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
 
-		knob_box := box
-		knob_box[i] += range * clamp((info.value - info.low) / value_range, 0, 1)
-		knob_box[2 + i] = min(info.knob_size, box[2 + i])
+		knob_box := self.box
+		knob_size := knob_box.high[i] - knob_box.low[i]
+		knob_box.low[i] += range * clamp((info.value - info.low) / value_range, 0, 1)
+		knob_size = min(info.knob_size, knob_size)
+		knob_box.high[i] = knob_box.low[i] + knob_size
 		// Painting
 		if .Should_Paint in self.bits {
-			ROUNDNESS :: 4
-			paint_box_fill(transmute(Box)box, get_color(.Scrollbar))
-			paint_box_fill(shrink_box(transmute(Box)knob_box, 1), blend_colors(get_color(.Scroll_Thumb), get_color(.Scroll_Thumb_Shade), (2 if .Pressed in self.state else hover_time) * 0.1))
-			paint_box_stroke(transmute(Box)knob_box, 1, get_color(.Base_Stroke))
-			paint_box_stroke(transmute(Box)box, 1, get_color(.Base_Stroke))
+			r := (self.box.high[1 - i] - self.box.low[1 - i]) * 0.5
+			paint_rounded_box_fill(self.box, r, get_color(.Scrollbar))
+			paint_rounded_box_fill(knob_box, r, blend_colors(get_color(.Scroll_Thumb), get_color(.Scroll_Thumb_Shade), (2 if .Pressed in self.state else hover_time) * 0.1))
 		}
 		// Dragging
 		if .Got_Press in self.state {
 			if point_in_box(input.mouse_point, transmute(Box)knob_box) {
-				core.drag_anchor = input.mouse_point - ([2]f32)({knob_box.x, knob_box.y})
+				core.drag_anchor = input.mouse_point - knob_box.low
 				self.bits += {.Active}
 			}/* else {
 				normal := clamp((input.mouse_point[i] - box[i]) / range, 0, 1)
@@ -1120,13 +1116,15 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 			}*/
 		}
 		if self.bits >= {.Active} {
-			normal := clamp(((input.mouse_point[i] - core.drag_anchor[i]) - box[i]) / range, 0, 1)
+			normal := clamp(((input.mouse_point[i] - core.drag_anchor[i]) - self.box.low[i]) / range, 0, 1)
 			new_value = info.low + (info.high - info.low) * normal
 			changed = true
 		}
 		if self.state & {.Lost_Press, .Lost_Focus} != {} {
 			self.bits -= {.Active}
 		}
+		// Hover
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }
@@ -1210,7 +1208,7 @@ do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (cl
 			}
 			paint_pill_stroke_h(self.box, 2 if info.state else 1, color)
 			if state_time > 0 {
-				paint_aligned_icon(painter.style.title_font, painter.style.title_font_size, .Check, {box.high.x + height(box) / 2, center_y(box)}, fade(color, state_time), {.Near, .Middle})
+				//paint_aligned_rune(painter.style.title_font, painter.style.title_font_size, .Check, {box.high.x + height(box) / 2, center_y(box)}, fade(color, state_time), {.Near, .Middle})
 				paint_text({box.high.x - height(box) / 2, center_y(box)}, text_info, {align = .Middle, baseline = .Middle}, color) 
 			} else {
 				paint_text(center(box), text_info, {align = .Middle, baseline = .Middle}, color) 
@@ -1266,7 +1264,7 @@ do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) 
 
 		if info.has_close_button {
 			if do_button({
-				label = Icon.Close,
+				label = 'X',
 				style = .Subtle,
 			}) {
 				result.closed = true

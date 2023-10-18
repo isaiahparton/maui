@@ -9,8 +9,8 @@ MAX_CLICK_COUNT :: 3
 
 Mouse_Button :: enum {
 	Left,
-	Middle,
 	Right,
+	Middle,
 }
 Mouse_Bits :: bit_set[Mouse_Button]
 Mouse_Button_State :: enum {

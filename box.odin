@@ -256,7 +256,7 @@ get_box_left :: proc(b: Box, a: Unit) -> Box {
 	return {b.low, {b.low.x + (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x))), b.high.y}}
 }
 get_box_top :: proc(b: Box, a: Unit) -> Box {
-	return {b.low, {b.high.y, b.low.x + (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x)))}}
+	return {b.low, {b.high.x, b.low.y + (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x)))}}
 }
 get_box_right :: proc(b: Box, a: Unit) -> Box {
 	return {{b.high.x - (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x))), b.low.y}, b.high}

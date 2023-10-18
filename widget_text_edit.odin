@@ -80,7 +80,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			get_color(.Text),
 		)
 		if .Focused in self.state {
-			offset_x_limit := width(text_res.bounds) - width(inner_box)
+			offset_x_limit := max(width(text_res.bounds) - width(inner_box), 0)
 			if .Pressed in self.state {
 				left_over := self.box.low.x - input.mouse_point.x 
 				if left_over > 0 {
