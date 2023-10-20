@@ -654,6 +654,29 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 	return
 }
 
+Do_Text_Info :: struct {
+	text: string,
+	align: Text_Align,
+	baseline: Text_Baseline,
+	color: Maybe(Color),
+}
+do_text :: proc(info: Do_Text_Info) {
+	box := use_next_box() or_else layout_next(current_layout())
+	box = shrink_box(box, WIDGET_PADDING)
+	origin: [2]f32
+	switch info.align {
+		case .Left: origin.x = box.low.x
+		case .Middle: origin.x = (box.low.x + box.high.x) / 2
+		case .Right: origin.x = box.high.x
+	}
+	switch info.align {
+		case .Left: origin.y = box.low.y
+		case .Middle: origin.y = (box.low.y + box.high.y) / 2
+		case .Right: origin.y = box.high.y
+	}
+	paint_text(origin, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = info.align, baseline = info.baseline}, info.color.? or_else get_color(.Text))
+}
+
 Interactable_Text_Info :: struct {
 	using text_info: Text_Info,
 	paint_info: Text_Paint_Info,

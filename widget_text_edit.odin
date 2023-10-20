@@ -116,13 +116,12 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 		}
 		// Widget decoration
 		if .Should_Paint in self.bits {
-			stroke_color := get_color(.Widget_Stroke, 1.0 if .Focused in self.state else (0.5 + 0.5 * hover_time))
 			paint_labeled_widget_frame(
 				box = self.box, 
 				text = info.title, 
 				offset = WIDGET_PADDING,
-				thickness = 2, 
-				color = stroke_color,
+				thickness = 1, 
+				color = style_widget_stroke(self),
 			)
 			// Draw placeholder
 			if info.placeholder != nil {

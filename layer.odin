@@ -447,6 +447,19 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 
 		// Reset draw command
 		clear(&self.draws)
+
+		// Uh yeah
+		if agent.exclusive_id == self.id {
+			paint_box_fill(core.fullscreen_box, {0, 0, 0, 100})
+		}
+		// Shadows
+		if shadow, ok := info.shadow.?; ok {
+			painter.target = get_draw_target()
+			painter.draws[painter.target].clip = nil
+			append(&self.draws, painter.target)
+			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, get_color(.Shadow))
+		}
+
 		painter.target = get_draw_target()
 		append(&self.draws, painter.target)
 
@@ -526,17 +539,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		if .Clip_To_Parent in self.options && self.parent != nil && !box_in_box(self.parent.box, self.box) {
 			self.box = clamp_box(self.box, self.parent.box)
 		}
-
-		// Uh yeah
-		if agent.exclusive_id == self.id {
-			paint_box_fill(core.fullscreen_box, {0, 0, 0, 100})
-		}
+		
 		self.opacity = info.opacity.? or_else self.opacity
-
-		// Shadows
-		if shadow, ok := info.shadow.?; ok {
-			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, get_color(.Shadow))
-		}
 
 		// Get layout size
 		self.space = info.space.? or_else 0

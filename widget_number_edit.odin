@@ -43,7 +43,7 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 		// Paint!
 		if (.Should_Paint in self.bits) {
 			paint_rounded_box_fill(self.box, painter.style.widget_rounding, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.05))
-			paint_rounded_box_stroke(self.box, painter.style.widget_rounding, 2, get_color(.Widget_Stroke, 1.0 if .Focused in self.state else (0.5 + 0.5 * hover_time)))
+			paint_rounded_box_stroke(self.box, painter.style.widget_rounding, 1, style_widget_stroke(self))
 		}
 		// Text!
 		text_origin: [2]f32 = {self.box.high.x - WIDGET_PADDING, (self.box.low.y + self.box.high.y) / 2}
@@ -150,9 +150,9 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			case f16, f32, f64: has_decimal = true
 		}
 		// Formatting
-		text := transmute([]u8)tmp_printf(info.format.? or_else "%v", info.value)
+		text := tmp_printf(info.format.? or_else "%v", info.value)
 		if info.trim_decimal && has_decimal {
-			text = transmute([]u8)trim_zeroes(string(text))
+			text = trim_zeroes(text)
 		}
 		// Painting
 		text_align := info.text_align.? or_else {
@@ -170,8 +170,37 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				color = stroke_color,
 			)
 		}
-		select_result: Selectable_Text_Result
-
+		// Do text interaction
+		inner_box: Box = {{self.box.low.x + WIDGET_PADDING, self.box.low.y}, {self.box.high.x - WIDGET_PADDING, self.box.high.y}}
+		text_origin: [2]f32 = {inner_box.low.x, (inner_box.low.y + inner_box.high.y) / 2} - self.offset
+		text_res: Text_Interact_Result
+		// Focus
+		if .Focused in self.state {
+			offset_x_limit := max(width(text_res.bounds) - width(inner_box), 0)
+			if .Pressed in self.state {
+				left_over := self.box.low.x - input.mouse_point.x 
+				if left_over > 0 {
+					self.offset.x -= left_over * 0.2
+					core.paint_next_frame = true
+				}
+				right_over := input.mouse_point.x - self.box.high.x
+				if right_over > 0 {
+					self.offset.x += right_over * 0.2
+					core.paint_next_frame = true
+				}
+				self.offset.x = clamp(self.offset.x, 0, offset_x_limit)
+			} else {
+				if core.typing_agent.index < core.typing_agent.last_index {
+					if text_res.selection_bounds.low.x < inner_box.low.x {
+						self.offset.x = max(0, text_res.selection_bounds.low.x - text_res.bounds.low.x)
+					}
+				} else if core.typing_agent.index > core.typing_agent.last_index || core.typing_agent.length > core.typing_agent.last_length {
+					if text_res.selection_bounds.high.x > inner_box.high.x {
+						self.offset.x = min(offset_x_limit, (text_res.selection_bounds.high.x - text_res.bounds.low.x) - width(inner_box))
+					}
+				}
+			}
+		}
 		// Update text input
 		if state >= {.Focused} {
 			buffer := typing_agent_get_buffer(&core.typing_agent, id)
@@ -183,18 +212,19 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			switch typeid_of(T) {
 				case f16, f32, f64: text_edit_bits -= {.Integer}
 			}
-			select_result = selectable_text(self, {
-				font_data = font_data, 
-				data = buffer[:], 
-				box = box, 
-				padding = {box.h * 0.25, box.h / 2 - font_data.size / 2},
-				align = text_align,
-			})
+			text_res = paint_interact_text(
+				text_origin, 
+				self,
+				&core.typing_agent, 
+				{text = string(buffer[:]), font = painter.style.default_font, size = painter.style.default_font_size},
+				{baseline = .Middle, clip = self.box},
+				{},
+				get_color(.Text),
+			)
 			if typing_agent_edit(&core.typing_agent, {
 				array = buffer, 
 				bits = text_edit_bits, 
 				capacity = 18,
-				select_result = select_result,
 			}) {
 				core.paint_next_frame = true
 				str := string(buffer[:])
@@ -203,27 +233,24 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 					new_value = T(strconv.parse_f64(str) or_else 0)
 					case int, i128, i64, i32, i16, i8: 
 					new_value = T(strconv.parse_i128(str) or_else 0)
-					case u128, u64, u32, u16, u8:
+					case uint, u128, u64, u32, u16, u8:
 					new_value = T(strconv.parse_u128(str) or_else 0)
 				}
 				state += {.Changed}
 			}
 		} else {
-			select_result = selectable_text(self, {
-				font_data = font_data, 
-				data = text, 
-				box = box, 
-				padding = {box.h * 0.25, box.h / 2 - font_data.size / 2},
-				align = text_align,
-			})
+			text_res = paint_interact_text(
+				text_origin, 
+				self,
+				&core.typing_agent, 
+				{text = text, font = painter.style.default_font, size = painter.style.default_font_size},
+				{baseline = .Middle, clip = self.box},
+				{},
+				get_color(.Text),
+			)
 		}
 
-		if suffix, ok := info.suffix.?; ok {
-			paint_string(font_data, suffix, {box.x + box.h * 0.25, box.y + box.h / 2} + select_result.view_offset + {select_result.text_size.x, 0}, get_color(.Text, 0.5), {
-				align = {.Near, .Middle},
-				clip_box = box,
-			})
-		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
 }

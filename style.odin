@@ -24,16 +24,17 @@ DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.Base 								= {30, 30, 32, 255},
 	.Base_Shade 					= {255, 255, 255, 255},
 	.Base_Stroke					= {112, 113, 116, 255},
-	.Widget_Back						= {12, 12, 16, 255},
+	.Widget_Back					= {12, 12, 16, 255},
 	.Widget	 							= {65, 65, 75, 255},
 	.Widget_Shade 				= {255, 255, 255, 255},
-	.Widget_Stroke 				= {105, 105, 105, 255},
+	.Widget_Stroke 				= {85, 85, 85, 255},
+	.Widget_Stroke_Focused 	= {255, 108, 0, 255},
 	.Intense 							= {62, 62, 67, 255},
 	.Intense_Shade 				= {230, 239, 255, 255},
-	.Shadow 							= {0, 0, 0, 60},
+	.Shadow 							= {0, 0, 255, 255},
 	.Text_Inverted 				= {218, 218, 218, 255},
 	.Text 								= {255, 255, 255, 255},
-	.Text_Highlight  			= {0, 100, 136, 255},
+	.Text_Highlight  			= {0, 100, 220, 255},
 	.Tooltip_Fill 				= {240, 240, 250, 255},
 	.Tooltip_Stroke  			= {},
 	.Tooltip_Text 				= {50, 50, 50, 255},
@@ -84,6 +85,7 @@ Color_Index :: enum {
 	Widget_Shade,
 	// Widget outline
 	Widget_Stroke,
+	Widget_Stroke_Focused,
 	// Outline
 	Intense,
 	// Outline shading
@@ -194,6 +196,9 @@ get_color :: proc(index: Color_Index, alpha: f32 = 1) -> Color {
 	return {color.r, color.g, color.b, u8(f32(color.a) * clamp(alpha, 0, 1))}
 }
 
+style_widget_stroke :: proc(w: ^Widget) -> Color {
+	return get_color(.Widget_Stroke_Focused if .Focused in w.state else .Widget_Stroke)
+}
 style_shade :: proc(base: Color, amount: f32) -> Color {
 	return alpha_blend_colors(base, painter.style.colors[.Widget_Shade], fade(255, amount * 0.1))
 }

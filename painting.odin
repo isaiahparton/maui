@@ -893,12 +893,14 @@ paint_rounded_box_fill :: proc(box: Box, radius: f32, color: Color) {
 		bl_dst: Box = {{box.low.x, box.high.y - radius}, {box.low.x + radius, box.high.y}}
 		br_dst: Box = {box.high - radius, box.high}
 
-		paint_textured_box(painter.atlas.texture, tl_src, tl_dst, color)
-		paint_textured_box(painter.atlas.texture, tr_src, tr_dst, color)
-		paint_textured_box(painter.atlas.texture, bl_src, bl_dst, color)
-		paint_textured_box(painter.atlas.texture, br_src, br_dst, color)
+		paint_clipped_textured_box(painter.atlas.texture, tl_src, tl_dst, box, color)
+		paint_clipped_textured_box(painter.atlas.texture, tr_src, tr_dst, box, color)
+		paint_clipped_textured_box(painter.atlas.texture, bl_src, bl_dst, box, color)
+		paint_clipped_textured_box(painter.atlas.texture, br_src, br_dst, box, color)
 
-		paint_box_fill({{box.low.x + radius, box.low.y}, {box.high.x - radius, box.high.y}}, color)
+		if box.high.x > box.low.x + radius * 2 {
+			paint_box_fill({{box.low.x + radius, box.low.y}, {box.high.x - radius, box.high.y}}, color)
+		}
 		paint_box_fill({{box.low.x, box.low.y + radius}, {box.low.x + radius, box.high.y - radius}}, color)
 		paint_box_fill({{box.high.x - radius, box.low.y + radius}, {box.high.x, box.high.y - radius}}, color)
 	}

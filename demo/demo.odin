@@ -29,8 +29,10 @@ _main :: proc() {
 	t: time.Time
 	tt: time.Time
 	show_window: bool
+	boolean: bool
 	choice: Choice
 	number: f64
+	slider_int: i64
 	text: string
 	text_demo: Text_Demo = {
 		info = {text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque pharetra, mauris at laoreet volutpat, libero diam pulvinar sem, vitae ultricies metus enim ac dolor. Aenean id diam libero. Nam elit dolor, condimentum eget mauris eu, venenatis scelerisque enim. Pellentesque porttitor massa quis erat congue, id condimentum eros volutpat.", size = 20},
@@ -103,22 +105,31 @@ _main :: proc() {
 		space(Exact(10))
 		do_checkbox({state = &show_window, text = "show window"})
 		space(Exact(10))
-		if do_horizontal(Exact(24)) {
+		if do_horizontal(Exact(28)) {
 			placement.size = Exact(200)
 			do_text_field({data = &text, title = "Text!"})
 		}
 		space(Exact(10))
-		if do_horizontal(Exact(24)) {
+		if do_horizontal(Exact(28)) {
 			placement.size = Exact(200)
 			if res := do_numeric_field(Numeric_Field_Info(f64){value = number, title = "Number!", precision = 2}); res.changed {
 				number = res.value
 			}
 		}
 		space(Exact(10))
-		if do_horizontal(Exact(24)) {
+		if do_horizontal(Exact(28)) {
 			placement.size = Exact(200)
 			do_date_picker({value = &t, temp_value = &tt})
 		}
+		space(Exact(10))
+		if do_horizontal(Exact(28)) {
+			placement.size = Exact(100)
+			slider_int = do_box_slider(Box_Slider_Info(i64){value = slider_int, low = 0, high = 100})
+			space(Exact(10))
+			slider_int = do_spinner(Spinner_Info(i64){value = slider_int, low = 0, high = 100})
+		}
+		space(Exact(10))
+		boolean = do_toggle_switch({state = boolean})
 
 		if show_window {
 			if do_window({

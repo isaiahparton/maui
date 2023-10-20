@@ -202,7 +202,7 @@ cut_box_right :: proc(box: ^Box, amount: Unit) -> (res: Box) {
 cut_box_bottom :: proc(box: ^Box, amount: Unit) -> (res: Box) {
 	h := box.high.y - box.low.y
 	a := min(h, amount.(Exact) or_else Exact(f32(amount.(Relative)) * h))
-	res = {{box.high.x, box.low.y - a}, box.high}
+	res = {{box.low.x, box.high.y - a}, box.high}
 	box.high.y += a
 	return
 }
