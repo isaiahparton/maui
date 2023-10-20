@@ -455,7 +455,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Shadows
 		if shadow, ok := info.shadow.?; ok {
 			painter.target = get_draw_target()
-			painter.draws[painter.target].clip = nil
+			// painter.draws[painter.target].clip = nil
 			append(&self.draws, painter.target)
 			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, get_color(.Shadow))
 		}
@@ -702,6 +702,7 @@ end_layer :: proc(self: ^Layer) {
 	}
 	layer_agent_pop(&core.layer_agent)
 	if core.layer_agent.stack.height > 0 {
-		painter.target = current_layer().draws[0]
+		layer := current_layer()
+		painter.target = layer.draws[len(layer.draws) - 1]
 	}
 }

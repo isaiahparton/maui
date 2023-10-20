@@ -258,7 +258,7 @@ animate_bool :: proc(value: ^f32, condition: bool, duration: f32, easing: ease.E
 		value^ = max(0, value^ - core.delta_time * (1 / duration))
 	}
 	if value^ != old_value {
-		core.paint_this_frame = true
+		core.paint_next_frame = true
 	}
 	return ease.ease(easing, value^)
 }

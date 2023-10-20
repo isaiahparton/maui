@@ -66,7 +66,7 @@ _main :: proc() {
 			push_id(int(shape))
 			if do_layout(.Top, Exact(24)) {
 				placement.side = .Left 
-				do_button({shape = shape, style = .Filled, label = "Button", fit_to_label = true})
+				do_button({shape = shape, style = .Filled, label = "Button", color = get_color(.Accent), fit_to_label = true})
 				space(Exact(10))
 				do_button({shape = shape, style = .Outlined, label = "Button", fit_to_label = true})
 				space(Exact(10))
@@ -129,7 +129,7 @@ _main :: proc() {
 			slider_int = do_spinner(Spinner_Info(i64){value = slider_int, low = 0, high = 100})
 		}
 		space(Exact(10))
-		boolean = do_toggle_switch({state = boolean})
+		boolean = do_toggle_switch({state = Toggle_Switch_State(boolean)})
 
 		if show_window {
 			if do_window({

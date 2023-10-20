@@ -31,7 +31,7 @@ DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.Widget_Stroke_Focused 	= {255, 108, 0, 255},
 	.Intense 							= {62, 62, 67, 255},
 	.Intense_Shade 				= {230, 239, 255, 255},
-	.Shadow 							= {0, 0, 255, 255},
+	.Shadow 							= {0, 0, 0, 50},
 	.Text_Inverted 				= {218, 218, 218, 255},
 	.Text 								= {255, 255, 255, 255},
 	.Text_Highlight  			= {0, 100, 220, 255},
