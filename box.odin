@@ -296,6 +296,8 @@ attach_box :: proc(box: Box, side: Box_Side, size: f32) -> Box {
 	}
 	return {}
 }
+
+// Get the valid corners for the given sides or whatever
 side_corners :: proc(side: Box_Side) -> Box_Corners {
 	switch side {
 		case .Bottom:  	return {.Top_Left, .Top_Right}
@@ -304,4 +306,23 @@ side_corners :: proc(side: Box_Side) -> Box_Corners {
 		case .Right:  	return {.Top_Left, .Bottom_Left}
 	}
 	return ALL_CORNERS
+}
+
+// attach a box
+get_attached_box :: proc(box: Box, side: Box_Side, size: [2]f32, offset: f32) -> Box {
+	switch side {
+		case .Bottom: 
+		middle := (box.low.x + box.high.x) / 2
+		return {{middle - size.x / 2, box.high.y + offset}, {middle + size.x / 2, box.high.y + offset + size.y}}
+		case .Left: 
+		middle := (box.low.y + box.high.y) / 2 
+		return {{box.low.x - (offset + size.x), middle - size.y / 2}, {box.low.x - offset, middle + size.y / 2}}
+		case .Right: 
+		middle := (box.low.y + box.high.y) / 2 
+		return {{box.high.x + offset, middle - size.y / 2}, {box.low.x + offset + size.x, middle + size.y / 2}}
+		case .Top: 
+		middle := (box.low.x + box.high.x) / 2
+		return {{middle - size.x / 2, box.high.y + offset}, {middle + size.x / 2, box.high.y + offset + size.y}}
+	}
+	return {}
 }

@@ -202,14 +202,15 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 					color = get_color(.Text),
 				)
 				if .Closable in self.options {
-					set_next_box(child_box(get_box_right(title_box, height(title_box)), {20, 20}, {.Middle, .Middle}))
-					if do_button({
-						style = .Subtle,
-						align = .Middle,
-					}) {
-						self.bits += {.Should_Close}
+					// Close button
+					if self, _ok := do_widget(hash(&self.id, size_of(Id))); _ok {
+						self.box = get_box_right(title_box, height(title_box))
+						update_widget(self)
+						hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
+						paint_rounded_box_corners_fill(self.box, WINDOW_ROUNDNESS, {.Top_Right, .Bottom_Right}, get_color(.Base_Shade, 0.2 * hover_time))
+						paint_cross(box_center(self.box), 7, math.PI * 0.25, 2, get_color(.Base))
+						update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 					}
-					paint_cross(box_center(core.last_box), 7, math.PI * 0.25, 2, get_color(.Base))
 				}
 				if (.Resizing not_in self.bits) && point_in_box(input.mouse_point, title_box) {
 					if (.Static not_in self.options) && (core.widget_agent.hover_id == 0) && mouse_pressed(.Left) {

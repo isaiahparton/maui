@@ -1,73 +1,10 @@
-package maui
+package maui_widgets
+import "../"
 
 import "core:fmt"
 import "core:strconv"
 import "core:math"
 import "core:intrinsics"
-
-Orientation :: enum {
-	Horizontal,
-	Vertical,
-}
-
-// Integer spinner (compound widget)
-Spinner_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
-	value,
-	low,
-	high: T,
-	increment: Maybe(T),
-	orientation: Orientation,
-	trim_decimal: bool,
-}
-
-do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_value: T) {
-	loc := loc
-	new_value = info.value
-	// Sub-widget boxes
-	box := layout_next(current_layout())
-	increase_box, decrease_box: Box
-	box_size := box.high - box.low
-	if info.orientation == .Horizontal {
-		buttons_box := get_box_right(box, box_size.y)
-		increase_box = get_box_top(buttons_box, box_size.y / 2)
-		decrease_box = get_box_bottom(buttons_box, box_size.y / 2)
-	} else {
-		increase_box = get_box_top(box, box_size.x / 2)
-		decrease_box = get_box_bottom(box, box_size.x / 2)
-	}
-	increment := info.increment.? or_else T(1)
-	// Number input
-	set_next_box(box)
-	paint_box_fill(box, get_color(.Widget_Back))
-	new_value = clamp(do_number_input(Number_Input_Info(T){
-		value = info.value,
-		text_align = ([2]Alignment){
-			.Middle, 
-			.Middle,
-		} if info.orientation == .Vertical else nil,
-		trim_decimal = info.trim_decimal,
-	}, loc), info.low, info.high)
-	// Step buttons
-	loc.column += 1
-	set_next_box(decrease_box)
-	if do_button({
-		align = .Middle,
-		style = .Subtle,
-	}, loc) {
-		new_value = max(info.low, info.value - increment)
-	}
-	paint_arrow(box_center(core.last_box), 5, 0, 1, get_color(.Text))
-	loc.column += 1
-	set_next_box(increase_box)
-	if do_button({
-		align = .Middle,
-		style = .Subtle,
-	}, loc) {
-		new_value = min(info.high, info.value + increment)
-	}
-	paint_arrow(box_center(core.last_box), 5, -math.PI, 1, get_color(.Text))
-	return
-}
 
 // Fancy slider
 Slider_Info :: struct($T: typeid) {
@@ -78,17 +15,20 @@ Slider_Info :: struct($T: typeid) {
 	format: Maybe(string),
 }
 do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
+	using maui
 	SIZE :: 20
 	HEIGHT :: SIZE / 2
 	HALF_HEIGHT :: HEIGHT / 2
 	value := info.value
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
+		// Colocate
 		self.box = layout_next(current_layout())
 		self.box = child_box(self.box, {width(self.box), SIZE}, {.Near, .Middle})
+		// Update
+		update_widget(self)
+		// Animate
 		hover_time := animate_bool(&self.timers[0], self.state & {.Hovered, .Pressed} != {}, 0.1)	
 		press_time := animate_bool(&self.timers[1], .Pressed in self.state, 0.1)
-		update_widget(self)
-
 		// The range along which the knob may travel
 		range := width(self.box) - HEIGHT
 		// The offset of the knob for the current value
@@ -122,15 +62,11 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 			if info.value < info.high {
 				paint_rounded_box_fill(bar_box, HALF_HEIGHT, get_color(.Widget_Back))
 			}
+			color := get_color(.Accent)
 			// Paint the filled part of the body
-			paint_rounded_box_fill({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, HALF_HEIGHT, get_color(.Widget))
-			// Paint the outline
-			paint_rounded_box_stroke(bar_box, HALF_HEIGHT, 2, get_color(.Widget))
-			// Paint the interactive shading
-			paint_circle_fill(knob_center, shade_radius, 24, get_color(.Base_Shade, BASE_SHADE_ALPHA * hover_time))
+			paint_rounded_box_fill({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, HALF_HEIGHT, alpha_blend_colors(color, {0, 0, 0, 255}, 0.25))
 			// Paint the knob
-			paint_circle_fill_texture(knob_center, knob_radius, blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.1))
-			paint_ring_fill_texture(knob_center, knob_radius - 2, knob_radius, get_color(.Widget_Stroke))
+			paint_circle_fill_texture(knob_center, knob_radius, alpha_blend_colors(color, 255, (hover_time + press_time) * 0.25))
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
@@ -165,6 +101,7 @@ Box_Slider_Info :: struct($T: typeid) {
 	high: T,
 }
 do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (new_value: T) where intrinsics.type_is_integer(T) {
+	using maui
 	new_value = info.value
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
 		// Colocate
@@ -190,7 +127,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 					paint_box_fill(self.box, get_color(.Widget))
 				}
 			}
-			paint_box_stroke(self.box, 1, get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time))
+			paint_box_stroke(self.box, 1, get_color(.Widget_Stroke_Focused) if .Active in self.bits else get_color(.Widget_Stroke, hover_time))
 		}
 		// Format
 		text := tmp_printf("%i", info.value)

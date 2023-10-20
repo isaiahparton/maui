@@ -27,16 +27,25 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 		year, month, day := time.date(info.value^)
 		// Paint (kinda rhymes)
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
-			paint_labeled_widget_frame(self.box, info.title, WIDGET_PADDING, 1, style_widget_stroke(self))
+			paint_box_fill(self.box, get_color(.Widget_Back))
+			paint_labeled_widget_frame(self.box, info.title, WIDGET_PADDING, 1, get_color(.Widget_Stroke_Focused) if .Active in self.bits else get_color(.Widget_Stroke, hover_time))
 			paint_label_box(tmp_printf("%2i/%2i/%4i", day, int(month), year), shrink_box(self.box, [2]f32{height(self.box) * 0.25, 0}), get_color(.Button_Base), .Left, .Middle)
 		}
 		// Activate!
 		if .Active in self.bits {
-			size: [2]f32 = {CALENDAR_WIDTH, 260}
-			box: Box = {low = {width(self.box) * 0.5 - (size.x / 2), self.box.high.y}}
+			size: [2]f32 = {440, 260}
+			side: Box_Side = .Bottom
+			OFFSET :: 10
+			// Find optimal side of attachment
+			if self.box.low.x < size.x + OFFSET {
+				side = .Right 
+			} else if self.box.high.x + size.x + OFFSET >= core.size.x {
+				side = .Left
+			} else if self.box.high.y + size.y + OFFSET >= core.size.y {
+				side = .Top
+			}
+			box := get_attached_box(self.box, side, size, OFFSET * open_time)
 			box.low = linalg.clamp(box.low, 0, core.size - size)
-			box.low.y += 10 * open_time
 			box.high = box.low + size
 			// Layer
 			if layer, ok := do_layer({
@@ -191,7 +200,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					}
 				}
 				// Stroke
-				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
+				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, 1, get_color(.Widget_Stroke_Focused))
 				// Clamp value
 				info.temp_value._nsec = max(info.temp_value._nsec, 0)
 			}

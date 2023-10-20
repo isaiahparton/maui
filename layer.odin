@@ -455,9 +455,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Shadows
 		if shadow, ok := info.shadow.?; ok {
 			painter.target = get_draw_target()
-			// painter.draws[painter.target].clip = nil
 			append(&self.draws, painter.target)
-			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, get_color(.Shadow))
+			paint_rounded_box_shadow(move_box(self.box, shadow.offset), shadow.roundness, get_color(.Shadow))
 		}
 
 		painter.target = get_draw_target()
@@ -611,13 +610,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 //@private 
 end_layer :: proc(self: ^Layer) {
 	if self != nil {
-		// Debug stuff
-		when ODIN_DEBUG {
-			if .Show_Window in core.debug_bits && self.id != 0 && core.layer_agent.debug_id == self.id {
-				paint_box_fill(self.box, {255, 0, 255, 20})
-				paint_box_stroke(self.box, 1, {255, 0, 255, 255})
-			}
-		}
 		// Pop layout
 		layout := current_layout()
 		if layout.mode == .Extending {

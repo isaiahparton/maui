@@ -86,19 +86,6 @@ Group :: struct {
 	state: Widget_State,
 }
 
-@private
-Debug_Mode :: enum {
-	Layers,
-	Windows,
-	Controls,
-}
-@private
-Debug_Bit :: enum {
-	Show_Window,
-}
-@private
-Debug_Bits :: bit_set[Debug_Bit]
-
 Tooltip_Info :: struct {
 	text: string,
 	box_side: Box_Side,
@@ -142,10 +129,6 @@ Core :: struct {
 	delta_time: f32,
 	frame_start_time: time.Time,
 	frame_duration: time.Duration,
-
-	// Debugification
-	debug_bits: Debug_Bits,
-	debug_mode: Debug_Mode,
 
 	disabled, 
 	dragging, 
@@ -406,17 +389,6 @@ begin_frame :: proc() {
 }
 end_frame :: proc() {
 	using core
-	// Built-in debug window
-	//TODO: Make this better
-	when ODIN_DEBUG {
-		layer_agent.debug_id = 0
-		if key_down(.Right_Control) && key_pressed(.Backspace) {
-			debug_bits ~= {.Show_Window}
-		}
-		if debug_bits >= {.Show_Window} {
-			
-		}
-	}
 	// End root layout
 	pop_layout()
 	// End root layer
@@ -453,30 +425,6 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 		count += 1 + _count_layer_children(child)
 	}
 	return count
-}
-@private
-_debug_layer_widget :: proc(layer: ^Layer) {
-	if do_layout(.Top, Exact(24)) {
-		push_id(layer.id)
-			n := 0
-			x := layer
-			for x.parent != nil {
-				x = x.parent
-				n += 1
-			}
-			cut(.Left, Exact(f32(n) * 24)); placement.side = .Left; placement.size = Relative(1.0)
-			do_button({
-				label = tmp_print(layer.id),
-				align = .Near,
-			})
-			if last_widget().state >= {.Hovered} {
-				core.layer_agent.debug_id = layer.id
-			}
-		pop_id()
-	}
-	for child in layer.children {
-		_debug_layer_widget(child)
-	}
 }
 sort_layer :: proc(list: ^[dynamic]^Layer, layer: ^Layer) {
 	append(list, layer)

@@ -1,4 +1,5 @@
-package maui
+package maui_widgets
+import "../"
 
 import "core:fmt"
 import "core:strconv"
@@ -23,11 +24,14 @@ Numeric_Field_Result :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 	submitted: bool,
 }
 do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) -> (res: Numeric_Field_Result(T)) {
+	using maui
 	value := info.value
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
+		// Colocate
 		self.box = use_next_box() or_else layout_next(current_layout())
+		// Update
 		update_widget(self)
-		// Animation
+		// Animate
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
 		// Cursor style
 		if self.state & {.Hovered, .Pressed} != {} {
@@ -42,8 +46,8 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 		}
 		// Paint!
 		if (.Should_Paint in self.bits) {
-			paint_rounded_box_fill(self.box, painter.style.widget_rounding, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.05))
-			paint_rounded_box_stroke(self.box, painter.style.widget_rounding, 1, style_widget_stroke(self))
+			paint_rounded_box_fill(self.box, painter.style.widget_rounding, get_color(.Widget_Back))
+			paint_rounded_box_stroke(self.box, painter.style.widget_rounding, 1, style_widget_stroke(self, hover_time))
 		}
 		// Text!
 		text_origin: [2]f32 = {self.box.high.x - WIDGET_PADDING, (self.box.low.y + self.box.high.y) / 2}
@@ -128,11 +132,12 @@ Number_Input_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 	title,
 	suffix,
 	format: Maybe(string),
-	text_align: Maybe([2]Alignment),
+	text_align: Maybe([2]maui.Alignment),
 	trim_decimal,
 	no_outline: bool,
 }
 do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (new_value: T) {
+	using maui
 	new_value = info.value
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		using self
@@ -154,23 +159,23 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 		if info.trim_decimal && has_decimal {
 			text = trim_zeroes(text)
 		}
-		// Painting
-		text_align := info.text_align.? or_else {
-			.Near,
-			.Middle,
-		}
-		paint_box_fill(box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.05))
+		// Background
+		paint_box_fill(box, get_color(.Widget_Back))
 		if !info.no_outline {
-			stroke_color := get_color(.Widget_Stroke) if .Focused in self.state else get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time)
+			// Outline
 			paint_labeled_widget_frame(
 				box = box, 
 				text = info.title, 
 				offset = WIDGET_PADDING, 
 				thickness = 1, 
-				color = stroke_color,
+				color = style_widget_stroke(self, hover_time),
 			)
 		}
 		// Do text interaction
+		text_align := info.text_align.? or_else {
+			.Near,
+			.Middle,
+		}
 		inner_box: Box = {{self.box.low.x + WIDGET_PADDING, self.box.low.y}, {self.box.high.x - WIDGET_PADDING, self.box.high.y}}
 		text_origin: [2]f32 = {inner_box.low.x, (inner_box.low.y + inner_box.high.y) / 2} - self.offset
 		text_res: Text_Interact_Result

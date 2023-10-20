@@ -1,5 +1,4 @@
 package demo
-
 import maui "../"
 import maui_widgets "../widgets"
 

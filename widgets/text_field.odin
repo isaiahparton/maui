@@ -1,4 +1,5 @@
-package maui
+package maui_widgets
+import "../"
 // Core dependencies
 import "core:fmt"
 import "core:runtime"
@@ -27,6 +28,7 @@ Text_Field_Result :: struct {
 	submitted: bool,
 }
 do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: Text_Field_Result) {
+	using maui
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		// Colocate
 		self.box = use_next_box() or_else layout_next(current_layout())
@@ -48,7 +50,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			}
 		}
 		// Paint!
-		paint_rounded_box_fill(self.box, painter.style.widget_rounding, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), hover_time * 0.1))
+		paint_rounded_box_fill(self.box, painter.style.widget_rounding, get_color(.Widget_Back))
 		// Get data source
 		text: string
 		switch type in info.data {
@@ -121,7 +123,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 				text = info.title, 
 				offset = WIDGET_PADDING,
 				thickness = 1, 
-				color = style_widget_stroke(self),
+				color = style_widget_stroke(self, hover_time),
 			)
 			// Draw placeholder
 			if info.placeholder != nil {

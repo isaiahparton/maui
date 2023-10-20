@@ -116,136 +116,8 @@ paint_indices :: proc(draw: ^Draw, indices: ..u16) {
 	}
 }
 
-// Maximum radius of pre-rasterized circles
-MAX_RING_RADIUS :: 30
-/*
-	Handles dynamics of the texture atlas, can load new assets at runtime
-*/
-Atlas :: struct {
-	texture: Texture,
-	image: Image,
-	cursor: [2]f32,
-	row_height: f32,
-	// If resetting the atlas would free space
-	should_update,
-	should_reset: bool,
-	// Font data
-	font_exists: [MAX_FONTS]bool,
-	fonts: [MAX_FONTS]Font,
-	// Pre-rasterized ring locations
-	rings: [MAX_RING_RADIUS][MAX_RING_RADIUS]Maybe(Box),
-}
-atlas_get_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: bool) {
-	_inner := int(inner)
-	_outer := int(outer)
-	if _inner < 0 || _inner >= MAX_RING_RADIUS || _outer < 0 || _outer >= MAX_RING_RADIUS {
-		return {}, false
-	}
-	ring := &rings[_inner][_outer]
-	if ring^ == nil {
-		ring^, _ = atlas_add_ring(self, inner, outer)
-	}
-	return ring^.?
-}
-atlas_destroy :: proc(using self: ^Atlas) {
-	// Free font memory
-	for font in &fonts {
-		for _, size in font.sizes {
-			for _, glyph in size.glyphs {
-				//delete(glyph.image.data)
-			}
-			delete(size.glyphs)
-		}
-		delete(font.sizes)
-	}
-	unload_texture(texture.id)
-	delete(image.data)
-}
-atlas_reset :: proc(using self: ^Atlas) -> bool {
-	delete(image.data)
-	WIDTH :: 4096
-	HEIGHT :: 4096
-	SIZE :: WIDTH * HEIGHT * 4
-	image = {
-		data = make([]u8, SIZE),
-		width = WIDTH,
-		height = HEIGHT,
-		channels = 4,
-	}
-	image.data[0] = 255
-	image.data[1] = 255
-	image.data[2] = 255
-	image.data[3] = 255
-
-	cursor = {1, 1}
-	if texture == {} {
-		texture = load_texture(image) or_return
-	} else {
-		update_texture(texture, image, 0, 0, f32(image.width), f32(image.height))
-	}
-	return true
-}
-atlas_add :: proc(using self: ^Atlas, content: Image) -> (src: Box, ok: bool) {
-	box := atlas_get_box(self, {f32(content.width), f32(content.height)})
-	for x in int(box.low.x)..<int(box.high.x) {
-		for y in int(box.low.y)..<int(box.high.y) {
-			src_x := x - int(box.low.x)
-			src_y := y - int(box.low.y)
-			src_i := src_x + src_y * content.width
-			i := (x + y * image.width) * image.channels
-			image.data[i] = 255
-			image.data[i + 1] = 255
-			image.data[i + 2] = 255
-			image.data[i + 3] = content.data[src_i]
-		}
-	}
-	should_update = true
-	return box, true
-}
-atlas_get_box :: proc(using self: ^Atlas, size: [2]f32) -> (box: Box) {
-	if cursor.x + size.x > f32(image.width) {
-		cursor.x = 0
-		cursor.y += row_height + 1
-		row_height = 0
-	}
-	if cursor.y + size.y > f32(image.height) {
-		atlas_reset(self)
-	}
-	box = {cursor, cursor + size}
-	cursor.x += size.x + 1
-	row_height = max(row_height, size.y)
-	return
-}
-atlas_add_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: bool) {
-	if inner >= outer {
-		return
-	}
-	box := atlas_get_box(self, outer * 2)
-	center: [2]f32 = box_center(box) - 0.5
-	outer := outer - 0.5
-	inner := inner - 0.5
-	for y in int(box.low.y)..<int(box.high.y) {
-		for x in int(box.low.x)..<int(box.high.x) {
-			point: [2]f32 = {f32(x), f32(y)}
-			diff := point - center
-			dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
-			if dist < inner || dist > outer + 1 {
-				continue
-			}
-			alpha := min(1, dist - inner) - max(0, dist - outer)
-			i := (x + y * image.width) * image.channels
-			image.data[i] = 255
-			image.data[i + 1] = 255
-			image.data[i + 2] = 255
-			image.data[i + 3] = u8(255.0 * alpha)
-		}
-	}
-	should_update = true
-	return box, ok
-}
-
-MAX_FONTS :: 16
-MAX_DRAWS :: 32
+MAX_FONTS :: 32
+MAX_DRAWS :: 48
 
 // Context for painting graphics stuff
 Painter :: struct {
@@ -510,6 +382,18 @@ paint_quad_fill :: proc(a, b, c, d: [2]f32, color: Color) {
 		{point = c, color = color},
 		{point = d, color = color},
 	)
+}
+paint_quad_vertices :: proc(a, b, c, d: Vertex) {
+	draw := &painter.draws[painter.target]
+	paint_indices(draw, 
+		draw.vertices_offset,
+		draw.vertices_offset + 1,
+		draw.vertices_offset + 2,
+		draw.vertices_offset,
+		draw.vertices_offset + 2,
+		draw.vertices_offset + 3,
+	)
+	paint_vertices(draw, a, b, c, d)
 }
 paint_triangle_fill :: proc(a, b, c: [2]f32, color: Color) {
 	draw := &painter.draws[painter.target]
@@ -831,47 +715,51 @@ paint_pill_stroke_h :: proc(box: Box, thickness: f32, color: Color) {
 }
 
 paint_rounded_box_corners_fill :: proc(box: Box, radius: f32, corners: Box_Corners, color: Color) {
-	/*if box.h == 0 || box.w == 0 {
+	if box.high.x <= box.low.x || box.high.y <= box.low.y {
 		return
 	}
-	if radius == 0 || corners == {} {
+	if radius == 0 {
 		paint_box_fill(box, color)
 		return
 	}
 	if src, ok := atlas_get_ring(&painter.atlas, 0, radius); ok {
-		half_size := math.trunc(src.w / 2)
-		half_width := min(half_size, box.w / 2)
-		half_height := min(half_size, box.h / 2)
+		src_center := center(src)
 
+		tl_dst: Box = {box.low, box.low + radius}
 		if .Top_Left in corners {
-			src_top_left: Box = {src.x, src.y, half_width, half_height}
-			paint_textured_box(painter.atlas.texture, src_top_left, {box.x, box.y, half_size, half_size}, color)
+			tl_src: Box = {src.low, src_center}
+			paint_clipped_textured_box(painter.atlas.texture, tl_src, tl_dst, box, color)
+		} else {
+			paint_box_fill(tl_dst, color)
 		}
+		tr_dst: Box = {{box.high.x - radius, box.low.y}, {box.high.x, box.low.y + radius}}
 		if .Top_Right in corners {
-			src_top_right: Box = {src.x + src.w - half_width, src.y, half_width, half_height}
-			paint_textured_box(painter.atlas.texture, src_top_right, {box.x + box.w - half_width, box.y, half_size, half_size}, color)
+			tr_src: Box = {{src_center.x, src.low.y}, {src.high.x, src_center.y}}
+			paint_clipped_textured_box(painter.atlas.texture, tr_src, tr_dst, box, color)
+		} else {
+			paint_box_fill(tr_dst, color)
 		}
-		if .Bottom_Right in corners {
-			src_bottom_right: Box = {src.x + src.w - half_width, src.y + src.h - half_height, half_width, half_height}
-			paint_textured_box(painter.atlas.texture, src_bottom_right, {box.x + box.w - half_size, box.y + box.h - half_size, half_size, half_size}, color)
-		}
+		bl_dst: Box = {{box.low.x, box.high.y - radius}, {box.low.x + radius, box.high.y}}
 		if .Bottom_Left in corners {
-			src_bottom_left: Box = {src.x, src.y + src.h - half_height, half_width, half_height}
-			paint_textured_box(painter.atlas.texture, src_bottom_left, {box.x, box.y + box.h - half_height, half_size, half_size}, color)
+			bl_src: Box = {{src.low.x, src_center.y}, {src_center.x, src.high.y}}
+			paint_clipped_textured_box(painter.atlas.texture, bl_src, bl_dst, box, color)
+		} else {
+			paint_box_fill(bl_dst, color)
+		}
+		br_dst: Box = {box.high - radius, box.high}
+		if .Bottom_Right in corners {
+			br_src: Box = {src_center, src.high}
+			paint_clipped_textured_box(painter.atlas.texture, br_src, br_dst, box, color)
+		} else {
+			paint_box_fill(br_dst, color)
 		}
 
-		if box.w > radius * 2 {
-			paint_box_fill({box.x + radius, box.y, box.w - radius * 2, box.h}, color)
+		if box.high.x > box.low.x + radius * 2 {
+			paint_box_fill({{box.low.x + radius, box.low.y}, {box.high.x - radius, box.high.y}}, color)
 		}
-		if box.h > radius * 2 {
-			top_left := radius if .Top_Left in corners else 0
-			top_right := radius if .Top_Right in corners else 0
-			bottom_right := radius if .Bottom_Right in corners else 0
-			bottom_left := radius if .Bottom_Left in corners else 0
-			paint_box_fill({box.x, box.y + top_left, radius, box.h - (top_left + bottom_left)}, color)
-			paint_box_fill({box.x + box.w - radius, box.y + top_right, radius, box.h - (top_right + bottom_right)}, color)
-		}
-	}*/
+		paint_box_fill({{box.low.x, box.low.y + radius}, {box.low.x + radius, box.high.y - radius}}, color)
+		paint_box_fill({{box.high.x - radius, box.low.y + radius}, {box.high.x, box.high.y - radius}}, color)
+	}
 }
 paint_rounded_box_fill :: proc(box: Box, radius: f32, color: Color) {
 	if box.high.x <= box.low.x || box.high.y <= box.low.y {
@@ -906,8 +794,36 @@ paint_rounded_box_fill :: proc(box: Box, radius: f32, color: Color) {
 	}
 }
 
+paint_rounded_box_shadow :: proc(box: Box, radius: f32, color: Color) {
+	paint_box_fill(box, color)
+	paint_quad_vertices(
+		{point = {box.low.x, box.low.y}, color = color},
+		{point = {box.low.x - radius, box.low.y}},
+		{point = {box.low.x - radius, box.high.y}},
+		{point = {box.low.x, box.high.y}, color = color},
+	)
+	paint_quad_vertices(
+		{point = {box.high.x + radius, box.low.y}},
+		{point = {box.high.x, box.low.y}, color = color},
+		{point = {box.high.x, box.high.y}, color = color},
+		{point = {box.high.x + radius, box.high.y}},
+	)
+	paint_quad_vertices(
+		{point = {box.low.x, box.low.y}, color = color},
+		{point = {box.high.x, box.low.y}, color = color},
+		{point = {box.high.x, box.low.y - radius}},
+		{point = {box.low.x, box.low.y - radius}},
+	)
+	paint_quad_vertices(
+		{point = {box.low.x, box.high.y}, color = color},
+		{point = {box.high.x, box.high.y}, color = color},
+		{point = {box.high.x, box.high.y + radius}},
+		{point = {box.low.x, box.high.y + radius}},
+	)
+}
+
 paint_rounded_box_stroke :: proc(box: Box, radius, thickness: f32, color: Color) {
-	if box.high.x <= box.low.x || box.high.y <= box.low.y {
+	if (box.high.x <= box.low.x) || (box.high.y <= box.low.y) {
 		return
 	}
 	if radius == 0 {

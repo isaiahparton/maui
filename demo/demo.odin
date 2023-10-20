@@ -1,5 +1,8 @@
 package demo
 
+import maui "../"
+import maui_widgets "../widgets"
+
 import "core:time"
 import "core:math"
 import "core:strings"
@@ -8,8 +11,6 @@ import rl "vendor:raylib"
 import "../backend/maui_glfw"
 import "../backend/maui_opengl"
 
-import maui "../"
-import maui_widgets "../widgets"
 
 import "core:fmt"
 import "core:mem"

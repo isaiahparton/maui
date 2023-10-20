@@ -13,7 +13,7 @@ BASE_SHADE_ALPHA :: 0.1
 SHADOW_OFFSET :: 7
 DISABLED_SHADE_ALPHA :: 0.5
 
-ICON_STROKE_THICKNESS :: 0.5
+ICON_STROKE_THICKNESS :: 1
 
 WIDGET_PADDING :: 6
 WIDGET_TEXT_MARGIN :: 2
@@ -22,13 +22,13 @@ WIDGET_TEXT_MARGIN :: 2
 DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.Accent 							= {45, 105, 238, 255},
 	.Base 								= {30, 30, 32, 255},
-	.Base_Shade 					= {255, 255, 255, 255},
+	.Base_Shade 					= {255, 255, 255, 35},
 	.Base_Stroke					= {112, 113, 116, 255},
 	.Widget_Back					= {12, 12, 16, 255},
 	.Widget	 							= {65, 65, 75, 255},
 	.Widget_Shade 				= {255, 255, 255, 255},
 	.Widget_Stroke 				= {85, 85, 85, 255},
-	.Widget_Stroke_Focused 	= {255, 108, 0, 255},
+	.Widget_Stroke_Focused 	= {0, 255, 108, 255},
 	.Intense 							= {62, 62, 67, 255},
 	.Intense_Shade 				= {230, 239, 255, 255},
 	.Shadow 							= {0, 0, 0, 50},
@@ -42,8 +42,8 @@ DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.Scroll_Thumb 				= {45, 45, 49, 255},
 	.Scroll_Thumb_Shade 	= {255, 255, 255, 255},
 
-	.Button_Base 					= {215, 215, 230, 255},
-	.Button_Shade					= {0, 0, 0, 255},
+	.Button_Base 					= {45, 85, 80, 255},
+	.Button_Shade					= {255, 255, 255, 65},
 	.Button_Text 					= {30, 30, 32, 255},
 }
 /*DEFAULT_COLORS_DARK :: [Color_Index]Color {
@@ -113,7 +113,6 @@ Color_Index :: enum {
 Rule_Index :: enum {
 	Window_Roundness,
 	Tab_Roundness,
-	WIDGET_PADDING,
 	Window_Title_Size,
 }
 
@@ -196,8 +195,8 @@ get_color :: proc(index: Color_Index, alpha: f32 = 1) -> Color {
 	return {color.r, color.g, color.b, u8(f32(color.a) * clamp(alpha, 0, 1))}
 }
 
-style_widget_stroke :: proc(w: ^Widget) -> Color {
-	return get_color(.Widget_Stroke_Focused if .Focused in w.state else .Widget_Stroke)
+style_widget_stroke :: proc(w: ^Widget, opacity: f32) -> Color {
+	return get_color(.Widget_Stroke_Focused) if .Focused in w.state else get_color(.Widget_Stroke, opacity)
 }
 style_shade :: proc(base: Color, amount: f32) -> Color {
 	return alpha_blend_colors(base, painter.style.colors[.Widget_Shade], fade(255, amount * 0.1))
