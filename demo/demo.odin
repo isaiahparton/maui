@@ -5,9 +5,11 @@ import "core:math"
 import "core:strings"
 import "core:math/linalg"
 import rl "vendor:raylib"
-import ui "../"
 import "../backend/maui_glfw"
 import "../backend/maui_opengl"
+
+import maui "../"
+import maui_widgets "../widgets"
 
 import "core:fmt"
 import "core:mem"
@@ -23,8 +25,8 @@ Choice :: enum {
 
 _main :: proc() {
 	fmt.println("Structure sizes")
-	fmt.println("  Painter:", size_of(ui.Painter))
-	fmt.println("  Core:", size_of(ui.Core))
+	fmt.println("  Painter:", size_of(maui.Painter))
+	fmt.println("  Core:", size_of(maui.Core))
 
 	t: time.Time
 	tt: time.Time
@@ -46,10 +48,11 @@ _main :: proc() {
 		return
 	}
 
-	ui.init()
+	maui.init()
 
 	for maui_glfw.cycle(TARGET_FRAME_TIME) {
-		using ui
+		using maui 
+		using maui_widgets
 
 		// Beginning of ui calls
 		maui_glfw.begin_frame()
@@ -153,13 +156,13 @@ _main :: proc() {
 		}
 
 		// Render if needed
-		if ui.should_render() {
+		if maui.should_render() {
 			maui_opengl.render(&maui_glfw.interface)
 			maui_glfw.end_frame()
 		}
 	}
 
-	ui.uninit()	
+	maui.uninit()	
 	maui_opengl.destroy()
 	maui_glfw.destroy()
 }

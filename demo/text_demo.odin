@@ -1,6 +1,7 @@
 package demo
 
-import ui "../"
+import maui "../"
+import maui_widgets "../widgets"
 
 Box_Controls :: struct {
 	drag_low,
@@ -8,8 +9,9 @@ Box_Controls :: struct {
 	anchor: [2]f32,
 }
 
-do_box_controls :: proc(using self: ^Box_Controls, box: ui.Box, color: ui.Color) -> ui.Box {
-	using ui
+do_box_controls :: proc(using self: ^Box_Controls, box: maui.Box, color: maui.Color) -> maui.Box {
+	using maui, maui_widgets
+
 	next_box := box 
 	paint_box_stroke(box, 1, color)
 	SIZE :: 16
@@ -41,14 +43,14 @@ do_box_controls :: proc(using self: ^Box_Controls, box: ui.Box, color: ui.Color)
 }
 
 Text_Demo :: struct {
-	info: ui.Text_Info,
-	paint_info: ui.Text_Paint_Info,
+	info: maui.Text_Info,
+	paint_info: maui.Text_Paint_Info,
 
 	clip_controls: Box_Controls,
 }
 
 do_text_demo :: proc(using self: ^Text_Demo) {
-	using ui
+	using maui, maui_widgets
 	
 	if do_layout(.Left, Exact(200)) {
 		space(Exact(20))

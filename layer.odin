@@ -410,7 +410,7 @@ current_layer :: proc() -> ^Layer {
 }
 // Begins a new layer, the layer is created if it doesn't exist
 // and is managed internally
-@private 
+//@private 
 begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	agent := &core.layer_agent
 
@@ -608,7 +608,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 	return
 }
 // Called for every 'BeginLayer' that is called
-@private 
+//@private 
 end_layer :: proc(self: ^Layer) {
 	if self != nil {
 		// Debug stuff

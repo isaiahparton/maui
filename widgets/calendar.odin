@@ -1,4 +1,6 @@
-package maui
+package maui_widgets
+
+import "../"
 
 import "core:time"
 import "core:math/linalg"
@@ -12,6 +14,7 @@ Date_Picker_Info :: struct {
 	title: Maybe(string),
 }
 do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (changed: bool) {
+	using maui
 	if self, ok := do_widget(hash(loc)); ok {
 		// Colocate
 		self.box = use_next_box() or_else layout_next(current_layout())
@@ -52,6 +55,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				// Stuff
 				shrink(10)
 				placement.side = .Top
+				// Main options
 				if do_layout(.Bottom, Exact(30)) {
 					placement.side = .Right; placement.size = Exact(70)
 					if do_button({label = "Cancel", style = .Outlined}) {
@@ -69,6 +73,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						info.temp_value^ = time.now()
 					}
 				}
+				// Combo boxes
 				if do_layout(.Top, Exact(20)) {
 					placement.side = .Left; placement.size = Exact(135); placement.align = {.Middle, .Middle}
 					month_days := int(time.days_before[int(month)])
@@ -113,6 +118,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					}
 				}
 				space(Exact(10))
+				// Skip buttons
 				if do_layout(.Top, Exact(20)) {
 					placement.side = .Left; placement.size = Exact(70)
 					// Subtract one year
@@ -155,6 +161,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					}
 				}
 				space(Exact(10))
+				// Weekdays
 				if do_layout(.Top, Exact(20)) {
 					placement.side = .Left; placement.size = Exact(60); placement.align = {.Middle, .Middle}
 					for day in ([]string)({"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}) {
@@ -184,14 +191,14 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 					}
 				}
 				// Stroke
-				// paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
-
+				paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
+				// Clamp value
 				info.temp_value._nsec = max(info.temp_value._nsec, 0)
 			}
 		}
-
+		// Hover
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
-
+		// Click
 		if widget_clicked(self, .Left) {
 			self.bits ~= {.Active}
 			if self.bits >= {.Active} {

@@ -1,6 +1,6 @@
 package maui_widgets
 
-import "../"
+import maui "../"
 
 import "core:math"
 import "core:math/linalg"
@@ -11,8 +11,8 @@ import "core:math/linalg"
 
 Draggable_Result :: struct {
 	dropped: Maybe([2]f32),
-	layer: ^Layer,
-	widget: ^Widget,
+	layer: ^maui.Layer,
+	widget: ^maui.Widget,
 }
 Draggable_Info :: struct {
 	label: maui.Label,
@@ -39,7 +39,7 @@ do_draggable :: proc(info: Draggable_Info, loc := #caller_location) -> (res: Dra
 		}
 		// Layer
 		if .Active in self.bits {
-			if layer, _ok := begin_layer({box = self.box}); _ok {
+			if layer, _ok := begin_layer({placement = self.box}); _ok {
 
 				res.layer = layer
 			}
@@ -58,7 +58,9 @@ do_draggable :: proc(info: Draggable_Info, loc := #caller_location) -> (res: Dra
 		res.widget = self 
 		ok = true
 	}
+	return
 }
+@private
 _do_draggable :: proc(res: Draggable_Result, ok: bool) {
 	using maui
 	if ok {

@@ -286,7 +286,7 @@ update_widget :: proc(self: ^Widget) {
 	} else {
 		self.bits -= {.Disabled}
 	}
-	if core.paint_this_frame || core.painted_last_frame {
+	if core.paint_this_frame {
 		self.bits += {.Should_Paint}
 	} else {
 		self.bits -= {.Should_Paint}
