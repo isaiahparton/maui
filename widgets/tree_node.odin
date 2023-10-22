@@ -25,10 +25,9 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 		update_widget(self)
 		// Paint
 		if .Should_Paint in bits {
-			color := style_intense_shaded(hover_time)
 			//TODO: Replace with nice new arrow yes
 			// paint_aligned_rune(painter.style.button_font, painter.style.button_font_size, .Chevron_Down if .Active in bits else .Chevron_Right, center(box), color, {.Middle, .Middle})
-			paint_text({box.low.x + height(box), center_y(box)}, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left, baseline = .Middle}, color)
+			paint_text({box.low.x + height(box), center_y(box)}, {text = info.text, font = style.font.title, size = style.text_size.title}, {align = .Left, baseline = .Middle}, style.color.text)
 		}
 
 		// Invert state on click

@@ -1,6 +1,6 @@
 package maui_widgets
 
-import "../"
+/*import "../"
 
 import "core:time"
 import "core:math/linalg"
@@ -27,8 +27,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 		year, month, day := time.date(info.value^)
 		// Paint (kinda rhymes)
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, get_color(.Widget_Back))
-			paint_labeled_widget_frame(self.box, info.title, WIDGET_PADDING, 1, get_color(.Widget_Stroke_Focused) if .Active in self.bits else get_color(.Widget_Stroke, hover_time))
+			paint_shaded_box(self.box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
 			paint_label_box(tmp_printf("%2i/%2i/%4i", day, int(month), year), shrink_box(self.box, [2]f32{height(self.box) * 0.25, 0}), get_color(.Button_Base), .Left, .Middle)
 		}
 		// Activate!
@@ -52,15 +51,11 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				placement = box,
 				order = .Background,
 				options = {.Attached},
-				shadow = Layer_Shadow_Info({
-					roundness = WINDOW_ROUNDNESS,
-					offset = SHADOW_OFFSET,
-				}),
 			}); ok {
 				// Temporary state
 				year, month, day := time.date(info.temp_value^)
 				// Fill
-				paint_rounded_box_fill(layer.box, WINDOW_ROUNDNESS, get_color(.Base))
+				paint_shaded_box(layer.box, {style.color.base_light, style.color.base, style.color.base_dark})
 				// Stuff
 				shrink(10)
 				placement.side = .Top
@@ -216,4 +211,4 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 		}
 	}
 	return
-}
+}*/

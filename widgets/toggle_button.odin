@@ -25,35 +25,28 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 		}
 		// Update
 		update_widget(self)
+		// Cursor
+		if .Hovered in self.state {
+			core.cursor = .Hand
+		}
 		// Animate
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
+		press_time := animate_bool(&self.timers[1], .Pressed in self.state, DEFAULT_WIDGET_PRESS_TIME)
 		// Paint
 		if .Should_Paint in self.bits {
-			color := get_color(.Accent if info.state else .Widget_Stroke)
+			inner_box := shrink_box(self.box, 1)
+			// Body
 			if info.state {
-				paint_box_fill(self.box, alpha_blend_colors(get_color(.Accent), 255, 0.5 if .Pressed in self.state else (hover_time * 0.25)))
+				paint_shaded_box(inner_box, {style.color.base_dark, style.color.base, style.color.base_light})
 			} else {
-				paint_box_fill(self.box, get_color(.Base_Shade, 0.2 if .Pressed in self.state else 0.1 * hover_time))
+				paint_shaded_box(inner_box, {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
 			}
-
-			if info.state {
-				paint_label_box(info.label, shrink_box_double(self.box, {(self.box.high.y - self.box.low.y) * 0.25, 0}), get_color(.Base), .Middle, .Middle)
-			} else {
-				color := get_color(.Widget_Stroke)
-				if .Left not_in info.join {
-					paint_box_fill(get_box_left(self.box, Exact(1)), color)
-				}
-				if .Right not_in info.join {
-					paint_box_fill(get_box_right(self.box, Exact(1)), color)
-				}
-				if .Top not_in info.join {
-					paint_box_fill(get_box_top(self.box, Exact(1)), color)
-				}
-				if .Bottom not_in info.join {
-					paint_box_fill(get_box_bottom(self.box, Exact(1)), color)
-				}
-				paint_label_box(info.label, shrink_box_double(self.box, {(self.box.high.y - self.box.low.y) * 0.25, 0}), color, .Middle, .Middle)
-			}
+			// Outline
+			paint_box_stroke(self.box, 1, alpha_blend_colors(style.color.base_stroke, style.color.status, press_time))
+			// Interaction Shading
+			paint_box_fill(inner_box, alpha_blend_colors(fade(255, hover_time * 0.1), style.color.status, press_time * 0.5))
+			// Label
+			paint_label_box(info.label, self.box, style.color.text, .Middle, .Middle)
 		}
 		// Hover
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))

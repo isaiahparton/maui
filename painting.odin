@@ -121,8 +121,6 @@ MAX_DRAWS :: 48
 
 // Context for painting graphics stuff
 Painter :: struct {
-	// Style
-	style: Style,
 	// Main texture atlas
 	atlas: Atlas,
 	// Draw options
@@ -136,27 +134,23 @@ Painter :: struct {
 // Global instance pointer
 painter: ^Painter
 
-style_default_fonts :: proc(style: ^Style) -> bool {
+style_default_fonts :: proc() -> bool {
 	// Load the fonts
-	main_font := load_font(&painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return
-	monospace_font := load_font(&painter.atlas, "fonts/UbuntuMono-Regular.ttf") or_return
+	style.font.label = load_font(&painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return
+	style.font.monospace = load_font(&painter.atlas, "fonts/RobotoMono-Regular.ttf") or_return
 	// Assign their handles and sizes
-	style.button_font = main_font
-	style.button_font_size = 18
-	style.default_font = main_font
-	style.default_font_size = 18
-	style.title_font = main_font
-	style.title_font_size = 14
-	style.monospace_font = monospace_font
-	style.monospace_font_size = 18
+	style.text_size.label = 20
+	style.text_size.field = 20
+	style.layout.title_size = 30
+	style.layout.widget_padding = 4
 	return true
 }
 painter_init :: proc() -> bool {
 	if painter == nil {
 		painter = new(Painter)
 		// Default style
-		painter.style.colors = DEFAULT_COLORS_LIGHT
-		if !style_default_fonts(&painter.style) {
+		style.color = DARK_STYLE_COLORS
+		if !style_default_fonts() {
 			fmt.println("Failed to load fonts")
 		}
 		atlas_reset(&painter.atlas)
@@ -332,6 +326,11 @@ stroke_path :: proc(pts: [][2]f32, closed: bool, thickness: f32, color: Color) {
 	}
 }
 
+paint_shaded_box :: proc(box: Box, colors: [3]Color) {
+	paint_box_fill(box, colors[0])
+	paint_box_fill({box.low + 1, box.high}, colors[2])
+	paint_box_fill({box.low + 1, box.high - 1}, colors[1])
+}
 
 /*
 	Painting procedures
@@ -341,8 +340,8 @@ paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickn
 	if text != nil {
 		text_size := measure_text({
 			text = text.?,
-			font = painter.style.title_font,
-			size = painter.style.title_font_size,
+			font = style.font.title,
+			size = style.text_size.title,
 		})
 		paint_widget_frame(box, offset - 2, text_size.x + 4, thickness, color)
 		paint_text(
@@ -351,14 +350,14 @@ paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickn
 				box.low.y - text_size.y / 2,
 			}, 
 			{
-				font = painter.style.title_font, 
-				size = painter.style.title_font_size,
+				font = style.font.title, 
+				size = style.text_size.title,
 				text = text.?, 
 			},
 			{
 				align = .Left,
 			}, 
-			get_color(.Text),
+			style.color.text,
 		)
 	} else {
 		paint_box_stroke(box, thickness, color)
@@ -965,4 +964,8 @@ paint_loader :: proc(center: [2]f32, radius, time: f32, color: Color) {
 	start := time * math.TAU
 	paint_ring_sector_fill(center, radius - 3, radius, start, start + 2.2 + math.sin(time * 4) * 0.8, 24, color)
 	core.paint_this_frame = true
+}
+paint_check :: proc(center: [2]f32, scale: f32, color: Color) {
+	a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
+	stroke_path({center + a, center + b, center + c}, false, 1, color)
 }

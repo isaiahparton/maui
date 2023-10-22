@@ -1,6 +1,6 @@
 package maui_widgets
 
-import maui "../"
+/*import maui "../"
 
 import "core:math"
 import "core:math/linalg"
@@ -69,4 +69,4 @@ _do_draggable :: proc(res: Draggable_Result, ok: bool) {
 			end_layer(res.layer)
 		}
 	}
-}
+}*/

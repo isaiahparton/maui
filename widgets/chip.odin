@@ -6,7 +6,7 @@ Chip_Info :: struct {
 	clip_box: Maybe(maui.Box),
 }
 
-do_chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
+/*do_chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
 		using self
@@ -90,4 +90,4 @@ do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (cl
 		clicked = .Clicked in state && click_button == .Left
 	}
 	return
-}
+}*/

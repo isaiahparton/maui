@@ -38,7 +38,7 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	increment := info.increment.? or_else T(1)
 	// Number input
 	set_next_box(box)
-	paint_box_fill(box, get_color(.Widget_Back))
+	paint_shaded_box(box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
 	new_value = clamp(do_number_input(Number_Input_Info(T){
 		value = info.value,
 		text_align = ([2]Alignment){

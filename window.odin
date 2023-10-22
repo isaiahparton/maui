@@ -162,56 +162,47 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 
 		// Layer body
 		self.draw_box = self.box
-		self.draw_box.high.y -= ((height(self.draw_box) - WINDOW_TITLE_SIZE) if .Title in self.options else height(self.draw_box)) * ease.quadratic_in(self.how_collapsed)
+		self.draw_box.high.y -= ((height(self.draw_box) - style.layout.title_size) if .Title in self.options else height(self.draw_box)) * ease.quadratic_in(self.how_collapsed)
 
 		// Decoration layer
 		if self.decor_layer, ok = begin_layer({
 			placement = self.draw_box,
 			id = hash(rawptr(&self.id), size_of(Id)),
 			order = .Floating,
-			shadow = Layer_Shadow_Info({
-				offset = SHADOW_OFFSET,
-				roundness = WINDOW_ROUNDNESS,
-			}),
 			options = {.No_Scroll_Y},
 			opacity = self.opacity,
 		}); ok {
-			// Body
-			if .Collapsed not_in self.bits {
-				paint_rounded_box_fill(self.draw_box, WINDOW_ROUNDNESS, get_color(.Base))
-			}
 			// Draw title bar and get movement dragging
 			if .Title in self.options {
-				title_box := cut(.Top, Exact(WINDOW_TITLE_SIZE))
+				title_box := cut(.Top, Exact(style.layout.title_size))
 				// Draw title
-				paint_rounded_box_fill(title_box, WINDOW_ROUNDNESS, blend_colors(get_color(.Base), get_color(.Base_Shade), 0.2))
-				paint_rounded_box_stroke(title_box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
-				// Title bar decoration
-				baseline := center_y(title_box)
-				text_offset := height(title_box) * 0.25
-				can_collapse := (.Collapsable in self.options) || (.Collapsed in self.bits)
-				// Collapsing arrow
-				if can_collapse {
-					paint_arrow({title_box.low.x + height(title_box) / 2, baseline}, 6, math.PI * -0.5 * self.how_collapsed, 1, get_color(.Base))
-					text_offset = height(title_box)
-				}
-				paint_text(
-					{title_box.low.x + text_offset, baseline}, 
-					{text = self.title, font = painter.style.default_font, size = painter.style.default_font_size}, 
-					{align = .Left, baseline = .Middle}, 
-					color = get_color(.Text),
-				)
+				paint_shaded_box(shrink_box(title_box, 1), {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
 				if .Closable in self.options {
 					// Close button
 					if self, _ok := do_widget(hash(&self.id, size_of(Id))); _ok {
 						self.box = get_box_right(title_box, height(title_box))
 						update_widget(self)
 						hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
-						paint_rounded_box_corners_fill(self.box, WINDOW_ROUNDNESS, {.Top_Right, .Bottom_Right}, get_color(.Base_Shade, 0.2 * hover_time))
-						paint_cross(box_center(self.box), 7, math.PI * 0.25, 2, get_color(.Base))
+						paint_box_fill(self.box, fade({230, 56, 65, 255}, hover_time))
+						paint_cross(box_center(self.box), 7, math.PI * 0.25, 2, style.color.base_stroke)
 						update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 					}
 				}
+				// Title bar decoration
+				baseline := center_y(title_box)
+				text_offset := height(title_box) * 0.25
+				can_collapse := (.Collapsable in self.options) || (.Collapsed in self.bits)
+				// Collapsing arrow
+				if can_collapse {
+					paint_arrow({title_box.low.x + height(title_box) / 2, baseline}, 6, math.PI * -0.5 * self.how_collapsed, 1, style.color.base_stroke)
+					text_offset = height(title_box)
+				}
+				paint_text(
+					{title_box.low.x + text_offset, baseline}, 
+					{text = self.title, font = style.font.label, size = style.text_size.label}, 
+					{align = .Left, baseline = .Middle}, 
+					color = style.color.text,
+				)
 				if (.Resizing not_in self.bits) && point_in_box(input.mouse_point, title_box) {
 					if (.Static not_in self.options) && (core.widget_agent.hover_id == 0) && mouse_pressed(.Left) {
 						self.bits += {.Moving}
@@ -225,13 +216,14 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 						}
 					}
 				}
+				paint_box_stroke(title_box, 1, style.color.base_stroke)
 			} else {
 				self.bits -= {.Should_Collapse}
 			}
 		}
 		
 		inner_box := self.draw_box
-		cut_box(&inner_box, .Top, Exact(WINDOW_TITLE_SIZE))
+		cut_box(&inner_box, .Top, Exact(style.layout.title_size))
 
 		if .Initialized not_in self.bits {
 			self.min_layout_size = inner_box.high - inner_box.low
@@ -250,13 +242,13 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 		} else {
 			self.layer, ok = begin_layer({
 				placement = inner_box,
-				scrollbar_padding = 10,
 				id = id, 
 				options = layer_options,
 				space = self.min_layout_size,
 				order = .Background,
 				opacity = self.opacity,
 			})
+			paint_shaded_box(shrink_box(self.layer.box, 1), {style.color.base_light, style.color.base, style.color.base_dark})
 		}
 
 		if .Moving in self.bits {
@@ -310,10 +302,9 @@ _do_window :: proc(ok: bool) {
 		// End main layer
 		if .Collapsed not_in bits {
 			// Outline
-			paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
+			paint_box_stroke(layer.box, 1, style.color.base_stroke)
 			end_layer(layer)
 		}
-		paint_rounded_box_stroke(self.draw_box, WINDOW_ROUNDNESS, 1, get_color(.Base_Stroke))
 		// End decor layer
 		end_layer(decor_layer)
 		// Handle movement

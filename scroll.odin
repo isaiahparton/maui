@@ -32,9 +32,9 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 		knob_box.high[i] = knob_box.low[i] + knob_size
 		// Painting
 		if .Should_Paint in self.bits {
-			r := (self.box.high[1 - i] - self.box.low[1 - i]) * 0.5
-			paint_rounded_box_fill(self.box, r, get_color(.Scrollbar))
-			paint_rounded_box_fill(knob_box, r, blend_colors(get_color(.Scroll_Thumb), get_color(.Scroll_Thumb_Shade), (2 if .Pressed in self.state else hover_time) * 0.1))
+			paint_box_fill(self.box, style.color.scroll_bar)
+			paint_shaded_box(shrink_box(knob_box, 1), {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
+			paint_box_stroke(self.box, 1, style.color.base_stroke)
 		}
 		// Dragging
 		if .Got_Press in self.state {

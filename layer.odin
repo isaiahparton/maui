@@ -3,9 +3,12 @@ import "core:fmt"
 import "core:math/linalg"
 /*
 	Layers are the root of all gui
-
-	Each self contains a command buffer for draw calls made in that self.
 */
+
+SCROLL_SPEED :: 16
+SCROLL_STEP :: 20
+SCROLL_BAR_SIZE :: 16
+SCROLL_BAR_PADDING :: 2
 
 // Layer interaction state
 Layer_Status :: enum {
@@ -337,7 +340,7 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 		options = info.options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
 	if ok {
-		paint_box_fill(self.box, info.fill_color.? or_else get_color(.Base_Shade, 0.075))
+		paint_box_fill(self.box, info.fill_color.? or_else style.color.base)
 	}
 	return
 }
@@ -346,7 +349,7 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 _do_frame :: proc(ok: bool) {
 	if ok {
 		assert(core.layer_agent.current_layer != nil)
-		paint_box_stroke(core.layer_agent.current_layer.box, 1, get_color(.Base_Stroke))
+		paint_box_stroke(core.layer_agent.current_layer.box, 1, style.color.base_stroke)
 		end_layer(core.layer_agent.current_layer)
 	}
 }
@@ -456,7 +459,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		if shadow, ok := info.shadow.?; ok {
 			painter.target = get_draw_target()
 			append(&self.draws, painter.target)
-			paint_rounded_box_shadow(move_box(self.box, shadow.offset), shadow.roundness, get_color(.Shadow))
+			paint_rounded_box_shadow(move_box(self.box, shadow.offset), shadow.roundness, style.color.shadow)
 		}
 
 		painter.target = get_draw_target()
@@ -621,9 +624,6 @@ end_layer :: proc(self: ^Layer) {
 			self.bits += {.Clipped}
 			painter.draws[painter.target].clip = self.box
 		}
-		// Handle scrolling
-		SCROLL_SPEED :: 16
-		SCROLL_STEP :: 20
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {
 			max(self.space.x - (self.box.high.x - self.box.low.x), 0),

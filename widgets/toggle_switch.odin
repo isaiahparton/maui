@@ -1,6 +1,8 @@
 package maui_widgets
 import "../"
 
+import "core:math"
+
 Toggle_Switch_State :: union #no_nil {
 	bool,
 	^bool,
@@ -16,40 +18,39 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 	using maui
 	state := info.state.(bool) or_else info.state.(^bool)^
 	new_state = state
-	WIDTH :: 38
-	HEIGHT :: 28
+	WIDTH :: 50
+	HEIGHT :: 25
 	if self, ok := do_widget(hash(loc)); ok {
 		// Colocate
-		self.box = layout_next_child(current_layout(), {WIDTH, HEIGHT})
+		self.box = use_next_box() or_else layout_next_child(current_layout(), {WIDTH, HEIGHT})
 		// Update
 		update_widget(self)
 		// Animation
-		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.15)
-		press_time := animate_bool(&self.timers[1], .Pressed in self.state, 0.15)
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
+		press_time := animate_bool(&self.timers[1], .Pressed in self.state, DEFAULT_WIDGET_PRESS_TIME)
 		how_on := animate_bool(&self.timers[2], state, 0.2, .Quadratic_In_Out)
 		// Painting
 		if .Should_Paint in self.bits {
-			base_box: Box = {{self.box.low.x, self.box.low.y + 6}, {self.box.high.x, self.box.high.y - 6}}
-			base_radius := height(base_box) * 0.5
-			start: [2]f32 = {base_box.low.x + base_radius, center_y(base_box)}
-			move := width(base_box) - height(base_box)
-			knob_center := start + {move * (how_on if state else how_on), 0}
-			color := info.color.? or_else get_color(.Accent)
-			back_color := alpha_blend_colors(color, {0, 0, 0, 255}, 0.25)
+			base_radius := height(self.box) * 0.5
+
+			move := width(self.box) / 2
+			offset := move * how_on
+			knob_box: Box = {{self.box.low.x + offset, self.box.low.y}, {self.box.low.x + move + offset, self.box.high.y}}
+			back_color: Color = {0, 150, 255, 100}
 			// Background
-			if how_on < 1 {
-				paint_rounded_box_fill(base_box, base_radius, get_color(.Widget_Back))
-			}
-			// Background
+			paint_shaded_box(self.box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
+			// Text
 			if how_on > 0 {
-				if how_on < 1 {
-					paint_rounded_box_fill({base_box.low, {knob_center.x, base_box.high.y}}, base_radius, back_color)
-				} else {
-					paint_rounded_box_fill(base_box, base_radius, back_color)
-				}
+				paint_check(self.box.low + 12.5, 6 * how_on, fade(style.color.status, how_on))
+			}
+			if how_on < 1 {
+				paint_cross(self.box.high - 12.5, 7, math.PI * 0.25 * (1 - how_on), 2, fade(style.color.status, 1 - how_on))
 			}
 			// Knob
-			paint_circle_fill_texture(knob_center, 11, alpha_blend_colors(color, 255, (hover_time + press_time) * 0.25))
+			paint_shaded_box(shrink_box(knob_box, 1), {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
+			paint_box_fill(shrink_box(knob_box, 1), fade({255, 255, 255, 40}, hover_time))
+			paint_box_stroke(knob_box, 1, style.color.base_stroke)
+
 		}
 		// Invert state on click
 		if .Clicked in self.state {

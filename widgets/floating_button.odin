@@ -1,5 +1,5 @@
 package maui_widgets
-import "../"
+/*import "../"
 
 import "core:math/linalg"
 
@@ -24,4 +24,4 @@ do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) 
 		clicked = widget_clicked(self, .Left)
 	}
 	return
-}
+}*/

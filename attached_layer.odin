@@ -79,9 +79,6 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 			options = info.layer_options,
 			opacity = info.opacity,
 			owner = info.parent.(^Widget) or_else nil,
-			shadow = Layer_Shadow_Info({
-				offset = SHADOW_OFFSET,
-			}),
 		})
 
 		if ok {

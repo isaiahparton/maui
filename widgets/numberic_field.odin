@@ -46,19 +46,18 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 		}
 		// Paint!
 		if (.Should_Paint in self.bits) {
-			paint_rounded_box_fill(self.box, painter.style.widget_rounding, get_color(.Widget_Back))
-			paint_rounded_box_stroke(self.box, painter.style.widget_rounding, 1, style_widget_stroke(self, hover_time))
+			paint_shaded_box(self.layer.box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
 		}
 		// Text!
-		text_origin: [2]f32 = {self.box.high.x - WIDGET_PADDING, (self.box.low.y + self.box.high.y) / 2}
+		text_origin: [2]f32 = {self.box.high.x - style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
 		if text, ok := info.suffix.?; ok {
-			size := paint_text(text_origin, {text = text, font = painter.style.monospace_font, size = painter.style.monospace_font_size}, {align = .Right, baseline = .Middle}, get_color(.Text, 0.5))
+			size := paint_text(text_origin, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.text)
 			text_origin.x -= size.x
 		}
-		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = painter.style.monospace_font, size = painter.style.monospace_font_size}, {align = .Right, baseline = .Middle}, {read_only = true}, get_color(.Text))
+		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, {read_only = true}, style.color.text)
 		text_origin.x = text_res.bounds.low.x
 		if text, ok := info.prefix.?; ok {
-			paint_text(text_origin, {text = text, font = painter.style.monospace_font, size = painter.style.monospace_font_size}, {align = .Right, baseline = .Middle}, get_color(.Text, 0.5))
+			paint_text(text_origin, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.text)
 		}
 		// Value manipulation
 		if (.Focused in self.state) {

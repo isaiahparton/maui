@@ -1,5 +1,5 @@
 package maui_widgets
-import "../"
+/*import "../"
 
 // Navigation tabs
 Tab_Info :: struct {
@@ -83,4 +83,4 @@ do_enum_tabs :: proc(value: $T, tab_size: f32, loc := #caller_location) -> (new_
 		}
 	}
 	return
-}
+}*/

@@ -35,7 +35,8 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 		// Update
 		update_widget(self)
 		// Animate
-		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
+		focus_time := animate_bool(&self.timers[1], .Focused in self.state, 0.1)
 		// Text cursor
 		if .Hovered in self.state {
 			core.cursor = .Beam
@@ -50,7 +51,8 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			}
 		}
 		// Paint!
-		paint_rounded_box_fill(self.box, painter.style.widget_rounding, get_color(.Widget_Back))
+		paint_shaded_box(self.box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
+		paint_box_fill(self.box, fade(255, hover_time * 0.04))
 		// Get data source
 		text: string
 		switch type in info.data {
@@ -71,15 +73,15 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			})
 		}
 		// Do text interaction
-		inner_box: Box = {{self.box.low.x + WIDGET_PADDING, self.box.low.y}, {self.box.high.x - WIDGET_PADDING, self.box.high.y}}
+		inner_box: Box = {{self.box.low.x + style.layout.widget_padding, self.box.low.y}, {self.box.high.x - style.layout.widget_padding, self.box.high.y}}
 		text_res := paint_interact_text(
 			{inner_box.low.x, (inner_box.low.y + inner_box.high.y) / 2} - self.offset, 
 			self,
 			&core.typing_agent, 
-			{text = text, font = painter.style.default_font, size = painter.style.default_font_size},
+			{text = text, font = style.font.label, size = style.text_size.field},
 			{baseline = .Middle, clip = self.box},
 			{},
-			get_color(.Text),
+			style.color.text,
 		)
 		if .Focused in self.state {
 			offset_x_limit := max(width(text_res.bounds) - width(inner_box), 0)
@@ -118,24 +120,18 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 		}
 		// Widget decoration
 		if .Should_Paint in self.bits {
-			paint_labeled_widget_frame(
-				box = self.box, 
-				text = info.title, 
-				offset = WIDGET_PADDING,
-				thickness = 1, 
-				color = style_widget_stroke(self, hover_time),
-			)
 			// Draw placeholder
 			if info.placeholder != nil {
 				if len(buffer) == 0 {
 					paint_text(
-						{self.box.low.x + WIDGET_PADDING, center_y(self.box)}, 
-						{font = painter.style.title_font, size = painter.style.title_font_size, text = info.placeholder.?}, 
+						{self.box.low.x + style.layout.widget_padding, center_y(self.box)}, 
+						{font = style.font.title, size = style.text_size.title, text = info.placeholder.?}, 
 						{baseline = .Middle}, 
-						get_color(.Text, 0.5),
+						style.color.text,
 					)
 				}
 			}
+			paint_box_stroke(self.box, 1, fade(style.color.status, focus_time))
 		}
 		// Whatever
 		if .Lost_Focus in self.state {

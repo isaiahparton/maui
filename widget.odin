@@ -2,6 +2,7 @@ package maui
 
 import "core:fmt"
 import "core:math"
+import "core:mem"
 import "core:runtime"
 import "core:unicode/utf8"
 import "core:math/ease"
@@ -13,6 +14,7 @@ import "core:time"
 
 MAX_WIDGET_TIMERS :: 3
 DEFAULT_WIDGET_HOVER_TIME :: 0.075
+DEFAULT_WIDGET_PRESS_TIME :: 0.075
 
 // General purpose booleans
 Widget_Bit :: enum {
@@ -81,6 +83,8 @@ Widget :: struct {
 	offset,
 	label_size: [2]f32,
 	timers: [MAX_WIDGET_TIMERS]f32,
+	// Custom data
+	data: Maybe(rawptr),
 }
 
 WIDGET_STACK_SIZE :: 32
@@ -100,6 +104,16 @@ Widget_Agent :: struct {
 	next_focus_fd,
 	focus_id,
 	last_focus_id: Id,
+}
+
+widget_has :: proc(w: ^Widget, what: any) -> (data: rawptr, ok: bool) {
+	if w.data == nil {
+		ti := runtime.type_info_base(type_info_of(what.id))
+		data, _ = mem.alloc(ti.size)
+		mem.copy(data, what.data, ti.size)
+		ok = true
+	}
+	return
 }
 
 widget_agent_assert :: proc(using self: ^Widget_Agent, id: Id) -> (widget: ^Widget, ok: bool) {
@@ -356,14 +370,14 @@ attach_tooltip :: proc(text: string, side: Box_Side) {
 }
 
 paint_disable_shade :: proc(box: Box) {
-	paint_box_fill(box, get_color(.Base, DISABLED_SHADE_ALPHA))
+	paint_box_fill(box, style.color.base)
 }
 
 tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 	text_size := measure_text({
 		text = text,
-		font = painter.style.title_font,
-		size = painter.style.title_font_size,
+		font = style.font.title,
+		size = style.text_size.title,
 	})
 	PADDING :: 3
 	size := text_size + PADDING * 2
@@ -385,13 +399,13 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 		options = {.No_Scroll_X, .No_Scroll_Y},
 	}); ok {
 		layer.order = .Tooltip
-		paint_rounded_box_fill(layer.box, 3, get_color(.Tooltip_Fill))
-		paint_rounded_box_stroke(layer.box, 3, 1, get_color(.Tooltip_Stroke))
+		paint_rounded_box_fill(layer.box, 3, style.color.tooltip_fill)
+		paint_rounded_box_stroke(layer.box, 3, 1, style.color.tooltip_stroke)
 		paint_text(
 			layer.box.low + PADDING, 
-			{font = painter.style.title_font, size = painter.style.title_font_size, text = text}, 
+			{font = style.font.title, size = style.text_size.title, text = text}, 
 			{align = .Left}, 
-			get_color(.Tooltip_Text),
+			style.color.tooltip_text,
 			)
 		end_layer(layer)
 	}
@@ -443,10 +457,10 @@ get_size_for_label :: proc(l: ^Layout, label: Label) -> Exact {
 paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: Text_Align, baseline: Text_Baseline) -> [2]f32 {
 	switch variant in label {
 		case string: 	
-		return paint_text(origin, {font = painter.style.button_font, size = painter.style.button_font_size, text = variant}, {align = align, baseline = baseline}, color)
+		return paint_text(origin, {font = style.font.label, size = style.text_size.label, text = variant}, {align = align, baseline = baseline}, color)
 
 		case rune: 		
-		return paint_aligned_rune(painter.style.button_font, painter.style.button_font_size, rune(variant), linalg.floor(origin), color, {.Middle, .Middle})
+		return paint_aligned_rune(style.font.label, style.text_size.label, rune(variant), linalg.floor(origin), color, {.Middle, .Middle})
 	}
 	return {}
 }
@@ -469,13 +483,13 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 		case string: 
 		size = measure_text({
 			text = variant,
-			font = painter.style.button_font,
-			size = painter.style.button_font_size, 
+			font = style.font.label,
+			size = style.text_size.label, 
 		})
 
 		case rune:
-		font := &painter.atlas.fonts[painter.style.button_font]
-		if font_size, ok := get_font_size(font, painter.style.button_font_size); ok {
+		font := &painter.atlas.fonts[style.font.label]
+		if font_size, ok := get_font_size(font, style.text_size.label); ok {
 			if glyph, ok := get_font_glyph(font, font_size, rune(variant)); ok {
 				size = glyph.src.high - glyph.src.low
 			}
@@ -484,108 +498,12 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 	return
 }
 
-
-Nav_Menu_Option_Info :: struct {
-	index: int,
-	icon: rune,
-	name: string,
-}
-Nav_Menu_Section_Info :: struct {
-	name: string,
-}
-Nav_Menu_Item_Info :: union {
-	Nav_Menu_Option_Info,
-	Nav_Menu_Section_Info,
-}
-
-Nav_Menu_Info :: struct {
-	current_index: int,
-	items: []Nav_Menu_Item_Info,
-}
-
-do_nav_menu :: proc(info: Nav_Menu_Info, loc := #caller_location) -> (result: Maybe(int)) {
-
-	option_counter: int 
-
-	for &item_union, i in info.items {
-		push_id(i)
-		switch item in item_union {
-			case Nav_Menu_Option_Info: 
-			placement.size = Exact(30)
-			if self, ok := do_widget(hash(loc)); ok {
-				self.box = layout_next(current_layout())
-				self.box.high.y += 1
-				hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
-				state_time := animate_bool(&self.timers[1], info.current_index == item.index, 0.15)
-				update_widget(self)
-				if .Should_Paint in self.bits {
-					box := self.box
-
-					stroke_color := alpha_blend_colors(get_color(.Base), get_color(.Intense), 0.5 * (1 - hover_time))
-					if state_time < 1 {
-						if option_counter == 0  {
-							paint_box_fill({box.low, {box.high.x, box.high.y + 1}}, stroke_color)
-						}
-						paint_box_fill({{box.low.x, box.high.y - 1}, box.high}, stroke_color)
-					}
-
-					fill_color := fade(alpha_blend_colors(get_color(.Base), get_color(.Intense), min(0.5 + state_time, 1)), 1 if info.current_index == item.index else hover_time)
-					paint_right_ribbon_fill(box, fill_color)
-
-					text_color := blend_colors(get_color(.Intense, 0.5 + hover_time), get_color(.Base), state_time)
-					paint_aligned_rune(painter.style.button_font, painter.style.button_font_size, item.icon, center(self.box), text_color, {.Middle, .Middle})
-					paint_text(
-						{self.box.low.x + height(self.box) * ease.cubic_in_out(state_time) * 0.3, center_y(self.box)}, 
-						{text = item.name, font = painter.style.default_font, size = painter.style.default_font_size}, 
-						{align = .Left, baseline = .Middle},
-						text_color,
-						)
-				}
-				
-				if widget_clicked(self, .Left) {
-					result = item.index
-				}
-			}
-			option_counter += 1
-
-			case Nav_Menu_Section_Info:
-			option_counter = 0
-			placement.align.x = .Middle
-			space(Exact(20))
-			//TODO: Re-implement this
-			/*do_text({
-				text = item.name,
-				fit = true,
-				font = .Label,
-				color = get_color(.Intense, 0.5),
-			})*/
-			space(Exact(6))
-		}
-		
-		pop_id()
-	}
-	return
-}
-
-
-
-
-
-
-
 // Just a line
 do_divider :: proc(size: f32) {
 	layout := current_layout()
 	box := cut_box(&layout.box, placement.side, Exact(1))
-	paint_box_fill(box, get_color(.Base_Stroke))
+	paint_box_fill(box, style.color.base_stroke)
 }
-
-
-
-
-
-
-
 
 /*
 	Progress bar
@@ -593,8 +511,8 @@ do_divider :: proc(size: f32) {
 do_progress_bar :: proc(value: f32) {
 	box := layout_next(current_layout())
 	radius := height(box) * 0.5
-	paint_rounded_box_fill(box, radius, get_color(.Widget_Back))
-	paint_rounded_box_fill({box.low, {box.low.x + width(box) * clamp(value, 0, 1), box.high.y}}, radius, get_color(.Accent))
+	paint_rounded_box_fill(box, radius, style.color.base)
+	paint_rounded_box_fill({box.low, {box.low.x + width(box) * clamp(value, 0, 1), box.high.y}}, radius, style.color.accent)
 }
 
 //TODO: Re-implement

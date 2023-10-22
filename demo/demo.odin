@@ -37,9 +37,6 @@ _main :: proc() {
 	number: f64
 	slider_int: i64
 	text: string
-	text_demo: Text_Demo = {
-		info = {text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque pharetra, mauris at laoreet volutpat, libero diam pulvinar sem, vitae ultricies metus enim ac dolor. Aenean id diam libero. Nam elit dolor, condimentum eget mauris eu, venenatis scelerisque enim. Pellentesque porttitor massa quis erat congue, id condimentum eros volutpat.", size = 20},
-	}
 
 	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
 		return
@@ -61,90 +58,39 @@ _main :: proc() {
 
 		// UI calls
 		shrink(50)
-		if do_layout(.Top, Exact(24)) {
-			placement.side = .Left; placement.size = Exact(150)
-			painter.style.stroke_thickness = math.round(do_slider(Slider_Info(f32){value = painter.style.stroke_thickness, low = 0, high = 4}))
+		if do_window({
+			box = child_box(core.fullscreen_box, {300, 300}, {.Middle, .Middle}),
+			title = "Hi! I'm a window :I",
+			options = {.Title, .Closable, .Resizable, .Collapsable},
+		}) {
+			shrink(20)
+			placement.size = Exact(24)
+			do_button({label = "welcome!"})
+			space(Exact(10))
+			do_toggle_switch({state = &boolean})
+			space(Exact(10))
+			do_text_field({data = &text, placeholder = "enter something"})
+			space(Exact(10))
+			do_checkbox({state = &boolean, text = "Checkbox"})
 		}
-		space(Exact(10))
-		for shape in Button_Shape {
-			push_id(int(shape))
+		if do_window({
+			box = child_box(core.fullscreen_box, {300, 400}, {.Near, .Middle}),
+			title = "Me too!",
+			options = {.Title, .Closable, .Resizable, .Collapsable},
+		}) {
+			shrink(20)
+			placement.size = Exact(24)
+			do_button({label = "welcome!"})
 			if do_layout(.Top, Exact(24)) {
 				placement.side = .Left 
-				do_button({shape = shape, style = .Filled, label = "Button", color = get_color(.Accent), fit_to_label = true})
-				space(Exact(10))
-				do_button({shape = shape, style = .Outlined, label = "Button", fit_to_label = true})
-				space(Exact(10))
-				do_button({shape = shape, style = .Subtle, label = "Button", fit_to_label = true})
-				space(Exact(10))
+				do_button({style = .Filled, label = "Button", fit_to_label = true})
 			}
-			pop_id()
 			space(Exact(10))
-		}
-		space(Exact(10))
-		if do_layout(.Top, Exact(24)) {
-			placement.side = .Left; placement.size = Exact(200)
-			if do_menu({label = "open me!"}) {
-				placement.size = Exact(24)
-				if do_option({label = "click me!! :)"}) {
-
-				}
-				if .Hovered in last_widget().state {
-					if do_option({label = "can't touch this! >:}"}) {
-
-					}
-				}
-				if do_submenu({label = "check this out!"}) {
-					do_option({label = "you found me!! :D"})
-				}
+			if do_toggle_button({state = boolean, label = "Toggle Button"}) {
+				boolean = !boolean
 			}
-		}
-		space(Exact(10))
-		if do_layout(.Top, Exact(24)) {
-			placement.side = .Left; placement.size = Exact(70)
-			choice = do_enum_toggle_buttons(choice)
-		}
-		space(Exact(10))
-		placement.size = Exact(30); placement.align.y = .Middle
-		choice = do_enum_radio_buttons(choice, .Left)
-		space(Exact(10))
-		do_checkbox({state = &show_window, text = "show window"})
-		space(Exact(10))
-		if do_horizontal(Exact(28)) {
-			placement.size = Exact(200)
-			do_text_field({data = &text, title = "Text!"})
-		}
-		space(Exact(10))
-		if do_horizontal(Exact(28)) {
-			placement.size = Exact(200)
-			if res := do_numeric_field(Numeric_Field_Info(f64){value = number, title = "Number!", precision = 2}); res.changed {
-				number = res.value
-			}
-		}
-		space(Exact(10))
-		if do_horizontal(Exact(28)) {
-			placement.size = Exact(200)
-			do_date_picker({value = &t, temp_value = &tt})
-		}
-		space(Exact(10))
-		if do_horizontal(Exact(28)) {
-			placement.size = Exact(100)
-			slider_int = do_box_slider(Box_Slider_Info(i64){value = slider_int, low = 0, high = 100})
 			space(Exact(10))
-			slider_int = do_spinner(Spinner_Info(i64){value = slider_int, low = 0, high = 100})
-		}
-		space(Exact(10))
-		boolean = do_toggle_switch({state = Toggle_Switch_State(boolean)})
-
-		if show_window {
-			if do_window({
-				box = child_box(core.fullscreen_box, {300, 300}, {.Middle, .Middle}),
-				title = "Hi! I'm a window :I",
-				options = {.Title, .Closable, .Resizable, .Collapsable},
-			}) {
-				shrink(20)
-				placement.size = Exact(24)
-				do_button({label = "welcome!"})
-			}
+			do_spin_counter(Spin_Counter_Info(f64){digits = 10, value = number})
 		}
 
 		// End of ui calls

@@ -49,24 +49,23 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 				r := f32(info.high - info.low)
 				for entry in info.guides.? {
 					x := bar_box.low.x + HALF_HEIGHT + range * (f32(entry - info.low) / r)
-					paint_line({x, bar_box.low.y}, {x, bar_box.low.y - 10}, 1, get_color(.Widget))
+					//paint_line({x, bar_box.low.y}, {x, bar_box.low.y - 10}, 1, get_color(.Widget))
 					paint_text(
 						{x, bar_box.low.y - 12}, 
-						{text = tmp_print(format, entry), font = painter.style.title_font, size = painter.style.title_font_size}, 
+						{text = tmp_print(format, entry), font = style.font.title, size = style.text_size.title}, 
 						{align = .Middle, baseline = .Bottom}, 
-						get_color(.Widget),
+						style.color.text,
 						)
 				}
 			}
 			// Paint the background if needed
 			if info.value < info.high {
-				paint_rounded_box_fill(bar_box, HALF_HEIGHT, get_color(.Widget_Back))
+				//paint_rounded_box_fill(bar_box, HALF_HEIGHT, get_color(.Widget_Back))
 			}
-			color := get_color(.Accent)
 			// Paint the filled part of the body
-			paint_rounded_box_fill({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, HALF_HEIGHT, alpha_blend_colors(color, {0, 0, 0, 255}, 0.25))
+			//paint_rounded_box_fill({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, HALF_HEIGHT, alpha_blend_colors(color, {0, 0, 0, 255}, 0.25))
 			// Paint the knob
-			paint_circle_fill_texture(knob_center, knob_radius, alpha_blend_colors(color, 255, (hover_time + press_time) * 0.25))
+			//paint_circle_fill_texture(knob_center, knob_radius, alpha_blend_colors(color, 255, (hover_time + press_time) * 0.25))
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
@@ -119,15 +118,15 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 		}
 		// Paint
 		if self.bits >= {.Should_Paint} {
-			paint_box_fill(self.box, get_color(.Widget_Back))
+			paint_shaded_box(self.box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
 			if .Active not_in self.bits {
 				if info.low < info.high {
-					paint_box_fill({self.box.low, {self.box.low.x + box_width * (f32(info.value - info.low) / f32(info.high - info.low)), self.box.high.y}}, alpha_blend_colors(get_color(.Widget), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
+					paint_box_fill({self.box.low, {self.box.low.x + box_width * (f32(info.value - info.low) / f32(info.high - info.low)), self.box.high.y}}, style.color.accent)
 				} else {
-					paint_box_fill(self.box, get_color(.Widget))
+					paint_box_fill(self.box, style.color.accent)
 				}
 			}
-			paint_box_stroke(self.box, 1, get_color(.Widget_Stroke_Focused) if .Active in self.bits else get_color(.Widget_Stroke, hover_time))
+			// paint_box_stroke(self.box, 1, get_color(.Widget_Stroke_Focused) if .Active in self.bits else get_color(.Widget_Stroke, hover_time))
 		}
 		// Format
 		text := tmp_printf("%i", info.value)
@@ -138,7 +137,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 			// Get the buffer
 			buffer := typing_agent_get_buffer(&core.typing_agent, self.id)
 			// Do interactable text
-			text_res := paint_interact_text(box_center(self.box), self, &core.typing_agent, {text = string(buffer[:]), font = painter.style.monospace_font, size = painter.style.monospace_font_size}, {align = .Middle, baseline = .Middle}, {}, get_color(.Text))
+			text_res := paint_interact_text(box_center(self.box), self, &core.typing_agent, {text = string(buffer[:]), font = style.font.monospace, size = style.text_size.field}, {align = .Middle, baseline = .Middle}, {}, style.color.text)
 			// Copy text to buffer when focused
 			if .Got_Focus in self.state {
 				resize(buffer, len(text))

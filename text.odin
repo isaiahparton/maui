@@ -594,7 +594,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 						if clip, ok := text_paint_info.clip.?; ok {
 							box = clamp_box(box, clip)
 						}
-						paint_box_fill(box, get_color(.Text_Highlight))
+						paint_box_fill(box, style.color.text_highlight)
 					}
 				} else if it.glyph != nil && it.index >= agent.index && it.index < agent.index + agent.length {
 					// Selection
@@ -607,7 +607,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 					if clip, ok := text_paint_info.clip.?; ok {
 						box = clamp_box(box, clip)
 					}
-					paint_box_fill(box, get_color(.Text_Highlight, 0.5))
+					paint_box_fill(box, fade(style.color.text_highlight, 0.5))
 				}
 			}
 			// Paint the glyph
@@ -662,7 +662,7 @@ Do_Text_Info :: struct {
 }
 do_text :: proc(info: Do_Text_Info) {
 	box := use_next_box() or_else layout_next(current_layout())
-	box = shrink_box(box, WIDGET_PADDING)
+	box = shrink_box(box, style.layout.widget_padding)
 	origin: [2]f32
 	switch info.align {
 		case .Left: origin.x = box.low.x
@@ -674,7 +674,7 @@ do_text :: proc(info: Do_Text_Info) {
 		case .Middle: origin.y = (box.low.y + box.high.y) / 2
 		case .Right: origin.y = box.high.y
 	}
-	paint_text(origin, {text = info.text, font = painter.style.default_font, size = painter.style.default_font_size}, {align = info.align, baseline = info.baseline}, info.color.? or_else get_color(.Text))
+	paint_text(origin, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = info.align, baseline = info.baseline}, info.color.? or_else style.color.text)
 }
 
 Interactable_Text_Info :: struct {
@@ -699,7 +699,7 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 		}
 
 		// array := typing_agent_get_buffer(&core.typing_agent, self.id)
-		res := paint_interact_text(origin, self, &core.typing_agent, info.text_info, info.paint_info, {read_only = true}, get_color(.Text))
+		res := paint_interact_text(origin, self, &core.typing_agent, info.text_info, info.paint_info, {read_only = true}, style.color.text)
 		update_widget_hover(self, res.hovered)
 
 		self.layer.content_box = update_bounding_box(self.layer.content_box, res.bounds)

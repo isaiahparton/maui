@@ -52,12 +52,12 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 	// Determine total size
 	size, text_size: [2]f32
 	if has_text {
-		text_size = measure_text({font = painter.style.default_font, size = painter.style.default_font_size, text = info.text.?})
+		text_size = measure_text({font = style.font.label, size = style.text_size.label, text = info.text.?})
 		if text_side == .Bottom || text_side == .Top {
 			size.x = max(SIZE, text_size.x)
 			size.y = SIZE + text_size.y
 		} else {
-			size.x = SIZE + text_size.x + WIDGET_PADDING * 2
+			size.x = SIZE + text_size.x + style.layout.widget_padding * 2
 			size.y = SIZE
 		}
 	} else {
@@ -96,13 +96,8 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			}
 
 			// Paint box
-			paint_rounded_box_fill(box, 5, get_color(.Base_Shade, 0.1 * hover_time))
-			if active {
-				paint_rounded_box_fill(icon_box, 5, alpha_blend_colors(get_color(.Intense), get_color(.Intense_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
-			} else {
-				paint_rounded_box_fill(icon_box, 5, blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.1 if .Pressed in self.state else 0))
-				paint_rounded_box_stroke(icon_box, 5, 2, blend_colors(get_color(.Widget), get_color(.Widget_Stroke), hover_time))
-			}
+			paint_shaded_box(icon_box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
+			
 			center := box_center(icon_box)
 
 			// Paint icon
@@ -113,10 +108,10 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 				#partial switch real_state {
 					case .Unknown: 
 					a, b: [2]f32 = {-1, 0} * scale, {1, 0} * scale
-					paint_line(center + a, center + b, 2, get_color(.Widget_Back))
+					paint_line(center + a, center + b, 2, style.color.status)
 					case .On: 
 					a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-					stroke_path({center + a, center + b, center + c}, false, ICON_STROKE_THICKNESS, get_color(.Widget_Back))
+					stroke_path({center + a, center + b, center + c}, false, 1, style.color.status)
 				}
 			}
 
@@ -124,13 +119,13 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			if has_text {
 				switch text_side {
 					case .Left: 	
-					paint_text({icon_box.high.x + WIDGET_PADDING, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text({icon_box.high.x + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
 					case .Right: 	
-					paint_text({icon_box.low.x - WIDGET_PADDING, center.y - text_size.y / 2}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text({icon_box.low.x - style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
 					case .Top: 		
-					paint_text(box.low, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text(box.low, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
 					case .Bottom: 	
-					paint_text({box.low.x, box.high.y - text_size.y}, {text = info.text.?, font = painter.style.default_font, size = painter.style.default_font_size}, {align = .Left}, get_color(.Text))
+					paint_text({box.low.x, box.high.y - text_size.y}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
 				}
 			}
 		}
