@@ -1,11 +1,8 @@
 # maui
-my personal imgui library
-major WIP
+My immediate-mode gui library for my projects (u can use it if u want)
+My end goal is to be able to build an entire desktop with it
 
 # design points
-- [x] made for the odin language (special support for odin types, integrates the odin core packages)
-- [x] renderer independant (draw anything with triangle, scissor and texture commands)
-- [ ] blazingly fast
-- [ ] highly optimized (operation culling)
-- [x] looks kinda good
-- [x] dead simple layout system
+- Fast
+- Customizable
+- Stylish
