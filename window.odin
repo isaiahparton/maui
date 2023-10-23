@@ -203,7 +203,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 					{align = .Left, baseline = .Middle}, 
 					color = style.color.text,
 				)
-				if (.Resizing not_in self.bits) && point_in_box(input.mouse_point, title_box) {
+				if (.Hovered in self.decor_layer.state) && (.Resizing not_in self.bits) && point_in_box(input.mouse_point, title_box) {
 					if (.Static not_in self.options) && (core.widget_agent.hover_id == 0) && mouse_pressed(.Left) {
 						self.bits += {.Moving}
 						core.drag_anchor = self.decor_layer.box.low - input.mouse_point

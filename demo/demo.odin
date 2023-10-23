@@ -35,7 +35,6 @@ _main :: proc() {
 	boolean: bool
 	choice: Choice
 	number: f64
-	slider_int: i64
 	text: string
 
 	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
@@ -64,7 +63,7 @@ _main :: proc() {
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
 			shrink(20)
-			placement.size = Exact(24)
+			placement.size = Exact(28)
 			do_button({label = "welcome!"})
 			space(Exact(10))
 			do_toggle_switch({state = &boolean})
@@ -79,11 +78,11 @@ _main :: proc() {
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
 			shrink(20)
-			placement.size = Exact(24)
+			placement.size = Exact(28)
 			do_button({label = "welcome!"})
 			if do_layout(.Top, Exact(24)) {
 				placement.side = .Left 
-				do_button({style = .Filled, label = "Button", fit_to_label = true})
+				do_button({label = "Button", fit_to_label = true})
 			}
 			space(Exact(10))
 			if do_toggle_button({state = boolean, label = "Toggle Button"}) {
@@ -91,6 +90,12 @@ _main :: proc() {
 			}
 			space(Exact(10))
 			do_spin_counter(Spin_Counter_Info(f64){digits = 10, value = number})
+			space(Exact(10))
+			if do_radio_button({on = boolean, text = "Radio Button"}) {
+				boolean = !boolean
+			}
+			space(Exact(10))
+			number = do_knob(Knob_Info(f64){value = number, low = 0, high = 10})
 		}
 
 		// End of ui calls

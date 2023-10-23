@@ -969,3 +969,11 @@ paint_check :: proc(center: [2]f32, scale: f32, color: Color) {
 	a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
 	stroke_path({center + a, center + b, center + c}, false, 1, color)
 }
+paint_gradient_box_v :: proc(box: Box, top, bottom: Color) {
+	paint_quad_vertices(
+		{point = box.low, color = top},
+		{point = {box.low.x, box.high.y}, color = bottom},
+		{point = box.high, color = bottom},
+		{point = {box.high.x, box.low.y}, color = top},
+	)
+}

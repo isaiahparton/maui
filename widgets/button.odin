@@ -22,9 +22,6 @@ Button_Info :: struct {
 	align: Maybe(maui.Alignment),
 	color: Maybe(maui.Color),
 	fit_to_label: Maybe(bool),
-	join: maui.Box_Sides,
-	style: Button_Style,
-	shape: Button_Shape,
 }
 do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool) {
 	using maui
@@ -35,9 +32,6 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 			self.box = next_box
 		} else if int(placement.side) > 1 && (info.fit_to_label.? or_else false) {
 			size := get_size_for_label(layout, info.label)
-			if info.shape == .Left_Arrow || info.shape == .Right_Arrow {
-				size += get_layout_height(layout) / 2
-			}
 			self.box = layout_next_of_size(layout, size)
 		} else {
 			self.box = layout_next(layout)
