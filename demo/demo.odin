@@ -95,7 +95,9 @@ _main :: proc() {
 				boolean = !boolean
 			}
 			space(Exact(10))
-			number = do_knob(Knob_Info(f64){value = number, low = 0, high = 10})
+			number = do_knob(Knob_Info(f64){value = number, low = -70, high = 10, format = "Gain: %.1f"})
+			space(Exact(10))
+			number = do_slider(Slider_Info(f64){value = number, low = -70, high = 10})
 		}
 
 		// End of ui calls

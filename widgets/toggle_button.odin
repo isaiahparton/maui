@@ -46,7 +46,7 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 			// Interaction Shading
 			paint_box_fill(inner_box, alpha_blend_colors(fade(255, hover_time * 0.1), style.color.status, press_time * 0.5))
 			// Label
-			paint_label_box(info.label, self.box, style.color.text, .Middle, .Middle)
+			paint_label_box(info.label, move_box(self.box, 2 * f32(int(info.state))), style.color.text, .Middle, .Middle)
 		}
 		// Hover
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))

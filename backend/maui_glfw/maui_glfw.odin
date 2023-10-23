@@ -132,12 +132,16 @@ begin_frame :: proc() {
 	maui.core.size = {f32(width), f32(height)}
 	maui.core.current_time = glfw.GetTime()
 	if maui.core.cursor == .None {
-		glfw.SetInputMode(platform.window, glfw.CURSOR, glfw.CURSOR_HIDDEN)
+		glfw.SetInputMode(platform.window, glfw.CURSOR, glfw.CURSOR_DISABLED)
 	} else {
 		glfw.SetInputMode(platform.window, glfw.CURSOR, glfw.CURSOR_NORMAL)
 		glfw.SetCursor(platform.window, platform.cursors[maui.core.cursor])
 	}
 	glfw.PollEvents()
+	if point, ok := maui.core.set_cursor.?; ok {
+		glfw.SetCursorPos(platform.window, f64(point.x), f64(point.y))
+		maui.core.set_cursor = nil
+	}
 }
 
 end_frame :: proc() {

@@ -83,8 +83,6 @@ Widget :: struct {
 	offset,
 	label_size: [2]f32,
 	timers: [MAX_WIDGET_TIMERS]f32,
-	// Custom data
-	data: Maybe(rawptr),
 }
 
 WIDGET_STACK_SIZE :: 32
@@ -104,16 +102,7 @@ Widget_Agent :: struct {
 	next_focus_fd,
 	focus_id,
 	last_focus_id: Id,
-}
-
-widget_has :: proc(w: ^Widget, what: any) -> (data: rawptr, ok: bool) {
-	if w.data == nil {
-		ti := runtime.type_info_base(type_info_of(what.id))
-		data, _ = mem.alloc(ti.size)
-		mem.copy(data, what.data, ti.size)
-		ok = true
-	}
-	return
+	dragging: bool,
 }
 
 widget_agent_assert :: proc(using self: ^Widget_Agent, id: Id) -> (widget: ^Widget, ok: bool) {
@@ -170,6 +159,7 @@ widget_agent_destroy :: proc(using self: ^Widget_Agent) {
 }
 
 widget_agent_step :: proc(using self: ^Widget_Agent) {
+	dragging = false
 	for widget, i in &list {
 		if .Stay_Alive in widget.bits {
 			widget.bits -= {.Stay_Alive}
@@ -196,7 +186,7 @@ widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
 	last_press_id = press_id
 	last_focus_id = focus_id
 	hover_id = next_hover_id
-	if core.dragging && press_id != 0 {
+	if dragging && press_id != 0 {
 		hover_id = press_id
 	}
 	if core.is_key_selecting {
@@ -210,80 +200,77 @@ widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
 		press_id = hover_id
 		focus_id = press_id
 	}
+	dragging = false
 }
 
-update_widget_hover :: proc(wdg: ^Widget, condition: bool) {
-	if core.layer_agent.hover_id == wdg.layer.id && condition {
-		core.widget_agent.next_hover_id = wdg.id
+update_widget_hover :: proc(w: ^Widget, condition: bool) {
+	if !(core.widget_agent.dragging && w.id != core.widget_agent.hover_id) && core.layer_agent.hover_id == w.layer.id && condition {
+		core.widget_agent.next_hover_id = w.id
 	}
 }
-widget_agent_update_state :: proc(using self: ^Widget_Agent, layer_agent: ^Layer_Agent, wdg: ^Widget) {
-	assert(wdg != nil)
+widget_agent_update_state :: proc(using self: ^Widget_Agent, w: ^Widget) {
+	assert(w != nil)
 	// If hovered
-	if hover_id == wdg.id {
-		wdg.state += {.Hovered}
-		if last_hover_id != wdg.id {
-			wdg.state += {.Got_Hover}
+	if hover_id == w.id {
+		w.state += {.Hovered}
+		if last_hover_id != w.id {
+			w.state += {.Got_Hover}
 		}
 		pressed_buttons := input.mouse_bits - input.last_mouse_bits
 		if pressed_buttons != {} {
-			if wdg.click_count == 0 {
-				wdg.click_button = input.last_mouse_button
+			if w.click_count == 0 {
+				w.click_button = input.last_mouse_button
 			}
-			if wdg.click_button == input.last_mouse_button && time.since(wdg.click_time) <= DOUBLE_CLICK_TIME {
-				wdg.click_count = (wdg.click_count + 1) % MAX_CLICK_COUNT
+			if w.click_button == input.last_mouse_button && time.since(w.click_time) <= DOUBLE_CLICK_TIME {
+				w.click_count = (w.click_count + 1) % MAX_CLICK_COUNT
 			} else {
-				wdg.click_count = 0
+				w.click_count = 0
 			}
-			wdg.click_button = input.last_mouse_button
-			wdg.click_time = time.now()
-			press_id = wdg.id
+			w.click_button = input.last_mouse_button
+			w.click_time = time.now()
+			press_id = w.id
 		}
 	} else {
-		if last_hover_id == wdg.id {
-			wdg.state += {.Lost_Hover}
+		if last_hover_id == w.id {
+			w.state += {.Lost_Hover}
 		}
-		if press_id == wdg.id {
-			if .Draggable in wdg.options {
-				if .Pressed not_in wdg.state {
-					press_id = 0
-				}
-			} else  {
+		if press_id == w.id {
+			if .Draggable not_in w.options {
 				press_id = 0
 			}
 		}
-		wdg.click_count = 0
+		w.click_count = 0
 	}
 	// Press
-	if press_id == wdg.id {
-		wdg.state += {.Pressed}
-		if last_press_id != wdg.id {
-			wdg.state += {.Got_Press}
+	if press_id == w.id {
+		w.state += {.Pressed}
+		if last_press_id != w.id {
+			w.state += {.Got_Press}
 		}
 		// Just released buttons
 		released_buttons := input.last_mouse_bits - input.mouse_bits
 		if released_buttons != {} {
 			for button in Mouse_Button {
-				if button == wdg.click_button {
-					wdg.state += {.Clicked}
+				if button == w.click_button {
+					w.state += {.Clicked}
 					break
 				}
 			}
-			wdg.state += {.Lost_Press}
+			w.state += {.Lost_Press}
 			press_id = 0
 		}
-		core.dragging = .Draggable in wdg.options
-	} else if last_press_id == wdg.id {
-		wdg.state += {.Lost_Press}
+		dragging = .Draggable in w.options
+	} else if last_press_id == w.id {
+		w.state += {.Lost_Press}
 	}
 	// Focus
-	if focus_id == wdg.id {
-		wdg.state += {.Focused}
-		if last_focus_id != wdg.id {
-			wdg.state += {.Got_Focus}
+	if focus_id == w.id {
+		w.state += {.Focused}
+		if last_focus_id != w.id {
+			w.state += {.Got_Focus}
 		}
-	} else if last_focus_id == wdg.id {
-		wdg.state += {.Lost_Focus}
+	} else if last_focus_id == w.id {
+		w.state += {.Lost_Focus}
 	}
 }
 
@@ -305,7 +292,7 @@ update_widget :: proc(self: ^Widget) {
 	core.last_box = self.box
 	// Get input
 	if !core.disabled {
-		widget_agent_update_state(&core.widget_agent, &core.layer_agent, self)
+		widget_agent_update_state(&core.widget_agent, self)
 	}
 }
 
@@ -399,12 +386,12 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 		options = {.No_Scroll_X, .No_Scroll_Y},
 	}); ok {
 		layer.order = .Tooltip
-		paint_rounded_box_fill(layer.box, 3, style.color.tooltip_fill)
-		paint_rounded_box_stroke(layer.box, 3, 1, style.color.tooltip_stroke)
+		paint_rounded_box_fill(layer.box, 0, style.color.tooltip_fill)
+		paint_rounded_box_stroke(layer.box, 0, 1, style.color.tooltip_stroke)
 		paint_text(
 			layer.box.low + PADDING, 
 			{font = style.font.title, size = style.text_size.title, text = text}, 
-			{align = .Left}, 
+			{}, 
 			style.color.tooltip_text,
 			)
 		end_layer(layer)

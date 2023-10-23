@@ -47,8 +47,10 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 				case .Bottom: 	
 				center = {center_x(self.box), self.box.low.y + RADIUS}
 			}
-			paint_circle_fill_texture(center, RADIUS, style.color.indent)
-			paint_circle_fill_texture(center, RADIUS * (0.2 + 0.3 * ease.circular_out(how_on)), fade(style.color.status, how_on))
+			paint_circle_fill_texture(center, RADIUS, alpha_blend_colors(blend_colors(style.color.extrusion, style.color.indent, how_on), 255, hover_time * 0.1))
+			// Glowy thing
+			paint_circle_fill(center, RADIUS * (0.2 + 0.3 * ease.circular_out(how_on)), 12, fade(style.color.status, how_on))
+			paint_ring_fill_texture(center, RADIUS - 1, RADIUS, fade(style.color.base_stroke, 1 - how_on))
 			switch text_side {
 				case .Left: 	
 				paint_text({self.box.low.x + SIZE + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)

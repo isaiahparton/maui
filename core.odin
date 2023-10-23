@@ -130,8 +130,9 @@ Core :: struct {
 	frame_start_time: time.Time,
 	frame_duration: time.Duration,
 
+	set_cursor: Maybe([2]f32),
+
 	disabled, 
-	dragging, 
 	open_menus,
 	is_key_selecting: bool,
 
@@ -373,9 +374,6 @@ begin_frame :: proc() {
 			core.is_key_selecting = true
 		}
 	}
-
-	// Reset dragging state
-	dragging = false
 
 	// If the mouse moves, stop key selecting
 	if input.mouse_point - input.last_mouse_point != {} {

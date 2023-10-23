@@ -24,6 +24,10 @@ DARK_STYLE_COLORS :: Style_Colors{
 
 	scroll_bar = {10, 11, 12, 255},
 	scroll_thumb = {43, 44, 45, 255},
+
+	tooltip_stroke = {0, 0, 0, 255},
+	tooltip_fill = {210, 215, 215, 255},
+	tooltip_text = {25, 25, 26, 255},
 }
 /*
 	Fonts used in different parts of the ui

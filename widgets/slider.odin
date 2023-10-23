@@ -60,12 +60,13 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 			}
 			// Paint the background if needed
 			if info.value < info.high {
-				//paint_rounded_box_fill(bar_box, HALF_HEIGHT, get_color(.Widget_Back))
+				paint_rounded_box_fill(bar_box, HALF_HEIGHT, style.color.indent)
 			}
 			// Paint the filled part of the body
-			//paint_rounded_box_fill({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, HALF_HEIGHT, alpha_blend_colors(color, {0, 0, 0, 255}, 0.25))
+			paint_rounded_box_fill({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, HALF_HEIGHT, style.color.status)
 			// Paint the knob
-			//paint_circle_fill_texture(knob_center, knob_radius, alpha_blend_colors(color, 255, (hover_time + press_time) * 0.25))
+			paint_circle_fill_texture(knob_center, knob_radius, alpha_blend_colors(style.color.extrusion, 255, hover_time * 0.1))
+			paint_ring_fill_texture(knob_center, knob_radius, knob_radius + 1, style.color.base_stroke)
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
@@ -126,7 +127,6 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 					paint_box_fill(self.box, style.color.accent)
 				}
 			}
-			// paint_box_stroke(self.box, 1, get_color(.Widget_Stroke_Focused) if .Active in self.bits else get_color(.Widget_Stroke, hover_time))
 		}
 		// Format
 		text := tmp_printf("%i", info.value)

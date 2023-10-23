@@ -161,6 +161,7 @@ render :: proc(interface: ^backend.Platform_Renderer_Interface) -> int {
   gl.Viewport(0, 0, interface.screen_size.x, interface.screen_size.y)
 	
 	gl.Enable(gl.BLEND)
+	gl.Enable(gl.MULTISAMPLE)
 	gl.BlendEquation(gl.FUNC_ADD)
 	gl.BlendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
 	gl.Disable(gl.CULL_FACE)
