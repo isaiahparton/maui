@@ -1,4 +1,30 @@
 package maui_widgets
+import "../"
+
+import "core:math"
+import "core:math/linalg"
+
+do_window_handle :: proc(loc := #caller_location) {
+	using maui
+	window := current_window()
+	if self, ok := do_widget(hash(loc)); ok {
+		self.box = use_next_box() or_else layout_next(current_layout())
+		update_widget(self)
+		if .Should_Paint in self.bits {
+			box := shrink_box(self.box, 5) 
+			line_size := height(box) / 5
+			paint_box_fill(cut_box_top(&box, line_size), style.color.extrusion)
+			cut_box_top(&box, line_size)
+			paint_box_fill(cut_box_top(&box, line_size), style.color.extrusion)
+			cut_box_top(&box, line_size)
+			paint_box_fill(cut_box_top(&box, line_size), style.color.extrusion)
+		}
+		if .Got_Press in self.state {
+			core.drag_anchor = input.mouse_point - window.box.low
+		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+	}
+}
 
 /*import maui "../"
 

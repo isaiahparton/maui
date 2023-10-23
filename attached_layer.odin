@@ -60,10 +60,9 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 			case .Left: 
 			placement_info.origin = anchor.low
 			placement_info.align = {.Far, .Near}
-			placement_info.size.y = height(anchor)
+			placement_info.size.x = width(anchor)
 			case .Right: 
 			placement_info.origin = {anchor.high.x, anchor.low.y}
-			// placement_info.size.y = height(anchor)
 			placement_info.size.x = width(anchor)
 			case .Top: 
 			placement_info.origin = anchor.low
@@ -76,7 +75,7 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 			id = info.id.? or_else info.parent.(^Widget).id, 
 			placement = placement_info,
 			extend = info.extend,
-			options = info.layer_options,
+			options = info.layer_options + {.Attached},
 			opacity = info.opacity,
 			owner = info.parent.(^Widget) or_else nil,
 		})

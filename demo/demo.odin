@@ -58,12 +58,31 @@ _main :: proc() {
 		// UI calls
 		shrink(50)
 		if do_window({
-			box = child_box(core.fullscreen_box, {300, 300}, {.Middle, .Middle}),
+			placement = child_box(core.fullscreen_box, {300, 300}, {.Middle, .Middle}),
 			title = "Hi! I'm a window :I",
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
 			shrink(20)
 			placement.size = Exact(28)
+			if do_horizontal(Exact(28)) {
+				placement.size = Exact(100)
+				if do_menu({label = "File"}) {
+					placement.size = Exact(28)
+					do_option({label = "New"})
+					do_option({label = "Open"})
+					do_option({label = "Save"})
+					do_option({label = "Quit"})
+				}
+				if do_menu({label = "Edit"}) {
+					placement.size = Exact(28)
+					do_option({label = "Undo"})
+					do_option({label = "Redo"})
+					do_option({label = "Copy"})
+					do_option({label = "Cut"})
+					do_option({label = "Paste"})
+				}
+			}
+			space(Exact(10))
 			do_button({label = "welcome!"})
 			space(Exact(10))
 			do_toggle_switch({state = &boolean})
@@ -73,7 +92,7 @@ _main :: proc() {
 			do_checkbox({state = &boolean, text = "Checkbox"})
 		}
 		if do_window({
-			box = child_box(core.fullscreen_box, {300, 400}, {.Near, .Middle}),
+			placement = child_box(core.fullscreen_box, {300, 400}, {.Near, .Middle}),
 			title = "Me too!",
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {

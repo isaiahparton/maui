@@ -368,11 +368,11 @@ get_font_size :: proc(font: ^Font, size: f32) -> (data: ^Font_Size, ok: bool) {
 	return
 }
 // First creates the glyph if it doesn't exist, then returns its data
-get_font_glyph :: proc(font: ^Font, size: ^Font_Size, codepoint: rune) -> (data: ^Glyph_Data, success: bool) {
+get_font_glyph :: proc(font: ^Font, size: ^Font_Size, codepoint: rune) -> (data: ^Glyph_Data, ok: bool) {
 	// Try fetching from map
-	glyph_data, found_glyph := &size.glyphs[codepoint]
+	data, ok = &size.glyphs[codepoint]
 	// If the glyph doesn't exist, we create and render it
-	if !found_glyph {
+	if !ok {
 		// Get codepoint index
 		index := ttf.FindGlyphIndex(&font.data, codepoint)
 		// Get metrics
@@ -402,17 +402,14 @@ get_font_glyph :: proc(font: ^Font, size: ^Font_Size, codepoint: rune) -> (data:
 			src = atlas_add(&painter.atlas, image) or_else Box{}
 		}
 		// Set glyph data
-		glyph_data = map_insert(&size.glyphs, codepoint, Glyph_Data({
+		data = map_insert(&size.glyphs, codepoint, Glyph_Data({
 			image = image,
 			src = src,
 			offset = {f32(glyph_offset_x), f32(glyph_offset_y) + size.ascent},
 			advance = f32((f32(advance) + f32(left_side_bearing)) * size.scale),
 		}))
-		success = true
-	} else {
-		success = true
+		ok = true
 	}
-	data = glyph_data
 	return
 }
 

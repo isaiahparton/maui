@@ -8,7 +8,7 @@ import "core:math/linalg"
 SCROLL_SPEED :: 16
 SCROLL_STEP :: 20
 SCROLL_BAR_SIZE :: 16
-SCROLL_BAR_PADDING :: 2
+SCROLL_BAR_PADDING :: 0
 
 // Layer interaction state
 Layer_Status :: enum {
@@ -543,6 +543,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		}
 		
 		self.opacity = info.opacity.? or_else self.opacity
+		painter.opacity = self.opacity
 
 		// Get layout size
 		self.space = info.space.? or_else 0
@@ -620,7 +621,7 @@ end_layer :: proc(self: ^Layer) {
 		}
 		pop_layout()
 		// Detect clipping
-		if (self.box != core.fullscreen_box && !box_in_box(self.content_box, self.box)) || (.Force_Clip in self.options) {
+		if (self.box != core.fullscreen_box && !box_in_box(self.box, self.content_box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
 			painter.draws[painter.target].clip = self.box
 		}
@@ -695,6 +696,8 @@ end_layer :: proc(self: ^Layer) {
 	layer_agent_pop(&core.layer_agent)
 	if core.layer_agent.stack.height > 0 {
 		layer := current_layer()
+
+		painter.opacity = layer.opacity
 		painter.target = layer.draws[len(layer.draws) - 1]
 	}
 }

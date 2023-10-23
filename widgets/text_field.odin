@@ -125,9 +125,9 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 				if len(buffer) == 0 {
 					paint_text(
 						{self.box.low.x + style.layout.widget_padding, center_y(self.box)}, 
-						{font = style.font.title, size = style.text_size.title, text = info.placeholder.?}, 
+						{font = style.font.label, size = style.text_size.field, text = info.placeholder.?}, 
 						{baseline = .Middle}, 
-						style.color.text,
+						fade(style.color.text, 0.5),
 					)
 				}
 			}
