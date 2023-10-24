@@ -47,7 +47,7 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 				case .Bottom: 	
 				center = {center_x(self.box), self.box.low.y + RADIUS}
 			}
-			paint_circle_fill_texture(center, RADIUS, alpha_blend_colors(blend_colors(style.color.extrusion, style.color.indent, how_on), 255, hover_time * 0.1))
+			paint_circle_fill_texture(center, RADIUS, blend_colors(alpha_blend_colors(style.color.extrusion, 255, hover_time * 0.1), style.color.indent, how_on))
 			// Glowy thing
 			paint_circle_fill(center, RADIUS * (0.2 + 0.3 * ease.circular_out(how_on)), 12, fade(style.color.status, how_on))
 			paint_ring_fill_texture(center, RADIUS - 1, RADIUS, fade(style.color.base_stroke, 1 - how_on))

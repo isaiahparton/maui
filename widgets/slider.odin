@@ -13,30 +13,43 @@ Slider_Info :: struct($T: typeid) {
 	high: T,
 	guides: Maybe([]T),
 	format: Maybe(string),
+	orientation: Orientation,
 }
 do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 	using maui
 	SIZE :: 20
-	HEIGHT :: SIZE / 2
-	HALF_HEIGHT :: HEIGHT / 2
+	THICKNESS :: SIZE / 2
+	HALF_THICKNESS :: THICKNESS / 2
 	value := info.value
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
 		// Colocate
 		self.box = layout_next(current_layout())
-		self.box = child_box(self.box, {width(self.box), SIZE}, {.Near, .Middle})
+		size: [2]f32 = {width(self.box), SIZE} if info.orientation == .Horizontal else {SIZE, height(self.box)}
+		self.box = child_box(self.box, size, {.Near, .Middle})
 		// Update
 		update_widget(self)
 		// Animate
 		hover_time := animate_bool(&self.timers[0], self.state & {.Hovered, .Pressed} != {}, 0.1)	
 		press_time := animate_bool(&self.timers[1], .Pressed in self.state, 0.1)
+		// Axis index
+		i := int(info.orientation)
+		j := 1 - i
 		// The range along which the knob may travel
-		range := width(self.box) - HEIGHT
+		range := (self.box.high[i] - self.box.low[i]) - THICKNESS
 		// The offset of the knob for the current value
 		offset := range * clamp(f32((info.value - info.low) / (info.high - info.low)), 0, 1)
 		// The body
-		bar_box: Box = {{self.box.low.x, self.box.low.y + HALF_HEIGHT}, {self.box.high.x, self.box.high.y - HALF_HEIGHT}}
+		bar_box: Box = self.box
+		bar_box.low[j] += HALF_THICKNESS
+		bar_box.high[j] -= HALF_THICKNESS
 		// The knob shape
-		knob_center: [2]f32 = {self.box.low.x + HALF_HEIGHT + offset, (self.box.low.y + self.box.high.y) * 0.5}
+		knob_center: [2]f32
+		switch info.orientation {
+			case .Horizontal: 
+			knob_center = {self.box.low.x + HALF_THICKNESS + offset, (self.box.low.y + self.box.high.y) * 0.5}
+			case .Vertical: 
+			knob_center = {(self.box.low.x + self.box.high.x) * 0.5, self.box.high.y - (HALF_THICKNESS + offset)}
+		}
 		knob_radius: f32 = 9
 		// Interaction shading
 		shade_radius := knob_radius + 5 * (press_time + hover_time)
@@ -48,8 +61,8 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 			if info.guides != nil {
 				r := f32(info.high - info.low)
 				for entry in info.guides.? {
-					x := bar_box.low.x + HALF_HEIGHT + range * (f32(entry - info.low) / r)
-					//paint_line({x, bar_box.low.y}, {x, bar_box.low.y - 10}, 1, get_color(.Widget))
+					x := bar_box.low.x + HALF_THICKNESS + range * (f32(entry - info.low) / r)
+					paint_line({x, bar_box.low.y}, {x, bar_box.low.y - 10}, 1, style.color.base_stroke)
 					paint_text(
 						{x, bar_box.low.y - 12}, 
 						{text = tmp_print(format, entry), font = style.font.title, size = style.text_size.title}, 
@@ -58,12 +71,19 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 						)
 				}
 			}
-			// Paint the background if needed
-			if info.value < info.high {
-				paint_rounded_box_fill(bar_box, HALF_HEIGHT, style.color.indent)
-			}
 			// Paint the filled part of the body
-			paint_rounded_box_fill({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, HALF_HEIGHT, style.color.status)
+			switch info.orientation {
+				case .Horizontal: 
+				if info.value < info.high {
+					paint_pill_fill_h(bar_box, style.color.indent)
+				}
+				paint_pill_fill_h({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, style.color.status)
+				case .Vertical: 
+				if info.value < info.high {
+					paint_pill_fill_v(bar_box, style.color.indent)
+				}
+				paint_pill_fill_v({{bar_box.low.x, bar_box.high.y - offset}, bar_box.high}, style.color.status)
+			}
 			// Paint the knob
 			paint_circle_fill_texture(knob_center, knob_radius, alpha_blend_colors(style.color.extrusion, 255, hover_time * 0.1))
 			paint_ring_fill_texture(knob_center, knob_radius, knob_radius + 1, style.color.base_stroke)
@@ -76,22 +96,29 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 		if .Pressed in self.state {
 			// Update the value
 			self.state += {.Changed}
-			point := input.mouse_point.x
-			value = clamp(info.low + T((point - (self.box.low.x + HALF_HEIGHT)) / range) * (info.high - info.low), info.low, info.high)
+			point := input.mouse_point[i]
+
+			switch info.orientation {
+				case .Horizontal:
+				value = clamp(info.low + T((point - (self.box.low.x + HALF_THICKNESS)) / range) * (info.high - info.low), info.low, info.high)
+				case .Vertical: 
+				value = clamp(info.low + T(((self.box.high.y - HALF_THICKNESS) - point) / range) * (info.high - info.low), info.low, info.high)
+			}
 			// Snap to guides
 			if info.guides != nil {
 				r := info.high - info.low
 				for entry in info.guides.? {
-					x := self.box.low.x + HALF_HEIGHT + f32(entry / r) * range
+					x := self.box.low.x + HALF_THICKNESS + f32(entry / r) * range
 					if abs(x - point) < 10 {
 						value = entry
 					}
 				}
 			}
 		}
+		// Update hover state
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
-	return clamp(value, info.low, info.high)
+	return value
 }
 
 // Boxangle slider with text edit

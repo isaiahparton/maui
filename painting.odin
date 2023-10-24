@@ -683,11 +683,30 @@ paint_pill_fill_clipped_h :: proc(box, clip: Box, color: Color) {
 		}
 	}*/
 }
+paint_pill_fill_v :: proc(box: Box, color: Color) {
+	size := box.high - box.low
+	radius := math.floor(size.x / 2)
+	if src, ok := atlas_get_ring(&painter.atlas, 0, radius); ok {
+		half_size := math.trunc(height(src) / 2)
+		half_height := min(half_size, size.y / 2)
+
+		src_top: Box = {src.low, {src.high.x, src.low.y + half_height}}
+		src_bottom: Box = {{src.low.x, src.high.y - half_height}, src.high}
+
+		paint_textured_box(painter.atlas.texture, src_top, {box.low, {box.high.x, box.low.y + half_height}}, color)
+		paint_textured_box(painter.atlas.texture, src_bottom, {{box.low.x, box.high.y - half_height}, box.high}, color)
+
+		if box.high.y > box.low.y + size.x {
+			paint_box_fill({{box.low.x, box.low.y + radius}, {box.high.x, box.high.y - radius}}, color)
+		}
+	}
+}
 paint_pill_fill_h :: proc(box: Box, color: Color) {
-	radius := math.floor(height(box) / 2)
+	size := box.high - box.low
+	radius := math.floor(size.y / 2)
 	if src, ok := atlas_get_ring(&painter.atlas, 0, radius); ok {
 		half_size := math.trunc(width(src) / 2)
-		half_width := min(half_size, width(box) / 2)
+		half_width := min(half_size, size.x / 2)
 
 		src_left: Box = {src.low, {src.low.x + half_width, src.high.y}}
 		src_right: Box = {{src.high.x - half_width, src.low.y}, src.high}
@@ -695,7 +714,9 @@ paint_pill_fill_h :: proc(box: Box, color: Color) {
 		paint_textured_box(painter.atlas.texture, src_left, {box.low, {box.low.x + half_width, box.high.y}}, color)
 		paint_textured_box(painter.atlas.texture, src_right, {{box.high.x - half_width, box.low.y}, box.high}, color)
 
-		paint_box_fill({{box.low.x + radius, box.low.y}, {box.high.x - radius, box.high.y}}, color)
+		if box.high.x > box.low.x + size.y {
+			paint_box_fill({{box.low.x + radius, box.low.y}, {box.high.x - radius, box.high.y}}, color)
+		}
 	}
 }
 paint_pill_stroke_h :: proc(box: Box, thickness: f32, color: Color) {
@@ -790,8 +811,10 @@ paint_rounded_box_fill :: proc(box: Box, radius: f32, color: Color) {
 		if box.high.x > box.low.x + radius * 2 {
 			paint_box_fill({{box.low.x + radius, box.low.y}, {box.high.x - radius, box.high.y}}, color)
 		}
-		paint_box_fill({{box.low.x, box.low.y + radius}, {box.low.x + radius, box.high.y - radius}}, color)
-		paint_box_fill({{box.high.x - radius, box.low.y + radius}, {box.high.x, box.high.y - radius}}, color)
+		if box.high.y > box.low.y + radius * 2 {
+			paint_box_fill({{box.low.x, box.low.y + radius}, {box.low.x + radius, box.high.y - radius}}, color)
+			paint_box_fill({{box.high.x - radius, box.low.y + radius}, {box.high.x, box.high.y - radius}}, color)
+		}
 	}
 }
 
