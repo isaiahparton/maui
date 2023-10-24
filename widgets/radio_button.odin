@@ -1,7 +1,9 @@
 package maui_widgets
 import "../"
 
+import "core:math"
 import "core:math/ease"
+import "core:math/linalg"
 
 // Radio buttons
 Radio_Button_Info :: struct {

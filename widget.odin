@@ -278,25 +278,25 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, w: ^Widget) {
 	}
 }
 
-update_widget :: proc(self: ^Widget) {
+update_widget :: proc(w: ^Widget) {
 	// Prepare widget
-	self.state = {}
-	self.bits += {.Stay_Alive}
+	w.state = {}
+	w.bits += {.Stay_Alive}
 	if core.disabled {
-		self.bits += {.Disabled}
+		w.bits += {.Disabled}
 	} else {
-		self.bits -= {.Disabled}
+		w.bits -= {.Disabled}
 	}
-	if core.paint_this_frame {
-		self.bits += {.Should_Paint}
+	if core.paint_this_frame && get_clip(current_layer().box, w.box) != .Full {
+		w.bits += {.Should_Paint}
 	} else {
-		self.bits -= {.Should_Paint}
+		w.bits -= {.Should_Paint}
 	}
 
-	core.last_box = self.box
+	core.last_box = w.box
 	// Get input
 	if !core.disabled {
-		widget_agent_update_state(&core.widget_agent, self)
+		widget_agent_update_state(&core.widget_agent, w)
 	}
 }
 

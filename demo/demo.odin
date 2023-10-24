@@ -74,6 +74,23 @@ _main :: proc() {
 			title = "window",
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
+			if do_horizontal(Exact(24)) {
+				placement.size = Exact(120)
+				if do_menu({label = "File"}) {
+					placement.size = Exact(24)
+					do_option({label = "new"})
+					do_option({label = "open"})
+					do_option({label = "save"})
+					if do_submenu({label = "Import"}) {
+						do_option({label = "stuff"})
+						do_option({label = "things"})
+					}
+					if do_submenu({label = "Export"}) {
+						do_option({label = "stuff"})
+						do_option({label = "things"})
+					}
+				}
+			}
 			shrink(20)
 			// Set default size for widget placement
 			placement.size = Exact(28)

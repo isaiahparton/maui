@@ -76,7 +76,7 @@ _do_menu :: proc(active: bool) {
 		}, current_layer())
 	}
 }
-/*
+
 // Options within menus
 @(deferred_out=_do_submenu)
 do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
@@ -92,14 +92,16 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		open_time := animate_bool(&self.timers[1], .Menu_Open in self.bits, 0.15)
 		// Paint
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_Back), get_color(.Widget_Shade), 0.2 if .Pressed in self.state else hover_time * 0.1))
+			paint_box_fill(self.box, fade(style.color.status, hover_time))
+			// Paint label
 			label_box := self.box
-			icon_box := cut_box_left(&label_box, height(label_box))
-			paint_label_box(info.label, label_box, get_color(.Text), .Left, .Middle)
-			paint_arrow_flip({self.box.high.x - height(self.box) * 0.5, center_y(self.box)}, height(self.box) * 0.25, -0.5 * math.PI, ICON_STROKE_THICKNESS, open_time, get_color(.Text))
+			cut_box_left(&label_box, height(label_box))
+			label_color := blend_colors(style.color.text, style.color.base_stroke, hover_time)
+			paint_label_box(info.label, label_box, label_color, .Left, .Middle)
+			paint_arrow_flip({label_box.high.x - height(label_box) * 0.5, center_y(label_box)}, height(label_box) * 0.25, -0.5 * math.PI, 1, open_time, label_color)
 		}
 		// Begin layer
-		_, active = begin_attached_layer({
+		if res, ok := begin_attached_layer({
 			id = shared_id,
 			mode = .Hover,
 			parent = self,
@@ -109,10 +111,9 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			align = info.layer_align,
 			layer_options = {.Attached},
 			opacity = open_time,
-		})
-		// Push background color
-		if active {
-			push_color(.Base, get_color(.Widget_Back))
+		}); ok {
+			paint_box_fill(res.self.box, style.color.base)
+			active = true
 		}
 		// Update hover state with own box
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
@@ -125,12 +126,10 @@ _do_submenu :: proc(active: bool) {
 	if active {
 		end_attached_layer({
 			mode = .Hover,
-			stroke_color = get_color(.Base_Stroke),
+			stroke_color = style.color.base_stroke,
 		}, current_layer())
-		pop_color()
 	}
 }
-*/
 
 Option_Info :: struct {
 	label: maui.Label,
