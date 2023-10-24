@@ -6,7 +6,7 @@ Chip_Info :: struct {
 	clip_box: Maybe(maui.Box),
 }
 
-/*do_chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
+do_chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
 		using self
@@ -20,16 +20,11 @@ Chip_Info :: struct {
 		update_widget(self)
 		// Graphics
 		if .Should_Paint in bits {
-			fill_color: Color
-			fill_color = style_widget_shaded(2 if .Pressed in self.state else hover_time)
-			if clip, ok := info.clip_box.?; ok {
-				paint_pill_fill_clipped_h(self.box, clip, fill_color)
-				paint_text(center(box), {text = info.text, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Middle, baseline = .Middle}, get_color(.Text)) 
-			} else {
-				paint_pill_fill_h(self.box, fill_color)
-				paint_text(center(box), {text = info.text, font = painter.style.title_font, size = painter.style.title_font_size}, {align = .Middle, baseline = .Middle}, get_color(.Text))
-			}
+			paint_pill_fill_h(self.box, alpha_blend_colors(style.color.extrusion, {255, 255, 255, 40}, hover_time))
+			paint_pill_stroke_h(self.box, 1, style.color.base_stroke)
+			paint_text(center(box), {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Middle, baseline = .Middle}, style.color.text) 
 		}
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 		clicked = .Clicked in state && click_button == .Left
 	}
 	return
@@ -45,12 +40,12 @@ do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (cl
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
 		using self
-		// Layouteth
+		// Layin
 		layout := current_layout()
 		text_info: Text_Info = {
 			text = info.text, 
-			font = painter.style.title_font, 
-			size = painter.style.title_font_size,
+			font = style.font.label, 
+			size = style.text_size.label,
 		}
 		state_time := animate_bool(&self.timers[0], info.state, 0.15)
 		size: [2]f32
@@ -71,23 +66,16 @@ do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (cl
 		update_widget(self)
 		// Hover thyselfest
 		hover_time := animate_bool(&self.timers[1], .Hovered in state, 0.1)
-		// Graphicseth
+		// Graphicly
 		if .Should_Paint in bits {
-			color := blend_colors(get_color(.Widget_Stroke), get_color(.Accent), state_time)
-			if info.state {
-				paint_pill_fill_h(self.box, get_color(.Accent, 0.2 if .Pressed in state else 0.1))
-			} else {
-				paint_pill_fill_h(self.box, get_color(.Base_Shade, 0.2 if .Pressed in state else 0.1 * hover_time))
-			}
-			paint_pill_stroke_h(self.box, 2 if info.state else 1, color)
+			paint_pill_stroke_h(self.box, 2 if info.state else 1, style.color.base_stroke)
 			if state_time > 0 {
-				//paint_aligned_rune(painter.style.title_font, painter.style.title_font_size, .Check, {box.high.x + height(box) / 2, center_y(box)}, fade(color, state_time), {.Near, .Middle})
-				paint_text({box.high.x - height(box) / 2, center_y(box)}, text_info, {align = .Middle, baseline = .Middle}, color) 
+				paint_text({box.high.x - height(box) / 2, center_y(box)}, text_info, {align = .Middle, baseline = .Middle}, style.color.text) 
 			} else {
-				paint_text(center(box), text_info, {align = .Middle, baseline = .Middle}, color) 
+				paint_text(center(box), text_info, {align = .Middle, baseline = .Middle}, style.color.text) 
 			}
 		}
 		clicked = .Clicked in state && click_button == .Left
 	}
 	return
-}*/
+}

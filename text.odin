@@ -440,7 +440,7 @@ paint_text :: proc(origin: [2]f32, info: Text_Info, paint_info: Text_Paint_Info,
 			}
 			// Paint the glyph
 			if it.codepoint != '\n' && it.codepoint != ' ' && it.glyph != nil {
-				dst: Box = {low = linalg.floor(origin + it.offset + it.glyph.offset)}
+				dst: Box = {low = origin + it.offset + it.glyph.offset}
 				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
 				if clip, ok := paint_info.clip.?; ok {
 					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, color)
@@ -633,9 +633,39 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 	}
 	// Update selection
 	if .Got_Press in widget.state {
-		agent.index = hover_index
-		agent.anchor = hover_index
-		agent.length = 0
+		if widget.click_count == 1 {
+			// Select the hovered word
+			// Move index to the beginning of the hovered word
+			for i := min(agent.index, len(text_info.text) - 1); ; i -= 1 {
+				if i <= 0 {
+					agent.index = 0
+					break
+				} else if is_seperator(text_info.text[i]) {
+					agent.index = i + 1
+					break
+				}
+			}
+			// Find length of the word
+			for j := agent.index + 1; ; j += 1 {
+				if j >= len(text_info.text) - 1 {
+					agent.length = len(text_info.text) - agent.index
+					break
+				} else if is_seperator(text_info.text[j]) {
+					agent.length = j - agent.index
+					break
+				}
+			}
+		} else if widget.click_count == 2 {
+			// Select everything
+			agent.index = 0
+			agent.anchor = 0
+			agent.length = len(text_info.text)
+		} else {
+			// Normal select
+			agent.index = hover_index
+			agent.anchor = hover_index
+			agent.length = 0
+		}
 	}
 	// Dragging
 	if .Pressed in widget.state && widget.click_count == 0 {

@@ -512,24 +512,6 @@ paint_ring_sector_fill :: proc(center: [2]f32, inner, outer, start, end: f32, se
 		angle += step;
 	}
 }
-// Paints a sweep effect over a box
-/*
-paint_box_sweep :: proc(r: Box, t: f32, c: Color) {
-	if t >= 1 {
-		paint_box_fill(r, c)
-		return
-	}
-	a := (r.w + r.h) * t - r.h
-	paint_box_fill({r.x, r.y, a, r.h}, c)
-	paint_quad_fill(
-		{r.x + max(a, 0), r.y}, 
-		{r.x + max(a, 0), r.y + clamp(a + r.h, 0, r.h)}, 
-		{r.x + clamp(a + r.h, 0, r.w), r.y + max(0, a - r.w + r.h)}, 
-		{r.x + clamp(a + r.h, 0, r.w), r.y}, 
-		c,
-	)
-}
-*/
 // Paint a textured box clipped to the `clip` parameter
 paint_clipped_textured_box :: proc(texture: Texture, src, dst, clip: Box, tint: Color) {
 	src := src

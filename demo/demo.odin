@@ -57,8 +57,20 @@ _main :: proc() {
 
 		// UI calls
 		shrink(50)
+		if do_horizontal(Exact(200)) {
+			placement.size = Exact(200)
+			if do_frame({}) {
+				placement.side = .Bottom; placement.size = Exact(24)
+				for i in 0..<100 {
+					push_id(i)
+						do_button({align = .Near, label = tmp_printf("button #%i", i + 1)})
+					pop_id()
+				}
+			}
+		}
+
 		if do_window({
-			placement = child_box(core.fullscreen_box, {300, 430}, {.Near, .Middle}),
+			placement = child_box(core.fullscreen_box, {300, 480}, {.Near, .Middle}),
 			title = "window",
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
@@ -91,12 +103,16 @@ _main :: proc() {
 				do_toggle_switch({state = &boolean})
 			}
 			if boolean {
-				space(Exact(20))
+				space(Exact(30))
 				// A knob (cool)
 				gain = do_knob(Knob_Info(f64){value = gain, low = -70, high = 10, format = "Gain: %.1f"})
-				space(Exact(20))
+				space(Exact(30))
 				// A slider (almost as cool)
 				pitch = do_slider(Slider_Info(f64){value = pitch, low = -10, high = 10})
+			}
+			space(Exact(10))
+			if do_horizontal(Exact(24)) {
+				do_chip({text = "I'm a chip!"})
 			}
 		}
 

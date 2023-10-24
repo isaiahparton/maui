@@ -18,6 +18,7 @@ Slider_Info :: struct($T: typeid) {
 do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 	using maui
 	SIZE :: 20
+	RADIUS :: 9
 	THICKNESS :: SIZE / 2
 	HALF_THICKNESS :: THICKNESS / 2
 	value := info.value
@@ -50,9 +51,6 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 			case .Vertical: 
 			knob_center = {(self.box.low.x + self.box.high.x) * 0.5, self.box.high.y - (HALF_THICKNESS + offset)}
 		}
-		knob_radius: f32 = 9
-		// Interaction shading
-		shade_radius := knob_radius + 5 * (press_time + hover_time)
 		// Formatting for the value
 		format := info.format.? or_else "%v"
 		// Paint!
@@ -85,12 +83,37 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 				paint_pill_fill_v({{bar_box.low.x, bar_box.high.y - offset}, bar_box.high}, style.color.status)
 			}
 			// Paint the knob
-			paint_circle_fill_texture(knob_center, knob_radius, alpha_blend_colors(style.color.extrusion, 255, hover_time * 0.1))
-			paint_ring_fill_texture(knob_center, knob_radius, knob_radius + 1, style.color.base_stroke)
+			if resource, ok := require_resource(int(Resource.Circle_Slider_Knob), RADIUS * 2); ok {
+				if !resource.ready {
+					center: [2]f32 = box_center(resource.src) - 0.5
+					image := &painter.atlas.image
+					for y in int(resource.src.low.y)..<int(resource.src.high.y) {
+						for x in int(resource.src.low.x)..<int(resource.src.high.x) {
+							point: [2]f32 = {f32(x), f32(y)}
+							diff := point - center
+							dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
+							if dist > RADIUS + 1 {
+								continue
+							}
+							i := (x + y * image.width) * image.channels
+							color: [4]f32 = {1, 1, 1, 1 - max(0, dist - RADIUS)}
+							color.rgb -= ((f32(y) - resource.src.low.y) / height(resource.src)) * 0.45
+							image.data[i    ] = u8(color.r * 255)
+							image.data[i + 1] = u8(color.g * 255)
+							image.data[i + 2] = u8(color.b * 255)
+							image.data[i + 3] = u8(color.a * 255)
+						}
+					}
+				}
+				half_size := (resource.src.high - resource.src.low) / 2
+				paint_textured_box(painter.atlas.texture, resource.src, {knob_center - RADIUS, knob_center + RADIUS}, style.color.extrusion)
+			}
+			//paint_circle_fill_texture(knob_center, RADIUS, alpha_blend_colors(style.color.extrusion, 255, hover_time * 0.1))
+			paint_ring_fill_texture(knob_center, RADIUS, RADIUS + 1, style.color.base_stroke)
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
-			tooltip(self.id, tmp_printf(format, info.value), knob_center + {0, -shade_radius - 2}, {.Middle, .Far})
+			tooltip(self.id, tmp_printf(format, info.value), knob_center + {0, -(RADIUS + 2 * press_time)}, {.Middle, .Far})
 		}
 		// Detect press
 		if .Pressed in self.state {

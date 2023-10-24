@@ -336,7 +336,8 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	self, ok = begin_layer({
 		placement = box,
 		scrollbar_padding = info.scrollbar_padding.? or_else 0,
-		id = hash(loc), 
+		id = hash(loc),
+		extend = .Bottom,
 		options = info.options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
 	if ok {
@@ -545,9 +546,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.opacity = info.opacity.? or_else self.opacity
 		painter.opacity = self.opacity
 
-		// Get layout size
-		self.space = info.space.? or_else 0
-
 		SCROLL_LERP_SPEED :: 7
 
 		// Horizontal scrolling
@@ -580,6 +578,9 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			core.paint_next_frame = true
 		}
 		self.content_box = {self.box.high, self.box.low}
+
+		// Get layout size
+		self.space = info.space.? or_else 0
 
 		// Get space
 		self.space = linalg.max(self.space, self.box.high - self.box.low)
@@ -634,13 +635,13 @@ end_layer :: proc(self: ^Layer) {
 		if .Hovered in self.state {
 			self.scroll_target -= input.mouse_scroll * SCROLL_STEP
 		}
-		// Clamp scrolling
-		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
-		self.scroll_target.y = clamp(self.scroll_target.y, 0, max_scroll.y)
 		// Repaint if scrolling with wheel
 		if linalg.floor(self.scroll_target - self.scroll) != {} {
 			core.paint_next_frame = true
 		}
+		// Clamp scrolling
+		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
+		self.scroll_target.y = clamp(self.scroll_target.y, 0, max_scroll.y)
 		// Interpolate scrolling
 		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * core.delta_time
 		// Manifest scroll bars

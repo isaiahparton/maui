@@ -24,6 +24,23 @@ Atlas :: struct {
 	// For custom enumerated images
 	resources: [MAX_RESOURCES]Maybe(Box),
 }
+Atlas_Resource :: struct {
+	ready: bool,
+	src: Box,
+}
+require_resource :: proc(index: int, size: [2]f32, loc := #caller_location) -> (resource: Atlas_Resource, ok: bool) {
+	assert(index < MAX_RESOURCES, "Resource index out of bounds!", loc)
+	resource.src, ok = painter.atlas.resources[index].?
+	if ok {
+		resource.ready = true
+	} else {
+		resource.src = atlas_get_box(&painter.atlas, size)
+		painter.atlas.resources[index] = resource.src
+		painter.atlas.should_update = true
+		ok = true
+	}
+	return
+}
 /*
 	Get a pre-rasterized ring from the atlas or create one
 */
@@ -166,22 +183,4 @@ atlas_add_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: 
 	}
 	should_update = true
 	return box, ok
-}
-
-Atlas_Resource :: struct {
-	ready: bool,
-	src: Box,
-}
-require_resource :: proc(index: int, size: [2]f32, loc := #caller_location) -> (resource: Atlas_Resource, ok: bool) {
-	assert(index < MAX_RESOURCES, "Resource index out of bounds!", loc)
-	resource.src, ok = painter.atlas.resources[index].?
-	if ok {
-		resource.ready = true
-	} else {
-		resource.src = atlas_get_box(&painter.atlas, size)
-		painter.atlas.resources[index] = resource.src
-		painter.atlas.should_update = true
-		ok = true
-	}
-	return
 }

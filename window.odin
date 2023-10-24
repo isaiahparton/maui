@@ -315,12 +315,13 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			paint_shaded_box(shrink_box(self.layer.box, 1), {style.color.base_light, style.color.base, style.color.base_dark})
 		}
 
+		last_opacity := self.opacity
 		if .Moving in self.bits {
 			self.opacity += (0.75 - self.opacity) * core.delta_time * 10
 		} else {
 			self.opacity += (1 - self.opacity) * core.delta_time * 10
 		}
-		if self.opacity > 0 && self.opacity < 1 {
+		if last_opacity != self.opacity {
 			core.paint_next_frame = true
 		}
 	}
