@@ -4,7 +4,7 @@ import "core:math"
 import "core:math/linalg"
 
 MAX_RING_RADIUS :: 30
-MAX_SHADOW_RADIUS :: 30
+MAX_RESOURCES :: 128
 /*
 	Handles dynamics of the texture atlas, can load new assets at runtime
 */
@@ -21,7 +21,8 @@ Atlas :: struct {
 	fonts: [MAX_FONTS]Font,
 	// Pre-rasterized ring locations
 	rings: [MAX_RING_RADIUS][MAX_RING_RADIUS]Maybe(Box),
-	shadows: [MAX_SHADOW_RADIUS]Maybe(Box),
+	// For custom enumerated images
+	resources: [MAX_RESOURCES]Maybe(Box),
 }
 /*
 	Get a pre-rasterized ring from the atlas or create one
@@ -77,7 +78,20 @@ atlas_reset :: proc(using self: ^Atlas) -> bool {
 	image.data[2] = 255
 	image.data[3] = 255
 
+	// Reset resources to nil so they will be rebuilt
+	resources = {}
+	rings = {}
+	// Delete font sizes
+	for i in 0..<MAX_FONTS {
+		if font_exists[i] {
+			for _, &size in fonts[i].sizes {
+				destroy_font_size(&size)
+			}
+		}
+	}
+
 	cursor = {1, 1}
+
 	if texture == {} {
 		texture = load_texture(image) or_return
 	} else {
@@ -152,4 +166,22 @@ atlas_add_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: 
 	}
 	should_update = true
 	return box, ok
+}
+
+Atlas_Resource :: struct {
+	ready: bool,
+	src: Box,
+}
+require_resource :: proc(index: int, size: [2]f32, loc := #caller_location) -> (resource: Atlas_Resource, ok: bool) {
+	assert(index < MAX_RESOURCES, "Resource index out of bounds!", loc)
+	resource.src, ok = painter.atlas.resources[index].?
+	if ok {
+		resource.ready = true
+	} else {
+		resource.src = atlas_get_box(&painter.atlas, size)
+		painter.atlas.resources[index] = resource.src
+		painter.atlas.should_update = true
+		ok = true
+	}
+	return
 }

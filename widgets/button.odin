@@ -49,6 +49,8 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 			inner_box := shrink_box(self.box, 1)
 			// Body
 			paint_shaded_box(inner_box, {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
+			paint_gradient_box_v(get_box_top(inner_box, height(inner_box) / 2), {255, 255, 255, 40}, 0)
+			paint_gradient_box_v(get_box_bottom(inner_box, height(inner_box) / 2), {0, 0, 0, 40}, {0, 0, 0, 80})
 			// Outline
 			paint_box_stroke(self.box, 1, alpha_blend_colors(style.color.base_stroke, style.color.status, press_time))
 			// Interaction Shading
