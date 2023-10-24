@@ -28,19 +28,24 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		self.box = use_next_box() or_else layout_next(current_layout())
 		// Update state
 		update_widget(self)
+		if .Focused in self.state {
+			core.widget_agent.will_auto_focus = true
+		} else if .Hovered in self.state && core.widget_agent.auto_focus {
+			core.widget_agent.press_id = self.id
+			core.widget_agent.focus_id = self.id
+		}
 		// Animation
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
 		press_time := animate_bool(&self.timers[1], .Pressed in self.state, DEFAULT_WIDGET_PRESS_TIME)
 		open_time := animate_bool(&self.timers[2], .Menu_Open in self.bits, 0.175)
 		// Painting
 		if .Should_Paint in self.bits {
-			inner_box := shrink_box(self.box, 1)
 			// Body
-			paint_shaded_box(inner_box, {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
+			paint_box_fill(self.box, style.color.extrusion)
 			// Outline
-			paint_box_stroke(self.box, 1, alpha_blend_colors(style.color.base_stroke, style.color.status, press_time))
+			paint_box_fill(get_box_bottom(self.box, Exact(1)), style.color.base_stroke)
 			// Interaction Shading
-			paint_box_fill(inner_box, alpha_blend_colors(fade(255, hover_time * 0.1), style.color.status, press_time * 0.5))
+			paint_box_fill(self.box, alpha_blend_colors(fade(255, hover_time * 0.1), style.color.status, press_time * 0.5))
 			// Label
 			paint_label_box(info.label, self.box, style.color.text, .Middle, .Middle)
 		}

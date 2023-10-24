@@ -37,7 +37,7 @@ _main :: proc() {
 	number: f64
 	text: string
 
-	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
+	if !maui_glfw.init(1200, 1000, "window", .OpenGL) {
 		return
 	}
 
@@ -97,6 +97,10 @@ _main :: proc() {
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
 			shrink(20)
+			placement.side = .Right 
+			placement.size = Exact(28)
+			number = do_slider(Slider_Info(f64){value = number, low = -10, high = 10, orientation = .Vertical})
+			placement.side = .Top 
 			placement.size = Exact(28)
 			do_button({label = "welcome!"})
 			if do_layout(.Top, Exact(24)) {
@@ -110,12 +114,10 @@ _main :: proc() {
 			space(Exact(10))
 			do_spin_counter(Spin_Counter_Info(f64){digits = 10, value = number})
 			space(Exact(10))
-			if do_radio_button({on = boolean, text = "Radio Button"}) {
-				boolean = !boolean
-			}
+			choice = do_enum_radio_buttons(choice)
 			space(Exact(10))
 			number = do_knob(Knob_Info(f64){value = number, low = -70, high = 10, format = "Gain: %.1f"})
-			space(Exact(10))
+			space(Exact(30))
 			number = do_slider(Slider_Info(f64){value = number, low = -70, high = 10})
 		}
 

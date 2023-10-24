@@ -102,7 +102,9 @@ Widget_Agent :: struct {
 	next_focus_fd,
 	focus_id,
 	last_focus_id: Id,
-	dragging: bool,
+	dragging,
+	auto_focus,
+	will_auto_focus: bool,
 }
 
 widget_agent_assert :: proc(using self: ^Widget_Agent, id: Id) -> (widget: ^Widget, ok: bool) {
@@ -160,6 +162,8 @@ widget_agent_destroy :: proc(using self: ^Widget_Agent) {
 
 widget_agent_step :: proc(using self: ^Widget_Agent) {
 	dragging = false
+	auto_focus = will_auto_focus
+	will_auto_focus = false
 	for widget, i in &list {
 		if .Stay_Alive in widget.bits {
 			widget.bits -= {.Stay_Alive}
