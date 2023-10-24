@@ -52,7 +52,7 @@ KEY_REPEAT_DELAY 		:: 0.5
 KEY_REPEAT_RATE 		:: 30
 ALL_CORNERS: Box_Corners = {.Top_Left, .Top_Right, .Bottom_Left, .Bottom_Right}
 
-DOUBLE_CLICK_TIME :: time.Millisecond * 200
+DOUBLE_CLICK_TIME :: time.Millisecond * 500
 
 Color :: [4]u8
 
