@@ -6,3 +6,7 @@ My end goal is to be able to build an entire desktop with it
 - Fast
 - Customizable
 - Stylish
+
+# look
+
+![](https://github.com/isaiahparton/maui/blob/main/demo.gif)

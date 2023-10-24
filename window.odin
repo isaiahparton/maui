@@ -230,26 +230,37 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				title_box := cut(.Top, Exact(style.layout.title_size))
 				// Draw title
 				paint_shaded_box(shrink_box(title_box, 1), {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
+				layout_box := title_box
 				// Close button
 				if .Closable in self.options {
-					if self, _ok := do_widget(hash(&self.id, size_of(Id))); _ok {
-						self.box = get_box_right(title_box, height(title_box))
-						update_widget(self)
-						hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
-						paint_box_fill(self.box, fade({230, 56, 65, 255}, hover_time))
-						paint_cross(box_center(self.box), 7, math.PI * 0.25, 2, style.color.base_stroke)
-						update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+					if w, _ok := do_widget(hash(&self.id, size_of(Id))); _ok {
+						w.box = cut_box_right(&layout_box, height(layout_box))
+						update_widget(w)
+						hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
+						paint_box_fill(w.box, fade(255, hover_time * 0.1))
+						paint_cross(box_center(w.box), 7, math.PI * 0.25, 2, style.color.base_stroke)
+						update_widget_hover(w, point_in_box(input.mouse_point, w.box))
 					}
 				}
+				if .Collapsable in self.options {
+					push_id(int(1))
+					if w, _ok := do_widget(hash(&self.id, size_of(Id))); _ok {
+						w.box = cut_box_right(&layout_box, height(layout_box))
+						update_widget(w)
+						hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
+						paint_box_fill(w.box, fade(255, hover_time * 0.1))
+						paint_arrow_flip(box_center(w.box), 7, 0, 1, self.how_collapsed, style.color.base_stroke)
+						if widget_clicked(w, .Left) {
+							self.bits ~= {.Should_Collapse}
+						}
+						update_widget_hover(w, point_in_box(input.mouse_point, w.box))
+					}
+					pop_id()
+				}
 				// Title bar positional decoration
-				baseline := center_y(title_box)
+				baseline := center_y(layout_box)
 				text_offset := height(title_box) * 0.25
 				can_collapse := (.Collapsable in self.options) || (.Collapsed in self.bits)
-				// Collapsing arrow
-				if can_collapse {
-					paint_arrow({title_box.low.x + height(title_box) / 2, baseline}, 6, math.PI * -0.5 * self.how_collapsed, 1, style.color.base_stroke)
-					text_offset = height(title_box)
-				}
 				// Draw title
 				//TODO: Make sure the text doesn't overflow
 				paint_text(
@@ -265,11 +276,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 						core.drag_anchor = self.decor_layer.box.low - input.mouse_point
 					}
 					if can_collapse && mouse_pressed(.Right) {
-						if .Should_Collapse in self.bits {
-							self.bits -= {.Should_Collapse}
-						} else {
-							self.bits += {.Should_Collapse}
-						}
+						self.bits ~= {.Should_Collapse}
 					}
 				}
 				// Title outline

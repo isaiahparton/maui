@@ -34,7 +34,7 @@ _main :: proc() {
 	show_window: bool
 	boolean: bool
 	choice: Choice
-	number: f64
+	gain, pitch: f64
 	text: string
 
 	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
@@ -58,65 +58,46 @@ _main :: proc() {
 		// UI calls
 		shrink(50)
 		if do_window({
-			placement = child_box(core.fullscreen_box, {300, 300}, {.Middle, .Middle}),
-			title = "Hi! I'm a window :I",
+			placement = child_box(core.fullscreen_box, {300, 430}, {.Near, .Middle}),
+			title = "window",
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
 			shrink(20)
+			// Set default size for widget placement
 			placement.size = Exact(28)
-			if do_horizontal(Exact(28)) {
-				placement.size = Exact(100)
-				if do_menu({label = "File"}) {
-					placement.size = Exact(28)
-					do_option({label = "New"})
-					do_option({label = "Open"})
-					do_option({label = "Save"})
-					do_option({label = "Quit"})
-				}
-				if do_menu({label = "Edit"}) {
-					placement.size = Exact(28)
-					do_option({label = "Undo"})
-					do_option({label = "Redo"})
-					do_option({label = "Copy"})
-					do_option({label = "Cut"})
-					do_option({label = "Paste"})
-				}
-			}
+			// Put a text field
+			do_text_field({data = &text, placeholder = "type something"})
 			space(Exact(10))
-			do_button({label = "welcome!"})
+			// Just a normal button
+			do_button({label = text})
 			space(Exact(10))
-			do_toggle_switch({state = &boolean})
-			space(Exact(10))
-			do_text_field({data = &text, placeholder = "enter something"})
-			space(Exact(10))
-			do_checkbox({state = &boolean, text = "Checkbox"})
-		}
-		if do_window({
-			placement = child_box(core.fullscreen_box, {300, 400}, {.Near, .Middle}),
-			title = "Me too!",
-			options = {.Title, .Closable, .Resizable, .Collapsable},
-		}) {
-			shrink(20)
-			placement.size = Exact(28)
-			do_button({label = "welcome!"})
-			if do_layout(.Top, Exact(24)) {
-				placement.side = .Left 
-				do_button({label = "Button", fit_to_label = true})
-			}
-			space(Exact(10))
-			if do_toggle_button({state = boolean, label = "Toggle Button"}) {
+			// Button that has a state
+			if do_toggle_button({state = boolean, label = "toggle button"}) {
 				boolean = !boolean
 			}
 			space(Exact(10))
-			do_spin_counter(Spin_Counter_Info(f64){digits = 10, value = number})
-			space(Exact(10))
-			if do_radio_button({on = boolean, text = "Radio Button"}) {
+			// A radio button
+			if do_radio_button({on = boolean, text = "radio button"}) {
 				boolean = !boolean
 			}
 			space(Exact(10))
-			number = do_knob(Knob_Info(f64){value = number, low = -70, high = 10, format = "Gain: %.1f"})
+			// A tick box
+			do_checkbox({state = &boolean, text = "tick box"})
 			space(Exact(10))
-			number = do_slider(Slider_Info(f64){value = number, low = -70, high = 10})
+			// A horizontal layout
+			if do_horizontal(Exact(24)) {
+				placement.size = Exact(100); placement.align.x = .Near 
+				// A toggle switch
+				do_toggle_switch({state = &boolean})
+			}
+			if boolean {
+				space(Exact(20))
+				// A knob (cool)
+				gain = do_knob(Knob_Info(f64){value = gain, low = -70, high = 10, format = "Gain: %.1f"})
+				space(Exact(20))
+				// A slider (almost as cool)
+				pitch = do_slider(Slider_Info(f64){value = pitch, low = -10, high = 10})
+			}
 		}
 
 		// End of ui calls
