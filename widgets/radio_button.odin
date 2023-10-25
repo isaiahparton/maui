@@ -65,7 +65,7 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 			}
 		}
 		// Click result
-		clicked = .Clicked in self.state && self.click_button == .Left
+		clicked = !info.on && widget_clicked(self, .Left)
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 	return
