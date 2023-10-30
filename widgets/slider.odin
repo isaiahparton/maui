@@ -113,7 +113,7 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
-			tooltip(self.id, tmp_printf(format, info.value), knob_center + {0, -(RADIUS + 2 * press_time)}, {.Middle, .Far})
+			tooltip(self.id, tmp_printf(format, info.value), knob_center + {0, -((RADIUS + 4) + 6 * press_time)}, {.Middle, .Far})
 		}
 		// Detect press
 		if .Pressed in self.state {

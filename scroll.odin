@@ -35,6 +35,7 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 			knob_box = shrink_box(knob_box, 1)
 			paint_box_fill(self.box, style.color.scroll_bar)
 			paint_shaded_box(knob_box, {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
+			paint_gradient_box_v(shrink_box(knob_box, 1), {0, 0, 0, 60}, {255, 255, 255, 40})
 			paint_box_fill(knob_box, fade(255, hover_time * 0.1))
 			paint_box_stroke(self.box, 1, style.color.base_stroke)
 		}

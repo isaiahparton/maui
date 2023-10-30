@@ -38,7 +38,6 @@ Window_Options :: bit_set[Window_Option]
 
 Window :: struct {
 	// Native stuff
-	title: string,
 	id: Id,
 	options: Window_Options,
 	bits: Window_Bits,
@@ -160,7 +159,6 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			}
 		}
 		self.options = info.options
-		self.title = info.title
 		self.min_layout_size = info.layout_size.? or_else self.min_layout_size
 		
 		if .Should_Collapse in self.bits {
@@ -265,7 +263,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				//TODO: Make sure the text doesn't overflow
 				paint_text(
 					{title_box.low.x + text_offset, baseline}, 
-					{text = self.title, font = style.font.label, size = style.text_size.label}, 
+					{text = info.title, font = style.font.label, size = style.text_size.label}, 
 					{align = .Left, baseline = .Middle}, 
 					color = style.color.text,
 				)
@@ -354,10 +352,10 @@ _do_window :: proc(ok: bool) {
 		}
 		// Handle Resizing
 		WINDOW_SNAP_DISTANCE :: 10
-		if .Resizing in bits {
+		if .Resizing in self.bits {
 			core.widget_agent.hover_id = 0
 			min_size: [2]f32 = self.min_layout_size if .Fit_To_Layout in self.options else {180, 240}
-			switch drag_side {
+			switch self.drag_side {
 				case .Bottom:
 				anchor := input.mouse_point.y
 				for other in &core.window_agent.list {
