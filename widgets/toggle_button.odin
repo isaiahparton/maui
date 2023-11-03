@@ -38,8 +38,8 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 			// Body
 			if info.state {
 				paint_shaded_box(inner_box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
-				paint_gradient_box_v(get_box_top(inner_box, height(inner_box) / 2), {0, 0, 0, 90}, {0, 0, 0, 30})
-				paint_gradient_box_v(get_box_bottom(inner_box, height(inner_box) / 2), 0, {255, 255, 255, 30})
+				paint_gradient_box_v(get_box_top(inner_box, height(inner_box) / 2), {255, 255, 255, 30}, 0)
+				paint_gradient_box_v(get_box_bottom(inner_box, height(inner_box) / 2), {0, 0, 0, 30}, {0, 0, 0, 90})
 			} else {
 				paint_shaded_box(inner_box, {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
 				paint_gradient_box_v(get_box_top(inner_box, height(inner_box) / 2), {255, 255, 255, 30}, 0)
