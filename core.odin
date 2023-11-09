@@ -16,6 +16,7 @@
 		[ ] Lazy resizing for label fitting widgets
 		[ ] Clipped loader painting proc for cool loading animation on buttons
 		[ ] Implement measures to reduce the need for constant text formatting
+		[ ] Windows become user managed (retained)
 */
 
 package maui

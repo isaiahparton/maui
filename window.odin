@@ -225,7 +225,6 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			painter.target = get_draw_target()
 			painter.meshes[painter.target].material = Acrylic_Material{amount = 4}
 			inject_at(&self.decor_layer.meshes, 0, painter.target)
-			//append(&self.decor_layer.meshes, painter.target)
 			mesh := &painter.meshes[painter.target]
 			paint_indices(mesh, 
 				mesh.indices_offset,

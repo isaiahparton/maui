@@ -35,23 +35,27 @@ draw_acrylic_mat :: proc(mat: maui.Acrylic_Material, box: maui.Box) {
 	/*
 		First copy the main framebuffer to another one
 	*/
-	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, 0)
-	gl.ReadBuffer(gl.BACK)
-	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.big_fbo)
-	gl.DrawBuffer(gl.COLOR_ATTACHMENT0)
-	gl.BlitFramebuffer(i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), gl.COLOR_BUFFER_BIT, gl.NEAREST)
+	{
+		gl.BindFramebuffer(gl.READ_FRAMEBUFFER, 0)
+		gl.ReadBuffer(gl.BACK)
+		gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.big_fbo)
+		gl.DrawBuffer(gl.COLOR_ATTACHMENT0)
+		gl.BlitFramebuffer(i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), gl.COLOR_BUFFER_BIT, gl.NEAREST)
+	}
 	/*
 		Then from that one to a lower resolution fbo
 	*/
-	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, ctx.big_fbo)
-	gl.ReadBuffer(gl.COLOR_ATTACHMENT0)
-	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.small_fbo[0])
-	gl.DrawBuffer(gl.COLOR_ATTACHMENT0)
-	gl.Viewport(0, 0, ctx.screen_size.x / SCALE_FACTOR, ctx.screen_size.y / SCALE_FACTOR)
-	scaled_box: Box = {box.low / SCALE_FACTOR, box.high / SCALE_FACTOR}
-	gl.BlitFramebuffer(i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), i32(scaled_box.low.x), i32(scaled_box.low.y), i32(scaled_box.high.x), i32(scaled_box.high.y),
-		gl.COLOR_BUFFER_BIT,
-		gl.LINEAR)
+	{
+		gl.BindFramebuffer(gl.READ_FRAMEBUFFER, ctx.big_fbo)
+		gl.ReadBuffer(gl.COLOR_ATTACHMENT0)
+		gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.small_fbo[0])
+		gl.DrawBuffer(gl.COLOR_ATTACHMENT0)
+		gl.Viewport(0, 0, ctx.screen_size.x / SCALE_FACTOR, ctx.screen_size.y / SCALE_FACTOR)
+		scaled_box: Box = {box.low / SCALE_FACTOR, box.high / SCALE_FACTOR}
+		gl.BlitFramebuffer(i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), i32(scaled_box.low.x), i32(scaled_box.low.y), i32(scaled_box.high.x), i32(scaled_box.high.y),
+			gl.COLOR_BUFFER_BIT,
+			gl.LINEAR)
+	}
 	/*
 		Then apply ping-pong blur effect
 	*/
