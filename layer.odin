@@ -118,10 +118,9 @@ Layer :: struct {
 	// controls on this self
 	contents: map[Id]^Widget,
 	// Scroll bar interpolation
-	x_scroll_time,
-	y_scroll_time: f32,
+	scrollbar_time: [2]f32,
 	// Draw command
-	draws: [dynamic]int,
+	meshes: [dynamic]int,
 }
 
 Layer_Agent :: struct {
@@ -151,8 +150,8 @@ Layer_Agent :: struct {
 }
 
 layer_draw_target :: proc(using self: ^Layer) -> int {
-	assert(len(draws) > 0)
-	return draws[len(draws) - 1]
+	assert(len(meshes) > 0)
+	return meshes[len(meshes) - 1]
 }
 
 layer_agent_destroy :: proc(using self: ^Layer_Agent) {
@@ -317,7 +316,7 @@ layer_agent_pop :: proc(using self: ^Layer_Agent) {
 
 layer_destroy :: proc(self: ^Layer) {
 	delete(self.contents)
-	delete(self.draws)
+	delete(self.meshes)
 	delete(self.children)
 	self.reserved = false
 }
@@ -450,7 +449,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.bits += {.Stay_Alive}
 
 		// Reset draw command
-		clear(&self.draws)
+		clear(&self.meshes)
 
 		// Uh yeah
 		if agent.exclusive_id == self.id {
@@ -459,12 +458,12 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Shadows
 		if shadow, ok := info.shadow.?; ok {
 			painter.target = get_draw_target()
-			append(&self.draws, painter.target)
+			append(&self.meshes, painter.target)
 			paint_rounded_box_shadow(move_box(self.box, shadow.offset), shadow.roundness, style.color.shadow)
 		}
 
 		painter.target = get_draw_target()
-		append(&self.draws, painter.target)
+		append(&self.meshes, painter.target)
 
 		// Get box
 		switch placement in info.placement {
@@ -595,35 +594,35 @@ end_layer :: proc(self: ^Layer) {
 		// Horizontal scrolling
 		if (self.space.x > width(self.box)) && (.No_Scroll_X not_in self.options) {
 			self.bits += {.Scroll_X}
-			self.x_scroll_time = min(1, self.x_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.x = min(1, self.scrollbar_time.x + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.Scroll_X}
-			self.x_scroll_time = max(0, self.x_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.x = max(0, self.scrollbar_time.x - core.delta_time * SCROLL_LERP_SPEED)
 		}
 		if .No_Scroll_Margin_Y not_in self.options && self.space.y <= height(self.box) {
-			self.space.y -= self.x_scroll_time * SCROLL_BAR_SIZE
+			self.space.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE
 		}
-		if self.x_scroll_time > 0 && self.x_scroll_time < 1 {
+		if self.scrollbar_time.x > 0 && self.scrollbar_time.x < 1 {
 			core.paint_next_frame = true
 		}
 		// Vertical scrolling
 		if (self.space.y > height(self.box)) && (.No_Scroll_Y not_in self.options) {
 			self.bits += {.Scroll_Y}
-			self.y_scroll_time = min(1, self.y_scroll_time + core.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.y = min(1, self.scrollbar_time.y + core.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.Scroll_Y}
-			self.y_scroll_time = max(0, self.y_scroll_time - core.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.y = max(0, self.scrollbar_time.y - core.delta_time * SCROLL_LERP_SPEED)
 		}
 		if .No_Scroll_Margin_X not_in self.options && self.space.x <= width(self.box) {
-			self.space.x -= self.y_scroll_time * SCROLL_BAR_SIZE
+			self.space.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE
 		}
-		if self.y_scroll_time > 0 && self.y_scroll_time < 1 {
+		if self.scrollbar_time.y > 0 && self.scrollbar_time.y < 1 {
 			core.paint_next_frame = true
 		}
 		// Detect clipping
 		if (self.box != core.fullscreen_box && !box_in_box(self.box, self.content_box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
-			painter.draws[painter.target].clip = self.box
+			painter.meshes[painter.target].clip = self.box
 		}
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {
@@ -644,10 +643,10 @@ end_layer :: proc(self: ^Layer) {
 		// Interpolate scrolling
 		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * core.delta_time
 		// Manifest scroll bars
-		if self.x_scroll_time > 0 {
+		if self.scrollbar_time.x > 0 {
 			// Horizontal scrolling
-			box := get_box_bottom(self.inner_box, self.x_scroll_time * SCROLL_BAR_SIZE)
-			box.high.x -= self.y_scroll_time * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
+			box := get_box_bottom(self.inner_box, self.scrollbar_time.x * SCROLL_BAR_SIZE)
+			box.high.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.y -= SCROLL_BAR_PADDING
 			box.low.x += SCROLL_BAR_PADDING
 			set_next_box(box)
@@ -661,10 +660,10 @@ end_layer :: proc(self: ^Layer) {
 				self.scroll_target.x = new_value
 			}
 		}
-		if self.y_scroll_time > 0 {
+		if self.scrollbar_time.y > 0 {
 			// Vertical scrolling
-			box := get_box_right(self.inner_box, self.y_scroll_time * SCROLL_BAR_SIZE)
-			box.high.y -= self.x_scroll_time * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
+			box := get_box_right(self.inner_box, self.scrollbar_time.y * SCROLL_BAR_SIZE)
+			box.high.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.x -= SCROLL_BAR_PADDING
 			box.low.y += SCROLL_BAR_PADDING
 			set_next_box(box)
@@ -698,6 +697,6 @@ end_layer :: proc(self: ^Layer) {
 		layer := current_layer()
 
 		painter.opacity = layer.opacity
-		painter.target = layer.draws[len(layer.draws) - 1]
+		painter.target = layer.meshes[len(layer.meshes) - 1]
 	}
 }

@@ -310,7 +310,7 @@ begin_frame :: proc() {
 	frame_start_time = time.now()
 
 	// Reset painter
-	painter.draw_index = 0
+	painter.mesh_index = 0
 	painter.opacity = 1
 
 	// Reset placement

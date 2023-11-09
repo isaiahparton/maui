@@ -41,7 +41,7 @@ _main :: proc() {
 		return
 	}
 
-	if !maui_opengl.init(&maui_glfw.interface) {
+	if !maui_opengl.init(maui_glfw.interface) {
 		return
 	}
 
@@ -132,6 +132,21 @@ _main :: proc() {
 				do_chip({text = "I'm a chip!"})
 			}
 		}
+		if do_window({
+			placement = child_box(core.fullscreen_box, {300, 480}, {.Middle, .Middle}),
+			title = "another window",
+			options = {.Title, .Closable, .Resizable, .Collapsable},
+		}) {
+
+		}
+		if do_window({
+			placement = child_box(core.fullscreen_box, {340, 420}, {.Far, .Middle}),
+			title = "another window",
+			options = {.Title, .Closable, .Resizable, .Collapsable},
+		}) {
+
+		}
+
 
 		// End of ui calls
 		end_frame()
@@ -144,7 +159,7 @@ _main :: proc() {
 
 		// Render if needed
 		if maui.should_render() {
-			maui_opengl.render(&maui_glfw.interface)
+			maui_opengl.render(maui_glfw.interface)
 			maui_glfw.end_frame()
 		}
 	}

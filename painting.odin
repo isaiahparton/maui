@@ -80,14 +80,27 @@ Vertex :: struct {
 	color: [4]u8,
 }
 
-DRAW_SIZE :: 48000
+Texture_Id :: u32
+Material :: union {
+	Default_Material,
+	Gaussian_Blur_Material,
+}
+Default_Material :: struct {
+	texture: Texture_Id,
+	emissive: bool,
+}
+Gaussian_Blur_Material :: struct {
+	amount: f32,
+}
+
+MAX_MESH_VERTICES :: 32768
 // A draw command
-Draw :: struct {
+Mesh :: struct {
 	clip: Maybe(Box),
-	texture: u32,
-	vertices: [DRAW_SIZE]Vertex,
+	material: Material,
+	vertices: [MAX_MESH_VERTICES]Vertex,
 	vertices_offset: u16,
-	indices: [DRAW_SIZE]u16,
+	indices: [MAX_MESH_VERTICES]u16,
 	indices_offset: u16,
 }
 
@@ -96,28 +109,28 @@ normalize_color :: proc(color: [4]u8) -> [4]f32 {
 }
 
 // Push a command to a given layer
-paint_vertices :: proc(draw: ^Draw, vertices: ..Vertex) {
-	if int(draw.vertices_offset) + len(vertices) <= DRAW_SIZE {
-		draw.vertices_offset += u16(copy(draw.vertices[draw.vertices_offset:], vertices[:]))
+paint_vertices :: proc(mesh: ^Mesh, vertices: ..Vertex) {
+	if int(mesh.vertices_offset) + len(vertices) <= MAX_MESH_VERTICES {
+		mesh.vertices_offset += u16(copy(mesh.vertices[mesh.vertices_offset:], vertices[:]))
 	}
 }
-paint_vertices_translated :: proc(draw: ^Draw, delta: [2]f32, vertices: ..Vertex) {
-	if int(draw.vertices_offset) + len(vertices) <= DRAW_SIZE {
+paint_vertices_translated :: proc(mesh: ^Mesh, delta: [2]f32, vertices: ..Vertex) {
+	if int(mesh.vertices_offset) + len(vertices) <= MAX_MESH_VERTICES {
 		for v in vertices {
-			draw.vertices[draw.vertices_offset] = v 
-			draw.vertices[draw.vertices_offset].point += delta 
+			mesh.vertices[mesh.vertices_offset] = v 
+			mesh.vertices[mesh.vertices_offset].point += delta 
 		}
-		draw.vertices_offset += u16(len(vertices)) 
+		mesh.vertices_offset += u16(len(vertices)) 
 	}
 }
-paint_indices :: proc(draw: ^Draw, indices: ..u16) {
-	if int(draw.indices_offset) + len(indices) <= DRAW_SIZE {
-		draw.indices_offset += u16(copy(draw.indices[draw.indices_offset:], indices[:]))
+paint_indices :: proc(mesh: ^Mesh, indices: ..u16) {
+	if int(mesh.indices_offset) + len(indices) <= MAX_MESH_VERTICES {
+		mesh.indices_offset += u16(copy(mesh.indices[mesh.indices_offset:], indices[:]))
 	}
 }
 
 MAX_FONTS :: 32
-MAX_DRAWS :: 48
+MAX_MESHES :: 48
 
 // Context for painting graphics stuff
 Painter :: struct {
@@ -128,8 +141,8 @@ Painter :: struct {
 	// Target index
 	target: int,
 	// Draw commands
-	draws: [MAX_DRAWS]Draw,
-	draw_index: int,
+	meshes: [MAX_MESHES]Mesh,
+	mesh_index: int,
 }
 // Global instance pointer
 painter: ^Painter
@@ -170,13 +183,16 @@ painter_destroy :: proc() {
 	}
 }
 get_draw_target :: proc() -> int {
-	painter.draw_index += 1
-	assert(painter.draw_index < MAX_DRAWS)
-	painter.draws[painter.draw_index].clip = nil
-	painter.draws[painter.draw_index].vertices_offset = 0
-	painter.draws[painter.draw_index].indices_offset = 0
-	painter.draws[painter.draw_index].texture = painter.atlas.texture.id
-	return painter.draw_index
+	assert(painter.mesh_index < MAX_MESHES)
+	index := painter.mesh_index
+	painter.mesh_index += 1
+	painter.meshes[index].clip = nil
+	painter.meshes[index].vertices_offset = 0
+	painter.meshes[index].indices_offset = 0
+	painter.meshes[index].material = Default_Material{
+		texture = Texture_Id(painter.atlas.texture.id),
+	}
+	return index
 }
 // Must be defined by backend
 _load_texture: proc(image: Image) -> (id: u32, ok: bool)
@@ -271,7 +287,7 @@ alpha_blend_colors :: proc {
 }
 
 stroke_path :: proc(pts: [][2]f32, closed: bool, thickness: f32, color: Color) {
-	draw := &painter.draws[painter.target]
+	draw := &painter.meshes[painter.target]
 	base_index := draw.vertices_offset
 	if len(pts) < 2 {
 		return
@@ -366,7 +382,7 @@ paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickn
 	}
 }
 paint_quad_fill :: proc(a, b, c, d: [2]f32, color: Color) {
-	draw := &painter.draws[painter.target]
+	draw := &painter.meshes[painter.target]
 	color := color
 	color.a = u8(f32(color.a) * painter.opacity)
 	paint_indices(draw, 
@@ -385,7 +401,7 @@ paint_quad_fill :: proc(a, b, c, d: [2]f32, color: Color) {
 	)
 }
 paint_quad_vertices :: proc(a, b, c, d: Vertex) {
-	draw := &painter.draws[painter.target]
+	draw := &painter.meshes[painter.target]
 	paint_indices(draw, 
 		draw.vertices_offset,
 		draw.vertices_offset + 1,
@@ -397,7 +413,7 @@ paint_quad_vertices :: proc(a, b, c, d: Vertex) {
 	paint_vertices(draw, a, b, c, d)
 }
 paint_triangle_fill :: proc(a, b, c: [2]f32, color: Color) {
-	draw := &painter.draws[painter.target]
+	draw := &painter.meshes[painter.target]
 	color := color
 	color.a = u8(f32(color.a) * painter.opacity)
 	paint_indices(draw, 
@@ -543,7 +559,7 @@ paint_clipped_textured_box :: proc(texture: Texture, src, dst, clip: Box, tint: 
 }
 // Paint a given texture on a box
 paint_textured_box :: proc(tex: Texture, src, dst: Box, tint: Color) {
-	draw := &painter.draws[painter.target]
+	draw := &painter.meshes[painter.target]
 	tint := tint
 	tint.a = u8(f32(tint.a) * painter.opacity)
 	paint_indices(draw, 

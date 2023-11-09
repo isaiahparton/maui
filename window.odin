@@ -153,8 +153,6 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 		if .Initialized not_in self.bits {
 			switch placement in info.placement {
 				case Box: 
-				// self.origin = placement.low
-				// self.size = placement.high - placement.low
 				self.real_box = placement
 			}
 		}
@@ -223,6 +221,31 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 			options = {.No_Scroll_Y},
 			opacity = self.opacity,
 		}); ok {
+			last_target := painter.target
+			painter.target = get_draw_target()
+			painter.meshes[painter.target].material = Gaussian_Blur_Material{}
+			inject_at(&self.decor_layer.meshes, 0, painter.target)
+			//append(&self.decor_layer.meshes, painter.target)
+			mesh := &painter.meshes[painter.target]
+			paint_indices(mesh, 
+				mesh.indices_offset,
+				mesh.indices_offset + 1,
+				mesh.indices_offset + 2,
+				mesh.indices_offset,
+				mesh.indices_offset + 2,
+				mesh.indices_offset + 3,
+			)
+			color: Color = {200, 210, 220, 255}
+			src_box: Box = {self.box.low / core.size, self.box.high / core.size}
+			src_box.low.y = 1 - src_box.low.y
+			src_box.high.y = 1 - src_box.high.y
+			paint_vertices(mesh,
+				{point = self.box.low, uv = src_box.low, color = color},
+				{point = {self.box.low.x, self.box.high.y}, uv = {src_box.low.x, src_box.high.y}, color = color},
+				{point = self.box.high, uv = src_box.high, color = color},
+				{point = {self.box.high.x, self.box.low.y}, uv = {src_box.high.x, src_box.low.y}, color = color},
+			)
+			painter.target = last_target
 			// Draw title bar and get movement dragging
 			if .Title in self.options {
 				title_box := cut(.Top, Exact(style.layout.title_size))
@@ -310,7 +333,6 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				order = .Background,
 				opacity = self.opacity,
 			})
-			paint_shaded_box(shrink_box(self.layer.box, 1), {style.color.base_light, style.color.base, style.color.base_dark})
 		}
 
 		last_opacity := self.opacity

@@ -51,62 +51,153 @@ check_program :: proc(id: u32, name: string) -> bool {
 	return true
 }
 
+
+
 Context :: struct {
-	ibo_handle,
-	vbo_handle: u32,
-
-	program_handle,
-	vertex_shader_handle,
-	fragment_shader_handle: u32,
-
+	using interface: backend.Platform_Renderer_Interface,
+	// Shader program handles
+	default_program,
+	extract_program,
+	blur_program: u32,
+	// Default shader locations
+	blur_orientation_loc,
 	tex_uniform_loc,
 	projmtx_uniform_loc,
 	pos_attrib_loc,
 	uv_attrib_loc,
 	col_attrib_loc: u32,
+	// For quick copying between framebuffers
+	copy_vao: u32,
+	copy_vbo: u32,
+	quad_verts: [24]f32,
+	// Main fbo
+	ibo,
+	vbo,
+	default_tex,
+	default_fbo: u32,
+	// These are the size of the default framebuffer
+	big_tex,
+	big_fbo: u32,
+	// These are the size of the default framebuffer times BLUR_TEXTURE_SCALE_FACTOR
+	small_tex,
+	small_fbo: [2]u32,
 }
 
 ctx: Context
 
+load_big_fbos :: proc() {
+	gl.GenFramebuffers(1, &ctx.big_fbo)
+	gl.GenTextures(1, &ctx.big_tex)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, ctx.big_fbo)
+	gl.BindTexture(gl.TEXTURE_2D, ctx.big_tex)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ctx.screen_size.x, ctx.screen_size.y, 0, gl.RGBA, gl.BYTE, nil)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+  gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+  gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+  gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ctx.big_tex, 0)
+	gl.BindTexture(gl.TEXTURE_2D, 0)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+}
+
+load_small_fbos :: proc() {
+	gl.GenFramebuffers(2, &ctx.small_fbo[0])
+	gl.GenTextures(2, &ctx.small_tex[0])
+	for i in 0..<2 {
+		gl.BindFramebuffer(gl.FRAMEBUFFER, ctx.small_fbo[i])
+		gl.BindTexture(gl.TEXTURE_2D, ctx.small_tex[i])
+		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ctx.screen_size.x / SCALE_FACTOR, ctx.screen_size.y / SCALE_FACTOR, 0, gl.RGBA, gl.BYTE, nil)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ctx.small_tex[i], 0)
+	}
+	gl.BindTexture(gl.TEXTURE_2D, 0)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+}
 /*
 	Initialize rendering context
 		Load OpenGL
 		Load shaders
 		Set texture handling procedures
 */
-init :: proc(interface: ^backend.Platform_Renderer_Interface) -> bool {
-	if interface.platform_api == .GLFW {
+init :: proc(interface: backend.Platform_Renderer_Interface) -> bool {
+	ctx.interface = interface
+
+	if ctx.platform_api == .GLFW {
 		gl.load_up_to(3, 3, glfw.gl_set_proc_address)
 	}
 
 	// Set viewport
-  gl.Viewport(0, 0, interface.screen_size.x, interface.screen_size.y)
+  gl.Viewport(0, 0, ctx.screen_size.x, ctx.screen_size.y)
 
-  VERTEX_SHADER_330 := #load("./default.vert")
-	FRAGMENT_SHADER_330 := #load("./default.frag")
+  
 
-	// Load stuff
-	ctx.vertex_shader_handle = load_shader_from_data(gl.VERTEX_SHADER, transmute([]u8)VERTEX_SHADER_330)
-	check_shader(ctx.vertex_shader_handle, "vertex shader")
-	ctx.fragment_shader_handle = load_shader_from_data(gl.FRAGMENT_SHADER, transmute([]u8)FRAGMENT_SHADER_330)
-	check_shader(ctx.fragment_shader_handle, "fragment shader")
+  {
+		VERTEX_SHADER_330 := #load("./default.vert")
+		FRAGMENT_SHADER_330 := #load("./default.frag")
 
-	ctx.program_handle = gl.CreateProgram()
-	gl.AttachShader(ctx.program_handle, ctx.vertex_shader_handle)
-	gl.AttachShader(ctx.program_handle, ctx.fragment_shader_handle)
-	gl.LinkProgram(ctx.program_handle)
-	check_program(ctx.program_handle, "shader program")
+		// Load stuff
+		frag_shader := load_shader_from_data(gl.FRAGMENT_SHADER, string(FRAGMENT_SHADER_330))
+		check_shader(frag_shader, "default frag shader")
+  	vert_shader := load_shader_from_data(gl.VERTEX_SHADER, string(VERTEX_SHADER_330))
+		check_shader(vert_shader, "default vert shader")
 
-	// Get uniform and attribute locations
-	ctx.projmtx_uniform_loc = cast(u32)gl.GetUniformLocation(ctx.program_handle, "ProjMtx")
-	ctx.tex_uniform_loc 		= cast(u32)gl.GetUniformLocation(ctx.program_handle, "Texture")
-	ctx.pos_attrib_loc 			= cast(u32)gl.GetAttribLocation(ctx.program_handle, "Position")
-	ctx.uv_attrib_loc 			= cast(u32)gl.GetAttribLocation(ctx.program_handle, "UV")
-	ctx.col_attrib_loc 			= cast(u32)gl.GetAttribLocation(ctx.program_handle, "Color")
+		ctx.default_program = gl.CreateProgram()
+		gl.AttachShader(ctx.default_program, vert_shader)
+		gl.AttachShader(ctx.default_program, frag_shader)
+		gl.LinkProgram(ctx.default_program)
+		check_program(ctx.default_program, "default shader program")
+
+		// Get uniform and attribute locations
+		ctx.projmtx_uniform_loc = cast(u32)gl.GetUniformLocation(ctx.default_program, "ProjMtx")
+		ctx.tex_uniform_loc 		= cast(u32)gl.GetUniformLocation(ctx.default_program, "Texture")
+		ctx.pos_attrib_loc 			= cast(u32)gl.GetAttribLocation(ctx.default_program, "Position")
+		ctx.uv_attrib_loc 			= cast(u32)gl.GetAttribLocation(ctx.default_program, "UV")
+		ctx.col_attrib_loc 			= cast(u32)gl.GetAttribLocation(ctx.default_program, "Color")
+  }
+
+  {
+		VERTEX_SHADER_330 := #load("./framebuffer.vert")
+  	FRAGMENT_SHADER_330 := #load("./extraction.frag")
+
+  	frag_shader := load_shader_from_data(gl.FRAGMENT_SHADER, string(FRAGMENT_SHADER_330))
+  	check_shader(frag_shader, "highlight frag shader")
+  	vert_shader := load_shader_from_data(gl.VERTEX_SHADER, string(VERTEX_SHADER_330))
+		check_shader(vert_shader, "highlight vert shader")
+
+		ctx.extract_program = gl.CreateProgram()
+		gl.AttachShader(ctx.extract_program, vert_shader)
+		gl.AttachShader(ctx.extract_program, frag_shader)
+		gl.LinkProgram(ctx.extract_program)
+		check_program(ctx.extract_program, "highlight shader program")
+  }
+
+  {
+		VERTEX_SHADER_330 := #load("./framebuffer.vert")
+  	FRAGMENT_SHADER_330 := #load("./blur.frag")
+
+  	frag_shader := load_shader_from_data(gl.FRAGMENT_SHADER, string(FRAGMENT_SHADER_330))
+  	check_shader(frag_shader, "blur frag shader")
+  	vert_shader := load_shader_from_data(gl.VERTEX_SHADER, string(VERTEX_SHADER_330))
+		check_shader(vert_shader, "blur vert shader")
+
+		ctx.blur_program = gl.CreateProgram()
+		gl.AttachShader(ctx.blur_program, vert_shader)
+		gl.AttachShader(ctx.blur_program, frag_shader)
+		gl.LinkProgram(ctx.blur_program)
+		check_program(ctx.blur_program, "blur shader program")
+		
+  }
+
+	load_big_fbos()
+	load_small_fbos()
+	load_copy_vao()
 
 	// Generate vertex and index buffers
-	gl.GenBuffers(1, &ctx.vbo_handle)
-	gl.GenBuffers(1, &ctx.ibo_handle)
+	gl.GenBuffers(1, &ctx.vbo)
+	gl.GenBuffers(1, &ctx.ibo)
 	// Bind them
 	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
@@ -120,13 +211,13 @@ init :: proc(interface: ^backend.Platform_Renderer_Interface) -> bool {
 		}
 		// Bind texture
 		gl.BindTexture(gl.TEXTURE_2D, id)
-		// Upload image data
-		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(image.width), i32(image.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, (transmute(runtime.Raw_Slice)image.data).data)
 		// Set sampling parameters
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST)
 		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+		// Upload image data
+		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(image.width), i32(image.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, (transmute(runtime.Raw_Slice)image.data).data)
 		// Generate mipmaps
 		gl.GenerateMipmap(gl.TEXTURE_2D)
 		// Unbind texture
@@ -148,17 +239,19 @@ init :: proc(interface: ^backend.Platform_Renderer_Interface) -> bool {
 
 destroy :: proc() {
 	// Delete opengl things
-	gl.DeleteProgram(ctx.program_handle)
-	gl.DeleteBuffers(1, &ctx.vbo_handle)
-	gl.DeleteBuffers(1, &ctx.ibo_handle)
+	gl.DeleteProgram(ctx.default_program)
+	gl.DeleteBuffers(1, &ctx.vbo)
+	gl.DeleteBuffers(1, &ctx.ibo)
 }
 
-render :: proc(interface: ^backend.Platform_Renderer_Interface) -> int {
+render :: proc(interface: backend.Platform_Renderer_Interface) -> int {
+	ctx.interface = interface
+
 	gl.Disable(gl.SCISSOR_TEST)
   gl.ClearColor(0.1, 0.1, 0.1, 1.0)
   gl.Clear(gl.COLOR_BUFFER_BIT)
 
-  gl.Viewport(0, 0, interface.screen_size.x, interface.screen_size.y)
+  gl.Viewport(0, 0, ctx.screen_size.x, ctx.screen_size.y)
 	
 	gl.Enable(gl.BLEND)
 	gl.Enable(gl.MULTISAMPLE)
@@ -172,9 +265,9 @@ render :: proc(interface: ^backend.Platform_Renderer_Interface) -> int {
 
   // Set projection matrix
   L: f32 = 0
-  R: f32 = L + f32(interface.screen_size.x)
+  R: f32 = L + f32(ctx.screen_size.x)
   T: f32 = 0
-  B: f32 = T + f32(interface.screen_size.y)
+  B: f32 = T + f32(ctx.screen_size.y)
   ortho_projection: linalg.Matrix4x4f32 = {
   	2.0/(R-L), 0.0,	0.0, -1.0,
   	0.0, 2.0/(T-B), 0.0, 1.0,
@@ -182,7 +275,7 @@ render :: proc(interface: ^backend.Platform_Renderer_Interface) -> int {
   	0.0, 0.0, 0.0, 1.0,
   }
 
-  gl.UseProgram(ctx.program_handle)
+  gl.UseProgram(ctx.default_program)
 	gl.Uniform1i(i32(ctx.tex_uniform_loc), 0)
   gl.UniformMatrix4fv(i32(ctx.projmtx_uniform_loc), 1, gl.FALSE, transmute([^]f32)(&ortho_projection))
 
@@ -190,8 +283,8 @@ render :: proc(interface: ^backend.Platform_Renderer_Interface) -> int {
   gl.GenVertexArrays(1, &vao_handle)
 	gl.BindVertexArray(vao_handle)
 
-	gl.BindBuffer(gl.ARRAY_BUFFER, ctx.vbo_handle)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ctx.ibo_handle)
+	gl.BindBuffer(gl.ARRAY_BUFFER, ctx.vbo)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ctx.ibo)
 
 	gl.EnableVertexAttribArray(ctx.pos_attrib_loc)
 	gl.EnableVertexAttribArray(ctx.uv_attrib_loc)
@@ -200,28 +293,54 @@ render :: proc(interface: ^backend.Platform_Renderer_Interface) -> int {
 	gl.VertexAttribPointer(ctx.uv_attrib_loc, 2, gl.FLOAT, gl.FALSE, size_of(ui.Vertex), 8)
 	gl.VertexAttribPointer(ctx.col_attrib_loc, 4, gl.UNSIGNED_BYTE, gl.TRUE, size_of(ui.Vertex), 16)
 
+	/*
+		First, all ui elements are rendered to the two main FBOs
+	*/
 	for &layer in ui.core.layer_agent.list {
-		for index in layer.draws {
-			draw := &ui.painter.draws[index]
-			if clip, ok := draw.clip.?; ok {
-				gl.Scissor(i32(clip.low.x), interface.screen_size.y - i32(clip.high.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))
+		for index in layer.meshes {
+			mesh := &ui.painter.meshes[index]
+			if clip, ok := mesh.clip.?; ok {
+				gl.Enable(gl.SCISSOR_TEST)
+				gl.Scissor(i32(clip.low.x), ctx.screen_size.y - i32(clip.high.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))
 			} else {
-				gl.Scissor(0, 0, interface.screen_size.x, interface.screen_size.y)
+				gl.Scissor(0, 0, ctx.screen_size.x, ctx.screen_size.y)
 			}
 
-			// Bind the texture for the draw call
-			gl.BindTexture(gl.TEXTURE_2D, u32(draw.texture))
+			// Bind the texture for the mesh call
+			switch mat in mesh.material {
+				case ui.Default_Material:
+				gl.BindTexture(gl.TEXTURE_2D, mat.texture)
+				case ui.Gaussian_Blur_Material: 
+				// Apply blur to main fbo
+				draw_gaussian_blur_mat(mat, mesh.clip.? or_else {high = ui.core.size})
+				// Bind blurred texture
+				gl.BindVertexArray(vao_handle)
 
-			vertices := draw.vertices[:draw.vertices_offset]
+				gl.BindBuffer(gl.ARRAY_BUFFER, ctx.vbo)
+				gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ctx.ibo)
+
+				gl.EnableVertexAttribArray(ctx.pos_attrib_loc)
+				gl.EnableVertexAttribArray(ctx.uv_attrib_loc)
+				gl.EnableVertexAttribArray(ctx.col_attrib_loc)
+				gl.VertexAttribPointer(ctx.pos_attrib_loc, 2, gl.FLOAT, gl.FALSE, size_of(ui.Vertex), 0)
+				gl.VertexAttribPointer(ctx.uv_attrib_loc, 2, gl.FLOAT, gl.FALSE, size_of(ui.Vertex), 8)
+				gl.VertexAttribPointer(ctx.col_attrib_loc, 4, gl.UNSIGNED_BYTE, gl.TRUE, size_of(ui.Vertex), 16)
+
+  			gl.UseProgram(ctx.default_program)
+				gl.BindTexture(gl.TEXTURE_2D, ctx.big_tex)
+			}
+
+			vertices := mesh.vertices[:mesh.vertices_offset]
 			gl.BufferData(gl.ARRAY_BUFFER, size_of(ui.Vertex) * len(vertices), (transmute(runtime.Raw_Slice)vertices).data, gl.STREAM_DRAW)
 
-			indices := draw.indices[:draw.indices_offset]
+			indices := mesh.indices[:mesh.indices_offset]
 			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, size_of(u16) * len(indices), (transmute(runtime.Raw_Slice)indices).data, gl.STREAM_DRAW)
 
 			gl.DrawElements(gl.TRIANGLES, i32(len(indices)), gl.UNSIGNED_SHORT, nil)
 		}
 	}
 
+	// Delete the temporary VAO
 	gl.DeleteVertexArrays(1, &vao_handle)
 
 	// Unbind stuff

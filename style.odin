@@ -6,7 +6,7 @@ package maui
 DARK_STYLE_COLORS :: Style_Colors{
 	status = {248, 226, 34, 255},
 
-	base = {37, 40, 42, 255},
+	base = {7, 7, 7, 255},
 	base_light = {48, 56, 58, 255},
 	base_dark = {20, 20, 24, 255},
 	base_stroke = {0, 0, 0, 255},

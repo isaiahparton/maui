@@ -98,7 +98,7 @@ init :: proc(width, height: int, title: string, api: backend.Render_API) -> bool
 	}
 	glfw.SetCharCallback(platform.window, glfw.CharProc(char_callback))
 
-	cursor_proc :: proc(window: glfw.WindowHandle, _, _: i32) {
+	cursor_proc :: proc(window: glfw.WindowHandle, x, y: i32) {
 		x, y := glfw.GetCursorPos(window)
 		maui.input.mouse_point = {f32(x), f32(y)}
 	}
