@@ -83,14 +83,14 @@ Vertex :: struct {
 Texture_Id :: u32
 Material :: union {
 	Default_Material,
-	Gaussian_Blur_Material,
+	Acrylic_Material,
 }
 Default_Material :: struct {
 	texture: Texture_Id,
 	emissive: bool,
 }
-Gaussian_Blur_Material :: struct {
-	amount: f32,
+Acrylic_Material :: struct {
+	amount: int,
 }
 
 MAX_MESH_VERTICES :: 32768

@@ -308,34 +308,34 @@ render :: proc(interface: backend.Platform_Renderer_Interface) -> int {
 
 			// Bind the texture for the mesh call
 			switch mat in mesh.material {
+				/*
+					Normal material
+				*/
 				case ui.Default_Material:
 				gl.BindTexture(gl.TEXTURE_2D, mat.texture)
-				case ui.Gaussian_Blur_Material: 
+				/*
+					Acrylic material
+				*/
+				case ui.Acrylic_Material: 
 				// Apply blur to main fbo
-				draw_gaussian_blur_mat(mat, mesh.clip.? or_else {high = ui.core.size})
+				draw_acrylic_mat(mat, mesh.clip.? or_else {high = ui.core.size})
 				// Bind blurred texture
+  			gl.UseProgram(ctx.default_program)
 				gl.BindVertexArray(vao_handle)
-
 				gl.BindBuffer(gl.ARRAY_BUFFER, ctx.vbo)
 				gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ctx.ibo)
-
-				gl.EnableVertexAttribArray(ctx.pos_attrib_loc)
-				gl.EnableVertexAttribArray(ctx.uv_attrib_loc)
-				gl.EnableVertexAttribArray(ctx.col_attrib_loc)
-				gl.VertexAttribPointer(ctx.pos_attrib_loc, 2, gl.FLOAT, gl.FALSE, size_of(ui.Vertex), 0)
-				gl.VertexAttribPointer(ctx.uv_attrib_loc, 2, gl.FLOAT, gl.FALSE, size_of(ui.Vertex), 8)
-				gl.VertexAttribPointer(ctx.col_attrib_loc, 4, gl.UNSIGNED_BYTE, gl.TRUE, size_of(ui.Vertex), 16)
-
-  			gl.UseProgram(ctx.default_program)
 				gl.BindTexture(gl.TEXTURE_2D, ctx.big_tex)
 			}
-
+			/*
+				Upload vertices and indices
+			*/
 			vertices := mesh.vertices[:mesh.vertices_offset]
 			gl.BufferData(gl.ARRAY_BUFFER, size_of(ui.Vertex) * len(vertices), (transmute(runtime.Raw_Slice)vertices).data, gl.STREAM_DRAW)
-
 			indices := mesh.indices[:mesh.indices_offset]
 			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, size_of(u16) * len(indices), (transmute(runtime.Raw_Slice)indices).data, gl.STREAM_DRAW)
-
+			/*
+				Draw call
+			*/
 			gl.DrawElements(gl.TRIANGLES, i32(len(indices)), gl.UNSIGNED_SHORT, nil)
 		}
 	}

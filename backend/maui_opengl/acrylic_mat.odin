@@ -29,36 +29,36 @@ load_copy_vao :: proc() {
 /*
 	Prepare acrylic effect texture for the given box
 */
-draw_gaussian_blur_mat :: proc(mat: maui.Gaussian_Blur_Material, box: maui.Box) {
+draw_acrylic_mat :: proc(mat: maui.Acrylic_Material, box: maui.Box) {
 	using maui
 	gl.Disable(gl.SCISSOR_TEST)
+	/*
+		First copy the main framebuffer to another one
+	*/
 	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, 0)
 	gl.ReadBuffer(gl.BACK)
-
 	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.big_fbo)
 	gl.DrawBuffer(gl.COLOR_ATTACHMENT0)
-
 	gl.BlitFramebuffer(i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), gl.COLOR_BUFFER_BIT, gl.NEAREST)
-
-	// Copy HighResFBO to PingPong0FBO
+	/*
+		Then from that one to a lower resolution fbo
+	*/
 	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, ctx.big_fbo)
 	gl.ReadBuffer(gl.COLOR_ATTACHMENT0)
-
 	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.small_fbo[0])
 	gl.DrawBuffer(gl.COLOR_ATTACHMENT0)
-
 	gl.Viewport(0, 0, ctx.screen_size.x / SCALE_FACTOR, ctx.screen_size.y / SCALE_FACTOR)
-
 	scaled_box: Box = {box.low / SCALE_FACTOR, box.high / SCALE_FACTOR}
 	gl.BlitFramebuffer(i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), i32(scaled_box.low.x), i32(scaled_box.low.y), i32(scaled_box.high.x), i32(scaled_box.high.y),
 		gl.COLOR_BUFFER_BIT,
 		gl.LINEAR)
-
-	// Blur texture
+	/*
+		Then apply ping-pong blur effect
+	*/
 	horizontal := false
 	gl.UseProgram(ctx.blur_program)
 	gl.Uniform2f(gl.GetUniformLocation(ctx.blur_program, "size"), f32(ctx.screen_size.x), f32(ctx.screen_size.y))
-	for i in 0..<BLUR_ITERATIONS {
+	for i in 0..<mat.amount {
 		// Set horizontal uniform
 		gl.Uniform1i(gl.GetUniformLocation(ctx.blur_program, "horizontal"), i32(horizontal))
 		// Bind draw target
@@ -73,17 +73,15 @@ draw_gaussian_blur_mat :: proc(mat: maui.Gaussian_Blur_Material, box: maui.Box) 
 		gl.BindVertexArray(0)
 		horizontal = !horizontal
 	}
-
-	// Copy PingPong1FBO to HighResFBO
+	/*
+		Copy back to normal resolution fbo
+	*/
 	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, ctx.small_fbo[1])
 	gl.ReadBuffer(gl.COLOR_ATTACHMENT0)
-
 	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.big_fbo)
 	gl.DrawBuffer(gl.COLOR_ATTACHMENT0)
-
 	gl.Viewport(0, 0, ctx.screen_size.x, ctx.screen_size.y)
-
 	gl.BlitFramebuffer(0, 0, ctx.screen_size.x / SCALE_FACTOR, ctx.screen_size.y / SCALE_FACTOR, 0, 0, ctx.screen_size.x, ctx.screen_size.y, gl.COLOR_BUFFER_BIT, gl.LINEAR)
-
+	// We're done here
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
 }
