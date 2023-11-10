@@ -28,6 +28,7 @@ Key :: enum {
 	Alt,
 	Escape,
 	Control,
+	Delete,
 	Shift,
 	Tab,
 	Backspace,

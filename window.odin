@@ -29,6 +29,7 @@ Window_Option :: enum {
 	Collapsable,
 	// The window can't resize below its layout size
 	Fit_To_Layout,
+	Escape_Close,
 }
 Window_Options :: bit_set[Window_Option]
 Window :: struct {
@@ -81,6 +82,7 @@ window_agent_create :: proc(using self: ^Window_Agent, id: Id) -> (window: ^Wind
 	window = new(Window)
 	window^ = {
 		id = id,
+		bits = {.Stay_Alive},
 	}
 	append(&list, window)
 	pool[id] = window
@@ -101,7 +103,7 @@ window_agent_pop :: proc(using self: ^Window_Agent) {
 	}
 }
 window_agent_step :: proc(using self: ^Window_Agent) {
-	for window, i in &list {
+	for window, i in list {
 		if .Stay_Alive in window.bits {
 			window.bits -= {.Stay_Alive}
 		} else {
@@ -251,6 +253,11 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				order = .Background,
 				opacity = self.opacity,
 			})
+		}
+
+		// ON top?
+		if (.Escape_Close in self.options) && ((self.layer.state + self.decor_layer.state) & {.Focused} != {}) && key_pressed(.Escape) {
+			self.bits += {.Should_Close}
 		}
 
 		// Window transparency

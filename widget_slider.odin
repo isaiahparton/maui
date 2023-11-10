@@ -38,7 +38,7 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	// Number input
 	set_next_box(box)
 	paint_box_fill(box, get_color(.Widget_BG))
-	new_value = clamp(do_number_input(Number_Input_Info(T){
+	new_value = do_number_input(Number_Input_Info(T){
 		value = info.value,
 		title = info.title,
 		select_all_on_focus = true,
@@ -47,7 +47,10 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 			.Middle,
 		} if info.orientation == .Vertical else nil,
 		trim_decimal = info.trim_decimal,
-	}, loc), info.low, info.high)
+	}, loc)
+	if new_value != info.value {
+		new_value = clamp(new_value, info.low, info.high)
+	}
 	// Step buttons
 	loc.column += 1
 	set_next_box(decrease_box)

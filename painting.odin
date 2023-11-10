@@ -17,7 +17,7 @@ import "core:math/linalg"
 import rl "vendor:raylib"
 
 // Path to resrcs folder
-RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, ".")
+RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, "../")
 // Main texture size
 TEXTURE_WIDTH :: 4096
 TEXTURE_HEIGHT :: 256

@@ -171,7 +171,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			.Near,
 			.Middle,
 		}
-		font_data := get_font_data(.Monospace)
+		font_data := get_font_data(.Default)
 		paint_box_fill(box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), hover_time * 0.05))
 		if !info.no_outline {
 			stroke_color := get_color(.Widget_Stroke) if .Focused in self.state else get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time)
@@ -244,3 +244,111 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 	}
 	return
 }
+
+
+Numeric_Field_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
+	precision: int,
+	value: T,
+	title,
+	prefix,
+	suffix: Maybe(string),
+}
+Numeric_Field_Result :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
+	value: T,
+	changed,
+	submitted: bool,
+}
+do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) -> (res: Numeric_Field_Result(T)) {
+	value := info.value
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable}); ok {
+		// Animate
+		hover_time := animate_bool(self.id, .Hovered in self.state, 0.075)
+		// Cursor style
+		if self.state & {.Hovered, .Pressed} != {} {
+			core.cursor = .Beam
+		}
+		// Get a temporary buffer
+		buffer: [32]u8
+		// Format the value to text
+		text := string(strconv.generic_ftoa(buffer[:], f64(value), 'f', info.precision, size_of(T) * 8))
+		if text[0] == '+' && text[1] != 'I' {
+			text = text[1:] 
+		}
+		// Painting
+		font_data := get_font_data(.Default)
+		if .Should_Paint in self.bits {
+			paint_box_fill(self.box, alpha_blend_colors(get_color(.Widget_BG), get_color(.Widget_Shade), hover_time * 0.05))
+			stroke_color := get_color(.Widget_Stroke) if .Focused in self.state else get_color(.Widget_Stroke, 0.5 + 0.5 * hover_time)
+			paint_labeled_widget_frame(
+				box = self.box, 
+				text = info.title, 
+				offset = WIDGET_TEXT_OFFSET, 
+				thickness = 1, 
+				color = stroke_color,
+			)
+		}
+		paint_aligned_string(font_data, text, {self.box.x + self.box.w - self.box.h * 0.25, self.box.y + self.box.h / 2}, get_color(.Text), {.Far, .Middle})
+		// Value manipulation
+		if (.Focused in self.state) {
+			// Get the number info
+			power: f64 = math.pow(10.0, f64(info.precision))
+			base: f64 = 1.0 / power
+			// The delete key clears the value
+			if key_pressed(.Delete) {
+				value = T(0)
+				res.changed = true
+			}
+			// Paste
+			if (key_pressed(.V) && key_down(.Control)) {
+				if n, ok := strconv.parse_f64(get_clipboard_string()); ok {
+					value = T(n)
+					res.changed = true
+				}
+			}
+			// Number input
+			for r in input.runes[:input.rune_count] {
+				r := r
+				// Transform keypad input to regular numbers
+				if (r >= 320 && r <= 329) {
+					r -= 272
+				}
+				// Exclude anything that is not a number
+				if (r < 48 || r > 57) {
+					continue
+				}
+				number := int(r) - 48
+				if (number == 0 && value < base) {
+					continue
+				}
+				value *= 10.0 
+				value += base * T(number) 
+				// Set changed flag
+				res.changed = true
+			}
+			// Deletion
+			if (key_pressed(.Backspace) && value >= base) {
+				if info.precision > 0 {
+					value = f64(int(value / (base * 10.0)))
+					value *= base 
+				} else {
+					value *= 0.1
+					value = f64(int(value))
+				}
+				if value < base {
+					value = 0
+				}
+				// Set changed flag
+				res.changed = true
+			}
+			// Submit
+			if (key_pressed(.Enter)) {
+				res.submitted = true
+			}
+		}
+	}
+	if res.changed {
+		core.paint_next_frame = true
+	}
+	res.value = value
+	return
+}	

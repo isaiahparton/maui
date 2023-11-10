@@ -523,91 +523,14 @@ begin_frame :: proc() {
 }
 end_frame :: proc() {
 	using core
-	// Built-in debug window
-	//TODO: Make this better
-	when ODIN_DEBUG {
-		layer_agent.debug_id = 0
-		if key_down(.Control) && key_pressed(.Backspace) {
-			debug_bits ~= {.Show_Window}
-		}
-		if debug_bits >= {.Show_Window} {
-			if do_window({
-				title = "Debug", 
-				box = {0, 0, 500, 700}, 
-				options = {.Collapsable, .Closable, .Title, .Resizable},
-			}) {
-				if current_window().bits >= {.Should_Close} {
-					debug_bits -= {.Show_Window}
-				}
-
-				set_size(30)
-				debug_mode = do_enum_tabs(debug_mode, 0)
-
-				shrink(10); set_size(24)
-				if debug_mode == .Layers {
-					set_side(.Bottom); set_size(TEXTURE_HEIGHT)
-					if do_frame({
-						layout_size = {TEXTURE_WIDTH, TEXTURE_HEIGHT},
-						fill_color = Color{0, 0, 0, 255},
-						options = {.No_Scroll_Margin_X, .No_Scroll_Margin_Y},
-					}) {
-						paint_box_fill(current_layout().box, {0, 0, 0, 255})
-						paint_texture({0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT}, current_layout().box, 255)
-						layer_agent.current_layer.content_box = update_bounding_box(layer_agent.current_layer.content_box, current_layout().box)
-					}
-					_debug_layer_widget(core.layer_agent.root_layer)
-				} else if debug_mode == .Windows {
-					for id, window in window_agent.pool {
-						push_id(window.id)
-							do_button({
-								label = format(window.id), 
-								align = .Near,
-							})
-							if last_widget().state >= {.Hovered} {
-								layer_agent.debug_id = window.layer.id
-							}
-						pop_id()
-					}
-				} else if debug_mode == .Controls {
-					do_text({
-						font = .Monospace, 
-						text = text_format("Layer: %i", layer_agent.hover_id), 
-						fit = true,
-					})
-					space(20)
-					do_text({
-						font = .Monospace, 
-						text = text_format("Hovered: %i", widget_agent.hover_id), 
-						fit = true,
-					})
-					do_text({
-						font = .Monospace, 
-						text = text_format("Focused: %i", widget_agent.focus_id), 
-						fit = true,
-					})
-					do_text({
-						font = .Monospace, 
-						text = text_format("Pressed: %i", widget_agent.press_id), 
-						fit = true,
-					})
-					space(20)
-					do_text({
-						font = .Monospace, 
-						text = text_format("Count: %i", len(widget_agent.list)), 
-						fit = true,
-					})
-				}
-			}
-		}
-	}
+	// Update windows
+	window_agent_step(&window_agent)
 	// End root layer
 	layer_agent_end_root(&layer_agent)
 	// Update layers
 	layer_agent_step(&layer_agent)
 	// Update widgets
 	widget_agent_step(&widget_agent)
-	// Update windows
-	window_agent_step(&window_agent)
 	// Update timings
 	painted_last_frame = paint_this_frame
 	frame_duration = time.since(frame_start_time)

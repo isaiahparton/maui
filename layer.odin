@@ -30,6 +30,7 @@ Layer_Bit :: enum {
 	Dismissed,
 	// If the layer pushed to the id stack this frame
 	Did_Push_ID,
+	Topmost,
 }
 
 Layer_Bits :: bit_set[Layer_Bit]
@@ -171,6 +172,9 @@ layer_agent_end_root :: proc(using self: ^Layer_Agent) {
 }
 
 layer_agent_step :: proc(using self: ^Layer_Agent) {
+	if focus_id not_in pool {
+		focus_id = 0
+	}
 	sorted_layer: ^Layer
 	last_hover_id = hover_id
 	hover_id = 0
@@ -230,7 +234,6 @@ layer_agent_step :: proc(using self: ^Layer_Agent) {
 	// Sort the layers
 	if should_sort {
 		should_sort = false
-
 		clear(&list)
 		sort_layer(&list, root_layer)
 	}

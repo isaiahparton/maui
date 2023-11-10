@@ -19,6 +19,7 @@ init :: proc() {
 	}
 	_load_texture = proc(image: rl.Image) -> (id: Texture_Id, ok: bool) {
 		texture := rl.LoadTextureFromImage(image)
+		rl.SetTextureFilter(texture, .BILINEAR)
 		return texture.id, rl.IsTextureReady(texture)
 	}
 	_unload_texture = proc(id: Texture_Id) {
@@ -37,6 +38,7 @@ begin_frame :: proc() {
 	shift_down := rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT); ui.set_key_bit(.Shift, shift_down)
 	ui.set_key_bit(.Backspace, rl.IsKeyDown(.BACKSPACE))
 	ui.set_key_bit(.Escape, rl.IsKeyDown(.ESCAPE))
+	ui.set_key_bit(.Delete, rl.IsKeyDown(.DELETE))
 	ui.set_key_bit(.Tab, rl.IsKeyDown(.TAB))
 	ui.set_key_bit(.Left, rl.IsKeyDown(.LEFT))
 	ui.set_key_bit(.Right, rl.IsKeyDown(.RIGHT))

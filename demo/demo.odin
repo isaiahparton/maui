@@ -22,6 +22,7 @@ main :: proc() {
 	choice_set: Choice_Set
 	switch_state: bool
 	slider_value_f32: f32
+	number: f64
 	slider_value_i32: i32
 	calendar_time: time.Time
 	temp_calendar_time: time.Time
@@ -69,12 +70,10 @@ main :: proc() {
 				})
 
 				space(10)
-				if do_pill_button({
-					label = "Bruh",
-					load_time = f32(min(1, core.current_time * 0.1)),
-				}) {
-
-				}
+				number = do_numeric_field(Numeric_Field_Info(f64){
+					value = number,
+					precision = 2,
+				}).value
 				space(10)
 				if do_menu({
 					label = "Menu",
