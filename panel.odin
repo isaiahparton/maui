@@ -221,29 +221,31 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 			options = {.No_Scroll_Y},
 			opacity = self.opacity,
 		}); ok {
-			last_target := painter.target
-			painter.target = get_draw_target()
-			painter.meshes[painter.target].material = Acrylic_Material{amount = 4}
-			inject_at(&self.decor_layer.meshes, 0, painter.target)
-			mesh := &painter.meshes[painter.target]
-			paint_indices(mesh, 
-				mesh.indices_offset,
-				mesh.indices_offset + 1,
-				mesh.indices_offset + 2,
-				mesh.indices_offset,
-				mesh.indices_offset + 2,
-				mesh.indices_offset + 3,
-			)
-			src_box: Box = {self.box.low / core.size, self.box.high / core.size}
-			src_box.low.y = 1 - src_box.low.y
-			src_box.high.y = 1 - src_box.high.y
-			paint_vertices(mesh,
-				{point = self.box.low, uv = src_box.low, color = style.color.glass},
-				{point = {self.box.low.x, self.box.high.y}, uv = {src_box.low.x, src_box.high.y}, color = style.color.glass},
-				{point = self.box.high, uv = src_box.high, color = style.color.glass},
-				{point = {self.box.high.x, self.box.low.y}, uv = {src_box.high.x, src_box.low.y}, color = style.color.glass},
-			)
-			painter.target = last_target
+			if self.how_collapsed < 1 {
+				last_target := painter.target
+				painter.target = get_draw_target()
+				painter.meshes[painter.target].material = Acrylic_Material{amount = 6}
+				inject_at(&self.decor_layer.meshes, 0, painter.target)
+				mesh := &painter.meshes[painter.target]
+				paint_indices(mesh, 
+					mesh.indices_offset,
+					mesh.indices_offset + 1,
+					mesh.indices_offset + 2,
+					mesh.indices_offset,
+					mesh.indices_offset + 2,
+					mesh.indices_offset + 3,
+				)
+				src_box: Box = {self.box.low / core.size, self.box.high / core.size}
+				src_box.low.y = 1 - src_box.low.y
+				src_box.high.y = 1 - src_box.high.y
+				paint_vertices(mesh,
+					{point = self.box.low, uv = src_box.low, color = style.color.glass},
+					{point = {self.box.low.x, self.box.high.y}, uv = {src_box.low.x, src_box.high.y}, color = style.color.glass},
+					{point = self.box.high, uv = src_box.high, color = style.color.glass},
+					{point = {self.box.high.x, self.box.low.y}, uv = {src_box.high.x, src_box.low.y}, color = style.color.glass},
+				)
+				painter.target = last_target
+			}
 			// Draw title bar and get movement dragging
 			if .Title in self.options {
 				title_box := cut(.Top, Exact(style.layout.title_size))

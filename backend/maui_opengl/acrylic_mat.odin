@@ -4,8 +4,7 @@ import maui "../../"
 import gl "vendor:OpenGL"
 import "core:fmt"
 
-BLUR_ITERATIONS :: 4
-SCALE_FACTOR :: 6
+SCALE_FACTOR :: 8
 
 load_copy_vao :: proc() {
 	ctx.quad_verts = {
