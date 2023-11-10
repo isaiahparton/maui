@@ -5,7 +5,7 @@ import "core:math"
 import "core:math/ease"
 import "core:math/linalg"
 
-Window_Bit :: enum {
+Panel_Bit :: enum {
 	Stay_Alive,
 	Initialized,
 	Resizing,
@@ -16,9 +16,9 @@ Window_Bit :: enum {
 	// If the window has an extra layer for decoration
 	Decorated,
 }
-Window_Bits :: bit_set[Window_Bit]
+Panel_Bits :: bit_set[Panel_Bit]
 
-Window_Option :: enum {
+Panel_Option :: enum {
 	// Removes all decoration
 	Undecorated,
 	// Gives the window a title bar to move it
@@ -34,13 +34,13 @@ Window_Option :: enum {
 	// The window can't resize below its layout size
 	Fit_To_Layout,
 }
-Window_Options :: bit_set[Window_Option]
+Panel_Options :: bit_set[Panel_Option]
 
-Window :: struct {
+Panel :: struct {
 	// Native stuff
 	id: Id,
-	options: Window_Options,
-	bits: Window_Bits,
+	options: Panel_Options,
+	bits: Panel_Bits,
 	// For resizing
 	drag_side: Box_Side,
 	// minimum layout size
@@ -60,61 +60,61 @@ Window :: struct {
 	how_collapsed: f32,
 }
 
-Window_Agent :: struct {
-	list: 					[dynamic]^Window,
-	pool: 					map[Id]^Window,
-	// Window context stack
-	stack: 					Stack(^Window, WINDOW_STACK_SIZE),
+Panel_Agent :: struct {
+	list: 					[dynamic]^Panel,
+	pool: 					map[Id]^Panel,
+	// Panel context stack
+	stack: 					Stack(^Panel, WINDOW_STACK_SIZE),
 	// Current window
-	current_window:	^Window,
+	current:				^Panel,
 }
-current_window :: proc() -> ^Window {
-	assert(core.window_agent.current_window != nil)
-	return core.window_agent.current_window
+current_panel :: proc() -> ^Panel {
+	assert(core.panel_agent.current != nil)
+	return core.panel_agent.current
 }
-window_agent_assert :: proc(using self: ^Window_Agent, id: Id) -> (window: ^Window, ok: bool) {
-	window, ok = pool[id]
+assert_panel :: proc(using self: ^Panel_Agent, id: Id) -> (p: ^Panel, ok: bool) {
+	p, ok = pool[id]
 	if !ok {
-		window, ok = window_agent_create(self, id)
+		p, ok = create_panel(self, id)
 	}
 	assert(ok)
-	assert(window != nil)
+	assert(p != nil)
 	return
 }
-window_agent_create :: proc(using self: ^Window_Agent, id: Id) -> (window: ^Window, ok: bool) {
-	window = new(Window)
-	window^ = {
+create_panel :: proc(using self: ^Panel_Agent, id: Id) -> (p: ^Panel, ok: bool) {
+	p = new(Panel)
+	p^ = {
 		id = id,
 	}
-	append(&list, window)
-	pool[id] = window
+	append(&list, p)
+	pool[id] = p
 	ok = true
 	return
 }
-window_agent_push :: proc(using self: ^Window_Agent, window: ^Window) {
-	stack_push(&stack, window)
-	current_window = window
+push_panel :: proc(using self: ^Panel_Agent, p: ^Panel) {
+	stack_push(&stack, p)
+	current = p
 }
-window_agent_pop :: proc(using self: ^Window_Agent) {
+pop_panel :: proc(using self: ^Panel_Agent) {
 	stack_pop(&stack)
 	if stack.height > 0 {
-		current_window = stack.items[stack.height - 1]
+		current = stack.items[stack.height - 1]
 	} else {
-		current_window = nil
+		current = nil
 	}
 }
-window_agent_step :: proc(using self: ^Window_Agent) {
-	for window, i in &list {
-		if .Stay_Alive in window.bits {
-			window.bits -= {.Stay_Alive}
+update_panel_agent :: proc(using self: ^Panel_Agent) {
+	for p, i in &list {
+		if .Stay_Alive in p.bits {
+			p.bits -= {.Stay_Alive}
 		} else {
 			ordered_remove(&list, i)
-			delete_key(&pool, window.id)
-			free(window)
+			delete_key(&pool, p.id)
+			free(p)
 		}
 	}
 }
-window_agent_destroy :: proc(using self: ^Window_Agent) {
+destroy_panel_agent :: proc(using self: ^Panel_Agent) {
 	for entry in list {
 		free(entry)
 	}
@@ -125,27 +125,27 @@ window_agent_destroy :: proc(using self: ^Window_Agent) {
 /*
 	Placement info for a window
 */
-Window_Placement :: union {
+Panel_Placement :: union {
 	Box,
 }
 /*
 	Info required for manifesting a window
 */
-Window_Info :: struct {
+Panel_Info :: struct {
 	id: Maybe(Id),
 	title: string,
-	placement: Window_Placement,
+	placement: Panel_Placement,
 	layout_size: Maybe([2]f32),
 	min_size: Maybe([2]f32),
-	options: Window_Options,
+	options: Panel_Options,
 	layer_options: Layer_Options,
 }
-@(deferred_out=_do_window)
-do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
-	self: ^Window
+@(deferred_out=_do_panel)
+do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
+	self: ^Panel
 	id := info.id.? or_else hash(loc)
-	if self, ok = window_agent_assert(&core.window_agent, id); ok {
-		window_agent_push(&core.window_agent, self)
+	if self, ok = assert_panel(&core.panel_agent, id); ok {
+		push_panel(&core.panel_agent, self)
 
 		self.bits += {.Stay_Alive}
 		
@@ -346,10 +346,10 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 	return
 }
 @private
-_do_window :: proc(ok: bool) {
+_do_panel :: proc(ok: bool) {
 	if true {
-		using self := current_window()
-		window_agent_pop(&core.window_agent)
+		using self := current_panel()
+		pop_panel(&core.panel_agent)
 		// End main layer
 		if .Collapsed not_in bits {
 			// Outline
@@ -388,7 +388,7 @@ _do_window :: proc(ok: bool) {
 			switch self.drag_side {
 				case .Bottom:
 				anchor := input.mouse_point.y
-				for other in &core.window_agent.list {
+				for other in &core.panel_agent.list {
 					if other != self {
 						if abs(input.mouse_point.y - other.box.low.y) < WINDOW_SNAP_DISTANCE {
 							anchor = other.box.low.y
@@ -400,7 +400,7 @@ _do_window :: proc(ok: bool) {
 
 				case .Left:
 				anchor := input.mouse_point.x
-				for other in &core.window_agent.list {
+				for other in &core.panel_agent.list {
 					if other != self {
 						if abs(input.mouse_point.x - other.box.high.x) < WINDOW_SNAP_DISTANCE {
 							anchor = other.box.high.x
@@ -412,7 +412,7 @@ _do_window :: proc(ok: bool) {
 
 				case .Right:
 				anchor := input.mouse_point.x
-				for other in &core.window_agent.list {
+				for other in &core.panel_agent.list {
 					if other != self {
 						if abs(input.mouse_point.x - other.box.low.x) < WINDOW_SNAP_DISTANCE {
 							anchor = other.box.low.x
@@ -424,7 +424,7 @@ _do_window :: proc(ok: bool) {
 
 				case .Top:
 				anchor := input.mouse_point.y
-				for other in &core.window_agent.list {
+				for other in &core.panel_agent.list {
 					if other != self {
 						if abs(input.mouse_point.y - other.box.high.y) < WINDOW_SNAP_DISTANCE {
 							anchor = other.box.high.y

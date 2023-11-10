@@ -11,7 +11,7 @@ import "core:strings"
 init :: proc(w, h: int, title: string) {
 	using ui
 	rl.SetConfigFlags({.MSAA_4X_HINT})
-	rl.InitWindow(i32(w), i32(h), strings.clone_to_cstring(title))
+	rl.InitPanel(i32(w), i32(h), strings.clone_to_cstring(title))
 
 	_set_clipboard_string = proc(str: string) {
 		cstr := strings.clone_to_cstring(str)
@@ -41,11 +41,11 @@ init :: proc(w, h: int, title: string) {
 }
 
 terminate :: proc() {
-	rl.CloseWindow()
+	rl.ClosePanel()
 }
 
 should_close :: proc() -> bool {
-	return rl.WindowShouldClose()
+	return rl.PanelShouldClose()
 }
 
 begin_frame :: proc() {

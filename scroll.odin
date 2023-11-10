@@ -30,14 +30,15 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 		knob_box.low[i] += range * clamp((info.value - info.low) / value_range, 0, 1)
 		knob_size = min(info.knob_size, knob_size)
 		knob_box.high[i] = knob_box.low[i] + knob_size
+		knob_box = shrink_box(knob_box, 4)
 		// Painting
 		if .Should_Paint in self.bits {
 			if i == 0 {
 				c := (self.box.low.y + self.box.high.y) / 2
-				paint_line({self.box.low.x, c}, {self.box.high.x, c}, 1, style.color.substance[0])
+				paint_box_fill({{self.box.low.x, c}, {self.box.high.x, c + 1}}, style.color.substance[0])
 			} else {
 				c := (self.box.low.x + self.box.high.x) / 2
-				paint_line({c, self.box.low.y}, {c, self.box.high.y}, 1, style.color.substance[0])
+				paint_box_fill({{c, self.box.low.y}, {c + 1, self.box.high.y}}, style.color.substance[0])
 			}
 			paint_box_fill(knob_box, style.color.substance[1])
 		}

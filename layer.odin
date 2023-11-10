@@ -1,5 +1,7 @@
 package maui
 import "core:fmt"
+import "core:slice"
+import "core:math"
 import "core:math/linalg"
 /*
 	Layers are the root of all gui
@@ -149,21 +151,34 @@ Layer_Agent :: struct {
 	exclusive_id: Maybe(Id),
 }
 
+sort_layer :: proc(list: ^[dynamic]^Layer, layer: ^Layer) {
+	append(list, layer)
+	if len(layer.children) > 0 {
+		slice.sort_by(layer.children[:], proc(a, b: ^Layer) -> bool {
+			if a.order == b.order {
+				return a.index < b.index
+			}
+			return int(a.order) < int(b.order)
+		})
+		for child in layer.children do sort_layer(list, child)
+	}
+}
+
 layer_draw_target :: proc(using self: ^Layer) -> int {
 	assert(len(meshes) > 0)
 	return meshes[len(meshes) - 1]
 }
 
-layer_agent_destroy :: proc(using self: ^Layer_Agent) {
+destroy_layer_agent :: proc(using self: ^Layer_Agent) {
 	for entry in list {
-		layer_destroy(entry)
+		destroy_layer(entry)
 	}
 	delete(pool)
 	delete(list)
 	self^ = {}
 }
 
-layer_agent_begin_root :: proc(using self: ^Layer_Agent) -> (ok: bool) {
+begin_root_layer :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 	root_layer, ok = begin_layer({
 		id = 0,
 		placement = core.fullscreen_box, 
@@ -172,11 +187,11 @@ layer_agent_begin_root :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 	return
 }
 
-layer_agent_end_root :: proc(using self: ^Layer_Agent) {
+end_root_layer :: proc(using self: ^Layer_Agent) {
 	end_layer(root_layer)
 }
 
-layer_agent_step :: proc(using self: ^Layer_Agent) {
+update_layer_agent :: proc(using self: ^Layer_Agent) {
 	sorted_layer: ^Layer
 	last_focus_id = focus_id
 	last_hover_id = hover_id
@@ -207,7 +222,7 @@ layer_agent_step :: proc(using self: ^Layer_Agent) {
 					}
 				}
 			}
-			layer_destroy(layer)
+			destroy_layer(layer)
 			should_sort = true
 		}
 	}
@@ -253,7 +268,7 @@ layer_agent_step :: proc(using self: ^Layer_Agent) {
 	}
 }
 
-layer_agent_allocate :: proc(using self: ^Layer_Agent) -> (layer: ^Layer, ok: bool) {
+allocate_layer :: proc(using self: ^Layer_Agent) -> (layer: ^Layer, ok: bool) {
 	for i in 0..<LAYER_ARENA_SIZE {
 		if !arena[i].reserved {
 			layer = &arena[i]
@@ -264,8 +279,8 @@ layer_agent_allocate :: proc(using self: ^Layer_Agent) -> (layer: ^Layer, ok: bo
 	return
 }
 
-layer_agent_create :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
-	layer, ok = layer_agent_allocate(self)
+create_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
+	layer, ok = allocate_layer(self)
 	if !ok {
 		return
 	}
@@ -294,27 +309,27 @@ layer_agent_create :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Opti
 	return
 }
 
-layer_agent_assert :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
+assert_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
 	layer, ok = pool[id]
 	if !ok {
-		layer, ok = layer_agent_create(self, id, options)
+		layer, ok = create_layer(self, id, options)
 	}
 	assert(ok)
 	assert(layer != nil)
 	return
 }
 
-layer_agent_push :: proc(using self: ^Layer_Agent, layer: ^Layer) {
+push_layer :: proc(using self: ^Layer_Agent, layer: ^Layer) {
 	stack_push(&stack, layer)
 	current_layer = stack_top(&stack)
 }
 
-layer_agent_pop :: proc(using self: ^Layer_Agent) {
+pop_layer :: proc(using self: ^Layer_Agent) {
 	stack_pop(&stack)
 	current_layer = stack_top(&stack)
 }
 
-layer_destroy :: proc(self: ^Layer) {
+destroy_layer :: proc(self: ^Layer) {
 	delete(self.contents)
 	delete(self.meshes)
 	delete(self.children)
@@ -417,13 +432,13 @@ current_layer :: proc() -> ^Layer {
 begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	agent := &core.layer_agent
 
-	if self, ok = layer_agent_assert(
+	if self, ok = assert_layer(
 		self = agent,
 		id = info.id.? or_else panic("Must define a layer id", loc),
 		options = info.options,
 	); ok {
 		// Push layer stack
-		layer_agent_push(&core.layer_agent, self)
+		push_layer(&core.layer_agent, self)
 
 		// Set sort order
 		self.order = info.order.? or_else self.order
@@ -692,7 +707,7 @@ end_layer :: proc(self: ^Layer) {
 			pop_id()
 		}
 	}
-	layer_agent_pop(&core.layer_agent)
+	pop_layer(&core.layer_agent)
 	if core.layer_agent.stack.height > 0 {
 		layer := current_layer()
 

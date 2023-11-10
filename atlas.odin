@@ -4,7 +4,6 @@ import "core:math"
 import "core:math/linalg"
 
 MAX_RING_RADIUS :: 30
-MAX_RESOURCES :: 128
 /*
 	Handles dynamics of the texture atlas, can load new assets at runtime
 */
@@ -21,25 +20,6 @@ Atlas :: struct {
 	fonts: [MAX_FONTS]Font,
 	// Pre-rasterized ring locations
 	rings: [MAX_RING_RADIUS][MAX_RING_RADIUS]Maybe(Box),
-	// For custom enumerated images
-	resources: [MAX_RESOURCES]Maybe(Box),
-}
-Atlas_Resource :: struct {
-	ready: bool,
-	src: Box,
-}
-require_resource :: proc(index: int, size: [2]f32, loc := #caller_location) -> (resource: Atlas_Resource, ok: bool) {
-	assert(index < MAX_RESOURCES, "Resource index out of bounds!", loc)
-	resource.src, ok = painter.atlas.resources[index].?
-	if ok {
-		resource.ready = true
-	} else {
-		resource.src = atlas_get_box(&painter.atlas, size)
-		painter.atlas.resources[index] = resource.src
-		painter.atlas.should_update = true
-		ok = true
-	}
-	return
 }
 /*
 	Get a pre-rasterized ring from the atlas or create one
@@ -60,7 +40,7 @@ atlas_get_ring :: proc(using self: ^Atlas, inner, outer: f32) -> (src: Box, ok: 
 	Destroy the atlas and all it's fonts
 		also unloads textures
 */
-atlas_destroy :: proc(using self: ^Atlas) {
+destroy_atlas :: proc(using self: ^Atlas) {
 	// Free font memory
 	for font in &fonts {
 		for _, size in font.sizes {
@@ -79,7 +59,7 @@ atlas_destroy :: proc(using self: ^Atlas) {
 		then add the one white pixel to the corner
 		update the texture
 */
-atlas_reset :: proc(using self: ^Atlas) -> bool {
+reset_atlas :: proc(using self: ^Atlas) -> bool {
 	delete(image.data)
 	WIDTH :: 4096
 	HEIGHT :: 4096
@@ -96,7 +76,6 @@ atlas_reset :: proc(using self: ^Atlas) -> bool {
 	image.data[3] = 255
 
 	// Reset resources to nil so they will be rebuilt
-	resources = {}
 	rings = {}
 	// Delete font sizes
 	for i in 0..<MAX_FONTS {
@@ -146,7 +125,7 @@ atlas_get_box :: proc(using self: ^Atlas, size: [2]f32) -> (box: Box) {
 		row_height = 0
 	}
 	if cursor.y + size.y > f32(image.height) {
-		atlas_reset(self)
+		reset_atlas(self)
 	}
 	box = {cursor, cursor + size}
 	cursor.x += size.x + 1

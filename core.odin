@@ -16,7 +16,7 @@
 		[ ] Lazy resizing for label fitting widgets
 		[ ] Clipped loader painting proc for cool loading animation on buttons
 		[ ] Implement measures to reduce the need for constant text formatting
-		[ ] Windows become user managed (retained)
+		[ ] Panels become user managed (retained)
 */
 
 package maui
@@ -165,8 +165,8 @@ Core :: struct {
 	// Handles widgets
 	widget_agent: Widget_Agent,
 
-	// Handles windows
-	window_agent: Window_Agent,
+	// Handles panels
+	panel_agent: Panel_Agent,
 
 	// Handles layers
 	layer_agent: Layer_Agent,
@@ -285,9 +285,9 @@ uninit :: proc() {
 		// Free text buffers
 		typing_agent_destroy(&core.typing_agent)
 		// Free layer data
-		layer_agent_destroy(&core.layer_agent)
-		// Free window data
-		window_agent_destroy(&core.window_agent)
+		destroy_layer_agent(&core.layer_agent)
+		// Free panel data
+		destroy_panel_agent(&core.panel_agent)
 		// Free widgets
 		widget_agent_destroy(&core.widget_agent)
 		//
@@ -337,7 +337,7 @@ begin_frame :: proc() {
 	widget_agent_update_ids(&widget_agent)
 
 	// Begin root layer
-	assert(layer_agent_begin_root(&layer_agent))
+	assert(begin_root_layer(&layer_agent))
 	// Begin root layout
 	push_layout({{}, size})
 
@@ -391,13 +391,13 @@ end_frame :: proc() {
 	// End root layout
 	pop_layout()
 	// End root layer
-	layer_agent_end_root(&layer_agent)
+	end_root_layer(&layer_agent)
 	// Update layers
-	layer_agent_step(&layer_agent)
+	update_layer_agent(&layer_agent)
 	// Update widgets
 	widget_agent_step(&widget_agent)
-	// Update windows
-	window_agent_step(&window_agent)
+	// Update panels
+	update_panel_agent(&panel_agent)
 	// Decide if rendering is needed next frame
 	if input.last_mouse_point != input.mouse_point || input.last_key_set != input.key_set|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
 		paint_next_frame = true
@@ -424,18 +424,6 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 		count += 1 + _count_layer_children(child)
 	}
 	return count
-}
-sort_layer :: proc(list: ^[dynamic]^Layer, layer: ^Layer) {
-	append(list, layer)
-	if len(layer.children) > 0 {
-		slice.sort_by(layer.children[:], proc(a, b: ^Layer) -> bool {
-			if a.order == b.order {
-				return a.index < b.index
-			}
-			return int(a.order) < int(b.order)
-		})
-		for child in layer.children do sort_layer(list, child)
-	}
 }
 should_render :: proc() -> bool {
 	return core.paint_this_frame

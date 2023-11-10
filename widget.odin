@@ -13,7 +13,7 @@ import "core:slice"
 import "core:time"
 
 MAX_WIDGET_TIMERS :: 3
-DEFAULT_WIDGET_HOVER_TIME :: 0.05
+DEFAULT_WIDGET_HOVER_TIME :: 0.1
 DEFAULT_WIDGET_PRESS_TIME :: 0.075
 
 // General purpose booleans

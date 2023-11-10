@@ -38,41 +38,12 @@ do_knob :: proc(info: Knob_Info($T), loc := #caller_location) -> (new_value: T) 
 		norm: [2]f32 = {math.cos(point), math.sin(point)}
 
 		// Knob body
-		if resource, ok := require_resource(int(Resource.Knob_Large), RADIUS * 2); ok {
-			if !resource.ready {
-				center: [2]f32 = box_center(resource.src) - 0.5
-				image := &painter.atlas.image
-				for y in int(resource.src.low.y)..<int(resource.src.high.y) {
-					for x in int(resource.src.low.x)..<int(resource.src.high.x) {
-						point: [2]f32 = {f32(x), f32(y)}
-						diff := point - center
-						dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
-						if dist > RADIUS + 1 {
-							continue
-						}
-						i := (x + y * image.width) * image.channels
-						color: [4]f32 = {0.65, 0.65, 0.65, 1 - max(0, dist - RADIUS)}
-						INNER_RADIUS :: RADIUS - 5
-						if dist > INNER_RADIUS {
-							value := 1 - ((point.y - resource.src.low.y) / height(resource.src) * 1.75) * 0.5
-							color.rgb += (value - color.rgb) * clamp(dist - INNER_RADIUS, 0, 1)
-						}
-						image.data[i    ] = u8(color.r * 255)
-						image.data[i + 1] = u8(color.g * 255)
-						image.data[i + 2] = u8(color.b * 255)
-						image.data[i + 3] = u8(color.a * 255)
-					}
-				}
-			}
-			half_size := (resource.src.high - resource.src.low) / 2
-			paint_textured_box(painter.atlas.texture, resource.src, {center - radius, center + radius}, style.color.extrusion)
-		}
 		// Line
-		paint_line(center + norm * radius, center + norm * (radius - 10), 1, style.color.base_text)
+		paint_line(center + norm * radius, center + norm * (radius - 10), 1, style.color.substance[1])
 		// Outline
-		paint_ring_fill(center, radius, radius + 1, 32, style.color.base_stroke)
+		paint_ring_fill(center, radius, radius + 1, 32, style.color.substance[1])
 		// Another line
-		paint_ring_sector_fill(center, RADIUS + 6, RADIUS + 8, start, end, 24, fade(style.color.base_text, 0.5))
+		paint_ring_sector_fill(center, RADIUS + 6, RADIUS + 8, start, end, 24, fade(style.color.substance[1], 0.5))
 		// Text
 		paint_text(center + {0, RADIUS + 4}, {text = tmp_printf(info.format.? or_else "%v", info.value), font = style.font.label, size = 14}, {align = .Middle, baseline = .Top}, style.color.base_text)
 

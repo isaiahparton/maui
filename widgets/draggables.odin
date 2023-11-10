@@ -6,7 +6,7 @@ import "core:math/linalg"
 
 do_window_handle :: proc(loc := #caller_location) {
 	using maui
-	window := current_window()
+	window := current_panel()
 	if self, ok := do_widget(hash(loc)); ok {
 		self.box = use_next_box() or_else layout_next(current_layout())
 		update_widget(self)

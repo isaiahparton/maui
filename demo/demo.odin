@@ -34,6 +34,7 @@ _main :: proc() {
 	show_window: bool
 	boolean: bool
 	choice: Choice
+	slider_value: f32
 	gain, pitch: f64
 	text: string
 
@@ -69,9 +70,9 @@ _main :: proc() {
 			}
 		}
 
-		if do_window({
+		if do_panel({
 			placement = child_box(core.fullscreen_box, {300, 480}, {.Near, .Middle}),
-			title = "PANEL",
+			title = "BASIC CONTROLS",
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
 			shrink(30)
@@ -81,6 +82,20 @@ _main :: proc() {
 			if do_toggle_button({label = "toggle button", state = boolean}) {
 				boolean = !boolean
 			}
+			space(Exact(20))
+			do_checkbox({state = &boolean, text = "checkbox"})
+			space(Exact(20))
+			choice = do_enum_radio_buttons(choice)
+		}
+
+		if do_panel({
+			placement = child_box(core.fullscreen_box, {300, 480}, {.Near, .Middle}),
+			title = "ANALOG CONTROLS",
+			options = {.Title, .Closable, .Resizable, .Collapsable},
+		}) {
+			shrink(30)
+			placement.size = Exact(30)
+			slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 70})
 		}
 
 

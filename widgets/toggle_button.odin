@@ -38,7 +38,7 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 			// Body
 			color := blend_colors(info.color.? or_else (style.color.accent[1] if info.state else style.color.substance[0]), 255, press_time)
 			if info.state {
-				paint_button_shape_fill(self.box, fade(color, 0.15))
+				paint_button_shape_fill(self.box, fade(color, 0.1))
 			}
 			paint_button_shape_fill(self.box, fade(color, hover_time))
 			// Shape

@@ -60,12 +60,12 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 				r := f32(info.high - info.low)
 				for entry in info.guides.? {
 					x := bar_box.low.x + HALF_THICKNESS + range * (f32(entry - info.low) / r)
-					paint_line({x, bar_box.low.y}, {x, bar_box.low.y - 10}, 1, style.color.base_stroke)
+					paint_line({x, bar_box.low.y}, {x, bar_box.low.y - 10}, 1, style.color.substance[1])
 					paint_text(
 						{x, bar_box.low.y - 12}, 
 						{text = tmp_print(format, entry), font = style.font.title, size = style.text_size.title}, 
 						{align = .Middle, baseline = .Bottom}, 
-						style.color.base_text,
+						style.color.base_text[1],
 						)
 				}
 			}
@@ -73,43 +73,16 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 			switch info.orientation {
 				case .Horizontal: 
 				if info.value < info.high {
-					paint_pill_fill_h(bar_box, style.color.indent)
+					paint_pill_fill_h(bar_box, style.color.base[0])
 				}
-				paint_pill_fill_h({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, style.color.status)
+				paint_pill_fill_h({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, style.color.accent[1])
 				case .Vertical: 
 				if info.value < info.high {
-					paint_pill_fill_v(bar_box, style.color.indent)
+					paint_pill_fill_v(bar_box, style.color.base[0])
 				}
-				paint_pill_fill_v({{bar_box.low.x, bar_box.high.y - offset}, bar_box.high}, style.color.status)
+				paint_pill_fill_v({{bar_box.low.x, bar_box.high.y - offset}, bar_box.high}, style.color.accent[1])
 			}
-			// Paint the knob
-			if resource, ok := require_resource(int(Resource.Circle_Slider_Knob), RADIUS * 2); ok {
-				if !resource.ready {
-					center: [2]f32 = box_center(resource.src) - 0.5
-					image := &painter.atlas.image
-					for y in int(resource.src.low.y)..<int(resource.src.high.y) {
-						for x in int(resource.src.low.x)..<int(resource.src.high.x) {
-							point: [2]f32 = {f32(x), f32(y)}
-							diff := point - center
-							dist := math.sqrt((diff.x * diff.x) + (diff.y * diff.y))
-							if dist > RADIUS + 1 {
-								continue
-							}
-							i := (x + y * image.width) * image.channels
-							color: [4]f32 = {1, 1, 1, 1 - max(0, dist - RADIUS)}
-							color.rgb -= ((f32(y) - resource.src.low.y) / height(resource.src)) * 0.45
-							image.data[i    ] = u8(color.r * 255)
-							image.data[i + 1] = u8(color.g * 255)
-							image.data[i + 2] = u8(color.b * 255)
-							image.data[i + 3] = u8(color.a * 255)
-						}
-					}
-				}
-				half_size := (resource.src.high - resource.src.low) / 2
-				paint_textured_box(painter.atlas.texture, resource.src, {knob_center - RADIUS, knob_center + RADIUS}, style.color.extrusion)
-			}
-			//paint_circle_fill_texture(knob_center, RADIUS, alpha_blend_colors(style.color.extrusion, 255, hover_time * 0.1))
-			paint_ring_fill_texture(knob_center, RADIUS, RADIUS + 1, style.color.base_stroke)
+			paint_ring_fill_texture(knob_center, RADIUS, RADIUS + 1, style.color.substance[1])
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
@@ -169,12 +142,11 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 		}
 		// Paint
 		if self.bits >= {.Should_Paint} {
-			paint_shaded_box(self.box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
 			if .Active not_in self.bits {
 				if info.low < info.high {
-					paint_box_fill({self.box.low, {self.box.low.x + box_width * (f32(info.value - info.low) / f32(info.high - info.low)), self.box.high.y}}, style.color.accent)
+					paint_box_fill({self.box.low, {self.box.low.x + box_width * (f32(info.value - info.low) / f32(info.high - info.low)), self.box.high.y}}, style.color.accent[1])
 				} else {
-					paint_box_fill(self.box, style.color.accent)
+					paint_box_fill(self.box, style.color.accent[1])
 				}
 			}
 		}
@@ -187,7 +159,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 			// Get the buffer
 			buffer := typing_agent_get_buffer(&core.typing_agent, self.id)
 			// Do interactable text
-			text_res := paint_interact_text(box_center(self.box), self, &core.typing_agent, {text = string(buffer[:]), font = style.font.monospace, size = style.text_size.field}, {align = .Middle, baseline = .Middle}, {}, style.color.base_text)
+			text_res := paint_interact_text(box_center(self.box), self, &core.typing_agent, {text = string(buffer[:]), font = style.font.monospace, size = style.text_size.field}, {align = .Middle, baseline = .Middle}, {}, style.color.base_text[1])
 			// Copy text to buffer when focused
 			if .Got_Focus in self.state {
 				resize(buffer, len(text))

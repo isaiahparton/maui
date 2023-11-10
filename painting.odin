@@ -38,9 +38,6 @@ CIRCLE_SIZES :: MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE
 CIRCLE_ROWS :: MAX_CIRCLE_STROKE_SIZE + 1
 // Smoothing level for pre-rasterized circles
 CIRCLE_SMOOTHING :: 1
-// Font class files
-MONOSPACE_FONT :: "Inconsolata_Condensed-SemiBold.ttf"
-DEFAULT_FONT :: "IBMPlexSans-Medium_Remixicon.ttf"
 // Default horizontal spacing between glyphs
 GLYPH_SPACING :: 1
 
@@ -149,7 +146,7 @@ painter: ^Painter
 
 style_default_fonts :: proc() -> bool {
 	// Load the fonts
-	style.font.label = load_font(&painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return
+	style.font.label = load_font(&painter.atlas, "fonts/Orbitron-Medium.ttf") or_return
 	style.font.title = style.font.label
 	style.font.monospace = load_font(&painter.atlas, "fonts/RobotoMono-Regular.ttf") or_return
 	// Assign their handles and sizes
@@ -168,7 +165,7 @@ painter_init :: proc() -> bool {
 		if !style_default_fonts() {
 			fmt.println("Failed to load fonts")
 		}
-		atlas_reset(&painter.atlas)
+		reset_atlas(&painter.atlas)
 		return true
 	}
 	return false
@@ -176,7 +173,7 @@ painter_init :: proc() -> bool {
 painter_destroy :: proc() {
 	if painter != nil {
 		// Destroy the main atlas
-		atlas_destroy(&painter.atlas)
+		destroy_atlas(&painter.atlas)
 		// Free the global instance
 		free(painter)
 		painter = nil
@@ -342,12 +339,6 @@ stroke_path :: proc(pts: [][2]f32, closed: bool, thickness: f32, color: Color) {
 			{point = p2 + length2 * miter2, color = color},
 		)
 	}
-}
-
-paint_shaded_box :: proc(box: Box, colors: [3]Color) {
-	paint_box_fill(box, colors[0])
-	paint_box_fill({box.low + 1, box.high}, colors[2])
-	paint_box_fill({box.low + 1, box.high - 1}, colors[1])
 }
 
 /*
