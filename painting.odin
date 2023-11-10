@@ -149,13 +149,13 @@ painter: ^Painter
 
 style_default_fonts :: proc() -> bool {
 	// Load the fonts
-	style.font.label = load_font(&painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return
+	style.font.label = load_font(&painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return
 	style.font.title = style.font.label
 	style.font.monospace = load_font(&painter.atlas, "fonts/RobotoMono-Regular.ttf") or_return
 	// Assign their handles and sizes
-	style.text_size.label = 20
+	style.text_size.label = 18
 	style.text_size.title = 16
-	style.text_size.field = 20
+	style.text_size.field = 18
 	style.layout.title_size = 30
 	style.layout.widget_padding = 4
 	return true
@@ -375,7 +375,7 @@ paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickn
 			{
 				align = .Left,
 			}, 
-			style.color.text,
+			style.color.base_text[1],
 		)
 	} else {
 		paint_box_stroke(box, thickness, color)

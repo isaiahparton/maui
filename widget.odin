@@ -13,7 +13,7 @@ import "core:slice"
 import "core:time"
 
 MAX_WIDGET_TIMERS :: 3
-DEFAULT_WIDGET_HOVER_TIME :: 0.075
+DEFAULT_WIDGET_HOVER_TIME :: 0.05
 DEFAULT_WIDGET_PRESS_TIME :: 0.075
 
 // General purpose booleans
@@ -317,11 +317,8 @@ do_widget :: proc(id: Id, options: Widget_Options = {}) -> (self: ^Widget, ok: b
 _do_widget :: proc(self: ^Widget, ok: bool) {
 	if ok {
 		assert(self != nil)
+		// Pop widget stack
 		widget_agent_pop(&core.widget_agent)
-		// Shade over the widget if it is disabled
-		if .Disabled in self.bits {
-			paint_disable_shade(self.box)
-		}
 		// Update the parent layer's content box
 		self.layer.content_box = update_bounding_box(self.layer.content_box, self.box)
 		// Update group if there is one
@@ -360,10 +357,6 @@ attach_tooltip :: proc(text: string, side: Box_Side) {
 	})
 }
 
-paint_disable_shade :: proc(box: Box) {
-	paint_box_fill(box, style.color.base)
-}
-
 tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 	text_size := measure_text({
 		text = text,
@@ -390,13 +383,13 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 		options = {.No_Scroll_X, .No_Scroll_Y},
 	}); ok {
 		layer.order = .Tooltip
-		paint_rounded_box_fill(layer.box, 0, style.color.tooltip_fill)
-		paint_rounded_box_stroke(layer.box, 0, 1, style.color.tooltip_stroke)
+		paint_rounded_box_fill(layer.box, 0, style.color.base[0])
+		paint_rounded_box_stroke(layer.box, 0, 1, style.color.substance[0])
 		paint_text(
 			layer.box.low + PADDING, 
 			{font = style.font.title, size = style.text_size.title, text = text}, 
 			{}, 
-			style.color.tooltip_text,
+			style.color.substance[1],
 			)
 		end_layer(layer)
 	}
@@ -493,7 +486,7 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 do_divider :: proc(size: f32) {
 	layout := current_layout()
 	box := cut_box(&layout.box, placement.side, Exact(1))
-	paint_box_fill(box, style.color.base_stroke)
+	paint_box_fill(box, style.color.accent[1])
 }
 
 /*
@@ -502,8 +495,8 @@ do_divider :: proc(size: f32) {
 do_progress_bar :: proc(value: f32) {
 	box := layout_next(current_layout())
 	radius := height(box) * 0.5
-	paint_rounded_box_fill(box, radius, style.color.base)
-	paint_rounded_box_fill({box.low, {box.low.x + width(box) * clamp(value, 0, 1), box.high.y}}, radius, style.color.accent)
+	paint_rounded_box_fill(box, radius, style.color.base[1])
+	paint_rounded_box_fill({box.low, {box.low.x + width(box) * clamp(value, 0, 1), box.high.y}}, radius, style.color.accent[1])
 }
 
 //TODO: Re-implement

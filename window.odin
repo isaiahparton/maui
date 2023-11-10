@@ -234,22 +234,25 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				mesh.indices_offset + 2,
 				mesh.indices_offset + 3,
 			)
-			color: Color = {200, 210, 220, 255}
 			src_box: Box = {self.box.low / core.size, self.box.high / core.size}
 			src_box.low.y = 1 - src_box.low.y
 			src_box.high.y = 1 - src_box.high.y
 			paint_vertices(mesh,
-				{point = self.box.low, uv = src_box.low, color = color},
-				{point = {self.box.low.x, self.box.high.y}, uv = {src_box.low.x, src_box.high.y}, color = color},
-				{point = self.box.high, uv = src_box.high, color = color},
-				{point = {self.box.high.x, self.box.low.y}, uv = {src_box.high.x, src_box.low.y}, color = color},
+				{point = self.box.low, uv = src_box.low, color = style.color.glass},
+				{point = {self.box.low.x, self.box.high.y}, uv = {src_box.low.x, src_box.high.y}, color = style.color.glass},
+				{point = self.box.high, uv = src_box.high, color = style.color.glass},
+				{point = {self.box.high.x, self.box.low.y}, uv = {src_box.high.x, src_box.low.y}, color = style.color.glass},
 			)
 			painter.target = last_target
 			// Draw title bar and get movement dragging
 			if .Title in self.options {
 				title_box := cut(.Top, Exact(style.layout.title_size))
 				// Draw title
-				paint_shaded_box(shrink_box(title_box, 1), {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
+				{
+					h := height(title_box) / 3
+					paint_quad_fill({title_box.high.x - h, title_box.low.y}, {title_box.high.x, title_box.low.y}, {title_box.high.x, title_box.high.y - h}, {title_box.high.x - h, title_box.high.y}, style.color.substance[1])
+					paint_box_fill({title_box.low, {title_box.high.x - h, title_box.high.y}}, style.color.substance[1])
+				}
 				layout_box := title_box
 				// Close button
 				if .Closable in self.options {
@@ -257,8 +260,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 						w.box = cut_box_right(&layout_box, height(layout_box))
 						update_widget(w)
 						hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-						paint_box_fill(w.box, fade(255, hover_time * 0.1))
-						paint_cross(box_center(w.box), 7, math.PI * 0.25, 2, style.color.base_stroke)
+						paint_cross(box_center(w.box), 7, math.PI * 0.25, 1 + hover_time, style.color.substance_text[1])
 						update_widget_hover(w, point_in_box(input.mouse_point, w.box))
 					}
 				}
@@ -268,8 +270,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 						w.box = cut_box_right(&layout_box, height(layout_box))
 						update_widget(w)
 						hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-						paint_box_fill(w.box, fade(255, hover_time * 0.1))
-						paint_arrow_flip(box_center(w.box), 7, 0, 1, self.how_collapsed, style.color.base_stroke)
+						paint_arrow_flip(box_center(w.box), 7, 0, 0.5 + (0.5 * hover_time), self.how_collapsed, style.color.substance_text[1])
 						if widget_clicked(w, .Left) {
 							self.bits ~= {.Should_Collapse}
 						}
@@ -287,7 +288,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 					{title_box.low.x + text_offset, baseline}, 
 					{text = info.title, font = style.font.label, size = style.text_size.label}, 
 					{align = .Left, baseline = .Middle}, 
-					color = style.color.text,
+					color = style.color.substance_text[1],
 				)
 				// Moving 
 				if (.Hovered in self.decor_layer.state) && !resize_hover && point_in_box(input.mouse_point, title_box) {
@@ -299,8 +300,6 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 						self.bits ~= {.Should_Collapse}
 					}
 				}
-				// Title outline
-				paint_box_stroke(title_box, 1, style.color.base_stroke)
 			} else {
 				self.bits -= {.Should_Collapse}
 			}
@@ -333,16 +332,16 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				opacity = self.opacity,
 			})
 		}
-
-		last_opacity := self.opacity
-		if .Moving in self.bits {
-			self.opacity += (0.75 - self.opacity) * core.delta_time * 10
-		} else {
-			self.opacity += (1 - self.opacity) * core.delta_time * 10
-		}
-		if last_opacity != self.opacity {
-			core.paint_next_frame = true
-		}
+		self.opacity = 1
+		// last_opacity := self.opacity
+		// if .Moving in self.bits {
+		// 	self.opacity += (0.75 - self.opacity) * core.delta_time * 10
+		// } else {
+		// 	self.opacity += (1 - self.opacity) * core.delta_time * 10
+		// }
+		// if last_opacity != self.opacity {
+		// 	core.paint_next_frame = true
+		// }
 	}
 	return
 }
@@ -354,7 +353,17 @@ _do_window :: proc(ok: bool) {
 		// End main layer
 		if .Collapsed not_in bits {
 			// Outline
-			paint_box_stroke(layer.box, 1, style.color.base_stroke)
+			A, B, C, D :: 1, 4, 8, 12
+			paint_box_fill({{layer.box.low.x, layer.box.low.y + B}, {layer.box.low.x + A, layer.box.high.y - D}}, style.color.substance[0])
+			paint_box_fill({{layer.box.high.x - A, layer.box.low.y + B}, {layer.box.high.x, layer.box.high.y - D}}, style.color.substance[0])
+			paint_box_fill({{layer.box.low.x + D, layer.box.high.y - A}, {layer.box.high.x - D, layer.box.high.y}}, style.color.substance[0])
+			// Bottom left
+			paint_box_fill({{layer.box.low.x, layer.box.high.y - C}, {layer.box.low.x + A, layer.box.high.y}}, style.color.substance[1])
+			paint_box_fill({{layer.box.low.x, layer.box.high.y - A}, {layer.box.low.x + C, layer.box.high.y}}, style.color.substance[1])
+			// Bottom right
+			paint_box_fill({{layer.box.high.x - A, layer.box.high.y - C}, {layer.box.high.x, layer.box.high.y}}, style.color.substance[1])
+			paint_box_fill({{layer.box.high.x - C, layer.box.high.y - A}, {layer.box.high.x, layer.box.high.y}}, style.color.substance[1])
+			// Done with main layer
 			end_layer(layer)
 		}
 		// End decor layer

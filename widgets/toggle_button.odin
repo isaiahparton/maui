@@ -36,21 +36,15 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 		if .Should_Paint in self.bits {
 			inner_box := shrink_box(self.box, 1)
 			// Body
+			color := blend_colors(info.color.? or_else (style.color.accent[1] if info.state else style.color.substance[0]), 255, press_time)
 			if info.state {
-				paint_shaded_box(inner_box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
-				paint_gradient_box_v(get_box_top(inner_box, height(inner_box) / 2), {255, 255, 255, 30}, 0)
-				paint_gradient_box_v(get_box_bottom(inner_box, height(inner_box) / 2), {0, 0, 0, 30}, {0, 0, 0, 90})
-			} else {
-				paint_shaded_box(inner_box, {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
-				paint_gradient_box_v(get_box_top(inner_box, height(inner_box) / 2), {255, 255, 255, 30}, 0)
-				paint_gradient_box_v(get_box_bottom(inner_box, height(inner_box) / 2), {0, 0, 0, 30}, {0, 0, 0, 90})
+				paint_button_shape_fill(self.box, fade(color, 0.15))
 			}
-			// Outline
-			paint_box_stroke(self.box, 1, alpha_blend_colors(style.color.base_stroke, style.color.status, press_time))
-			// Interaction Shading
-			paint_box_fill(inner_box, alpha_blend_colors(fade(255, hover_time * 0.1), style.color.status, press_time * 0.5))
+			paint_button_shape_fill(self.box, fade(color, hover_time))
+			// Shape
+			paint_button_shape_stroke(self.box, color)
 			// Label
-			paint_label_box(info.label, move_box(self.box, 2 * f32(int(info.state))), style.color.text, .Middle, .Middle)
+			paint_label_box(info.label, self.box, blend_colors(color, style.color.base[0], hover_time), .Middle, .Middle)
 		}
 		// Hover
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))

@@ -65,7 +65,7 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 						{x, bar_box.low.y - 12}, 
 						{text = tmp_print(format, entry), font = style.font.title, size = style.text_size.title}, 
 						{align = .Middle, baseline = .Bottom}, 
-						style.color.text,
+						style.color.base_text,
 						)
 				}
 			}
@@ -187,7 +187,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 			// Get the buffer
 			buffer := typing_agent_get_buffer(&core.typing_agent, self.id)
 			// Do interactable text
-			text_res := paint_interact_text(box_center(self.box), self, &core.typing_agent, {text = string(buffer[:]), font = style.font.monospace, size = style.text_size.field}, {align = .Middle, baseline = .Middle}, {}, style.color.text)
+			text_res := paint_interact_text(box_center(self.box), self, &core.typing_agent, {text = string(buffer[:]), font = style.font.monospace, size = style.text_size.field}, {align = .Middle, baseline = .Middle}, {}, style.color.base_text)
 			// Copy text to buffer when focused
 			if .Got_Focus in self.state {
 				resize(buffer, len(text))

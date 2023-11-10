@@ -51,13 +51,13 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 		// Text!
 		text_origin: [2]f32 = {self.box.high.x - style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
 		if text, ok := info.suffix.?; ok {
-			size := paint_text(text_origin, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.text)
+			size := paint_text(text_origin, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.base_text)
 			text_origin.x -= size.x
 		}
-		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, {read_only = true}, style.color.text)
+		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, {read_only = true}, style.color.base_text)
 		text_origin.x = text_res.bounds.low.x
 		if text, ok := info.prefix.?; ok {
-			paint_text(text_origin, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.text)
+			paint_text(text_origin, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.base_text)
 		}
 		// Value manipulation
 		if (.Focused in self.state) {

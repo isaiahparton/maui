@@ -39,19 +39,16 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 			knob_box: Box = {{self.box.low.x + offset, self.box.low.y}, {self.box.low.x + KNOB_WIDTH + offset, self.box.high.y}}
 			back_color: Color = {0, 150, 255, 100}
 			// Background
-			paint_shaded_box(self.box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
+			paint_box_stroke(self.box, 1, style.color.accent[0])
 			// Text
 			if how_on > 0 {
-				paint_text(knob_box.low + {-6, 12}, {text = "ON", font = style.font.label, size = 16}, {align = .Right, baseline = .Middle, clip = self.box}, fade(style.color.status, how_on))
+				paint_text(knob_box.low + {-6, 12}, {text = "ON", font = style.font.label, size = 16}, {align = .Right, baseline = .Middle, clip = self.box}, fade(style.color.accent[0], how_on))
 			}
 			if how_on < 1 {
-				paint_text(knob_box.high + {4, -12}, {text = "OFF", font = style.font.label, size = 16}, {align = .Left, baseline = .Middle, clip = self.box}, fade(style.color.status, 1 - how_on))
+				paint_text(knob_box.high + {4, -12}, {text = "OFF", font = style.font.label, size = 16}, {align = .Left, baseline = .Middle, clip = self.box}, fade(style.color.accent[0], 1 - how_on))
 			}
 			// Knob
-			paint_shaded_box(shrink_box(knob_box, 1), {style.color.extrusion_light, style.color.extrusion, style.color.extrusion_dark})
-			paint_gradient_box_v(shrink_box(knob_box, 2), {0, 0, 0, 60}, {255, 255, 255, 40})
-			paint_box_fill(shrink_box(knob_box, 1), fade({255, 255, 255, 40}, hover_time))
-			paint_box_stroke(knob_box, 1, style.color.base_stroke)
+			paint_box_fill(knob_box, style.color.accent[0])
 		}
 		// Invert state on click
 		if .Clicked in self.state {

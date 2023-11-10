@@ -49,19 +49,19 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 				case .Bottom: 	
 				center = {center_x(self.box), self.box.low.y + RADIUS}
 			}
-			paint_circle_fill_texture(center, RADIUS, blend_colors(alpha_blend_colors(style.color.extrusion, 255, hover_time * 0.1), style.color.indent, how_on))
+			paint_circle_fill_texture(center, RADIUS, style.color.accent[0])
 			// Glowy thing
-			paint_circle_fill(center, RADIUS * (0.2 + 0.3 * ease.circular_out(how_on)), 12, fade(style.color.status, how_on))
-			paint_ring_fill_texture(center, RADIUS - 1, RADIUS, fade(style.color.base_stroke, 1 - how_on))
+			paint_circle_fill(center, RADIUS * (0.2 + 0.3 * ease.circular_out(how_on)), 12, fade(style.color.accent[0], how_on))
+			paint_ring_fill_texture(center, RADIUS - 1, RADIUS, fade(style.color.accent[0], 1 - how_on))
 			switch text_side {
 				case .Left: 	
-				paint_text({self.box.low.x + SIZE + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
+				paint_text({self.box.low.x + SIZE + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
 				case .Right: 	
-				paint_text({self.box.low.x, center.y - text_size.y / 2}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
+				paint_text({self.box.low.x, center.y - text_size.y / 2}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
 				case .Top: 		
-				paint_text(self.box.low, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
+				paint_text(self.box.low, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
 				case .Bottom: 	
-				paint_text({self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
+				paint_text({self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
 			}
 		}
 		// Click result

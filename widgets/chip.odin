@@ -20,9 +20,9 @@ do_chip :: proc(info: Chip_Info, loc := #caller_location) -> (clicked: bool) {
 		update_widget(self)
 		// Graphics
 		if .Should_Paint in bits {
-			paint_pill_fill_h(self.box, alpha_blend_colors(style.color.extrusion, {255, 255, 255, 40}, hover_time))
-			paint_pill_stroke_h(self.box, 1, style.color.base_stroke)
-			paint_text(center(box), {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Middle, baseline = .Middle}, style.color.text) 
+			paint_pill_fill_h(self.box, alpha_blend_colors(style.color.accent[0], {255, 255, 255, 40}, hover_time))
+			paint_pill_stroke_h(self.box, 1, style.color.accent[1])
+			paint_text(center(box), {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Middle, baseline = .Middle}, style.color.base_text[1]) 
 		}
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 		clicked = .Clicked in state && click_button == .Left
@@ -68,11 +68,11 @@ do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (cl
 		hover_time := animate_bool(&self.timers[1], .Hovered in state, 0.1)
 		// Graphicly
 		if .Should_Paint in bits {
-			paint_pill_stroke_h(self.box, 2 if info.state else 1, style.color.base_stroke)
+			paint_pill_stroke_h(self.box, 2 if info.state else 1, style.color.accent[0])
 			if state_time > 0 {
-				paint_text({box.high.x - height(box) / 2, center_y(box)}, text_info, {align = .Middle, baseline = .Middle}, style.color.text) 
+				paint_text({box.high.x - height(box) / 2, center_y(box)}, text_info, {align = .Middle, baseline = .Middle}, style.color.base_text[0]) 
 			} else {
-				paint_text(center(box), text_info, {align = .Middle, baseline = .Middle}, style.color.text) 
+				paint_text(center(box), text_info, {align = .Middle, baseline = .Middle}, style.color.base_text[0]) 
 			}
 		}
 		clicked = .Clicked in state && click_button == .Left

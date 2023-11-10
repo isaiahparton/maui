@@ -51,7 +51,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			}
 		}
 		// Paint!
-		paint_shaded_box(self.box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
+		paint_box_fill(self.box, style.color.accent[0])
 		paint_box_fill(self.box, fade(255, hover_time * 0.04))
 		// Get data source
 		text: string
@@ -81,7 +81,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			{text = text, font = style.font.label, size = style.text_size.field},
 			{baseline = .Middle, clip = self.box},
 			{},
-			style.color.text,
+			style.color.base_text[0],
 		)
 		if .Focused in self.state {
 			offset_x_limit := max(width(text_res.bounds) - width(inner_box), 0)
@@ -127,11 +127,11 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 						{self.box.low.x + style.layout.widget_padding, center_y(self.box)}, 
 						{font = style.font.label, size = style.text_size.field, text = info.placeholder.?}, 
 						{baseline = .Middle}, 
-						fade(style.color.text, 0.5),
+						fade(style.color.base_text[0], 0.5),
 					)
 				}
 			}
-			paint_box_stroke(self.box, 1, fade(style.color.status, focus_time))
+			paint_box_stroke(self.box, 1, fade(style.color.accent[0], focus_time))
 		}
 		// Whatever
 		if .Lost_Focus in self.state {

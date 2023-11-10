@@ -71,80 +71,16 @@ _main :: proc() {
 
 		if do_window({
 			placement = child_box(core.fullscreen_box, {300, 480}, {.Near, .Middle}),
-			title = "window",
+			title = "PANEL",
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
-			if do_horizontal(Exact(24)) {
-				placement.size = Exact(120)
-				if do_menu({label = "File"}) {
-					placement.size = Exact(24)
-					do_option({label = "new"})
-					do_option({label = "open"})
-					do_option({label = "save"})
-					if do_submenu({label = "Import"}) {
-						do_option({label = "stuff"})
-						do_option({label = "things"})
-					}
-					if do_submenu({label = "Export"}) {
-						do_option({label = "stuff"})
-						do_option({label = "things"})
-					}
-				}
-			}
-			shrink(20)
-			// Set default size for widget placement
-			placement.size = Exact(28)
-			// Put a text field
-			do_text_field({data = &text, placeholder = "type something"})
-			space(Exact(10))
-			// Just a normal button
-			do_button({label = text})
-			space(Exact(10))
-			// Button that has a state
-			if do_toggle_button({state = boolean, label = "toggle button"}) {
+			shrink(30)
+			placement.size = Exact(32)
+			do_button({label = "button"})
+			space(Exact(20))
+			if do_toggle_button({label = "toggle button", state = boolean}) {
 				boolean = !boolean
 			}
-			space(Exact(10))
-			// A radio button
-			if do_radio_button({on = boolean, text = "radio button"}) {
-				boolean = !boolean
-			}
-			space(Exact(10))
-			// A tick box
-			do_checkbox({state = &boolean, text = "tick box"})
-			space(Exact(10))
-			// A horizontal layout
-			if do_horizontal(Exact(24)) {
-				placement.size = Exact(100); placement.align.x = .Near 
-				// A toggle switch
-				do_toggle_switch({state = &boolean})
-			}
-			if boolean {
-				space(Exact(30))
-				// A knob (cool)
-				gain = do_knob(Knob_Info(f64){value = gain, low = -70, high = 10, format = "Gain: %.1f"})
-				space(Exact(30))
-				// A slider (almost as cool)
-				pitch = do_slider(Slider_Info(f64){value = pitch, low = -10, high = 10})
-			}
-			space(Exact(10))
-			if do_horizontal(Exact(24)) {
-				do_chip({text = "I'm a chip!"})
-			}
-		}
-		if do_window({
-			placement = child_box(core.fullscreen_box, {300, 480}, {.Middle, .Middle}),
-			title = "another window",
-			options = {.Title, .Closable, .Resizable, .Collapsable},
-		}) {
-
-		}
-		if do_window({
-			placement = child_box(core.fullscreen_box, {340, 420}, {.Far, .Middle}),
-			title = "another window",
-			options = {.Title, .Closable, .Resizable, .Collapsable},
-		}) {
-
 		}
 
 

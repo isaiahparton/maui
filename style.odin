@@ -4,30 +4,27 @@ package maui
 	Default style values
 */
 DARK_STYLE_COLORS :: Style_Colors{
-	status = {248, 226, 34, 255},
-
-	base = {7, 7, 7, 255},
-	base_light = {48, 56, 58, 255},
-	base_dark = {20, 20, 24, 255},
-	base_stroke = {0, 0, 0, 255},
-
-	extrusion = {45, 46, 47, 255},
-	extrusion_light = {60, 61, 62, 255},
-	extrusion_dark = {30, 31, 32, 255},
-
-	indent = {22, 27, 29, 255},
-	indent_dark = {7, 6, 8, 255},
-	indent_light = {53, 54, 62, 255},
-
-	text = {195, 195, 195, 255},
-	text_highlight = {20, 150, 255, 255},
-
-	scroll_bar = {10, 11, 12, 255},
-	scroll_thumb = {43, 44, 45, 255},
-
-	tooltip_stroke = {0, 0, 0, 255},
-	tooltip_fill = {200, 212, 242, 255},
-	tooltip_text = {25, 25, 26, 255},
+	accent = {
+		{196, 167, 85, 255},
+		{255, 201, 28, 255},
+	},
+	base = {
+		{33, 34, 39, 255},
+		{33, 34, 39, 255},
+	},
+	base_text = {
+		{195, 195, 195, 255},
+		{195, 195, 195, 255},
+	},
+	substance = {
+		{146, 147, 155, 255},
+		{200, 201, 201, 255},
+	},
+	substance_text = {
+		{25, 26, 26, 255},
+		{4, 5, 5, 255},
+	},
+	glass = {210, 225, 230, 255},
 }
 /*
 	Fonts used in different parts of the ui
@@ -60,34 +57,12 @@ Style_Layout :: struct {
 	Colors
 */
 Style_Colors :: struct {
-	// Colorful things
-	accent,
-	// Things that display status
-	status,
-	// Base (background)
 	base,
-	base_light,
-	base_dark,
-	base_stroke,
-	// Things to be pressed
-	extrusion,
-	extrusion_light,
-	extrusion_dark,
-	// Indents
-	indent,
-	indent_dark,
-	indent_light,
-	// Things to be read
-	text,
-	text_highlight: Color,
-	// Scrollbar
-	scroll_bar,
-	scroll_thumb: Color,
-	// Tooltips
-	tooltip_fill,
-	tooltip_text,
-	tooltip_stroke: Color,
-	shadow: Color,
+	base_text,
+	substance,
+	substance_text,
+	accent: [2]Color,
+	glass: Color,
 }
 /*
 	Unified style structure

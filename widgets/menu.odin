@@ -40,14 +40,12 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		open_time := animate_bool(&self.timers[2], .Menu_Open in self.bits, 0.175)
 		// Painting
 		if .Should_Paint in self.bits {
-			// Body
-			paint_box_fill(self.box, style.color.extrusion)
 			// Outline
-			paint_box_fill(get_box_bottom(self.box, Exact(1)), style.color.base_stroke)
+			paint_box_stroke(self.box, 1, style.color.accent[0])
 			// Interaction Shading
-			paint_box_fill(self.box, alpha_blend_colors(fade(255, hover_time * 0.1), style.color.status, press_time * 0.5))
+			paint_box_fill(self.box, alpha_blend_colors(fade(255, hover_time * 0.1), style.color.accent[1], press_time * 0.5))
 			// Label
-			paint_label_box(info.label, self.box, style.color.text, .Middle, .Middle)
+			paint_label_box(info.label, self.box, style.color.base_text[1], .Middle, .Middle)
 		}
 		// Begin layer if expanded
 		if res, ok := begin_attached_layer({
@@ -59,7 +57,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			align = info.layer_align,
 			opacity = open_time,
 		}); ok {
-			paint_box_fill(res.self.box, style.color.base)
+			paint_box_fill(res.self.box, style.color.base[1])
 			active = true
 		}
 		// Update hovered state
@@ -72,7 +70,7 @@ _do_menu :: proc(active: bool) {
 	using maui
 	if active {
 		end_attached_layer({
-			stroke_color = style.color.base_stroke,
+			stroke_color = style.color.accent[1],
 		}, current_layer())
 	}
 }
@@ -92,11 +90,11 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		open_time := animate_bool(&self.timers[1], .Menu_Open in self.bits, 0.15)
 		// Paint
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, fade(style.color.status, hover_time))
+			paint_box_fill(self.box, fade(style.color.accent[0], hover_time))
 			// Paint label
 			label_box := self.box
 			cut_box_left(&label_box, height(label_box))
-			label_color := blend_colors(style.color.text, style.color.base_stroke, hover_time)
+			label_color := blend_colors(style.color.base_text[0], style.color.accent[0], hover_time)
 			paint_label_box(info.label, label_box, label_color, .Left, .Middle)
 			paint_arrow_flip({label_box.high.x - height(label_box) * 0.5, center_y(label_box)}, height(label_box) * 0.25, -0.5 * math.PI, 1, open_time, label_color)
 		}
@@ -112,7 +110,7 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			layer_options = {.Attached},
 			opacity = open_time,
 		}); ok {
-			paint_box_fill(res.self.box, style.color.base)
+			paint_box_fill(res.self.box, style.color.base[1])
 			active = true
 		}
 		// Update hover state with own box
@@ -126,7 +124,7 @@ _do_submenu :: proc(active: bool) {
 	if active {
 		end_attached_layer({
 			mode = .Hover,
-			stroke_color = style.color.base_stroke,
+			stroke_color = style.color.accent[1],
 		}, current_layer())
 	}
 }
@@ -147,8 +145,8 @@ do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool)
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
 		// Painting
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, fade(style.color.status, hover_time))
-			label_color := blend_colors(style.color.text, style.color.base_stroke, hover_time)
+			paint_box_fill(self.box, fade(style.color.accent[1], hover_time))
+			label_color := blend_colors(style.color.base_text[0], style.color.accent[1], hover_time)
 			label_box := self.box
 			icon_box := cut_box_left(&label_box, height(label_box))
 			if info.active {

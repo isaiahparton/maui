@@ -96,7 +96,7 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			}
 
 			// Paint box
-			paint_shaded_box(icon_box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
+			paint_box_stroke(icon_box, 1, style.color.accent[0])
 			
 			center := box_center(icon_box)
 
@@ -108,10 +108,10 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 				#partial switch real_state {
 					case .Unknown: 
 					a, b: [2]f32 = {-1, 0} * scale, {1, 0} * scale
-					paint_line(center + a, center + b, 2, style.color.status)
+					paint_line(center + a, center + b, 2, style.color.accent[0])
 					case .On: 
 					a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-					stroke_path({center + a, center + b, center + c}, false, 1, style.color.status)
+					stroke_path({center + a, center + b, center + c}, false, 1, style.color.accent[0])
 				}
 			}
 
@@ -119,13 +119,13 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			if has_text {
 				switch text_side {
 					case .Left: 	
-					paint_text({icon_box.high.x + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
+					paint_text({icon_box.high.x + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[0])
 					case .Right: 	
-					paint_text({icon_box.low.x - style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
+					paint_text({icon_box.low.x - style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[0])
 					case .Top: 		
-					paint_text(box.low, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
+					paint_text(box.low, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[0])
 					case .Bottom: 	
-					paint_text({box.low.x, box.high.y - text_size.y}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.text)
+					paint_text({box.low.x, box.high.y - text_size.y}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[0])
 				}
 			}
 		}

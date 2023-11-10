@@ -340,7 +340,7 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 		options = info.options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
 	if ok {
-		paint_box_fill(self.box, info.fill_color.? or_else style.color.base)
+		paint_box_fill(self.box, info.fill_color.? or_else style.color.base[1])
 	}
 	return
 }
@@ -349,7 +349,7 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 _do_frame :: proc(ok: bool) {
 	if ok {
 		assert(core.layer_agent.current_layer != nil)
-		paint_box_stroke(core.layer_agent.current_layer.box, 1, style.color.base_stroke)
+		paint_box_stroke(core.layer_agent.current_layer.box, 1, style.color.substance[1])
 		end_layer(core.layer_agent.current_layer)
 	}
 }
@@ -456,11 +456,11 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			paint_box_fill(core.fullscreen_box, {0, 0, 0, 100})
 		}
 		// Shadows
-		if shadow, ok := info.shadow.?; ok {
+		/*if shadow, ok := info.shadow.?; ok {
 			painter.target = get_draw_target()
 			append(&self.meshes, painter.target)
 			paint_rounded_box_shadow(move_box(self.box, shadow.offset), shadow.roundness, style.color.shadow)
-		}
+		}*/
 
 		painter.target = get_draw_target()
 		append(&self.meshes, painter.target)
