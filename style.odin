@@ -17,7 +17,7 @@ DARK_STYLE_COLORS :: Style_Colors{
 		{195, 195, 195, 255},
 	},
 	substance = {
-		{146, 147, 155, 255},
+		{126, 127, 135, 255},
 		{200, 201, 201, 255},
 	},
 	substance_text = {
@@ -52,6 +52,7 @@ Style_Layout :: struct {
 	widget_padding: f32,
 	tooltip_padding: f32,
 	title_size: f32,
+	gap_size: f32,
 }
 /*
 	Colors

@@ -92,6 +92,19 @@ Tooltip_Info :: struct {
 	box_side: Box_Side,
 }
 
+Arena :: struct($T: typeid, $N: int) {
+	items: [N]Maybe(T),
+}
+arena_allocate :: proc(arena: ^Arena($T, $N)) -> (handle: ^Maybe(T), ok: bool) {
+	for i in 0..<N {
+		if arena.items[i] == nil {
+			arena.items[i] = T{}
+			return &arena.items[i], true
+		}
+	}
+	return nil, false
+}
+
 Stack :: struct($T: typeid, $N: int) {
 	items: [N]T,
 	height: int,
@@ -186,6 +199,7 @@ Core :: struct {
 	next_tooltip: Maybe(Tooltip_Info),
 }
 
+// Set by platform backend
 _get_clipboard_string: proc() -> string
 _set_clipboard_string: proc(string)
 

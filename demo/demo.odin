@@ -25,10 +25,6 @@ Choice :: enum {
 }
 
 _main :: proc() {
-	fmt.println("Structure sizes")
-	fmt.println("  Painter:", size_of(maui.Painter))
-	fmt.println("  Core:", size_of(maui.Core))
-
 	t: time.Time
 	tt: time.Time
 	show_window: bool

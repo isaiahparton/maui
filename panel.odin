@@ -37,9 +37,11 @@ Panel_Option :: enum {
 Panel_Options :: bit_set[Panel_Option]
 
 Panel :: struct {
-	// Native stuff
+	// Unique hashed identifier
 	id: Id,
+	// Options
 	options: Panel_Options,
+	// Bits
 	bits: Panel_Bits,
 	// For resizing
 	drag_side: Box_Side,
@@ -47,53 +49,49 @@ Panel :: struct {
 	min_layout_size: [2]f32,
 	// Position
 	origin, size: [2]f32,
-	// Main layer
-	layer: ^Layer,
-	// Decoration layer
-	decor_layer: ^Layer,
+	// Layers
+	root_layer,
+	content_layer: Maybe(^Layer),
 	// Uncollapsed box
 	real_box,
 	// Current occupied box
 	box: Box,
 	// Collapse
-	opacity,
 	how_collapsed: f32,
+	// Attachments
+	attachments: [Box_Side]Maybe(Id),
 }
 
+MAX_PANELS :: 128
+PANEL_STACK_SIZE :: 64
+
+Panel_Handle :: ^Maybe(Panel)
+
 Panel_Agent :: struct {
-	list: 					[dynamic]^Panel,
-	pool: 					map[Id]^Panel,
+	arena: 		Arena(Panel, MAX_PANELS),
+	pool: 		map[Id]Panel_Handle,
 	// Panel context stack
-	stack: 					Stack(^Panel, WINDOW_STACK_SIZE),
+	stack: 		Stack(Panel_Handle, PANEL_STACK_SIZE),
 	// Current window
-	current:				^Panel,
+	current:	Maybe(Panel_Handle),
 }
 current_panel :: proc() -> ^Panel {
-	assert(core.panel_agent.current != nil)
-	return core.panel_agent.current
+	return &core.panel_agent.current.?.?
 }
-assert_panel :: proc(using self: ^Panel_Agent, id: Id) -> (p: ^Panel, ok: bool) {
-	p, ok = pool[id]
-	if !ok {
-		p, ok = create_panel(self, id)
-	}
-	assert(ok)
-	assert(p != nil)
+assert_panel :: proc(using agent: ^Panel_Agent, id: Id) -> (handle: Panel_Handle, ok: bool) {
+	handle = pool[id] or_else create_panel(agent, id) or_return
 	return
 }
-create_panel :: proc(using self: ^Panel_Agent, id: Id) -> (p: ^Panel, ok: bool) {
-	p = new(Panel)
-	p^ = {
-		id = id,
-	}
-	append(&list, p)
-	pool[id] = p
+create_panel :: proc(using self: ^Panel_Agent, id: Id) -> (handle: Panel_Handle, ok: bool) {
+	handle = arena_allocate(&arena) or_return
+	handle^.?.id = id
+	pool[id] = handle
 	ok = true
 	return
 }
-push_panel :: proc(using self: ^Panel_Agent, p: ^Panel) {
-	stack_push(&stack, p)
-	current = p
+push_panel :: proc(using self: ^Panel_Agent, handle: Panel_Handle) {
+	stack_push(&stack, handle)
+	current = handle
 }
 pop_panel :: proc(using self: ^Panel_Agent) {
 	stack_pop(&stack)
@@ -103,8 +101,8 @@ pop_panel :: proc(using self: ^Panel_Agent) {
 		current = nil
 	}
 }
-update_panel_agent :: proc(using self: ^Panel_Agent) {
-	for p, i in &list {
+update_panel_agent :: proc(using agent: ^Panel_Agent) {
+	for  {
 		if .Stay_Alive in p.bits {
 			p.bits -= {.Stay_Alive}
 		} else {
@@ -114,7 +112,7 @@ update_panel_agent :: proc(using self: ^Panel_Agent) {
 		}
 	}
 }
-destroy_panel_agent :: proc(using self: ^Panel_Agent) {
+destroy_panel_agent :: proc(using agent: ^Panel_Agent) {
 	for entry in list {
 		free(entry)
 	}
@@ -129,7 +127,7 @@ Panel_Placement :: union {
 	Box,
 }
 /*
-	Info required for manifesting a window
+	Info required for manifesting a panel
 */
 Panel_Info :: struct {
 	id: Maybe(Id),
@@ -182,11 +180,11 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 		resize_hover := false
 		if self.decor_layer != nil && .Hovered in self.decor_layer.state {
 			if (.Resizable in self.options) && (self.bits & {.Collapsed, .Moving} == {}) {
-				RESIZE_MARGIN :: 5
-				top_hover 		:= point_in_box(input.mouse_point, get_box_top(self.box, Exact(RESIZE_MARGIN)))
-				left_hover 		:= point_in_box(input.mouse_point, get_box_left(self.box, Exact(RESIZE_MARGIN)))
-				bottom_hover 	:= point_in_box(input.mouse_point, get_box_bottom(self.box, Exact(RESIZE_MARGIN)))
-				right_hover 	:= point_in_box(input.mouse_point, get_box_right(self.box, Exact(RESIZE_MARGIN)))
+				RESIZE_HANDLE_SIZE :: 5
+				top_hover 		:= point_in_box(input.mouse_point, get_box_top(self.box, Exact(RESIZE_HANDLE_SIZE)))
+				left_hover 		:= point_in_box(input.mouse_point, get_box_left(self.box, Exact(RESIZE_HANDLE_SIZE)))
+				bottom_hover 	:= point_in_box(input.mouse_point, get_box_bottom(self.box, Exact(RESIZE_HANDLE_SIZE)))
+				right_hover 	:= point_in_box(input.mouse_point, get_box_right(self.box, Exact(RESIZE_HANDLE_SIZE)))
 				if top_hover || bottom_hover {
 					core.cursor = .Resize_NS
 					resize_hover = true
@@ -221,31 +219,6 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 			options = {.No_Scroll_Y},
 			opacity = self.opacity,
 		}); ok {
-			if self.how_collapsed < 1 {
-				last_target := painter.target
-				painter.target = get_draw_target()
-				painter.meshes[painter.target].material = Acrylic_Material{amount = 6}
-				inject_at(&self.decor_layer.meshes, 0, painter.target)
-				mesh := &painter.meshes[painter.target]
-				paint_indices(mesh, 
-					mesh.indices_offset,
-					mesh.indices_offset + 1,
-					mesh.indices_offset + 2,
-					mesh.indices_offset,
-					mesh.indices_offset + 2,
-					mesh.indices_offset + 3,
-				)
-				src_box: Box = {self.box.low / core.size, self.box.high / core.size}
-				src_box.low.y = 1 - src_box.low.y
-				src_box.high.y = 1 - src_box.high.y
-				paint_vertices(mesh,
-					{point = self.box.low, uv = src_box.low, color = style.color.glass},
-					{point = {self.box.low.x, self.box.high.y}, uv = {src_box.low.x, src_box.high.y}, color = style.color.glass},
-					{point = self.box.high, uv = src_box.high, color = style.color.glass},
-					{point = {self.box.high.x, self.box.low.y}, uv = {src_box.high.x, src_box.low.y}, color = style.color.glass},
-				)
-				painter.target = last_target
-			}
 			// Draw title bar and get movement dragging
 			if .Title in self.options {
 				title_box := cut(.Top, Exact(style.layout.title_size))
@@ -308,7 +281,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 		}
 		
 		inner_box := self.box
-		inner_box.low.y += style.layout.title_size
+		inner_box.low.y += style.layout.title_size + style.layout.gap_size
 
 		if .Initialized not_in self.bits {
 			self.min_layout_size = inner_box.high - inner_box.low
@@ -333,6 +306,34 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 				order = .Background,
 				opacity = self.opacity,
 			})
+			if ok {
+				if self.how_collapsed < 1 {
+					last_target := painter.target
+					painter.target = get_draw_target()
+					painter.meshes[painter.target].material = Acrylic_Material{amount = 6}
+					inject_at(&self.decor_layer.meshes, 0, painter.target)
+					mesh := &painter.meshes[painter.target]
+					paint_indices(mesh, 
+						mesh.indices_offset,
+						mesh.indices_offset + 1,
+						mesh.indices_offset + 2,
+						mesh.indices_offset,
+						mesh.indices_offset + 2,
+						mesh.indices_offset + 3,
+					)
+					box := self.layer.box
+					src_box: Box = {box.low / core.size, box.high / core.size}
+					src_box.low.y = 1 - src_box.low.y
+					src_box.high.y = 1 - src_box.high.y
+					paint_vertices(mesh,
+						{point = box.low, uv = src_box.low, color = style.color.glass},
+						{point = {box.low.x, box.high.y}, uv = {src_box.low.x, src_box.high.y}, color = style.color.glass},
+						{point = box.high, uv = src_box.high, color = style.color.glass},
+						{point = {box.high.x, box.low.y}, uv = {src_box.high.x, src_box.low.y}, color = style.color.glass},
+					)
+					painter.target = last_target
+				}
+			}
 		}
 		self.opacity = 1
 		// last_opacity := self.opacity
@@ -355,16 +356,17 @@ _do_panel :: proc(ok: bool) {
 		// End main layer
 		if .Collapsed not_in bits {
 			// Outline
-			A, B, C, D :: 1, 4, 8, 12
-			paint_box_fill({{layer.box.low.x, layer.box.low.y + B}, {layer.box.low.x + A, layer.box.high.y - D}}, style.color.substance[0])
-			paint_box_fill({{layer.box.high.x - A, layer.box.low.y + B}, {layer.box.high.x, layer.box.high.y - D}}, style.color.substance[0])
-			paint_box_fill({{layer.box.low.x + D, layer.box.high.y - A}, {layer.box.high.x - D, layer.box.high.y}}, style.color.substance[0])
+			CORNER :: 10
+			corner_and_gap := CORNER + style.layout.gap_size
+			paint_box_fill({{layer.box.low.x, layer.box.low.y}, {layer.box.low.x + 1, layer.box.high.y - corner_and_gap}}, style.color.substance[0])
+			paint_box_fill({{layer.box.high.x - 1, layer.box.low.y}, {layer.box.high.x, layer.box.high.y - corner_and_gap}}, style.color.substance[0])
+			paint_box_fill({{layer.box.low.x + corner_and_gap, layer.box.high.y - 1}, {layer.box.high.x - corner_and_gap, layer.box.high.y}}, style.color.substance[0])
 			// Bottom left
-			paint_box_fill({{layer.box.low.x, layer.box.high.y - C}, {layer.box.low.x + A, layer.box.high.y}}, style.color.substance[1])
-			paint_box_fill({{layer.box.low.x, layer.box.high.y - A}, {layer.box.low.x + C, layer.box.high.y}}, style.color.substance[1])
+			paint_box_fill({{layer.box.low.x, layer.box.high.y - CORNER}, {layer.box.low.x + 1, layer.box.high.y}}, style.color.substance[1])
+			paint_box_fill({{layer.box.low.x, layer.box.high.y - 1}, {layer.box.low.x + CORNER, layer.box.high.y}}, style.color.substance[1])
 			// Bottom right
-			paint_box_fill({{layer.box.high.x - A, layer.box.high.y - C}, {layer.box.high.x, layer.box.high.y}}, style.color.substance[1])
-			paint_box_fill({{layer.box.high.x - C, layer.box.high.y - A}, {layer.box.high.x, layer.box.high.y}}, style.color.substance[1])
+			paint_box_fill({{layer.box.high.x - 1, layer.box.high.y - CORNER}, {layer.box.high.x, layer.box.high.y}}, style.color.substance[1])
+			paint_box_fill({{layer.box.high.x - CORNER, layer.box.high.y - 1}, {layer.box.high.x, layer.box.high.y}}, style.color.substance[1])
 			// Done with main layer
 			end_layer(layer)
 		}
