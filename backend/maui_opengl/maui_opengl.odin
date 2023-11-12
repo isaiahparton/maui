@@ -55,6 +55,7 @@ check_program :: proc(id: u32, name: string) -> bool {
 
 Context :: struct {
 	using interface: backend.Platform_Renderer_Interface,
+	last_screen_size: [2]i32,
 	// Shader program handles
 	default_program,
 	extract_program,
@@ -85,7 +86,31 @@ Context :: struct {
 
 ctx: Context
 
-load_big_fbos :: proc() {
+load_copy_vao :: proc() {
+	ctx.quad_verts = {
+		-1.0, -1.0,  0.0, 0.0,
+		1.0, -1.0,  1.0, 0.0,
+		-1.0,  1.0,  0.0, 1.0,
+	 	1.0, -1.0,  1.0, 0.0,
+	 	1.0,  1.0,  1.0, 1.0,
+		-1.0,  1.0,  0.0, 1.0,
+	}
+	gl.GenVertexArrays(1, &ctx.copy_vao)
+	gl.GenBuffers(1, &ctx.copy_vbo)
+	gl.BindVertexArray(ctx.copy_vao)
+	gl.BindBuffer(gl.ARRAY_BUFFER, ctx.copy_vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(ctx.quad_verts) * size_of(f32), &ctx.quad_verts, gl.STATIC_DRAW)
+	gl.EnableVertexAttribArray(0)
+	gl.VertexAttribPointer(0, 2, gl.FLOAT, gl.FALSE, 4 * size_of(f32), 0)
+	gl.EnableVertexAttribArray(1)
+	gl.VertexAttribPointer(1, 2, gl.FLOAT, gl.FALSE, 4 * size_of(f32), uintptr(2 * size_of(f32)))
+}
+delete_copy_vao :: proc() {
+	gl.DeleteVertexArrays(1, &ctx.copy_vao)
+	gl.DeleteBuffers(1, &ctx.copy_vbo)
+}
+
+load_big_fbo :: proc() {
 	gl.GenFramebuffers(1, &ctx.big_fbo)
 	gl.GenTextures(1, &ctx.big_tex)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, ctx.big_fbo)
@@ -98,6 +123,10 @@ load_big_fbos :: proc() {
   gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ctx.big_tex, 0)
 	gl.BindTexture(gl.TEXTURE_2D, 0)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+}
+delete_big_fbo :: proc() {
+	gl.DeleteTextures(1, &ctx.big_tex)
+	gl.DeleteFramebuffers(1, &ctx.big_fbo)
 }
 
 load_pingpong_fbos :: proc() {
@@ -115,6 +144,10 @@ load_pingpong_fbos :: proc() {
 	}
 	gl.BindTexture(gl.TEXTURE_2D, 0)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+}
+delete_small_fbos :: proc() {
+	gl.DeleteTextures(2, &ctx.small_tex[0])
+	gl.DeleteFramebuffers(2, &ctx.small_fbo[0])
 }
 /*
 	Initialize rendering context
@@ -191,8 +224,6 @@ init :: proc(interface: backend.Platform_Renderer_Interface) -> bool {
 		
   }
 
-	load_big_fbos()
-	load_pingpong_fbos()
 	load_copy_vao()
 
 	// Generate vertex and index buffers
@@ -242,10 +273,19 @@ destroy :: proc() {
 	gl.DeleteProgram(ctx.default_program)
 	gl.DeleteBuffers(1, &ctx.vbo)
 	gl.DeleteBuffers(1, &ctx.ibo)
+	delete_small_fbos()
+	delete_big_fbo()
 }
 
 render :: proc(interface: backend.Platform_Renderer_Interface) -> int {
 	ctx.interface = interface
+	if ctx.last_screen_size != ctx.screen_size {
+		delete_big_fbo()
+		load_big_fbo()
+		delete_small_fbos()
+		load_small_fbos()
+	}
+	ctx.last_screen_size = ctx.screen_size
 
 	gl.Disable(gl.SCISSOR_TEST)
   gl.ClearColor(0.0, 0.0, 0.0, 1.0)

@@ -725,7 +725,6 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 			case .Near: origin.y = self.box.low.y
 		}
 
-		// array := typing_agent_get_buffer(&core.typing_agent, self.id)
 		res := paint_interact_text(origin, self, &core.typing_agent, info.text_info, info.paint_info, {read_only = true}, style.color.base_text[1])
 		update_widget_hover(self, res.hovered)
 
@@ -733,10 +732,5 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 		if .Hovered in self.state {
 			core.cursor = .Beam
 		}
-		// if .Focused in self.state {
-		// 	typing_agent_edit(&core.typing_agent, {
-		// 		array = array,
-		// 	})
-		// }
 	}
 }

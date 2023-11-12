@@ -19,8 +19,8 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 	using maui
 	SIZE :: 20
 	RADIUS :: 9
-	THICKNESS :: SIZE / 2
-	HALF_THICKNESS :: THICKNESS / 2
+	THICKNESS :: 1
+	HALF_THICKNESS :: SIZE - THICKNESS
 	value := info.value
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
 		// Colocate
@@ -36,7 +36,7 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 		i := int(info.orientation)
 		j := 1 - i
 		// The range along which the knob may travel
-		range := (self.box.high[i] - self.box.low[i]) - THICKNESS
+		range := (self.box.high[i] - self.box.low[i])
 		// The offset of the knob for the current value
 		offset := range * clamp(f32((info.value - info.low) / (info.high - info.low)), 0, 1)
 		// The body
@@ -47,9 +47,9 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 		knob_center: [2]f32
 		switch info.orientation {
 			case .Horizontal: 
-			knob_center = {self.box.low.x + HALF_THICKNESS + offset, (self.box.low.y + self.box.high.y) * 0.5}
+			knob_center = {self.box.low.x + offset, (self.box.low.y + self.box.high.y) * 0.5}
 			case .Vertical: 
-			knob_center = {(self.box.low.x + self.box.high.x) * 0.5, self.box.high.y - (HALF_THICKNESS + offset)}
+			knob_center = {(self.box.low.x + self.box.high.x) * 0.5, self.box.high.y - offset}
 		}
 		// Formatting for the value
 		format := info.format.? or_else "%v"
@@ -72,17 +72,16 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 			// Paint the filled part of the body
 			switch info.orientation {
 				case .Horizontal: 
-				if info.value < info.high {
-					paint_pill_fill_h(bar_box, style.color.base[0])
-				}
-				paint_pill_fill_h({bar_box.low, {bar_box.low.x + offset, bar_box.high.y}}, style.color.accent[1])
+				c := (self.box.low.y + self.box.high.y) / 2
+				paint_box_fill({{min(self.box.low.x + offset + RADIUS, self.box.high.x), c}, {self.box.high.x, c + 1}}, style.color.substance[0])
+				paint_box_fill({{self.box.low.x, c}, {max(self.box.low.x, self.box.low.x + offset - RADIUS), c + 1}}, style.color.accent[1])
 				case .Vertical: 
-				if info.value < info.high {
-					paint_pill_fill_v(bar_box, style.color.base[0])
-				}
-				paint_pill_fill_v({{bar_box.low.x, bar_box.high.y - offset}, bar_box.high}, style.color.accent[1])
+				c := (self.box.low.y + self.box.high.y) / 2
+				paint_box_fill({{c, self.box.low.y + offset}, {c + 1, self.box.high.y}}, style.color.substance[0])
+				paint_box_fill({{c, self.box.low.y + offset}, {c + 1, self.box.low.y + offset}}, style.color.accent[1])
 			}
-			paint_ring_fill_texture(knob_center, RADIUS, RADIUS + 1, style.color.substance[1])
+			paint_circle_fill_texture(knob_center, RADIUS, fade(style.color.accent[1], 0.1 + 0.1 * hover_time))
+			paint_ring_fill_texture(knob_center, RADIUS, RADIUS + 1, style.color.accent[1])
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
@@ -96,9 +95,9 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 
 			switch info.orientation {
 				case .Horizontal:
-				value = clamp(info.low + T((point - (self.box.low.x + HALF_THICKNESS)) / range) * (info.high - info.low), info.low, info.high)
+				value = clamp(info.low + T((point - self.box.low.x) / range) * (info.high - info.low), info.low, info.high)
 				case .Vertical: 
-				value = clamp(info.low + T(((self.box.high.y - HALF_THICKNESS) - point) / range) * (info.high - info.low), info.low, info.high)
+				value = clamp(info.low + T((self.box.high.y - point) / range) * (info.high - info.low), info.low, info.high)
 			}
 			// Snap to guides
 			if info.guides != nil {

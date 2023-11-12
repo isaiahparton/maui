@@ -154,6 +154,7 @@ style_default_fonts :: proc() -> bool {
 	style.text_size.title = 16
 	style.text_size.field = 18
 	style.layout.title_size = 30
+	style.layout.gap_size = 5
 	style.layout.widget_padding = 4
 	return true
 }

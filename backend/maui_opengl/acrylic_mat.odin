@@ -4,27 +4,7 @@ import maui "../../"
 import gl "vendor:OpenGL"
 import "core:fmt"
 
-SCALE_FACTOR :: 8
-
-load_copy_vao :: proc() {
-	ctx.quad_verts = {
-		-1.0, -1.0,  0.0, 0.0,
-		1.0, -1.0,  1.0, 0.0,
-		-1.0,  1.0,  0.0, 1.0,
-	 	1.0, -1.0,  1.0, 0.0,
-	 	1.0,  1.0,  1.0, 1.0,
-		-1.0,  1.0,  0.0, 1.0,
-	}
-	gl.GenVertexArrays(1, &ctx.copy_vao)
-	gl.GenBuffers(1, &ctx.copy_vbo)
-	gl.BindVertexArray(ctx.copy_vao)
-	gl.BindBuffer(gl.ARRAY_BUFFER, ctx.copy_vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(ctx.quad_verts) * size_of(f32), &ctx.quad_verts, gl.STATIC_DRAW)
-	gl.EnableVertexAttribArray(0)
-	gl.VertexAttribPointer(0, 2, gl.FLOAT, gl.FALSE, 4 * size_of(f32), 0)
-	gl.EnableVertexAttribArray(1)
-	gl.VertexAttribPointer(1, 2, gl.FLOAT, gl.FALSE, 4 * size_of(f32), uintptr(2 * size_of(f32)))
-}
+BLUR_SCALE_FACTOR :: 8
 /*
 	Prepare acrylic effect texture for the given box
 */
