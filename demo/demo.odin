@@ -84,15 +84,15 @@ _main :: proc() {
 			choice = do_enum_radio_buttons(choice)
 		}
 
-		if do_panel({
-			placement = child_box(core.fullscreen_box, {300, 480}, {.Near, .Middle}),
-			title = "ANALOG CONTROLS",
-			options = {.Title, .Closable, .Resizable, .Collapsable},
-		}) {
-			shrink(30)
-			placement.size = Exact(30)
-			slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 70})
-		}
+		// if do_panel({
+		// 	placement = child_box(core.fullscreen_box, {300, 480}, {.Near, .Middle}),
+		// 	title = "ANALOG CONTROLS",
+		// 	options = {.Title, .Closable, .Resizable, .Collapsable},
+		// }) {
+		// 	shrink(30)
+		// 	placement.size = Exact(30)
+		// 	slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 70})
+		// }
 
 
 		// End of ui calls
