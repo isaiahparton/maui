@@ -78,9 +78,9 @@ Context :: struct {
 	// These are the size of the default framebuffer
 	big_tex,
 	big_fbo: u32,
-	// These are the size of the default framebuffer times BLUR_TEXTURE_SCALE_FACTOR
-	small_tex,
-	small_fbo: [2]u32,
+	// These are the size of the default framebuffer
+	pingpong_tex,
+	pingpong_fbo: [2]u32,
 }
 
 ctx: Context
@@ -100,18 +100,18 @@ load_big_fbos :: proc() {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
 }
 
-load_small_fbos :: proc() {
-	gl.GenFramebuffers(2, &ctx.small_fbo[0])
-	gl.GenTextures(2, &ctx.small_tex[0])
+load_pingpong_fbos :: proc() {
+	gl.GenFramebuffers(2, &ctx.pingpong_fbo[0])
+	gl.GenTextures(2, &ctx.pingpong_tex[0])
 	for i in 0..<2 {
-		gl.BindFramebuffer(gl.FRAMEBUFFER, ctx.small_fbo[i])
-		gl.BindTexture(gl.TEXTURE_2D, ctx.small_tex[i])
-		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ctx.screen_size.x / SCALE_FACTOR, ctx.screen_size.y / SCALE_FACTOR, 0, gl.RGBA, gl.BYTE, nil)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-    gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+		gl.BindFramebuffer(gl.FRAMEBUFFER, ctx.pingpong_fbo[i])
+		gl.BindTexture(gl.TEXTURE_2D, ctx.pingpong_tex[i])
+		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ctx.screen_size.x, ctx.screen_size.y, 0, gl.RGBA, gl.BYTE, nil)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
     gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
     gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-    gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ctx.small_tex[i], 0)
+    gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ctx.pingpong_tex[i], 0)
 	}
 	gl.BindTexture(gl.TEXTURE_2D, 0)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
@@ -192,7 +192,7 @@ init :: proc(interface: backend.Platform_Renderer_Interface) -> bool {
   }
 
 	load_big_fbos()
-	load_small_fbos()
+	load_pingpong_fbos()
 	load_copy_vao()
 
 	// Generate vertex and index buffers
@@ -248,7 +248,7 @@ render :: proc(interface: backend.Platform_Renderer_Interface) -> int {
 	ctx.interface = interface
 
 	gl.Disable(gl.SCISSOR_TEST)
-  gl.ClearColor(0.1, 0.1, 0.1, 1.0)
+  gl.ClearColor(0.0, 0.0, 0.0, 1.0)
   gl.Clear(gl.COLOR_BUFFER_BIT)
 
   gl.Viewport(0, 0, ctx.screen_size.x, ctx.screen_size.y)

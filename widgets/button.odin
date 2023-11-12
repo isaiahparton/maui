@@ -4,15 +4,15 @@ import "../"
 import "core:fmt"
 import "core:math/linalg"
 
-paint_button_shape_stroke :: proc(box: maui.Box, color: maui.Color) {
+paint_button_shape_stroke :: proc(box: maui.Box, thickness: f32, color: maui.Color) {
 	using maui
 	c := height(box) * 0.4
-	paint_box_fill({{box.low.x + c, box.low.y}, {box.high.x, box.low.y + 1}}, color)
-	paint_box_fill({{box.low.x, box.high.y - 1}, {box.high.x - c, box.high.y}}, color)
-	paint_box_fill({{box.low.x, box.low.y + c}, {box.low.x + 1, box.high.y}}, color)
-	paint_box_fill({{box.high.x - 1, box.low.y}, {box.high.x, box.high.y - c}}, color)
-	paint_line({box.high.x - c, box.high.y}, {box.high.x, box.high.y - c}, 1, color)
-	paint_line({box.low.x, box.low.y + c}, {box.low.x + c, box.low.y}, 1, color)
+	paint_box_fill({{box.low.x + c, box.low.y}, {box.high.x, box.low.y + thickness}}, color)
+	paint_box_fill({{box.low.x, box.high.y - thickness}, {box.high.x - c, box.high.y}}, color)
+	paint_box_fill({{box.low.x, box.low.y + c}, {box.low.x + thickness, box.high.y}}, color)
+	paint_box_fill({{box.high.x - thickness, box.low.y}, {box.high.x, box.high.y - c}}, color)
+	paint_line({box.high.x - c, box.high.y}, {box.high.x, box.high.y - c}, thickness, color)
+	paint_line({box.low.x, box.low.y + c}, {box.low.x + c, box.low.y}, thickness, color)
 }
 paint_button_shape_fill :: proc(box: maui.Box, color: maui.Color) {
 	using maui
@@ -66,8 +66,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 			core.cursor = .Hand
 		}
 		if .Should_Paint in self.bits {
-			color := info.color.? or_else style.color.accent[1]
-			//paint_box_fill(self.box, fade(color, 0.1))
+			color := info.color.? or_else style.color.substance[1]
 			paint_box_fill(self.box, fade(color, 0.1 + (0.1 * hover_time) + (0.8 * press_time)))
 			paint_box_stroke(self.box, 1, fade(color, 0.5 + hover_time * 0.5))
 			// Label

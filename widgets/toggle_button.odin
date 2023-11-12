@@ -36,15 +36,14 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 		if .Should_Paint in self.bits {
 			inner_box := shrink_box(self.box, 1)
 			// Body
-			color := blend_colors(info.color.? or_else (style.color.accent[1] if info.state else style.color.substance[0]), 255, press_time)
+			color := info.color.? or_else (style.color.accent[1] if info.state else style.color.substance[1])
 			if info.state {
 				paint_button_shape_fill(self.box, fade(color, 0.1))
 			}
-			paint_button_shape_fill(self.box, fade(color, hover_time))
-			// Shape
-			paint_button_shape_stroke(self.box, color)
+			paint_button_shape_fill(self.box, fade(color, 0.1 + (0.1 * hover_time) + (0.8 * press_time)))
+			paint_button_shape_stroke(self.box, 1, fade(color, 0.5 + hover_time * 0.5))
 			// Label
-			paint_label_box(info.label, self.box, blend_colors(color, style.color.base[0], hover_time), .Middle, .Middle)
+			paint_label_box(info.label, self.box, blend_colors(color, style.color.base[0], press_time), .Middle, .Middle)
 		}
 		// Hover
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
