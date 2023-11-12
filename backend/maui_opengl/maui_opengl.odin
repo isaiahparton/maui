@@ -145,9 +145,9 @@ load_pingpong_fbos :: proc() {
 	gl.BindTexture(gl.TEXTURE_2D, 0)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
 }
-delete_small_fbos :: proc() {
-	gl.DeleteTextures(2, &ctx.small_tex[0])
-	gl.DeleteFramebuffers(2, &ctx.small_fbo[0])
+delete_pingpong_fbos :: proc() {
+	gl.DeleteTextures(2, &ctx.pingpong_tex[0])
+	gl.DeleteFramebuffers(2, &ctx.pingpong_fbo[0])
 }
 /*
 	Initialize rendering context
@@ -273,7 +273,7 @@ destroy :: proc() {
 	gl.DeleteProgram(ctx.default_program)
 	gl.DeleteBuffers(1, &ctx.vbo)
 	gl.DeleteBuffers(1, &ctx.ibo)
-	delete_small_fbos()
+	delete_pingpong_fbos()
 	delete_big_fbo()
 }
 
@@ -282,8 +282,8 @@ render :: proc(interface: backend.Platform_Renderer_Interface) -> int {
 	if ctx.last_screen_size != ctx.screen_size {
 		delete_big_fbo()
 		load_big_fbo()
-		delete_small_fbos()
-		load_small_fbos()
+		delete_pingpong_fbos()
+		load_pingpong_fbos()
 	}
 	ctx.last_screen_size = ctx.screen_size
 
