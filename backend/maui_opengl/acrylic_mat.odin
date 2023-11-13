@@ -22,7 +22,7 @@ draw_acrylic_mat :: proc(mat: maui.Acrylic_Material, box: maui.Box) {
 		gl.BlitFramebuffer(i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), i32(box.low.x), i32(box.low.y), i32(box.high.x), i32(box.high.y), gl.COLOR_BUFFER_BIT, gl.NEAREST)
 	}
 
-	scale_factors: [2]f32 = {4, 8}
+	scale_factors: [2]f32 = {5, 10}
 	/*
 		Then from that one to a lower resolution fbo
 	*/

@@ -74,6 +74,9 @@ Panel_Agent :: struct {
 	stack: 		Stack(Panel_Handle, PANEL_STACK_SIZE),
 	// Current window
 	current:	Maybe(Panel_Handle),
+	// Attachment box
+	attach_box: Maybe(Box),
+	attach_display_box: Maybe(Box),
 }
 current_panel :: proc(loc := #caller_location) -> ^Panel {
 	handle, ok := core.panel_agent.current.?
@@ -89,7 +92,7 @@ assert_panel :: proc(using agent: ^Panel_Agent, id: Id) -> (handle: Panel_Handle
 }
 create_panel :: proc(using self: ^Panel_Agent, id: Id) -> (handle: Panel_Handle, ok: bool) {
 	handle = arena_allocate(&arena) or_return
-	if panel, ok := handle.?; ok {
+	if panel, ok := &handle.?; ok {
 		panel.id = id
 	}
 	pool[id] = handle
@@ -125,7 +128,7 @@ destroy_panel_agent :: proc(using agent: ^Panel_Agent) {
 }
 
 /*
-	Placement info for a window
+	Placement info for a panel
 */
 Panel_Placement :: union {
 	Box,
@@ -177,13 +180,13 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 
 	// Get resize click
 	resize_hover := false
-	if self.root_layer != nil && .Hovered in self.root_layer.?.state {
+	if self.root_layer != nil {
 		if (.Resizable in self.options) && (self.bits & {.Collapsed, .Moving} == {}) {
 			RESIZE_HANDLE_SIZE :: 5
-			top_hover 		:= point_in_box(input.mouse_point, get_box_top(self.box, Exact(RESIZE_HANDLE_SIZE)))
-			left_hover 		:= point_in_box(input.mouse_point, get_box_left(self.box, Exact(RESIZE_HANDLE_SIZE)))
-			bottom_hover 	:= point_in_box(input.mouse_point, get_box_bottom(self.box, Exact(RESIZE_HANDLE_SIZE)))
-			right_hover 	:= point_in_box(input.mouse_point, get_box_right(self.box, Exact(RESIZE_HANDLE_SIZE)))
+			top_hover 		:= point_in_box(input.mouse_point, attach_box_top(self.box, Exact(RESIZE_HANDLE_SIZE)))
+			left_hover 		:= point_in_box(input.mouse_point, attach_box_left(self.box, Exact(RESIZE_HANDLE_SIZE)))
+			bottom_hover 	:= point_in_box(input.mouse_point, attach_box_bottom(self.box, Exact(RESIZE_HANDLE_SIZE)))
+			right_hover 	:= point_in_box(input.mouse_point, attach_box_right(self.box, Exact(RESIZE_HANDLE_SIZE)))
 			if top_hover || bottom_hover {
 				core.cursor = .Resize_NS
 				resize_hover = true
@@ -261,7 +264,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 				{title_box.low.x + text_offset, baseline}, 
 				{text = info.title, font = style.font.label, size = style.text_size.label}, 
 				{align = .Left, baseline = .Middle}, 
-				color = style.color.substance_text[1],
+				color = blend_colors(style.color.substance_text[1], style.color.substance_text[0], self.how_collapsed),
 			)
 			// Moving 
 			if (.Hovered in self.root_layer.?.state) && !resize_hover && point_in_box(input.mouse_point, title_box) {
@@ -346,10 +349,10 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 }
 @private
 _do_panel :: proc(ok: bool) {
-	using self := current_panel()
+	self := current_panel()
 	pop_panel(&core.panel_agent)
 	// End main layer
-	if .Collapsed not_in bits {
+	if .Collapsed not_in self.bits {
 		// Outline
 		CORNER :: 10
 		box := self.content_layer.?.box
@@ -371,20 +374,22 @@ _do_panel :: proc(ok: bool) {
 		paint_box_fill({{box.high.x - CORNER, box.low.y}, {box.high.x, box.low.y + 1}}, style.color.substance[1])
 		paint_box_fill({{box.high.x - 1, box.low.y}, {box.high.x, box.low.y + CORNER}}, style.color.substance[1])
 		// Done with main layer
-		end_layer(content_layer.?)
+		end_layer(self.content_layer.?)
 	}
 	// End decor layer
-	end_layer(root_layer.?)
+	end_layer(self.root_layer.?)
 	// Handle movement
-	if .Moving in bits {
+	if .Moving in self.bits {
 		core.cursor = .Resize
+
+		last_origin := self.real_box.low
 		origin := input.mouse_point + core.drag_anchor
-		size := box.high - box.low
-		real_size := real_box.high - real_box.low
-		real_box.low = linalg.clamp(origin, 0, core.size - size)
-		real_box.high = real_box.low + real_size
+		real_size := self.real_box.high - self.real_box.low
+		size := self.box.high - self.box.low
+		self.real_box.low = linalg.clamp(origin, 0, core.size - size)
+		self.real_box.high = self.real_box.low + real_size
 		if mouse_released(.Left) {
-			bits -= {.Moving}
+			self.bits -= {.Moving}
 		}
 	}
 	// Handle Resizing

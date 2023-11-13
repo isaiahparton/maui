@@ -1,5 +1,6 @@
 package maui
 
+import "core:math"
 import "core:math/linalg"
 
 Box :: struct {
@@ -325,4 +326,59 @@ get_attached_box :: proc(box: Box, side: Box_Side, size: [2]f32, offset: f32) ->
 		return {{middle - size.x / 2, box.high.y + offset}, {middle + size.x / 2, box.high.y + offset + size.y}}
 	}
 	return {}
+}
+
+Ray_To_Box_Info :: struct {
+	point,
+	normal: [2]f32,
+	time: f32,
+}
+get_ray_to_box_info :: proc(start, direction: [2]f32, box: Box) -> (info: Ray_To_Box_Info, ok: bool) {
+	normal: [2]f32
+
+	inv_direction := 1.0 / direction
+	t_near := (box.low - start) * inv_direction
+	t_far := (box.high - start) * inv_direction
+
+	if math.is_nan(t_far.y) || math.is_nan(t_far.x) { 
+		return 
+	}
+	if math.is_nan(t_near.y) || math.is_nan(t_near.x) { 
+		return 
+	}
+
+	if t_near[0] > t_far[0] { t_near[0], t_far[0] = t_far[0], t_near[0] }
+	if t_near[1] > t_far[1] { t_near[1], t_far[1] = t_far[1], t_near[1] }
+
+	if t_near[0] > t_far[1] || t_near[1] > t_far[0] { 
+		return
+	}
+
+	info.time = max(t_near[0], t_near[1])
+
+	t_hit_far := min(t_far[0], t_far[1])
+
+	if t_hit_far < 0 { 
+		return 
+	}
+
+	info.point = start + info.time * direction;
+
+	if t_near[0] > t_near[1] {
+		if inv_direction[0] < 0 {
+			info.normal = {1, 0}
+		} else {
+			info.normal = {-1, 0}
+		}
+	} else if t_near[0] < t_near[1] {
+		if inv_direction[1] < 0 {
+			info.normal = {0, 1}
+		} else {
+			info.normal = {0, -1}
+		}
+	}
+
+	ok = info.time >= 0 && info.time <= 1
+
+	return
 }

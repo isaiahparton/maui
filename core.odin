@@ -402,6 +402,22 @@ begin_frame :: proc() {
 }
 end_frame :: proc() {
 	using core
+	// Helper layer
+	if layer, ok := do_layer({placement = core.fullscreen_box}); ok {
+		if box, ok1 := panel_agent.attach_box.?; ok1 {
+			if display_box, ok2 := &panel_agent.attach_display_box.?; ok2 {
+				display_box.low += (box.low - display_box.low) * delta_time * 12
+				display_box.high += (box.high - display_box.high) * delta_time * 12
+				paint_box_fill(display_box^, fade(style.color.accent[1], 0.5))
+				core.paint_next_frame = true
+			} else {
+				panel_agent.attach_display_box = box
+			}
+			panel_agent.attach_box = nil
+		} else {
+			panel_agent.attach_display_box = nil
+		}
+	}
 	// End root layout
 	pop_layout()
 	// End root layer

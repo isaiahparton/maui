@@ -52,48 +52,35 @@ _main :: proc() {
 		maui_glfw.begin_frame()
 		begin_frame()
 
-		// UI calls
-		shrink(50)
-		if do_horizontal(Exact(200)) {
-			placement.size = Exact(200)
-			if do_frame({}) {
-				placement.side = .Bottom; placement.size = Exact(24)
-				for i in 0..<100 {
-					push_id(i)
-						do_button({align = .Near, label = tmp_printf("button #%i", i + 1)})
-					pop_id()
-				}
-			}
-		}
-
 		if do_panel({
-			placement = child_box(core.fullscreen_box, {300, 480}, {.Near, .Middle}),
-			title = "BASIC CONTROLS",
+			placement = child_box(core.fullscreen_box, {300, 320}, {.Near, .Middle}),
+			title = "DIGITAL",
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
 			shrink(30)
 			placement.size = Exact(32)
 			do_button({label = "button"})
 			space(Exact(20))
-			if do_toggle_button({label = "toggle button", state = boolean}) {
+			placement.size = Exact(64)
+			if do_toggle_button({label = "toggle button\nwith multiple lines", state = boolean}) {
 				boolean = !boolean
 			}
 			space(Exact(20))
+			placement.size = Exact(34)
 			do_checkbox({state = &boolean, text = "checkbox"})
 			space(Exact(20))
 			choice = do_enum_radio_buttons(choice)
 		}
 
-		// if do_panel({
-		// 	placement = child_box(core.fullscreen_box, {300, 480}, {.Near, .Middle}),
-		// 	title = "ANALOG CONTROLS",
-		// 	options = {.Title, .Closable, .Resizable, .Collapsable},
-		// }) {
-		// 	shrink(30)
-		// 	placement.size = Exact(30)
-		// 	slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 70})
-		// }
-
+		if do_panel({
+			placement = child_box(core.fullscreen_box, {240, 320}, {.Middle, .Near}),
+			title = "ANALOG",
+			options = {.Title, .Closable, .Resizable, .Collapsable},
+		}) {
+			shrink(30)
+			placement.size = Exact(30)
+			slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 70})
+		}
 
 		// End of ui calls
 		end_frame()

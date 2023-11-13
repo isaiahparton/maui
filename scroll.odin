@@ -18,6 +18,7 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 		update_widget(self)
 		// Animate
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, 0.1)
+		press_time := animate_bool(&self.timers[1], .Pressed in self.state, 0.1)
 		// Vector component to modify
 		i := int(info.vertical)
 		// Control info
@@ -30,17 +31,12 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 		knob_box.low[i] += range * clamp((info.value - info.low) / value_range, 0, 1)
 		knob_size = min(info.knob_size, knob_size)
 		knob_box.high[i] = knob_box.low[i] + knob_size
-		knob_box = shrink_box(knob_box, 4)
 		// Painting
 		if .Should_Paint in self.bits {
-			if i == 0 {
-				c := (self.box.low.y + self.box.high.y) / 2
-				paint_box_fill({{self.box.low.x, c}, {self.box.high.x, c + 1}}, style.color.substance[0])
-			} else {
-				c := (self.box.low.x + self.box.high.x) / 2
-				paint_box_fill({{c, self.box.low.y}, {c + 1, self.box.high.y}}, style.color.substance[0])
-			}
-			paint_box_fill(knob_box, style.color.substance[1])
+			paint_box_fill(self.box, fade(style.color.substance[0], 0.1))
+			paint_box_stroke(self.box, 1, style.color.substance[0])
+			paint_box_fill(knob_box, fade(style.color.substance[1], 0.1 + hover_time * 0.1 + press_time * 0.8))
+			paint_box_stroke(knob_box, 1, style.color.substance[1])
 		}
 		// Dragging
 		if .Got_Press in self.state {

@@ -467,6 +467,29 @@ paint_line :: proc(start, end: [2]f32, thickness: f32, color: Color) {
 	}
 }
 
+/*
+	Cubic bezier curve
+*/
+paint_cubic_bezier_curve :: proc(p0, p1, p2, p3: [2]f32, segments: int, thickness: f32, color: Color) {
+	p := p0
+	step: f32 = 1.0 / f32(segments)
+	for t: f32 = 0; t <= 1; t += step {
+		times: matrix[1, 4]f32 = {1, t, t * t, t * t * t}
+		weights: matrix[4, 4]f32 = {
+			1, 0, 0, 0,
+			-3, 3, 0, 0,
+			3, -6, 3, 0,
+			-1, 3, -3, 1,
+		}
+		np: [2]f32 = {
+			(times * weights * (matrix[4, 1]f32){p0.x, p1.x, p2.x, p3.x})[0][0],
+			(times * weights * (matrix[4, 1]f32){p0.y, p1.y, p2.y, p3.y})[0][0],
+		}
+		paint_line(p, np, thickness, color)
+		p = np
+	}
+}
+
 // Paints an inner stroke along a given box
 paint_box_stroke :: proc(box: Box, thickness: f32, color: Color) {
 	paint_box_fill({box.low, {box.high.x, box.low.y + thickness}}, color)
