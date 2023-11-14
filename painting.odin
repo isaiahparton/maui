@@ -153,7 +153,7 @@ style_default_fonts :: proc() -> bool {
 	style.text_size.label = 18
 	style.text_size.title = 16
 	style.text_size.field = 18
-	style.layout.title_size = 30
+	style.layout.title_size = 24
 	style.layout.gap_size = 5
 	style.layout.widget_padding = 4
 	return true
@@ -418,6 +418,11 @@ paint_triangle_fill :: proc(a, b, c: [2]f32, color: Color) {
 		{point = b, color = color},
 		{point = c, color = color},
 	)
+}
+paint_triangle_stroke :: proc(a, b, c: [2]f32, thickness: f32, color: Color) {
+	paint_line(a, b, thickness, color)
+	paint_line(b, c, thickness, color)
+	paint_line(c, a, thickness, color)
 }
 paint_box_fill :: proc(box: Box, color: Color) {
 	paint_quad_fill(

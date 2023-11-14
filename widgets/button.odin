@@ -4,9 +4,11 @@ import "../"
 import "core:fmt"
 import "core:math/linalg"
 
+BUTTON_CORNER_AMOUNT :: 0.3
+
 paint_button_shape_stroke :: proc(box: maui.Box, thickness: f32, color: maui.Color) {
 	using maui
-	c := height(box) * 0.4
+	c := height(box) * BUTTON_CORNER_AMOUNT
 	paint_box_fill({{box.low.x + c, box.low.y}, {box.high.x, box.low.y + thickness}}, color)
 	paint_box_fill({{box.low.x, box.high.y - thickness}, {box.high.x - c, box.high.y}}, color)
 	paint_box_fill({{box.low.x, box.low.y + c}, {box.low.x + thickness, box.high.y}}, color)
@@ -16,12 +18,10 @@ paint_button_shape_stroke :: proc(box: maui.Box, thickness: f32, color: maui.Col
 }
 paint_button_shape_fill :: proc(box: maui.Box, color: maui.Color) {
 	using maui
-	c := height(box) * 0.4
+	c := height(box) * BUTTON_CORNER_AMOUNT
 	paint_box_fill({{box.low.x + c, box.low.y}, {box.high.x - c, box.high.y}}, color)
 	paint_quad_fill({box.low.x + c, box.low.y}, {box.low.x + c, box.high.y}, {box.low.x, box.high.y}, {box.low.x, box.low.y + c}, color)
 	paint_quad_fill({box.high.x - c, box.low.y}, {box.high.x, box.low.y}, {box.high.x, box.high.y - c}, {box.high.x - c, box.high.y}, color)
-	// d := c - 4
-	// paint_triangle_fill({box.high.x, box.high.y - d}, box.high, {box.high.x - d, box.high.y}, color)
 }
 
 Button_Style :: enum {

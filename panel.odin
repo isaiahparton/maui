@@ -176,17 +176,17 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 	}
 
 	// Layer body
-	self.box = self.real_box
+	self.box = {core.size, 0}
 
 	// Get resize click
-	resize_hover := false
-	if self.root_layer != nil {
-		if (.Resizable in self.options) && (self.bits & {.Collapsed, .Moving} == {}) {
+	/*resize_hover := false
+	if layer, ok := self.root_layer.?; ok {
+		if (.Resizable in self.options) && .Hovered in layer.state && (self.bits & {.Collapsed, .Moving} == {}) {
 			RESIZE_HANDLE_SIZE :: 5
-			top_hover 		:= point_in_box(input.mouse_point, attach_box_top(self.box, Exact(RESIZE_HANDLE_SIZE)))
-			left_hover 		:= point_in_box(input.mouse_point, attach_box_left(self.box, Exact(RESIZE_HANDLE_SIZE)))
-			bottom_hover 	:= point_in_box(input.mouse_point, attach_box_bottom(self.box, Exact(RESIZE_HANDLE_SIZE)))
-			right_hover 	:= point_in_box(input.mouse_point, attach_box_right(self.box, Exact(RESIZE_HANDLE_SIZE)))
+			top_hover 		:= point_in_box(input.mouse_point, attach_box_top(self.real_box, Exact(RESIZE_HANDLE_SIZE)))
+			left_hover 		:= point_in_box(input.mouse_point, attach_box_left(self.real_box, Exact(RESIZE_HANDLE_SIZE)))
+			bottom_hover 	:= point_in_box(input.mouse_point, attach_box_bottom(self.real_box, Exact(RESIZE_HANDLE_SIZE)))
+			right_hover 	:= point_in_box(input.mouse_point, attach_box_right(self.real_box, Exact(RESIZE_HANDLE_SIZE)))
 			if top_hover || bottom_hover {
 				core.cursor = .Resize_NS
 				resize_hover = true
@@ -211,11 +211,11 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 				}
 			}
 		}
-	}
+	}*/
 
 	// Decoration
 	if self.root_layer, ok = begin_layer({
-		placement = self.box,
+		placement = self.real_box,
 		id = hash(rawptr(&self.id), size_of(Id)),
 		order = .Floating,
 		options = {.No_Scroll_Y},
@@ -223,6 +223,8 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			title_box := cut(.Top, Exact(style.layout.title_size))
+			self.box.low = linalg.min(self.box.low, title_box.low)
+			self.box.high = linalg.max(self.box.high, title_box.high)
 			// Draw title
 			{
 				h := height(title_box) / 3
@@ -236,7 +238,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 					w.box = cut_box_right(&layout_box, height(layout_box))
 					update_widget(w)
 					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_cross(box_center(w.box), 7, math.PI * 0.25, 1 + hover_time, style.color.substance_text[1])
+					paint_cross(box_center(w.box), 5, math.PI * 0.25, 1 + hover_time, style.color.substance_text[1])
 					update_widget_hover(w, point_in_box(input.mouse_point, w.box))
 				}
 			}
@@ -246,7 +248,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 					w.box = cut_box_right(&layout_box, height(layout_box))
 					update_widget(w)
 					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_arrow_flip(box_center(w.box), 7, 0, 0.5 + (0.5 * hover_time), self.how_collapsed, style.color.substance_text[1])
+					paint_arrow_flip(box_center(w.box), 5, 0, 0.5 + 0.5 * hover_time, self.how_collapsed, style.color.substance_text[1])
 					if widget_clicked(w, .Left) {
 						self.bits ~= {.Should_Collapse}
 					}
@@ -267,7 +269,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 				color = blend_colors(style.color.substance_text[1], style.color.substance_text[0], self.how_collapsed),
 			)
 			// Moving 
-			if (.Hovered in self.root_layer.?.state) && !resize_hover && point_in_box(input.mouse_point, title_box) {
+			if (.Hovered in self.root_layer.?.state) && point_in_box(input.mouse_point, title_box) {
 				if (.Static not_in self.options) && (core.widget_agent.hover_id == 0) && mouse_pressed(.Left) {
 					self.bits += {.Moving}
 					core.drag_anchor = self.root_layer.?.box.low - input.mouse_point
@@ -281,9 +283,12 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 		}
 	}
 	
-	inner_box := self.box
+	inner_box := self.real_box
 	inner_box.low.y += style.layout.title_size + style.layout.gap_size
 	inner_box.high.y -= height(inner_box) * ease.quadratic_in_out(self.how_collapsed)
+
+	self.box.low = linalg.min(self.box.low, inner_box.low)
+	self.box.high = linalg.max(self.box.high, inner_box.high)
 
 	if .Initialized not_in self.bits {
 		self.min_layout_size = inner_box.high - inner_box.low
@@ -336,15 +341,6 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 			}
 		}
 	}
-	// last_opacity := self.opacity
-	// if .Moving in self.bits {
-	// 	self.opacity += (0.75 - self.opacity) * core.delta_time * 10
-	// } else {
-	// 	self.opacity += (1 - self.opacity) * core.delta_time * 10
-	// }
-	// if last_opacity != self.opacity {
-	// 	core.paint_next_frame = true
-	// }
 	return
 }
 @private
@@ -373,6 +369,20 @@ _do_panel :: proc(ok: bool) {
 		// Top right
 		paint_box_fill({{box.high.x - CORNER, box.low.y}, {box.high.x, box.low.y + 1}}, style.color.substance[1])
 		paint_box_fill({{box.high.x - 1, box.low.y}, {box.high.x, box.low.y + CORNER}}, style.color.substance[1])
+		// Resize handle
+		if .Resizable in self.options {
+			if w, ok := do_widget(hash(&self.id, size_of(Id)), {.Draggable}); ok {
+				w.box = {box.high - CORNER, box.high}
+				update_widget(w)
+				hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
+				paint_triangle_fill({w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, fade(style.color.substance[1], 0.1 + 0.1 * hover_time))
+				paint_triangle_stroke({w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, 1, fade(style.color.substance[1], 0.5 + 0.5 * hover_time))
+				if .Got_Press in w.state {
+					self.bits += {.Resizing}
+				}
+				update_widget_hover(w, point_in_box(input.mouse_point, w.box))
+			}
+		}
 		// Done with main layer
 		end_layer(self.content_layer.?)
 	}
@@ -382,10 +392,11 @@ _do_panel :: proc(ok: bool) {
 	if .Moving in self.bits {
 		core.cursor = .Resize
 
-		last_origin := self.real_box.low
 		origin := input.mouse_point + core.drag_anchor
+
 		real_size := self.real_box.high - self.real_box.low
 		size := self.box.high - self.box.low
+
 		self.real_box.low = linalg.clamp(origin, 0, core.size - size)
 		self.real_box.high = self.real_box.low + real_size
 		if mouse_released(.Left) {
@@ -397,27 +408,8 @@ _do_panel :: proc(ok: bool) {
 	if .Resizing in self.bits {
 		core.widget_agent.hover_id = 0
 		min_size: [2]f32 = self.min_layout_size if .Fit_To_Layout in self.options else {180, 240}
-		switch self.drag_side {
-			case .Bottom:
-			anchor := input.mouse_point.y
-			self.real_box.high.y = max(anchor, self.real_box.low.y + min_size.y)
-			core.cursor = .Resize_NS
-
-			case .Left:
-			anchor := input.mouse_point.x
-			self.real_box.low.x = min(anchor, self.real_box.high.x - min_size.x)
-			core.cursor = .Resize_EW
-
-			case .Right:
-			anchor := input.mouse_point.x
-			self.real_box.high.x = max(anchor, self.real_box.low.x + min_size.x)
-			core.cursor = .Resize_EW
-
-			case .Top:
-			anchor := input.mouse_point.y
-			self.real_box.low.y = min(anchor, self.real_box.high.y - min_size.y)
-			core.cursor = .Resize_NS
-		}
+		core.cursor = .Resize_NWSE
+		self.real_box.high = linalg.max(input.mouse_point, self.real_box.low + {240, 120})
 		if mouse_released(.Left) {
 			self.bits -= {.Resizing}
 		}

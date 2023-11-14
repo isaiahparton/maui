@@ -9,7 +9,7 @@ import "core:math/linalg"
 
 SCROLL_SPEED :: 16
 SCROLL_STEP :: 20
-SCROLL_BAR_SIZE :: 16
+SCROLL_BAR_SIZE :: 12
 SCROLL_BAR_PADDING :: 0
 
 // Layer interaction state
