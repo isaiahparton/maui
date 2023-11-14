@@ -20,7 +20,7 @@ Spinner_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 	trim_decimal: bool,
 }
 
-do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_value: T) {
+do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_value: T) where intrinsics.type_is_numeric(T) {
 	loc := loc
 	new_value = info.value
 	// Sub-widget boxes
