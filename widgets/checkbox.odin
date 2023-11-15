@@ -96,8 +96,8 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			}
 
 			// Paint box
-			paint_box_fill(icon_box, fade(style.color.accent[0], 0.1 + 0.1 * hover_time))
-			paint_box_stroke(icon_box, 1, fade(style.color.accent[0], 0.5 + 0.5 * hover_time))
+			paint_box_fill(icon_box, fade(style.color.substance[1], 0.1 + 0.1 * hover_time))
+			paint_box_stroke(icon_box, 1, fade(style.color.substance[1], 0.5 + 0.5 * hover_time))
 			
 			center := box_center(icon_box)
 

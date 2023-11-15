@@ -53,7 +53,7 @@ _main :: proc() {
 		begin_frame()
 
 		if do_panel({
-			placement = child_box(core.fullscreen_box, {300, 420}, {.Near, .Middle}),
+			placement = child_box(core.fullscreen_box, {360, 440}, {.Near, .Middle}),
 			title = "DIGITAL",
 			options = {.Title, .Closable, .Resizable, .Collapsable},
 		}) {
@@ -72,7 +72,7 @@ _main :: proc() {
 			choice = do_enum_radio_buttons(choice)
 			space(Exact(20))
 			placement.size = Exact(28)
-			do_text_field({data = &text, placeholder = "Write that which thou thinkest"})
+			do_text_field({data = &text, placeholder = "Write what thou thinkest"})
 		}
 
 		if do_panel({
