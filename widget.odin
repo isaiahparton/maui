@@ -129,8 +129,8 @@ widget_agent_create :: proc(using self: ^Widget_Agent, id: Id, layer: ^Layer) ->
 	core.paint_next_frame = true
 	ok = true
 
-	when ODIN_DEBUG {
-		fmt.printf("Created widget %i\n", id)
+	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
+		fmt.printf("+ Widget %i\n", id)
 	}
 
 	return
@@ -168,8 +168,8 @@ widget_agent_step :: proc(using self: ^Widget_Agent) {
 		if .Stay_Alive in widget.bits {
 			widget.bits -= {.Stay_Alive}
 		} else {
-			when ODIN_DEBUG {
-				fmt.printf("Deleted widget %i\n", widget.id)
+			when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
+				fmt.printf("- Widget %i\n", widget.id)
 			}
 			
 			for key, value in widget.layer.contents {

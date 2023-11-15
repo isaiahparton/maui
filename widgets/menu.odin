@@ -166,8 +166,8 @@ do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool)
 			if !info.no_dismiss {
 				layer.bits += {.Dismissed}
 			}
-			for layer.parent != nil && layer.options >= {.Attached} {
-				layer = layer.parent
+			if parent, ok := layer.parent.?; ok {
+				layer = parent
 				layer.bits += {.Dismissed}
 			}
 		}

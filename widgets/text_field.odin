@@ -51,8 +51,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			}
 		}
 		// Paint!
-		paint_box_fill(self.box, style.color.accent[0])
-		paint_box_fill(self.box, fade(255, hover_time * 0.04))
+		paint_box_fill(self.box, fade(style.color.substance[1], 0.1 * hover_time))
 		// Get data source
 		text: string
 		switch type in info.data {
@@ -127,11 +126,11 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 						{self.box.low.x + style.layout.widget_padding, center_y(self.box)}, 
 						{font = style.font.label, size = style.text_size.field, text = info.placeholder.?}, 
 						{baseline = .Middle}, 
-						fade(style.color.base_text[0], 0.5),
+						fade(style.color.base_text[0], 0.5 + 0.5 * hover_time),
 					)
 				}
 			}
-			paint_box_stroke(self.box, 1, fade(style.color.accent[0], focus_time))
+			paint_box_stroke(self.box, 1, fade(blend_colors(style.color.substance[1], style.color.accent[1], focus_time), 0.5 + 0.5 * hover_time))
 		}
 		// Whatever
 		if .Lost_Focus in self.state {

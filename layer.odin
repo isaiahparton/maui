@@ -81,14 +81,20 @@ Layer_Order :: enum {
 	Debug,
 }
 
+/*
+	start_layer 0
+		start_layer 1
+
+		end_layer (state of layer 1 added to layer 0)
+	end_layer
+*/
+
 // A layer's own data
 Layer :: struct {
-	// Reserved in data table
-	reserved: bool,
 	// Owner widget
 	owner: Maybe(^Widget),
 	// Relations
-	parent: ^Layer,
+	parent: Maybe(^Layer),
 	children: [dynamic]^Layer,
 	// Base Data
 	id: Id,
@@ -97,16 +103,14 @@ Layer :: struct {
 	// User options
 	options: Layer_Options,
 	// The layer's own state
-	state,
-	next_state: Layer_State,
+	state: Layer_State,
 	// Painting settings
 	opacity: f32,
 	// Viewport box
 	box: Box,
-	// Boxangle on which scrollbars are anchored
+	// Box on which scrollbars are anchored
 	inner_box: Box,
-	// Bounding box of all content to be drawn
-	// for clipping purposes
+	// Bounding box of all painted content
 	content_box: Box,
 	// Space for scrolling
 	space: [2]f32,
@@ -125,30 +129,27 @@ Layer :: struct {
 	meshes: [dynamic]int,
 }
 
+MAX_LAYERS :: 128
+
 Layer_Agent :: struct {
-	root_layer: 	^Layer,
+	root_layer: ^Layer,
 	// Fixed memory arena
-	arena:  		[LAYER_ARENA_SIZE]Layer,
+	arena: Arena(Layer, MAX_LAYERS),
 	// Internal layer data
-	list: 			[dynamic]^Layer,
-	pool: 			map[Id]^Layer,
+	list: [dynamic]^Layer,
+	pool: map[Id]^Layer,
 	// Layer context stack
-	stack: 			Stack(^Layer, LAYER_STACK_SIZE),
+	stack: Stack(^Layer, LAYER_STACK_SIZE),
 	// Layer ordering helpers
-	should_sort:	bool,
+	should_sort: bool,
 	last_top_id, 
-	top_id: 		Id,
-	current_layer: 	^Layer,
-	// Current layer being drawn (used only by 'NextCommand')
-	paint_index: 	int,
+	top_id: Id,
+	current_layer: ^Layer,
 	// Current layer state
 	hover_id,
 	last_hover_id,
 	focus_id,
-	last_focus_id,
-	debug_id: 		Id,
-	// If a layer is stealing focus
-	exclusive_id: Maybe(Id),
+	last_focus_id: Id,
 }
 
 sort_layer :: proc(list: ^[dynamic]^Layer, layer: ^Layer) {
@@ -209,15 +210,16 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 				}
 			}
 		} else {
-			when ODIN_DEBUG {
-				fmt.printf("Deleted layer %i\n", layer.id)
+			when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
+				fmt.printf("- Layer %x\n", layer.id)
 			}
 
+			//NOTE: Should children be left to be deleted separately? (probably yes)
 			delete_key(&pool, layer.id)
-			if layer.parent != nil {
-				for child, j in layer.parent.children {
+			if parent, ok := layer.parent.?; ok {
+				for child, j in parent.children {
 					if child == layer {
-						ordered_remove(&layer.parent.children, j)
+						ordered_remove(&parent.children, j)
 						break
 					}
 				}
@@ -229,24 +231,28 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 	// If a sorted layer was selected, then find it's root attached parent
 	if sorted_layer != nil {
 		child := sorted_layer
-		for child.parent != nil {
-			top_id = child.id
-			sorted_layer = child
-			if child.options >= {.Attached} {
-				child = child.parent
-			} else {
-				break
+		for {
+			if parent, ok := child.parent.?; ok {
+				top_id = child.id
+				sorted_layer = child
+				if child.options >= {.Attached} {
+					child = parent
+				} else {
+					break
+				}
 			}
 		}
 	}
 	// Then reorder it with it's siblings
 	if top_id != last_top_id {
-		for child in sorted_layer.parent.children {
-			if child.order == sorted_layer.order {
-				if child.id == top_id {
-					child.index = len(sorted_layer.parent.children)
-				} else {
-					child.index -= 1
+		if parent, ok := sorted_layer.parent.?; ok {
+			for child in parent.children {
+				if child.order == sorted_layer.order {
+					if child.id == top_id {
+						child.index = len(parent.children)
+					} else {
+						child.index -= 1
+					}
 				}
 			}
 		}
@@ -260,33 +266,14 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 		clear(&list)
 		sort_layer(&list, root_layer)
 	}
-	// Reset rendered layer
-	paint_index = 0
-	if id, ok := exclusive_id.?; ok {
-		hover_id = id
-		exclusive_id = nil
-	}
-}
-
-allocate_layer :: proc(using self: ^Layer_Agent) -> (layer: ^Layer, ok: bool) {
-	for i in 0..<LAYER_ARENA_SIZE {
-		if !arena[i].reserved {
-			layer = &arena[i]
-			ok = true
-			break
-		}
-	}
-	return
 }
 
 create_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
-	layer, ok = allocate_layer(self)
-	if !ok {
-		return
-	}
+	handle := arena_allocate(&arena) or_return
+	layer = &handle.?
+	ok = true
 	// Initiate the layer
 	layer^ = {
-		reserved = true,
 		id = id,
 		opacity = 0 if .Invisible in options else 1,
 	}
@@ -302,8 +289,8 @@ create_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -
 	// Will sort layers this frame
 	should_sort = true
 
-	when ODIN_DEBUG {
-		fmt.printf("Created layer %i\n", id)
+	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
+		fmt.printf("+ Layer %i\n", id)
 	}
 
 	return
@@ -333,40 +320,7 @@ destroy_layer :: proc(self: ^Layer) {
 	delete(self.contents)
 	delete(self.meshes)
 	delete(self.children)
-	self.reserved = false
-}
-
-// Frame info
-Frame_Info :: struct {
-	options: Layer_Options,
-	fill_color: Maybe(Color),
-	scrollbar_padding: Maybe(f32),
-}
-
-@(deferred_out=_do_frame)
-do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
-	self: ^Layer
-	box := use_next_box() or_else layout_next(current_layout())
-	self, ok = begin_layer({
-		placement = box,
-		scrollbar_padding = 0,//info.scrollbar_padding.? or_else 0,
-		id = hash(loc),
-		extend = .Bottom,
-		options = info.options + {.Clip_To_Parent, .Attached, .No_Sorting},
-	})
-	if ok {
-		paint_box_fill(self.box, info.fill_color.? or_else style.color.base[1])
-	}
-	return
-}
-
-@private
-_do_frame :: proc(ok: bool) {
-	if ok {
-		assert(core.layer_agent.current_layer != nil)
-		paint_box_stroke(core.layer_agent.current_layer.box, 1, style.color.substance[1])
-		end_layer(core.layer_agent.current_layer)
-	}
+	self^ = {}
 }
 
 Layer_Shadow_Info :: struct {
@@ -448,10 +402,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 
 		self.owner = info.owner
 
-		if .Steal_Focus in self.options {
-			agent.exclusive_id = self.id
-		}
-
 		// Begin id context for layer contents
 		if .No_ID not_in self.options {
 			push_id(self.id)
@@ -466,10 +416,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Reset draw command
 		clear(&self.meshes)
 
-		// Uh yeah
-		if agent.exclusive_id == self.id {
-			paint_box_fill(core.fullscreen_box, {0, 0, 0, 100})
-		}
 		// Shadows
 		/*if shadow, ok := info.shadow.?; ok {
 			painter.target = get_draw_target()
@@ -519,8 +465,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
 
 		// Hovering and stuff
-		self.state = self.next_state
-		self.next_state = {}
+		self.state = {}
 		if agent.hover_id == self.id {
 			self.state += {.Hovered}
 			if agent.last_hover_id != self.id {
@@ -535,26 +480,12 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			self.state += {.Lost_Focus}
 		}
 
-		// Attachment
-		if .Attached in self.options {
-			assert(self.parent != nil)
-			self.opacity = self.parent.opacity
-			if self.state != {} {
-				parent := self.parent
-				for parent != nil {
-					parent.next_state += self.state
-					if .Attached not_in parent.options {
-						break
-					}
-					parent = parent.parent
-				}
-			}
-		}
-
 		// Update clip status
 		self.bits -= {.Clipped}
-		if .Clip_To_Parent in self.options && self.parent != nil && !box_in_box(self.parent.box, self.box) {
-			self.box = clamp_box(self.box, self.parent.box)
+		if .Clip_To_Parent in self.options {
+			if parent, ok := self.parent.?; ok {
+				self.box = clamp_box(self.box, parent.box)
+			}
 		}
 		
 		self.opacity = info.opacity.? or_else self.opacity
@@ -700,7 +631,10 @@ end_layer :: proc(self: ^Layer) {
 		}
 		// Update parent content bounds if
 		if .Attached in self.options {
-			self.parent.content_box = update_bounding_box(self.parent.content_box, self.inner_box)
+			if parent, ok := self.parent.?; ok {
+				parent.state += self.state
+				parent.content_box = update_bounding_box(parent.content_box, self.content_box)
+			}
 		}
 		// End id context
 		if .Did_Push_ID in self.bits {

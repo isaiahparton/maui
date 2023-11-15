@@ -51,21 +51,16 @@ Cursor_Type :: enum {
 	Disabled,
 }
 
-TEMP_BUFFER_COUNT 	:: 2
+PRINT_DEBUG_EVENTS :: false
 GROUP_STACK_SIZE 		:: 32
 CHIP_STACK_SIZE 		:: 32
 MAX_CLIP_RECTS 			:: #config(MAUI_MAX_CLIP_RECTS, 32)
 MAX_CONTROLS 				:: #config(MAUI_MAX_CONTROLS, 1024)
-LAYER_ARENA_SIZE 		:: 128
 LAYER_STACK_SIZE 		:: #config(MAUI_LAYER_STACK_SIZE, 32)
 WINDOW_STACK_SIZE 	:: #config(MAUI_WINDOW_STACK_SIZE, 32)
-// Size of each layer's command buffer
-COMMAND_BUFFER_SIZE :: #config(MAUI_COMMAND_BUFFER_SIZE, 256 * 1024)
 // Size of id stack (times you can call push_id())
 ID_STACK_SIZE 			:: 32
 // Repeating key press
-KEY_REPEAT_DELAY 		:: 0.5
-KEY_REPEAT_RATE 		:: 30
 ALL_CORNERS: Box_Corners = {.Top_Left, .Top_Right, .Bottom_Left, .Bottom_Right}
 
 DOUBLE_CLICK_TIME :: time.Millisecond * 450

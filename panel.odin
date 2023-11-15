@@ -350,9 +350,11 @@ _do_panel :: proc(ok: bool) {
 	pop_panel(&core.panel_agent)
 	// End main layer
 	if .Collapsed not_in self.bits {
-		// Outline
-		CORNER :: 10
 		box := self.content_layer.?.box
+		// Outline
+		paint_box_stroke(self.content_layer.?.box, 1, style.color.substance[0])
+		/*
+		CORNER :: 10
 		corner_and_gap := CORNER + style.layout.gap_size
 		paint_box_fill({{box.low.x, box.low.y + corner_and_gap}, {box.low.x + 1, box.high.y - corner_and_gap}}, style.color.substance[0])
 		paint_box_fill({{box.high.x - 1, box.low.y + corner_and_gap}, {box.high.x, box.high.y - corner_and_gap}}, style.color.substance[0])
@@ -370,10 +372,11 @@ _do_panel :: proc(ok: bool) {
 		// Top right
 		paint_box_fill({{box.high.x - CORNER, box.low.y}, {box.high.x, box.low.y + 1}}, style.color.substance[1])
 		paint_box_fill({{box.high.x - 1, box.low.y}, {box.high.x, box.low.y + CORNER}}, style.color.substance[1])
+		*/
 		// Resize handle
 		if .Resizable in self.options {
 			if w, ok := do_widget(hash(&self.id, size_of(Id)), {.Draggable}); ok {
-				w.box = {box.high - CORNER, box.high}
+				w.box = {box.high - 20, box.high}
 				update_widget(w)
 				hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
 				paint_triangle_fill({w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, fade(style.color.substance[1], 0.1 + 0.1 * hover_time))
