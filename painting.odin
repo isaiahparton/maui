@@ -147,7 +147,7 @@ painter: ^Painter
 style_default_fonts :: proc() -> bool {
 	// Load the fonts
 	style.font.label = load_font(&painter.atlas, "fonts/Orbitron-Medium.ttf") or_return
-	style.font.title = style.font.label
+	style.font.title = load_font(&painter.atlas, "fonts/Rajdhani-Bold.ttf") or_return
 	style.font.monospace = load_font(&painter.atlas, "fonts/RobotoMono-Regular.ttf") or_return
 	// Assign their handles and sizes
 	style.text_size.label = 18

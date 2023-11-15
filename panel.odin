@@ -232,13 +232,14 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 				paint_box_fill({title_box.low, {title_box.high.x - h, title_box.high.y}}, style.color.substance[1])
 			}
 			layout_box := title_box
+
 			// Close button
 			if .Closable in self.options {
 				if w, _ok := do_widget(hash(&self.id, size_of(Id))); _ok {
 					w.box = cut_box_right(&layout_box, height(layout_box))
 					update_widget(w)
 					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_cross(box_center(w.box), 5, math.PI * 0.25, 1 + hover_time, style.color.substance_text[1])
+					paint_cross(box_center(w.box), 5, math.PI * 0.25, 2, blend_colors(style.color.substance_text[0], style.color.substance_text[1], hover_time))
 					update_widget_hover(w, point_in_box(input.mouse_point, w.box))
 				}
 			}
@@ -248,7 +249,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 					w.box = cut_box_right(&layout_box, height(layout_box))
 					update_widget(w)
 					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_arrow_flip(box_center(w.box), 5, 0, 0.5 + 0.5 * hover_time, self.how_collapsed, style.color.substance_text[1])
+					paint_arrow_flip(box_center(w.box), 5, 0, 1, self.how_collapsed, blend_colors(style.color.substance_text[0], style.color.substance_text[1], hover_time))
 					if widget_clicked(w, .Left) {
 						self.bits ~= {.Should_Collapse}
 					}
@@ -264,7 +265,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 			//TODO: Make sure the text doesn't overflow
 			paint_text(
 				{title_box.low.x + text_offset, baseline}, 
-				{text = info.title, font = style.font.label, size = style.text_size.label}, 
+				{text = info.title, font = style.font.title, size = style.text_size.label}, 
 				{align = .Left, baseline = .Middle}, 
 				color = blend_colors(style.color.substance_text[1], style.color.substance_text[0], self.how_collapsed),
 			)

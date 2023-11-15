@@ -76,9 +76,9 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 				paint_box_fill({{min(self.box.low.x + offset + RADIUS, self.box.high.x), c}, {self.box.high.x, c + 1}}, style.color.substance[0])
 				paint_box_fill({{self.box.low.x, c}, {max(self.box.low.x, self.box.low.x + offset - RADIUS), c + 1}}, style.color.accent[1])
 				case .Vertical: 
-				c := (self.box.low.y + self.box.high.y) / 2
-				paint_box_fill({{c, self.box.low.y + offset}, {c + 1, self.box.high.y}}, style.color.substance[0])
-				paint_box_fill({{c, self.box.low.y + offset}, {c + 1, self.box.low.y + offset}}, style.color.accent[1])
+				c := (self.box.low.x + self.box.high.x) / 2
+				paint_box_fill({{c, self.box.low.y}, {c + 1, max(self.box.high.y - (offset + RADIUS), self.box.low.y)}}, style.color.substance[0])
+				paint_box_fill({{c, min(self.box.high.y - (offset - RADIUS), self.box.high.y)}, {c + 1, self.box.high.y}}, style.color.accent[1])
 			}
 			paint_circle_fill_texture(knob_center, RADIUS, fade(style.color.accent[1], 0.1 + 0.1 * hover_time))
 			paint_ring_fill_texture(knob_center, RADIUS, RADIUS + 1, style.color.accent[1])

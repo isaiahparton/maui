@@ -80,6 +80,8 @@ _main :: proc() {
 			shrink(30)
 			placement.size = Exact(30)
 			slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 70, format = "%.1f"})
+			placement.side = .Left 
+			slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 70, format = "%.1f", orientation = .Vertical})
 		}
 
 		// End of ui calls

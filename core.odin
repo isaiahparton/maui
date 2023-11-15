@@ -352,6 +352,7 @@ begin_frame :: proc() {
 
 	// Begin root layer
 	assert(begin_root_layer(&layer_agent))
+	
 	// Begin root layout
 	push_layout({{}, size})
 
