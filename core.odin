@@ -2,8 +2,8 @@
 	Maui is an immediate mode gui library, but that doesn't mean we can't have retained helper structs
 
 	TODO:
-		[x] Nice shiny global variables for placement instead of yucky set functions
-		[x] Move animations to widget struct (duh)
+		[X] Nice shiny global variables for placement instead of yucky set functions
+		[X] Move animations to widget struct (duh)
 		[X] Customizable fonts (default themes provides default fonts)
 		[X] Implement new texture atlas system
 		[X] Figure out if dynamic fonts are feasable
@@ -399,7 +399,10 @@ begin_frame :: proc() {
 end_frame :: proc() {
 	using core
 	// Helper layer
-	if layer, ok := do_layer({placement = core.fullscreen_box}); ok {
+	/*if layer, ok := do_layer({
+		placement = core.fullscreen_box,
+		options = {.No_Sorting},
+	}); ok {
 		if box, ok1 := panel_agent.attach_box.?; ok1 {
 			if display_box, ok2 := &panel_agent.attach_display_box.?; ok2 {
 				display_box.low += (box.low - display_box.low) * delta_time * 12
@@ -413,7 +416,7 @@ end_frame :: proc() {
 		} else {
 			panel_agent.attach_display_box = nil
 		}
-	}
+	}*/
 	// End root layout
 	pop_layout()
 	// End root layer

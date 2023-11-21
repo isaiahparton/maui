@@ -178,41 +178,6 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 	// Layer body
 	self.box = {core.size, 0}
 
-	// Get resize click
-	/*resize_hover := false
-	if layer, ok := self.root_layer.?; ok {
-		if (.Resizable in self.options) && .Hovered in layer.state && (self.bits & {.Collapsed, .Moving} == {}) {
-			RESIZE_HANDLE_SIZE :: 5
-			top_hover 		:= point_in_box(input.mouse_point, attach_box_top(self.real_box, Exact(RESIZE_HANDLE_SIZE)))
-			left_hover 		:= point_in_box(input.mouse_point, attach_box_left(self.real_box, Exact(RESIZE_HANDLE_SIZE)))
-			bottom_hover 	:= point_in_box(input.mouse_point, attach_box_bottom(self.real_box, Exact(RESIZE_HANDLE_SIZE)))
-			right_hover 	:= point_in_box(input.mouse_point, attach_box_right(self.real_box, Exact(RESIZE_HANDLE_SIZE)))
-			if top_hover || bottom_hover {
-				core.cursor = .Resize_NS
-				resize_hover = true
-			}
-			if left_hover || right_hover {
-				core.cursor = .Resize_EW
-				resize_hover = true
-			}
-			if mouse_pressed(.Left) {
-				if top_hover {
-					self.bits += {.Resizing}
-					self.drag_side = .Top
-				} else if left_hover {
-					self.bits += {.Resizing}
-					self.drag_side = .Left
-				} else if bottom_hover {
-					self.bits += {.Resizing}
-					self.drag_side = .Bottom
-				} else if right_hover {
-					self.bits += {.Resizing}
-					self.drag_side = .Right
-				}
-			}
-		}
-	}*/
-
 	// Decoration
 	if self.root_layer, ok = begin_layer({
 		placement = self.real_box,
@@ -220,6 +185,13 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 		order = .Floating,
 		options = {.No_Scroll_Y},
 	}); ok {
+		prev_target := painter.target
+		painter.target = get_draw_target()
+		painter.meshes[painter.target].material = Acrylic_Material{amount = 6}
+		inject_at(&self.root_layer.?.meshes, 0, painter.target)
+		paint_rounded_box_mask(self.real_box, 10, 255)
+		paint_rounded_box_mask(self.real_box, 10, fade(style.color.base[1], 0.2))
+		painter.target = prev_target
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			title_box := cut(.Top, Exact(style.layout.title_size))
@@ -313,34 +285,6 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 			space = self.min_layout_size,
 			order = .Background,
 		})
-		if ok {
-			if self.how_collapsed < 1 {
-				last_target := painter.target
-				painter.target = get_draw_target()
-				painter.meshes[painter.target].material = Acrylic_Material{amount = 6}
-				inject_at(&self.root_layer.?.meshes, 0, painter.target)
-				mesh := &painter.meshes[painter.target]
-				paint_indices(mesh, 
-					mesh.indices_offset,
-					mesh.indices_offset + 1,
-					mesh.indices_offset + 2,
-					mesh.indices_offset,
-					mesh.indices_offset + 2,
-					mesh.indices_offset + 3,
-				)
-				box := self.content_layer.?.box
-				src_box: Box = {box.low / core.size, box.high / core.size}
-				src_box.low.y = 1 - src_box.low.y
-				src_box.high.y = 1 - src_box.high.y
-				paint_vertices(mesh,
-					{point = box.low, uv = src_box.low, color = style.color.glass},
-					{point = {box.low.x, box.high.y}, uv = {src_box.low.x, src_box.high.y}, color = style.color.glass},
-					{point = box.high, uv = src_box.high, color = style.color.glass},
-					{point = {box.high.x, box.low.y}, uv = {src_box.high.x, src_box.low.y}, color = style.color.glass},
-				)
-				painter.target = last_target
-			}
-		}
 	}
 	return
 }
@@ -351,28 +295,6 @@ _do_panel :: proc(ok: bool) {
 	// End main layer
 	if .Collapsed not_in self.bits {
 		box := self.content_layer.?.box
-		// Outline
-		paint_box_stroke(self.content_layer.?.box, 1, style.color.substance[0])
-		/*
-		CORNER :: 10
-		corner_and_gap := CORNER + style.layout.gap_size
-		paint_box_fill({{box.low.x, box.low.y + corner_and_gap}, {box.low.x + 1, box.high.y - corner_and_gap}}, style.color.substance[0])
-		paint_box_fill({{box.high.x - 1, box.low.y + corner_and_gap}, {box.high.x, box.high.y - corner_and_gap}}, style.color.substance[0])
-		paint_box_fill({{box.low.x + corner_and_gap, box.high.y - 1}, {box.high.x - corner_and_gap, box.high.y}}, style.color.substance[0])
-		paint_box_fill({{box.low.x + corner_and_gap, box.low.y}, {box.high.x - corner_and_gap, box.low.y + 1}}, style.color.substance[0])
-		// Bottom left
-		paint_box_fill({{box.low.x, box.high.y - CORNER}, {box.low.x + 1, box.high.y}}, style.color.substance[1])
-		paint_box_fill({{box.low.x, box.high.y - 1}, {box.low.x + CORNER, box.high.y}}, style.color.substance[1])
-		// Bottom right
-		paint_box_fill({{box.high.x - 1, box.high.y - CORNER}, {box.high.x, box.high.y}}, style.color.substance[1])
-		paint_box_fill({{box.high.x - CORNER, box.high.y - 1}, {box.high.x, box.high.y}}, style.color.substance[1])
-		// Top left
-		paint_box_fill({box.low, {box.low.x + CORNER, box.low.y + 1}}, style.color.substance[1])
-		paint_box_fill({box.low, {box.low.x + 1, box.low.y + CORNER}}, style.color.substance[1])
-		// Top right
-		paint_box_fill({{box.high.x - CORNER, box.low.y}, {box.high.x, box.low.y + 1}}, style.color.substance[1])
-		paint_box_fill({{box.high.x - 1, box.low.y}, {box.high.x, box.low.y + CORNER}}, style.color.substance[1])
-		*/
 		// Resize handle
 		if .Resizable in self.options {
 			if w, ok := do_widget(hash(&self.id, size_of(Id)), {.Draggable}); ok {

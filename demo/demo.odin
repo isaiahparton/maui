@@ -33,6 +33,7 @@ _main :: proc() {
 	slider_value: f32
 	gain, pitch: f64
 	text: string
+	integer: int
 
 	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
 		return
@@ -52,39 +53,36 @@ _main :: proc() {
 		maui_glfw.begin_frame()
 		begin_frame()
 
-		if do_panel({
-			placement = child_box(core.fullscreen_box, {360, 440}, {.Near, .Middle}),
-			title = "DIGITAL",
-			options = {.Title, .Closable, .Resizable, .Collapsable},
-		}) {
-			shrink(30)
-			placement.size = Exact(32)
-			do_button({label = "button"})
-			space(Exact(20))
-			placement.size = Exact(64)
-			if do_toggle_button({label = "toggle button\nwith multiple lines", state = boolean}) {
-				boolean = !boolean
+		shrink(200)
+		if do_layout(.Top, Exact(30)) {
+			placement.side = .Left; placement.size = Exact(200)
+			if do_button({label = "BUTTON"}) {
+
 			}
-			space(Exact(20))
-			placement.size = Exact(34)
-			do_checkbox({state = &boolean, text = "checkbox"})
-			space(Exact(20))
-			choice = do_enum_radio_buttons(choice)
-			space(Exact(20))
-			placement.size = Exact(28)
-			do_text_field({data = &text, placeholder = "Write what thou thinkest"})
+			space(Exact(10))
+			if do_button({label = "BUTTON"}) {
+
+			}
+		}
+		cut(.Top, Exact(20))
+		if do_layout(.Top, Exact(30)) {
+			placement.side = .Left; placement.size = Exact(200)
+			integer = do_spinner(Spinner_Info(int){value = integer, low = 0, high = 999})
 		}
 
 		if do_panel({
-			placement = child_box(core.fullscreen_box, {240, 320}, {.Middle, .Near}),
-			title = "ANALOG",
-			options = {.Title, .Closable, .Resizable, .Collapsable},
+			title = "window of opportunity", 
+			options = {.Title}, 
+			placement = child_box(core.fullscreen_box, {300, 400}, {.Middle, .Middle}),
 		}) {
-			shrink(30)
-			placement.size = Exact(30)
-			slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 70, format = "%.1f"})
-			placement.side = .Left 
-			slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 70, format = "%.1f", orientation = .Vertical})
+			shrink(10)
+			
+		}
+
+		paint_text({}, {text = "Layer list", font = style.font.monospace, size = 20}, {}, style.color.base_text[0])
+		for layer, i in core.layer_agent.list {
+			paint_text({20, 30 + 50 * f32(i)}, {text = tmp_printf("%x: %v", layer.id, layer.box), font = style.font.monospace, size = 20}, {}, style.color.base_text[1])
+			paint_text({20, 50 + 50 * f32(i)}, {text = tmp_printf("%v", layer.state), font = style.font.monospace, size = 20}, {}, style.color.base_text[1])
 		}
 
 		// End of ui calls

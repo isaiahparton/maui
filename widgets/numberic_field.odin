@@ -159,23 +159,16 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			text = trim_zeroes(text)
 		}
 		// Background
-		paint_box_fill(box, get_color(.Widget_Back))
-		if !info.no_outline {
-			// Outline
-			paint_labeled_widget_frame(
-				box = box, 
-				text = info.title, 
-				offset = WIDGET_PADDING, 
-				thickness = 1, 
-				color = style_widget_stroke(self, hover_time),
-			)
+		paint_rounded_box_fill(box, style.button_rounding, style.color.base[1])
+		if .Focused in self.state {
+			paint_rounded_box_stroke(box, style.button_rounding, 2, style.color.accent[1])
 		}
 		// Do text interaction
 		text_align := info.text_align.? or_else {
 			.Near,
 			.Middle,
 		}
-		inner_box: Box = {{self.box.low.x + WIDGET_PADDING, self.box.low.y}, {self.box.high.x - WIDGET_PADDING, self.box.high.y}}
+		inner_box: Box = {{self.box.low.x + style.layout.widget_padding, self.box.low.y}, {self.box.high.x - style.layout.widget_padding, self.box.high.y}}
 		text_origin: [2]f32 = {inner_box.low.x, (inner_box.low.y + inner_box.high.y) / 2} - self.offset
 		text_res: Text_Interact_Result
 		// Focus
@@ -220,10 +213,10 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				text_origin, 
 				self,
 				&core.typing_agent, 
-				{text = string(buffer[:]), font = painter.style.default_font, size = painter.style.default_font_size},
+				{text = string(buffer[:]), font = style.font.label, size = style.text_size.label},
 				{baseline = .Middle, clip = self.box},
 				{},
-				get_color(.Text),
+				style.color.base_text[0],
 			)
 			if typing_agent_edit(&core.typing_agent, {
 				array = buffer, 
@@ -247,10 +240,10 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				text_origin, 
 				self,
 				&core.typing_agent, 
-				{text = text, font = painter.style.default_font, size = painter.style.default_font_size},
+				{text = text, font = style.font.label, size = style.text_size.label},
 				{baseline = .Middle, clip = self.box},
 				{},
-				get_color(.Text),
+				style.color.base_text[0],
 			)
 		}
 

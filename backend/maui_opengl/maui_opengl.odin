@@ -164,9 +164,7 @@ init :: proc(interface: backend.Platform_Renderer_Interface) -> bool {
 
 	// Set viewport
   gl.Viewport(0, 0, ctx.screen_size.x, ctx.screen_size.y)
-
   
-
   {
 		VERTEX_SHADER_330 := #load("./default.vert")
 		FRAGMENT_SHADER_330 := #load("./default.frag")
@@ -221,7 +219,6 @@ init :: proc(interface: backend.Platform_Renderer_Interface) -> bool {
 		gl.AttachShader(ctx.blur_program, frag_shader)
 		gl.LinkProgram(ctx.blur_program)
 		check_program(ctx.blur_program, "blur shader program")
-		
   }
 
 	load_copy_vao()
@@ -360,7 +357,7 @@ render :: proc(interface: backend.Platform_Renderer_Interface) -> int {
 				// Apply blur to main fbo
 				draw_acrylic_mat(mat, mesh.clip.? or_else {high = ui.core.size})
 				// Bind blurred texture
-  			gl.UseProgram(ctx.default_program)
+				gl.UseProgram(ctx.default_program)
 				gl.BindVertexArray(vao_handle)
 				gl.BindBuffer(gl.ARRAY_BUFFER, ctx.vbo)
 				gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ctx.ibo)

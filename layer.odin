@@ -235,11 +235,9 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 			if parent, ok := child.parent.?; ok {
 				top_id = child.id
 				sorted_layer = child
-				if child.options >= {.Attached} {
-					child = parent
-				} else {
-					break
-				}
+				child = parent
+			} else {
+				break
 			}
 		}
 	}
@@ -430,6 +428,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		switch placement in info.placement {
 			case Box: 
 			self.box = placement
+			self.box.high = linalg.max(self.box.high, self.box.low)
 			case Layer_Placement_Info: 
 			// Use space if size is not provided
 			size: [2]f32 = {
@@ -479,13 +478,42 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		} else if agent.last_focus_id == self.id {
 			self.state += {.Lost_Focus}
 		}
-
 		// Update clip status
 		self.bits -= {.Clipped}
 		if .Clip_To_Parent in self.options {
 			if parent, ok := self.parent.?; ok {
 				self.box = clamp_box(self.box, parent.box)
 			}
+		}
+		// Scrolling
+		SCROLL_LERP_SPEED :: 7
+		// Horizontal scrolling
+		if (self.space.x > width(self.box)) && (.No_Scroll_X not_in self.options) {
+			self.bits += {.Scroll_X}
+			self.scrollbar_time.x = min(1, self.scrollbar_time.x + core.delta_time * SCROLL_LERP_SPEED)
+		} else {
+			self.bits -= {.Scroll_X}
+			self.scrollbar_time.x = max(0, self.scrollbar_time.x - core.delta_time * SCROLL_LERP_SPEED)
+		}
+		if .No_Scroll_Margin_Y not_in self.options && self.space.y <= height(self.box) {
+			self.space.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE
+		}
+		if self.scrollbar_time.x > 0 && self.scrollbar_time.x < 1 {
+			core.paint_next_frame = true
+		}
+		// Vertical scrolling
+		if (self.space.y > height(self.box)) && (.No_Scroll_Y not_in self.options) {
+			self.bits += {.Scroll_Y}
+			self.scrollbar_time.y = min(1, self.scrollbar_time.y + core.delta_time * SCROLL_LERP_SPEED)
+		} else {
+			self.bits -= {.Scroll_Y}
+			self.scrollbar_time.y = max(0, self.scrollbar_time.y - core.delta_time * SCROLL_LERP_SPEED)
+		}
+		if .No_Scroll_Margin_X not_in self.options && self.space.x <= width(self.box) {
+			self.space.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE
+		}
+		if self.scrollbar_time.y > 0 && self.scrollbar_time.y < 1 {
+			core.paint_next_frame = true
 		}
 		
 		self.opacity = info.opacity.? or_else self.opacity
@@ -502,7 +530,8 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		layout_box := self.box 
 		// Apply scroll offset
 		layout_box.low -= self.scroll
-		layout_box.high -= self.scroll
+		layout_box.high -= self.scroll 
+		layout_box.high -= self.scrollbar_time * SCROLL_BAR_SIZE
 		// Push layout
 		layout := push_layout(layout_box)
 		// Extending layout
@@ -535,36 +564,7 @@ end_layer :: proc(self: ^Layer) {
 			self.space = layout.box.high - layout.box.low
 		}
 		pop_layout()
-		// Scrolling
-		SCROLL_LERP_SPEED :: 7
-		// Horizontal scrolling
-		if (self.space.x > width(self.box)) && (.No_Scroll_X not_in self.options) {
-			self.bits += {.Scroll_X}
-			self.scrollbar_time.x = min(1, self.scrollbar_time.x + core.delta_time * SCROLL_LERP_SPEED)
-		} else {
-			self.bits -= {.Scroll_X}
-			self.scrollbar_time.x = max(0, self.scrollbar_time.x - core.delta_time * SCROLL_LERP_SPEED)
-		}
-		if .No_Scroll_Margin_Y not_in self.options && self.space.y <= height(self.box) {
-			self.space.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE
-		}
-		if self.scrollbar_time.x > 0 && self.scrollbar_time.x < 1 {
-			core.paint_next_frame = true
-		}
-		// Vertical scrolling
-		if (self.space.y > height(self.box)) && (.No_Scroll_Y not_in self.options) {
-			self.bits += {.Scroll_Y}
-			self.scrollbar_time.y = min(1, self.scrollbar_time.y + core.delta_time * SCROLL_LERP_SPEED)
-		} else {
-			self.bits -= {.Scroll_Y}
-			self.scrollbar_time.y = max(0, self.scrollbar_time.y - core.delta_time * SCROLL_LERP_SPEED)
-		}
-		if .No_Scroll_Margin_X not_in self.options && self.space.x <= width(self.box) {
-			self.space.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE
-		}
-		if self.scrollbar_time.y > 0 && self.scrollbar_time.y < 1 {
-			core.paint_next_frame = true
-		}
+		
 		// Detect clipping
 		if (self.box != core.fullscreen_box && !box_in_box(self.box, self.content_box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}

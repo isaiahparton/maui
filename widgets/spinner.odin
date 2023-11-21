@@ -38,7 +38,6 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	increment := info.increment.? or_else T(1)
 	// Number input
 	set_next_box(box)
-	paint_shaded_box(box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
 	new_value = clamp(do_number_input(Number_Input_Info(T){
 		value = info.value,
 		text_align = ([2]Alignment){
@@ -50,21 +49,22 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	// Step buttons
 	loc.column += 1
 	set_next_box(decrease_box)
+	style.corner_rounding = {.Bottom_Right}
 	if do_button({
 		align = .Middle,
-		style = .Subtle,
 	}, loc) {
 		new_value = max(info.low, info.value - increment)
 	}
-	paint_arrow(box_center(core.last_box), 5, 0, 1, get_color(.Text))
+	paint_arrow(box_center(core.last_box), 5, 0, 1, style.color.base_text[0])
 	loc.column += 1
 	set_next_box(increase_box)
+	style.corner_rounding = {.Top_Right}
 	if do_button({
 		align = .Middle,
-		style = .Subtle,
 	}, loc) {
 		new_value = min(info.high, info.value + increment)
 	}
-	paint_arrow(box_center(core.last_box), 5, -math.PI, 1, get_color(.Text))
+	style.corner_rounding = ALL_CORNERS
+	paint_arrow(box_center(core.last_box), 5, -math.PI, 1, style.color.base_text[0])
 	return
 }

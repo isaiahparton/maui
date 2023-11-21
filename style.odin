@@ -5,8 +5,8 @@ package maui
 */
 DARK_STYLE_COLORS :: Style_Colors{
 	accent = {
-		{221, 120, 21, 255},
-		{247, 146, 47, 255},
+		{32, 100, 221, 255},
+		{47, 126, 247, 255},
 	},
 	base = {
 		{5, 6, 7, 255},
@@ -17,7 +17,7 @@ DARK_STYLE_COLORS :: Style_Colors{
 		{195, 195, 195, 255},
 	},
 	substance = {
-		{126, 127, 135, 255},
+		{66, 67, 70, 255},
 		{200, 201, 201, 255},
 	},
 	substance_text = {
@@ -73,6 +73,8 @@ Style :: struct {
 	text_size: Style_Text_Size,
 	layout: Style_Layout,
 	color: Style_Colors,
+	button_rounding: f32,
+	corner_rounding: Box_Corners,
 }
 
 style: Style
