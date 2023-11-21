@@ -49,7 +49,7 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	// Step buttons
 	loc.column += 1
 	set_next_box(decrease_box)
-	style.corner_rounding = {.Bottom_Right}
+	style.rounded_corners = {.Bottom_Right}
 	if do_button({
 		align = .Middle,
 	}, loc) {
@@ -58,13 +58,13 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	paint_arrow(box_center(core.last_box), 5, 0, 1, style.color.base_text[0])
 	loc.column += 1
 	set_next_box(increase_box)
-	style.corner_rounding = {.Top_Right}
+	style.rounded_corners = {.Top_Right}
 	if do_button({
 		align = .Middle,
 	}, loc) {
 		new_value = min(info.high, info.value + increment)
 	}
-	style.corner_rounding = ALL_CORNERS
+	style.rounded_corners = ALL_CORNERS
 	paint_arrow(box_center(core.last_box), 5, -math.PI, 1, style.color.base_text[0])
 	return
 }

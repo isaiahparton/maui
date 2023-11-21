@@ -189,20 +189,16 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 		painter.target = get_draw_target()
 		painter.meshes[painter.target].material = Acrylic_Material{amount = 6}
 		inject_at(&self.root_layer.?.meshes, 0, painter.target)
-		paint_rounded_box_mask(self.real_box, 10, 255)
-		paint_rounded_box_mask(self.real_box, 10, fade(style.color.base[1], 0.2))
+		paint_rounded_box_mask(self.real_box, style.panel_rounding, 255)
 		painter.target = prev_target
+		paint_rounded_box_mask(self.real_box, style.panel_rounding, fade(style.color.base[1], 0.2))
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			title_box := cut(.Top, Exact(style.layout.title_size))
 			self.box.low = linalg.min(self.box.low, title_box.low)
 			self.box.high = linalg.max(self.box.high, title_box.high)
 			// Draw title
-			{
-				h := height(title_box) / 3
-				paint_quad_fill({title_box.high.x - h, title_box.low.y}, {title_box.high.x, title_box.low.y}, {title_box.high.x, title_box.high.y - h}, {title_box.high.x - h, title_box.high.y}, style.color.substance[1])
-				paint_box_fill({title_box.low, {title_box.high.x - h, title_box.high.y}}, style.color.substance[1])
-			}
+			paint_rounded_box_fill(title_box, style.panel_rounding, style.color.base[1])
 			layout_box := title_box
 
 			// Close button
@@ -211,7 +207,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 					w.box = cut_box_right(&layout_box, height(layout_box))
 					update_widget(w)
 					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_cross(box_center(w.box), 5, math.PI * 0.25, 2, blend_colors(style.color.substance_text[0], style.color.substance_text[1], hover_time))
+					paint_cross(box_center(w.box), 5, math.PI * 0.25, 2, blend_colors(style.color.base_text[0], style.color.base_text[1], hover_time))
 					update_widget_hover(w, point_in_box(input.mouse_point, w.box))
 				}
 			}
@@ -221,7 +217,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 					w.box = cut_box_right(&layout_box, height(layout_box))
 					update_widget(w)
 					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_arrow_flip(box_center(w.box), 5, 0, 1, self.how_collapsed, blend_colors(style.color.substance_text[0], style.color.substance_text[1], hover_time))
+					paint_arrow_flip(box_center(w.box), 5, 0, 1, self.how_collapsed, blend_colors(style.color.base_text[0], style.color.base_text[1], hover_time))
 					if widget_clicked(w, .Left) {
 						self.bits ~= {.Should_Collapse}
 					}
@@ -239,7 +235,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 				{title_box.low.x + text_offset, baseline}, 
 				{text = info.title, font = style.font.title, size = style.text_size.label}, 
 				{align = .Left, baseline = .Middle}, 
-				color = blend_colors(style.color.substance_text[1], style.color.substance_text[0], self.how_collapsed),
+				color = blend_colors(style.color.base_text[1], style.color.base_text[0], self.how_collapsed),
 			)
 			// Moving 
 			if (.Hovered in self.root_layer.?.state) && point_in_box(input.mouse_point, title_box) {

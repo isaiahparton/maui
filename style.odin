@@ -9,8 +9,8 @@ DARK_STYLE_COLORS :: Style_Colors{
 		{47, 126, 247, 255},
 	},
 	base = {
-		{5, 6, 7, 255},
-		{24, 25, 26, 255},
+		{33, 32, 37, 255},
+		{57, 55, 59, 255},
 	},
 	base_text = {
 		{195, 195, 195, 255},
@@ -73,8 +73,9 @@ Style :: struct {
 	text_size: Style_Text_Size,
 	layout: Style_Layout,
 	color: Style_Colors,
+	panel_rounding,
 	button_rounding: f32,
-	corner_rounding: Box_Corners,
+	rounded_corners: Box_Corners,
 }
 
 style: Style

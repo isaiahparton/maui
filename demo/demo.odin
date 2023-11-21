@@ -72,7 +72,7 @@ _main :: proc() {
 
 		if do_panel({
 			title = "window of opportunity", 
-			options = {.Title}, 
+			options = {.Title, .Closable, .Collapsable}, 
 			placement = child_box(core.fullscreen_box, {300, 400}, {.Middle, .Middle}),
 		}) {
 			shrink(10)
