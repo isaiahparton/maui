@@ -35,7 +35,7 @@ Text_Input_Result :: struct {
 	chip_clicked: Maybe(int),
 }
 do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable}); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .No_Key_Select}); ok {
 		using self
 		// Text cursor
 		if .Hovered in self.state {
@@ -148,7 +148,7 @@ Number_Input_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 }
 do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (new_value: T) {
 	new_value = info.value
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable}); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .No_Key_Select}); ok {
 		using self
 		// Animation values
 		hover_time := animate_bool(self.id, .Hovered in state, 0.1)
@@ -188,11 +188,10 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 		// Update text input
 		if state >= {.Focused} {
 			buffer := typing_agent_get_buffer(&core.typing_agent, id)
-			if state >= {.Got_Focus} || info.value != self.value {
+			if state >= {.Got_Focus} {
 				resize(buffer, len(text))
 				copy(buffer[:], text[:])
 			}
-			self.value = info.value
 			text_edit_bits: Text_Edit_Bits = {.Numeric, .Integer}
 			switch typeid_of(T) {
 				case f16, f32, f64: text_edit_bits -= {.Integer}
@@ -214,10 +213,13 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				core.paint_next_frame = true
 				str := string(buffer[:])
 				switch typeid_of(T) {
+
 					case f64, f32, f16:  		
 					new_value = T(strconv.parse_f64(str) or_else 0)
+
 					case int, i128, i64, i32, i16, i8: 
 					new_value = T(strconv.parse_i128(str) or_else 0)
+					
 					case uint, u128, u64, u32, u16, u8:
 					new_value = T(strconv.parse_u128(str) or_else 0)
 				}

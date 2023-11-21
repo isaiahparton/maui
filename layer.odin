@@ -460,9 +460,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 
 		// Update clip status
 		self.bits -= {.Clipped}
-		if .Clip_To_Parent in self.options && self.parent != nil && !box_in_box(self.parent.box, self.box) {
-			self.box = clamp_box(self.box, self.parent.box)
-		}
 
 		// Uh yeah
 		if agent.exclusive_id == self.id {
@@ -527,6 +524,10 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			self.layout_size.y,
 		}
 		push_layout(layout_box)
+
+		if .Clip_To_Parent in self.options && self.parent != nil {
+			self.box = clip_box(self.box, self.parent.box)
+		}
 	}
 	return
 }
@@ -565,9 +566,9 @@ end_layer :: proc(self: ^Layer) {
 		if .Hovered in self.state {
 			self.scroll_target -= input.mouse_scroll * SCROLL_STEP
 		}
-		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
-		self.scroll_target.y = clamp(self.scroll_target.y, 0, max_scroll.y)
+		self.scroll_target = linalg.clamp(self.scroll_target, 0, max_scroll)
 		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * core.delta_time
+		self.scroll = linalg.clamp(self.scroll, 0, max_scroll)
 
 		// Manifest scroll bars
 		if self.x_scroll_time > 0 {

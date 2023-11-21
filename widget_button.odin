@@ -41,9 +41,10 @@ do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clic
 		// Graphics
 		if .Should_Paint in bits {
 			roundness := box.h / 2
+			base_color := info.fill_color.? or_else get_color(.Button_Base)
 			switch info.style.? or_else .Filled {
 				case .Filled:
-				paint_pill_fill_h(self.box, alpha_blend_colors(get_color(.Button_Base), get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
+				paint_pill_fill_h(self.box, alpha_blend_colors(base_color, get_color(.Button_Shade), 0.3 if .Pressed in self.state else hover_time * 0.15))
 				if load_time, ok := info.load_time.?; ok {
 					paint_pill_fill_clipped_h(self.box, {self.box.x, self.box.y, self.box.w * load_time, self.box.h}, get_color(.Button_Shade, 0.25))
 					if load_time > 0 && load_time < 1 {
@@ -58,22 +59,22 @@ do_pill_button :: proc(info: Pill_Button_Info, loc := #caller_location) -> (clic
 				}
 				
 				case .Outlined:
-				paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
-				paint_pill_stroke_h(self.box, true, get_color(.Button_Base))
+				paint_pill_fill_h(self.box, fade(base_color, 0.2 if .Pressed in self.state else hover_time * 0.1))
+				paint_pill_stroke_h(self.box, true, base_color)
 				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.Button_Base, 0.5))
-					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.Button_Base, 0.5), {.Far, .Middle})
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), fade(base_color, 0.5))
+					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), fade(base_color, 0.5), {.Far, .Middle})
 				} else {
-					paint_label_box(info.label, self.box, get_color(.Button_Base), {.Middle, .Middle})
+					paint_label_box(info.label, self.box, base_color, {.Middle, .Middle})
 				}
 			
 				case .Subtle:
-				paint_pill_fill_h(self.box, get_color(.Button_Base, 0.2 if .Pressed in self.state else hover_time * 0.1))
+				paint_pill_fill_h(self.box, fade(base_color, 0.2 if .Pressed in self.state else hover_time * 0.1))
 				if info.loading {
-					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), get_color(.Button_Base, 0.5))
-					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), get_color(.Button_Base, 0.5), {.Far, .Middle})
+					paint_loader({self.box.x + self.box.h * 0.75, self.box.y + self.box.h / 2}, self.box.h * 0.25, f32(core.current_time), fade(base_color, 0.5))
+					paint_label_box(info.label, squish_box_right(self.box, self.box.h * 0.5), fade(base_color, 0.5), {.Far, .Middle})
 				} else {
-					paint_label_box(info.label, self.box, get_color(.Button_Base), {.Middle, .Middle})
+					paint_label_box(info.label, self.box, base_color, {.Middle, .Middle})
 				}
 			}
 

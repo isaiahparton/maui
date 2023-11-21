@@ -62,24 +62,24 @@ clamp_box :: proc(box, inside: Box) -> Box {
 clip_box :: proc(box, clip: Box) -> Box {
 	box := box
 	if box.x < clip.x {
-    	delta := clip.x - box.x
-    	box.w -= delta
-    	box.x += delta
-    }
-    if box.y < clip.y {
-    	delta := clip.y - box.y
-    	box.h -= delta
-    	box.y += delta
-    }
-    if box.x + box.w > clip.x + clip.w {
-    	box.w = (clip.x + clip.w) - box.x
-    }
-    if box.y + box.h > clip.y + clip.h {
-    	box.h = (clip.y + clip.h) - box.y
-    }
-    box.w = max(box.w, 0)
-    box.h = max(box.h, 0)
-    return box
+  	delta := clip.x - box.x
+  	box.w -= delta
+  	box.x += delta
+  }
+  if box.y < clip.y {
+  	delta := clip.y - box.y
+  	box.h -= delta
+  	box.y += delta
+  }
+  if box.x + box.w > clip.x + clip.w {
+  	box.w = (clip.x + clip.w) - box.x
+  }
+  if box.y + box.h > clip.y + clip.h {
+  	box.h = (clip.y + clip.h) - box.y
+  }
+  box.w = max(box.w, 0)
+  box.h = max(box.h, 0)
+  return box
 }
 
 box_center :: proc(box: Box) -> [2]f32 {

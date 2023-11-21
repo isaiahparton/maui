@@ -18,15 +18,15 @@ WIDGET_TEXT_MARGIN :: 2
 
 // Default color schemes
 DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
-	.Accent 							= {45, 105, 238, 255},
-	.Base 								= {238, 238, 243, 255},
+	.Accent 							= {95, 82, 238, 255},
+	.Base 								= {240, 248, 253, 255},
 	.Base_Shade 					= {0, 0, 0, 255},
 	.Base_Stroke					= {112, 113, 116, 255},
 	.Widget_BG						= {255, 255, 255, 255},
-	.Widget	 							= {165, 165, 175, 255},
-	.Widget_Shade 				= {0, 0, 15, 255},
-	.Widget_Stroke 				= {105, 105, 105, 255},
-	.Intense 							= {62, 62, 67, 255},
+	.Widget	 							= {170, 165, 175, 255},
+	.Widget_Shade 				= {0, 0, 35, 255},
+	.Widget_Stroke 				= {108, 105, 125, 255},
+	.Intense 							= {70, 58, 74, 255},
 	.Intense_Shade 				= {230, 239, 255, 255},
 	.Shadow 							= {0, 0, 0, 35},
 	.Text_Inverted 				= {218, 218, 218, 255},
@@ -38,8 +38,8 @@ DEFAULT_COLORS_LIGHT :: [Color_Index]Color {
 	.Scroll_Thumb 				= {165, 185, 185, 255},
 	.Scroll_Thumb_Shade 	= {255, 255, 255, 255},
 
-	.Button_Base 					= {82, 82, 92, 255},
-	.Button_Shade					= {0, 0, 0, 255},
+	.Button_Base 					= {98, 82, 112, 255},
+	.Button_Shade					= {0, 0, 35, 255},
 	.Button_Text 					= {255, 255, 255, 255},
 }
 /*DEFAULT_COLORS_DARK :: [Color_Index]Color {

@@ -3,7 +3,7 @@ package maui
 import "core:time"
 
 CALENDAR_WIDTH :: 440
-CALENDAR_HEIGHT :: 250
+CALENDAR_HEIGHT :: 270
 
 Date_Picker_Info :: struct {
 	value,
@@ -128,12 +128,14 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 				}
+				cut(.Top, 10)
 				if do_layout(.Top, 20) {
 					set_side(.Left); set_size(60); set_align(.Middle)
 					for day in ([]string)({"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}) {
 						do_text({text = day})
 					}
 				}
+				cut(.Top, 10)
 				WEEK_DURATION :: i64(time.Hour * 24 * 7)
 				OFFSET :: i64(time.Hour * 72)
 				t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
@@ -148,7 +150,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 						}
 						_, _month, _day := time.date(transmute(time.Time)day_time)
 						push_id(i)
-							if do_button({label = format(_day), style = .Filled if (_month == month && _day == day) else .Outlined, color = get_color(.Button_Base, 0.5) if time.month(transmute(time.Time)day_time) != month else nil}) {
+							if do_button({label = format(_day), style = .Filled if (_month == month && _day == day) else .Subtle, color = get_color(.Button_Base, 0.5) if time.month(time.Time{day_time}) != month else nil}) {
 								info.temp_value^ = transmute(time.Time)day_time
 							}
 						pop_id()

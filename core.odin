@@ -444,7 +444,7 @@ begin_frame :: proc() {
 			}
 		}
 		// Find closest widget underneath it
-		if focused_widget, ok := focused_widget.?; ok {
+		if focused_widget, ok := focused_widget.?; ok && !(.No_Key_Select in focused_widget.options && (direction == .Left || direction == .Right)) {
 			// Maybe new focused widget
 			next_focused_widget: Maybe(^Widget)
 			next_layer_focus_id: Maybe(Id)

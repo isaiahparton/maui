@@ -185,6 +185,7 @@ widget_agent_step :: proc(using self: ^Widget_Agent) {
 					delete_key(&widget.layer.contents, key)
 				}
 			}
+			core.paint_next_frame = true
 			free(widget)
 			ordered_remove(&list, i)
 		}

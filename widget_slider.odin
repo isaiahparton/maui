@@ -11,9 +11,9 @@ Orientation :: enum {
 
 // Integer spinner (compound widget)
 Spinner_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
-	value,
+	value: T,
 	low,
-	high: T,
+	high: Maybe(T),
 	title: Maybe(string),
 	increment: Maybe(T),
 	orientation: Orientation,
@@ -24,7 +24,7 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	loc := loc
 	new_value = info.value
 	// Sub-widget boxes
-	box := layout_next(current_layout())
+	box := use_next_box() or_else layout_next(current_layout())
 	increase_box, decrease_box: Box
 	if info.orientation == .Horizontal {
 		buttons_box := get_box_right(box, box.h)
@@ -49,7 +49,12 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		trim_decimal = info.trim_decimal,
 	}, loc)
 	if new_value != info.value {
-		new_value = clamp(new_value, info.low, info.high)
+		if low, ok := info.low.?; ok {
+			new_value = max(new_value, low)
+		}
+		if high, ok := info.high.?; ok {
+			new_value = min(new_value, high)
+		}
 	}
 	// Step buttons
 	loc.column += 1
@@ -60,7 +65,10 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		style = .Subtle,
 		no_key_select = true,
 	}, loc) {
-		new_value = max(info.low, info.value - increment)
+		new_value -= increment
+		if low, ok := info.low.?; ok {
+			new_value = max(low, new_value)
+		}
 		if core.group_stack.height > 0 {
 			core.group_stack.items[core.group_stack.height - 1].state += {.Changed}
 		}
@@ -73,7 +81,10 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		style = .Subtle,
 		no_key_select = true,
 	}, loc) {
-		new_value = min(info.high, info.value + increment)
+		new_value += increment
+		if high, ok := info.high.?; ok {
+			new_value = min(high, new_value)
+		}
 		if core.group_stack.height > 0 {
 			core.group_stack.items[core.group_stack.height - 1].state += {.Changed}
 		}

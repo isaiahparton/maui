@@ -173,7 +173,7 @@ do_window :: proc(info: Window_Info, loc := #caller_location) -> (ok: bool) {
 				offset = SHADOW_OFFSET,
 				roundness = WINDOW_ROUNDNESS,
 			}),
-			options = {.No_Scroll_Y},
+			options = {.No_Scroll_Y, .No_Scroll_X},
 			opacity = self.opacity,
 		}); ok {
 			// Body
@@ -335,7 +335,7 @@ _do_window :: proc(ok: bool) {
 		// Handle Resizing
 		WINDOW_SNAP_DISTANCE :: 10
 		if .Resizing in bits {
-			min_size: [2]f32 = self.min_layout_size if .Fit_To_Layout in self.options else {180, 240}
+			min_size: [2]f32 = self.min_layout_size
 			switch drag_side {
 				case .Bottom:
 				anchor := input.mouse_point.y
