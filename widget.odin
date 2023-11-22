@@ -126,7 +126,7 @@ widget_agent_create :: proc(using self: ^Widget_Agent, id: Id, layer: ^Layer) ->
 	}
 	append(&list, widget)
 	layer.contents[id] = widget
-	core.paint_next_frame = true
+	painter.next_frame = true
 	ok = true
 
 	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
@@ -180,7 +180,7 @@ widget_agent_step :: proc(using self: ^Widget_Agent) {
 			free(widget)
 			ordered_remove(&list, i)
 			// Make sure we paint the next frame
-			core.paint_next_frame = true
+			painter.next_frame = true
 		}
 	}
 }
@@ -243,7 +243,9 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, w: ^Widget) {
 				press_id = 0
 			}
 		}
-		w.click_count = 0
+		if .Draggable not_in w.options {
+			w.click_count = 0
+		}
 	}
 	// Press
 	if press_id == w.id {
@@ -287,7 +289,7 @@ update_widget :: proc(w: ^Widget) {
 	} else {
 		w.bits -= {.Disabled}
 	}
-	if core.paint_this_frame && get_clip(current_layer().box, w.box) != .Full {
+	if painter.this_frame && get_clip(current_layer().box, w.box) != .Full {
 		w.bits += {.Should_Paint}
 	} else {
 		w.bits -= {.Should_Paint}
@@ -350,6 +352,11 @@ widget_clicked :: proc(using self: ^Widget, button: Mouse_Button, times: int = 1
 	return .Clicked in state && click_button == button && click_count >= times - 1
 }
 
+Tooltip_Info :: struct {
+	text: string,
+	box_side: Box_Side,
+}
+
 attach_tooltip :: proc(text: string, side: Box_Side) {
 	core.next_tooltip = Tooltip_Info({
 		text = text,
@@ -357,7 +364,7 @@ attach_tooltip :: proc(text: string, side: Box_Side) {
 	})
 }
 
-tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
+tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment, side: Maybe(Box_Side) = nil) {
 	text_size := measure_text({
 		text = text,
 		font = style.font.title,
@@ -383,13 +390,24 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment) {
 		options = {.No_Scroll_X, .No_Scroll_Y},
 	}); ok {
 		layer.order = .Tooltip
-		paint_rounded_box_fill(layer.box, 0, style.color.base[0])
-		paint_rounded_box_stroke(layer.box, 0, 1, style.color.substance[0])
+		BLACK :: Color{0, 0, 0, 255}
+		paint_rounded_box_fill(layer.box, style.tooltip_rounding, {0, 0, 0, 255})
+		if side, ok := side.?; ok {
+			SIZE :: 5
+			#partial switch side {
+				case .Bottom: 
+				c := (layer.box.high.x + layer.box.low.x) / 2
+				paint_triangle_fill({c - SIZE, layer.box.low.y}, {c + SIZE, layer.box.low.y}, {c, layer.box.low.y - SIZE}, BLACK)
+				case .Top:
+				c := (layer.box.high.x + layer.box.low.x) / 2
+				paint_triangle_fill({c - SIZE, layer.box.high.y}, {c, layer.box.high.y + SIZE}, {c + SIZE, layer.box.high.y}, BLACK)
+			}
+		}
 		paint_text(
 			layer.box.low + PADDING, 
 			{font = style.font.title, size = style.text_size.title, text = text}, 
 			{}, 
-			style.color.substance[1],
+			255,
 			)
 		end_layer(layer)
 	}
@@ -420,7 +438,7 @@ tooltip_box ::proc(id: Id, text: string, anchor: Box, side: Box_Side, offset: f3
 		align.x = .Middle
 		align.y = .Far
 	}
-	tooltip(id, text, origin, align)
+	tooltip(id, text, origin, align, side)
 }
 
 // Labels

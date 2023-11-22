@@ -38,12 +38,13 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 			// Body
 			color := info.color.? or_else (style.color.accent[1] if info.state else style.color.substance[1])
 			if info.state {
-				paint_button_shape_fill(self.box, fade(color, 0.1))
+				paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
+			} else if hover_time > 0 || press_time > 0 {
+				paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, fade(style.color.base_hover, hover_time))
+				paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, fade(style.color.base_click, press_time))
 			}
-			paint_button_shape_fill(self.box, fade(color, 0.1 + (0.1 * hover_time) + (0.8 * press_time)))
-			paint_button_shape_stroke(self.box, 1, fade(color, 0.5 + hover_time * 0.5))
 			// Label
-			paint_label_box(info.label, self.box, blend_colors(color, style.color.base[0], press_time), .Middle, .Middle)
+			paint_label_box(info.label, self.box, style.color.base_text[1], .Middle, .Middle)
 		}
 		// Hover
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
@@ -54,12 +55,10 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 }
 do_toggle_button_bit :: proc(set: ^$S/bit_set[$B], bit: B, label: maui.Label, loc := #caller_location) -> (click: bool) {
 	using maui
-	click = toggle_button(
-		value = bit in set, 
+	if do_toggle_button({
+		state = bit in set, 
 		label = label, 
-		loc = loc,
-		)
-	if click {
+	}, loc = loc) {
 		set^ ~= {bit}
 	}
 	return

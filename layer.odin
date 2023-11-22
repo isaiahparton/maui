@@ -182,7 +182,7 @@ destroy_layer_agent :: proc(using self: ^Layer_Agent) {
 begin_root_layer :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 	root_layer, ok = begin_layer({
 		id = 0,
-		placement = core.fullscreen_box, 
+		placement = Box{{}, core.size}, 
 		options = {.No_ID},
 	})
 	return
@@ -408,22 +408,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			self.bits -= {.Did_Push_ID}
 		}
 
-		// Stay alive
-		self.bits += {.Stay_Alive}
-
-		// Reset draw command
-		clear(&self.meshes)
-
-		// Shadows
-		/*if shadow, ok := info.shadow.?; ok {
-			painter.target = get_draw_target()
-			append(&self.meshes, painter.target)
-			paint_rounded_box_shadow(move_box(self.box, shadow.offset), shadow.roundness, style.color.shadow)
-		}*/
-
-		painter.target = get_draw_target()
-		append(&self.meshes, painter.target)
-
 		// Get box
 		switch placement in info.placement {
 			case Box: 
@@ -460,6 +444,22 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 				self.box.high.y = self.box.low.y + size.y
 			}
 		}
+		// Stay alive
+		self.bits += {.Stay_Alive}
+
+		// Reset draw command
+		clear(&self.meshes)
+
+		// Shadows
+		if shadow, ok := info.shadow.?; ok {
+			painter.target = get_draw_target()
+			append(&self.meshes, painter.target)
+			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, {0, 0, 0, 100})
+		}
+
+		painter.target = get_draw_target()
+		append(&self.meshes, painter.target)
+		
 		// Apply inner padding
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
 
@@ -499,7 +499,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			self.space.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE
 		}
 		if self.scrollbar_time.x > 0 && self.scrollbar_time.x < 1 {
-			core.paint_next_frame = true
+			painter.next_frame = true
 		}
 		// Vertical scrolling
 		if (self.space.y > height(self.box)) && (.No_Scroll_Y not_in self.options) {
@@ -513,7 +513,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 			self.space.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE
 		}
 		if self.scrollbar_time.y > 0 && self.scrollbar_time.y < 1 {
-			core.paint_next_frame = true
+			painter.next_frame = true
 		}
 		
 		self.opacity = info.opacity.? or_else self.opacity
@@ -566,7 +566,7 @@ end_layer :: proc(self: ^Layer) {
 		pop_layout()
 		
 		// Detect clipping
-		if (self.box != core.fullscreen_box && !box_in_box(self.box, self.content_box)) || (.Force_Clip in self.options) {
+		if (self.box != Box{{}, core.size} && !box_in_box(self.box, self.content_box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
 			painter.meshes[painter.target].clip = self.box
 		}
@@ -581,7 +581,7 @@ end_layer :: proc(self: ^Layer) {
 		}
 		// Repaint if scrolling with wheel
 		if linalg.floor(self.scroll_target - self.scroll) != {} {
-			core.paint_next_frame = true
+			painter.next_frame = true
 		}
 		// Clamp scrolling
 		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)

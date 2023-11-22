@@ -46,18 +46,24 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 		}
 		// Paint!
 		if (.Should_Paint in self.bits) {
-			paint_shaded_box(self.layer.box, {style.color.indent_dark, style.color.indent, style.color.indent_light})
+			paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, style.color.base[1])
+			if .Focused in self.state {
+				paint_rounded_box_corners_stroke(self.box, style.button_rounding, 2, style.rounded_corners, style.color.accent[1])
+			}
 		}
-		// Text!
+		// Get text origin
 		text_origin: [2]f32 = {self.box.high.x - style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
+		// Draw suffix
 		if text, ok := info.suffix.?; ok {
-			size := paint_text(text_origin, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.base_text)
+			size := paint_text(text_origin, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.base_text[0])
 			text_origin.x -= size.x
 		}
-		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, {read_only = true}, style.color.base_text)
+		// Main text
+		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle}, {read_only = true}, style.color.base_text[1])
 		text_origin.x = text_res.bounds.low.x
+		// Draw prefix
 		if text, ok := info.prefix.?; ok {
-			paint_text(text_origin, {text = text, font = style.font.monospace, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.base_text)
+			paint_text(text_origin, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.base_text[0])
 		}
 		// Value manipulation
 		if (.Focused in self.state) {
@@ -88,24 +94,24 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 					continue
 				}
 				number := int(r) - 48
-				if (number == 0 && value < base) {
+				if (number == 0 && value < T(base)) {
 					continue
 				}
 				value *= 10.0 
-				value += base * T(number) 
+				value += T(base) * T(number) 
 				// Set changed flag
 				res.changed = true
 			}
 			// Deletion
-			if (key_pressed(.Backspace) && value >= base) {
+			if (key_pressed(.Backspace) && value >= T(base)) {
 				if info.precision > 0 {
-					value = f64(int(value / (base * 10.0)))
-					value *= base 
+					value = T(int(value / T(base * 10.0)))
+					value *= T(base) 
 				} else {
 					value *= 0.1
-					value = f64(int(value))
+					value = T(int(value))
 				}
-				if value < base {
+				if value < T(base) {
 					value = 0
 				}
 				// Set changed flag
@@ -159,9 +165,11 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			text = trim_zeroes(text)
 		}
 		// Background
-		paint_rounded_box_fill(box, style.button_rounding, style.color.base[1])
-		if .Focused in self.state {
-			paint_rounded_box_stroke(box, style.button_rounding, 2, style.color.accent[1])
+		if .Should_Paint in self.bits {
+			paint_rounded_box_corners_fill(box, style.button_rounding, style.rounded_corners, style.color.base[1])
+			if .Focused in self.state {
+				paint_rounded_box_corners_stroke(box, style.button_rounding, 2, style.rounded_corners, style.color.accent[1])
+			}
 		}
 		// Do text interaction
 		text_align := info.text_align.? or_else {
@@ -178,12 +186,12 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				left_over := self.box.low.x - input.mouse_point.x 
 				if left_over > 0 {
 					self.offset.x -= left_over * 0.2
-					core.paint_next_frame = true
+					painter.next_frame = true
 				}
 				right_over := input.mouse_point.x - self.box.high.x
 				if right_over > 0 {
 					self.offset.x += right_over * 0.2
-					core.paint_next_frame = true
+					painter.next_frame = true
 				}
 				self.offset.x = clamp(self.offset.x, 0, offset_x_limit)
 			} else {
@@ -216,14 +224,14 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				{text = string(buffer[:]), font = style.font.label, size = style.text_size.label},
 				{baseline = .Middle, clip = self.box},
 				{},
-				style.color.base_text[0],
+				style.color.base_text[1],
 			)
 			if typing_agent_edit(&core.typing_agent, {
 				array = buffer, 
 				bits = text_edit_bits, 
 				capacity = 18,
 			}) {
-				core.paint_next_frame = true
+				painter.next_frame = true
 				str := string(buffer[:])
 				switch typeid_of(T) {
 					case f64, f32, f16:  		
@@ -243,7 +251,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				{text = text, font = style.font.label, size = style.text_size.label},
 				{baseline = .Middle, clip = self.box},
 				{},
-				style.color.base_text[0],
+				style.color.base_text[1],
 			)
 		}
 

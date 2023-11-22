@@ -81,8 +81,12 @@ typing_agent_backspace :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8){
 	if length == 0 {
 		if index > 0 {
 			end := index
-			_, size := utf8.decode_last_rune_in_bytes(buf[:index])
-			index -= size
+			if key_down(.Left_Control) || key_down(.Right_Control) {
+				index = find_last_seperator(buf[:index])
+			} else {
+				_, size := utf8.decode_last_rune_in_bytes(buf[:index])
+				index -= size
+			}
 			remove_range(buf, index, end)
 		}
 	} else {
@@ -228,7 +232,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 			length = 0
 			anchor = index
 		}
-		core.paint_next_frame = true
+		painter.next_frame = true
 		// Clamp cursor
 		index = max(0, index)
 		length = max(0, length)
@@ -271,7 +275,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 				length = len(info.array) - index
 			}
 		}
-		core.paint_next_frame = true
+		painter.next_frame = true
 		index = max(0, index)
 		length = max(0, length)
 	}

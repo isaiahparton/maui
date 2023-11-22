@@ -51,7 +51,9 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			}
 		}
 		// Paint!
-		paint_box_fill(self.box, fade(style.color.substance[1], 0.1 * hover_time))
+		if (.Should_Paint in self.bits) {
+			paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, style.color.base[1])
+		}
 		// Get data source
 		text: string
 		switch type in info.data {
@@ -68,19 +70,29 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			}
 			res.changed = typing_agent_edit(&core.typing_agent, {
 				array = buffer,
-				bits = {},
+				bits = Text_Edit_Bits{.Multiline} if info.multiline else {},
 			})
 		}
 		// Do text interaction
 		inner_box: Box = {{self.box.low.x + style.layout.widget_padding, self.box.low.y}, {self.box.high.x - style.layout.widget_padding, self.box.high.y}}
+		text_origin: [2]f32 = inner_box.low
+		paint_info: Text_Paint_Info = {
+			clip = self.box,
+		}
+		if !info.multiline {
+			text_origin.y += height(inner_box) / 2
+			paint_info.baseline = .Middle
+		} else {
+			text_origin.y += style.layout.widget_padding
+		}
 		text_res := paint_interact_text(
-			{inner_box.low.x, (inner_box.low.y + inner_box.high.y) / 2} - self.offset, 
+			text_origin - self.offset, 
 			self,
 			&core.typing_agent, 
 			{text = text, font = style.font.label, size = style.text_size.field},
-			{baseline = .Middle, clip = self.box},
+			paint_info,
 			{},
-			style.color.base_text[0],
+			style.color.base_text[1],
 		)
 		if .Focused in self.state {
 			offset_x_limit := max(width(text_res.bounds) - width(inner_box), 0)
@@ -88,12 +100,12 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 				left_over := self.box.low.x - input.mouse_point.x 
 				if left_over > 0 {
 					self.offset.x -= left_over * 0.2
-					core.paint_next_frame = true
+					painter.next_frame = true
 				}
 				right_over := input.mouse_point.x - self.box.high.x
 				if right_over > 0 {
 					self.offset.x += right_over * 0.2
-					core.paint_next_frame = true
+					painter.next_frame = true
 				}
 				self.offset.x = clamp(self.offset.x, 0, offset_x_limit)
 			} else {
@@ -110,7 +122,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			// What to do if change occoured
 			if res.changed {
 				self.state += {.Changed}
-				core.paint_next_frame = true
+				painter.next_frame = true
 				if value, ok := info.data.(^string); ok {
 					delete(value^)
 					value^ = strings.clone_from_bytes(buffer[:])
@@ -123,14 +135,16 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			if info.placeholder != nil {
 				if len(text) == 0 {
 					paint_text(
-						{self.box.low.x + style.layout.widget_padding, center_y(self.box)}, 
+						text_origin, 
 						{font = style.font.label, size = style.text_size.field, text = info.placeholder.?}, 
-						{baseline = .Middle}, 
-						fade(style.color.base_text[0], 0.5 + 0.5 * hover_time),
+						paint_info, 
+						style.color.base_text[0],
 					)
 				}
 			}
-			paint_box_stroke(self.box, 1, fade(blend_colors(style.color.substance[1], style.color.accent[1], focus_time), 0.5 + 0.5 * hover_time))
+			if .Focused in self.state {
+				paint_rounded_box_corners_stroke(self.box, style.button_rounding, 2, style.rounded_corners, style.color.accent[1])
+			}
 		}
 		// Whatever
 		if .Lost_Focus in self.state {

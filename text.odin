@@ -13,6 +13,7 @@ import "core:math/linalg"
 
 import "core:fmt"
 
+import "core:strings"
 import "core:unicode"
 import "core:unicode/utf8"
 
@@ -524,7 +525,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		at_end := false
 		// Determine hovered line
 		line_height := it.size.ascent - it.size.descent + it.size.line_gap
-		line_count := int(math.floor(size.y / line_height))
+		line_count := int(math.floor(size.y / line_height)) - 1
 		hovered_line := clamp(int((input.mouse_point.y - origin.y) / line_height), 0, line_count)
 		min_dist: f32 = math.F32_MAX
 		line: int
@@ -633,29 +634,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 	}
 	// Update selection
 	if .Got_Press in widget.state {
-		if widget.click_count == 1 {
-			// Select the hovered word
-			// Move index to the beginning of the hovered word
-			for i := min(agent.index, len(text_info.text) - 1); ; i -= 1 {
-				if i <= 0 {
-					agent.index = 0
-					break
-				} else if is_seperator(text_info.text[i]) {
-					agent.index = i + 1
-					break
-				}
-			}
-			// Find length of the word
-			for j := agent.index + 1; ; j += 1 {
-				if j >= len(text_info.text) - 1 {
-					agent.length = len(text_info.text) - agent.index
-					break
-				} else if is_seperator(text_info.text[j]) {
-					agent.length = j - agent.index
-					break
-				}
-			}
-		} else if widget.click_count == 2 {
+		if widget.click_count == 2 {
 			// Select everything
 			agent.index = 0
 			agent.anchor = 0
@@ -668,14 +647,35 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		}
 	}
 	// Dragging
-	if .Pressed in widget.state && widget.click_count == 0 {
+	if .Pressed in widget.state && widget.click_count < 2 {
 		// Selection by dragging
-		if hover_index < agent.anchor {
-			agent.index = hover_index
-			agent.length = agent.anchor - hover_index
+		if widget.click_count == 1 {
+			next, last: int
+			if hover_index < agent.anchor {
+				last = max(0, strings.last_index_byte(text_info.text[:hover_index], ' ') + 1)
+				next = strings.index_byte(text_info.text[agent.anchor:], ' ')
+				if next == -1 {
+					next = len(text_info.text)
+				}
+				next += agent.anchor
+			} else {
+				last = max(0, strings.last_index_byte(text_info.text[:agent.anchor], ' ') + 1)
+				next = strings.index_byte(text_info.text[hover_index:], ' ')
+				if next == -1 {
+					next = len(text_info.text)
+				}
+				next += hover_index
+			}
+			agent.index = last
+			agent.length = next - last
 		} else {
-			agent.index = agent.anchor
-			agent.length = hover_index - agent.anchor
+			if hover_index < agent.anchor {
+				agent.index = hover_index
+				agent.length = agent.anchor - hover_index
+			} else {
+				agent.index = agent.anchor
+				agent.length = hover_index - agent.anchor
+			}
 		}
 	}
 	return
@@ -696,17 +696,33 @@ do_text :: proc(info: Do_Text_Info) {
 		case .Middle: origin.x = (box.low.x + box.high.x) / 2
 		case .Right: origin.x = box.high.x
 	}
-	switch info.align {
-		case .Left: origin.y = box.low.y
+	switch info.baseline {
+		case .Top: origin.y = box.low.y
 		case .Middle: origin.y = (box.low.y + box.high.y) / 2
-		case .Right: origin.y = box.high.y
+		case .Bottom: origin.y = box.high.y
 	}
-	paint_text(origin, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = info.align, baseline = info.baseline}, info.color.? or_else style.color.base_text[0])
+	paint_text(
+		origin, 
+		{
+			text = info.text, 
+			font = style.font.label, 
+			size = style.text_size.label, 
+			limit = {width(box), nil}, 
+			wrap = .Word,
+		}, 
+		{
+			align = info.align, 
+			baseline = info.baseline,
+		}, 
+		info.color.? or_else style.color.base_text[1],
+		)
 }
 
 Interactable_Text_Info :: struct {
-	using text_info: Text_Info,
-	paint_info: Text_Paint_Info,
+	text: string,
+	align: Text_Align,
+	baseline: Text_Baseline,
+	color: Maybe(Color),
 }
 do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_location) {
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
@@ -725,11 +741,29 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 			case .Near: origin.y = self.box.low.y
 		}
 
-		res := paint_interact_text(origin, self, &core.typing_agent, info.text_info, info.paint_info, {read_only = true}, style.color.base_text[1])
+		res := paint_interact_text(
+			origin, self, 
+			&core.typing_agent, 
+			{
+				text = info.text, 
+				font = style.font.label, 
+				size = style.text_size.label, 
+				limit = {width(self.box), nil}, 
+				wrap = .Word,
+			}, 
+			{
+				align = info.align, 
+				baseline = info.baseline,
+			},  
+			{
+				read_only = true
+			}, 
+			info.color.? or_else style.color.base_text[1],
+			)
 		update_widget_hover(self, res.hovered)
 
 		self.layer.content_box = update_bounding_box(self.layer.content_box, res.bounds)
-		if .Hovered in self.state {
+		if self.state & {.Hovered, .Pressed} != {} {
 			core.cursor = .Beam
 		}
 	}

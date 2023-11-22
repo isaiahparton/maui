@@ -3,25 +3,24 @@
 		* Newly created fonts are added at the bottom of the existing content
 		* When the texture is full, it is cleared
 */
-
 package maui
 // Core dependencies
 import "core:os"
 import "core:mem"
 import "core:runtime"
 import "core:path/filepath"
-
 import "core:fmt"
 import "core:strings"
 import "core:strconv"
 import "core:unicode"
 import "core:unicode/utf8"
-
 import "core:math"
 import "core:math/linalg"
-
 import ttf "vendor:stb/truetype"
 import img "vendor:stb/image"
+
+// Global instance pointer
+painter: ^Painter
 
 // Path to resrcs folder
 RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, ".")
@@ -81,6 +80,7 @@ Texture_Id :: u32
 Material :: union {
 	Default_Material,
 	Acrylic_Material,
+	//Gradient_Material,
 }
 Default_Material :: struct {
 	texture: Texture_Id,
@@ -88,6 +88,9 @@ Default_Material :: struct {
 }
 Acrylic_Material :: struct {
 	amount: int,
+}
+Gradient_Material :: struct {
+	corners: [Box_Corner]Color,
 }
 
 MAX_MESH_VERTICES :: 32768
@@ -127,10 +130,18 @@ paint_indices :: proc(mesh: ^Mesh, indices: ..u16) {
 }
 
 MAX_FONTS :: 32
-MAX_MESHES :: 48
+MAX_MESHES :: 512
+
+Paint_Mode :: enum {
+	Discrete,
+	Continuous,
+}
 
 // Context for painting graphics stuff
 Painter :: struct {
+	mode: Paint_Mode,
+	this_frame,
+	next_frame: bool,
 	// Main texture atlas
 	atlas: Atlas,
 	// Draw options
@@ -141,23 +152,26 @@ Painter :: struct {
 	meshes: [MAX_MESHES]Mesh,
 	mesh_index: int,
 }
-// Global instance pointer
-painter: ^Painter
+
+should_render :: proc() -> bool {
+	return painter.mode == .Continuous || painter.this_frame
+}
 
 style_default_fonts :: proc() -> bool {
 	// Load the fonts
 	style.font.label = load_font(&painter.atlas, "fonts/Roboto-Regular.ttf") or_return
-	style.font.title = load_font(&painter.atlas, "fonts/Rajdhani-Bold.ttf") or_return
+	style.font.title = load_font(&painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return
 	style.font.monospace = load_font(&painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return
 	// Assign their handles and sizes
-	style.text_size.label = 20
+	style.text_size.label = 18
 	style.button_rounding = 5
 	style.panel_rounding = 5
+	style.tooltip_rounding = 5
 	style.text_size.title = 16
-	style.text_size.field = 20
+	style.text_size.field = 18
 	style.layout.title_size = 24
 	style.layout.gap_size = 5
-	style.layout.widget_padding = 4
+	style.layout.widget_padding = 7
 	return true
 }
 painter_init :: proc() -> bool {
@@ -217,74 +231,7 @@ update_texture :: proc(texture: Texture, image: Image, x, y, w, h: f32) {
 	assert(_update_texture != nil)
 	_update_texture(texture, image.data, x, y, w, h)
 }
-// Color processing
-set_color_brightness :: proc(color: Color, value: f32) -> Color {
-	delta := clamp(i32(255.0 * value), -255, 255)
-	return {
-		cast(u8)clamp(i32(color.r) + delta, 0, 255),
-		cast(u8)clamp(i32(color.g) + delta, 0, 255),
-		cast(u8)clamp(i32(color.b) + delta, 0, 255),
-		color.a,
-	}
-}
-color_to_hsv :: proc(color: Color) -> [4]f32 {
-	hsva := linalg.vector4_rgb_to_hsl(linalg.Vector4f32{f32(color.r) / 255.0, f32(color.g) / 255.0, f32(color.b) / 255.0, f32(color.a) / 255.0})
-	return hsva.xyzw
-}
-color_from_hsv :: proc(hue, saturation, value: f32) -> Color {
-		rgba := linalg.vector4_hsl_to_rgb(hue, saturation, value, 1.0)
-		return {u8(rgba.r * 255.0), u8(rgba.g * 255.0), u8(rgba.b * 255.0), u8(rgba.a * 255.0)}
-}
-fade :: proc(color: Color, alpha: f32) -> Color {
-	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
-}
-blend_colors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
-	if amount <= 0 {
-		result = bg
-	} else if amount >= 1 {
-		result = fg
-	} else {
-		result = bg + {
-			u8((f32(fg.r) - f32(bg.r)) * amount),
-			u8((f32(fg.g) - f32(bg.g)) * amount),
-			u8((f32(fg.b) - f32(bg.b)) * amount),
-			u8((f32(fg.a) - f32(bg.a)) * amount),
-		}
-	}
-	return
-}
-alpha_blend_colors_tint :: proc(dst, src, tint: Color) -> (out: Color) {
-	out = 255
 
-	src := src
-	src.r = u8((u32(src.r) * (u32(tint.r) + 1)) >> 8)
-	src.g = u8((u32(src.g) * (u32(tint.g) + 1)) >> 8)
-	src.b = u8((u32(src.b) * (u32(tint.b) + 1)) >> 8)
-	src.a = u8((u32(src.a) * (u32(tint.a) + 1)) >> 8)
-
-	if (src.a == 0) {
-		out = dst
-	} else if src.a == 255 {
-		out = src
-	} else {
-		alpha := u32(src.a) + 1
-		out.a = u8((u32(alpha) * 256 + u32(dst.a) * (256 - alpha)) >> 8)
-
-		if out.a > 0 {
-			out.r = u8(((u32(src.r) * alpha * 256 + u32(dst.r) * u32(dst.a) * (256 - alpha)) / u32(out.a)) >> 8)
-			out.g = u8(((u32(src.g) * alpha * 256 + u32(dst.g) * u32(dst.a) * (256 - alpha)) / u32(out.a)) >> 8)
-			out.b = u8(((u32(src.b) * alpha * 256 + u32(dst.b) * u32(dst.a) * (256 - alpha)) / u32(out.a)) >> 8)
-		}
-	}
-	return
-}
-alpha_blend_colors_time :: proc(dst, src: Color, time: f32) -> (out: Color) {
-	return alpha_blend_colors_tint(dst, src, fade(255, time))
-}
-alpha_blend_colors :: proc {
-	alpha_blend_colors_time,
-	alpha_blend_colors_tint,
-}
 
 stroke_path :: proc(pts: [][2]f32, closed: bool, thickness: f32, color: Color) {
 	draw := &painter.meshes[painter.target]
@@ -448,9 +395,9 @@ paint_triangle_mask :: proc(a, b, c: [2]f32, color: Color) {
 		draw.vertices_offset + 2,
 	)
 	paint_vertices(draw, 
-		{point = a, uv = a / core.size, color = color},
-		{point = b, uv = b / core.size, color = color},
-		{point = c, uv = c / core.size, color = color},
+		{point = a, uv = [2]f32{0, 1} + (a / core.size) * {1, -1}, color = color},
+		{point = b, uv = [2]f32{0, 1} + (b / core.size) * {1, -1}, color = color},
+		{point = c, uv = [2]f32{0, 1} + (c / core.size) * {1, -1}, color = color},
 	)
 }
 paint_triangle_stroke :: proc(a, b, c: [2]f32, thickness: f32, color: Color) {
@@ -788,7 +735,7 @@ paint_rounded_box_corners_fill :: proc(box: Box, radius: f32, corners: Box_Corne
 	if box.high.x <= box.low.x || box.high.y <= box.low.y {
 		return
 	}
-	if radius == 0 {
+	if radius == 0 || corners == {} {
 		paint_box_fill(box, color)
 		return
 	}
@@ -831,9 +778,6 @@ paint_rounded_box_corners_fill :: proc(box: Box, radius: f32, corners: Box_Corne
 		paint_box_fill({{box.high.x - radius, box.low.y + radius}, {box.high.x, box.high.y - radius}}, color)
 	}
 }
-
-
-
 
 paint_rotating_arrow :: proc(center: [2]f32, size, time: f32, color: Color) {
 	angle := (1 - time) * math.PI * 0.5
@@ -878,7 +822,7 @@ paint_arrow_flip :: proc(center: [2]f32, scale, angle, thickness, time: f32, col
 paint_loader :: proc(center: [2]f32, radius, time: f32, color: Color) {
 	start := time * math.TAU
 	paint_ring_sector_fill(center, radius - 3, radius, start, start + 2.2 + math.sin(time * 4) * 0.8, 24, color)
-	core.paint_this_frame = true
+	painter.next_frame = true
 }
 paint_check :: proc(center: [2]f32, scale: f32, color: Color) {
 	a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale

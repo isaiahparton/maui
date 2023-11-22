@@ -274,6 +274,12 @@ destroy :: proc() {
 	delete_big_fbo()
 }
 
+clear :: proc(color: ui.Color) {
+	gl.Disable(gl.SCISSOR_TEST)
+	gl.ClearColor(f32(color.r) / 255, f32(color.g) / 255, f32(color.b) / 255, f32(color.a) / 255)
+  gl.Clear(gl.COLOR_BUFFER_BIT)
+}
+
 render :: proc(interface: backend.Platform_Renderer_Interface) -> int {
 	ctx.interface = interface
 	if ctx.last_screen_size != ctx.screen_size {
@@ -284,12 +290,7 @@ render :: proc(interface: backend.Platform_Renderer_Interface) -> int {
 	}
 	ctx.last_screen_size = ctx.screen_size
 
-	gl.Disable(gl.SCISSOR_TEST)
-  gl.ClearColor(0.0, 0.0, 0.0, 1.0)
-  gl.Clear(gl.COLOR_BUFFER_BIT)
-
-  gl.Viewport(0, 0, ctx.screen_size.x, ctx.screen_size.y)
-	
+	gl.Viewport(0, 0, ctx.screen_size.x, ctx.screen_size.y)
 	gl.Enable(gl.BLEND)
 	gl.Enable(gl.MULTISAMPLE)
 	gl.BlendEquation(gl.FUNC_ADD)
@@ -345,11 +346,13 @@ render :: proc(interface: backend.Platform_Renderer_Interface) -> int {
 
 			// Bind the texture for the mesh call
 			switch mat in mesh.material {
+
 				/*
 					Normal material
 				*/
 				case ui.Default_Material:
 				gl.BindTexture(gl.TEXTURE_2D, mat.texture)
+
 				/*
 					Acrylic material
 				*/

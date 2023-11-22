@@ -65,8 +65,6 @@ ALL_CORNERS: Box_Corners = {.Top_Left, .Top_Right, .Bottom_Left, .Bottom_Right}
 
 DOUBLE_CLICK_TIME :: time.Millisecond * 450
 
-Color :: [4]u8
-
 Animation :: struct {
 	keep_alive: bool,
 	value,
@@ -80,11 +78,6 @@ Scribe :: struct {
 
 Group :: struct {
 	state: Widget_State,
-}
-
-Tooltip_Info :: struct {
-	text: string,
-	box_side: Box_Side,
 }
 
 Arena :: struct($T: typeid, $N: int) {
@@ -126,10 +119,7 @@ stack_top_ref :: proc(stack: ^Stack($T, $N)) -> (ref: ^T, ok: bool) #optional_ok
 	return &stack.items[stack.height - 1], true
 }
 
-Deferred_Chip :: struct {
-	text: string,
-	clicked: bool,
-}
+
 
 Core :: struct {
 	// Time
@@ -145,24 +135,16 @@ Core :: struct {
 	open_menus,
 	is_key_selecting: bool,
 
-	// Should ui be repainted
-	painted_last_frame,
-	paint_this_frame, 
-	paint_next_frame: bool,
-
 	// Uh
 	last_size,
 	size: [2]f32,
-	last_box, fullscreen_box: Box,
+	last_box: Box,
 
 	// Mouse cursor type
 	cursor: Cursor_Type,
 
 	// Hash stack
 	id_stack: Stack(Id, ID_STACK_SIZE),
-
-	// Text chips
-	chips: Stack(Deferred_Chip, CHIP_STACK_SIZE),
 
 	// Group stack
 	group_stack: Stack(Group, GROUP_STACK_SIZE),
@@ -252,7 +234,7 @@ animate_bool :: proc(value: ^f32, condition: bool, duration: f32, easing: ease.E
 		value^ = max(0, value^ - core.delta_time * (1 / duration))
 	}
 	if value^ != old_value {
-		core.paint_next_frame = true
+		painter.next_frame = true
 	}
 	return ease.ease(easing, value^)
 }
@@ -322,22 +304,20 @@ begin_frame :: proc() {
 	// Reset painter
 	painter.mesh_index = 0
 	painter.opacity = 1
+	style.rounded_corners = ALL_CORNERS
 
 	// Reset placement
 	placement = {}
 
 	// Decide if painting is required this frame
-	paint_this_frame = false
-	if paint_next_frame {
-		paint_this_frame = true
-		paint_next_frame = false
+	painter.this_frame = false
+	if painter.next_frame {
+		painter.this_frame = true
+		painter.next_frame = false
 	}
 
 	// Reset cursor to default state
 	cursor = .Default
-
-	// Reset fullscreen box
-	fullscreen_box = {high = size}
 
 	// Free and delete unused text buffers
 	typing_agent_step(&typing_agent)
@@ -392,9 +372,7 @@ begin_frame :: proc() {
 	}
 
 	// Reset clip box
-	clip_box = fullscreen_box
-
-	chips.height = 0
+	clip_box = {{}, core.size}
 }
 end_frame :: proc() {
 	using core
@@ -408,7 +386,7 @@ end_frame :: proc() {
 				display_box.low += (box.low - display_box.low) * delta_time * 12
 				display_box.high += (box.high - display_box.high) * delta_time * 12
 				paint_box_fill(display_box^, fade(style.color.accent[1], 0.5))
-				core.paint_next_frame = true
+				painter.next_frame = true
 			} else {
 				panel_agent.attach_display_box = box
 			}
@@ -429,10 +407,10 @@ end_frame :: proc() {
 	update_panel_agent(&panel_agent)
 	// Decide if rendering is needed next frame
 	if input.last_mouse_point != input.mouse_point || input.last_key_set != input.key_set|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
-		paint_next_frame = true
+		painter.next_frame = true
 	}
 	if size != last_size {
-		paint_next_frame = true
+		painter.next_frame = true
 		last_size = size
 	}
 	// Reset input bits
@@ -442,7 +420,6 @@ end_frame :: proc() {
 	input.last_mouse_point = input.mouse_point
 	input.mouse_scroll = {}
 	// Update timings
-	painted_last_frame = paint_this_frame
 	frame_duration = time.since(frame_start_time)
 	last_time = current_time
 }
@@ -453,9 +430,6 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 		count += 1 + _count_layer_children(child)
 	}
 	return count
-}
-should_render :: proc() -> bool {
-	return core.paint_this_frame
 }
 
 //@private

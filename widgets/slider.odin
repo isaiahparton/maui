@@ -41,8 +41,8 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 		offset := range * clamp(f32((info.value - info.low) / (info.high - info.low)), 0, 1)
 		// The body
 		bar_box: Box = self.box
-		bar_box.low[j] += HALF_THICKNESS
-		bar_box.high[j] -= HALF_THICKNESS
+		bar_box.low[j] += 4
+		bar_box.high[j] -= 4
 		// The knob shape
 		knob_center: [2]f32
 		switch info.orientation {
@@ -72,20 +72,17 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 			// Paint the filled part of the body
 			switch info.orientation {
 				case .Horizontal: 
-				c := (self.box.low.y + self.box.high.y) / 2
-				paint_box_fill({{min(self.box.low.x + offset + RADIUS, self.box.high.x), c}, {self.box.high.x, c + 1}}, style.color.substance[0])
-				paint_box_fill({{self.box.low.x, c}, {max(self.box.low.x, self.box.low.x + offset - RADIUS), c + 1}}, style.color.accent[1])
+				paint_pill_fill_h({{min(bar_box.low.x + offset, bar_box.low.y), bar_box.low.y}, {bar_box.high.x, bar_box.high.y}}, style.color.substance[0])
+				paint_pill_fill_h({bar_box.low, {max(bar_box.low.x, bar_box.low.x + offset), bar_box.high.y}}, style.color.accent[0])
 				case .Vertical: 
-				c := (self.box.low.x + self.box.high.x) / 2
-				paint_box_fill({{c, self.box.low.y}, {c + 1, max(self.box.high.y - (offset + RADIUS), self.box.low.y)}}, style.color.substance[0])
-				paint_box_fill({{c, min(self.box.high.y - (offset - RADIUS), self.box.high.y)}, {c + 1, self.box.high.y}}, style.color.accent[1])
+				paint_pill_fill_h({{bar_box.low.x, bar_box.low.y}, {bar_box.high.x, max(bar_box.high.y - (offset), bar_box.low.y)}}, style.color.substance[0])
+				paint_pill_fill_h({{bar_box.low.x, min(bar_box.high.y - (offset), bar_box.high.y)}, {bar_box.high.x, bar_box.high.y}}, style.color.accent[0])
 			}
-			paint_circle_fill_texture(knob_center, RADIUS, fade(style.color.accent[1], 0.1 + 0.1 * hover_time))
-			paint_ring_fill_texture(knob_center, RADIUS, RADIUS + 1, style.color.accent[1])
+			paint_circle_fill_texture(knob_center, RADIUS, alpha_blend_colors(style.color.accent[1], style.color.accent_hover, hover_time * 0.1))
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
-			tooltip(self.id, tmp_printf(format, info.value), knob_center + {0, -((RADIUS + 4) + 6 * press_time)}, {.Middle, .Far})
+			tooltip(self.id, tmp_printf(format, info.value), knob_center + {0, -((RADIUS + 7) + 7 * press_time)}, {.Middle, .Far}, .Top)
 		}
 		// Detect press
 		if .Pressed in self.state {
@@ -173,7 +170,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 					if parsed_value, parse_ok := strconv.parse_int(string(buffer[:])); parse_ok {
 						new_value = T(parsed_value)
 					}
-					core.paint_next_frame = true
+					painter.next_frame = true
 				}
 			}
 		} else {

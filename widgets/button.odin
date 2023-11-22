@@ -65,8 +65,8 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 			core.cursor = .Hand
 		}
 		if .Should_Paint in self.bits {
-			paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, alpha_blend_colors(style.color.substance[0], 255, (hover_time + press_time) * 0.1))
-			paint_label_box(info.label, self.box, style.color.base_text[0], info.align.? or_else .Middle, .Middle)
+			paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
+			paint_label_box(info.label, self.box, style.color.base_text[1], info.align.? or_else .Middle, .Middle)
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)
