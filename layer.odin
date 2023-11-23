@@ -31,6 +31,7 @@ Layer_Bit :: enum {
 	// If the layer pushed to the id stack this frame
 	Did_Push_ID,
 	Topmost,
+	Just_Made,
 }
 
 Layer_Bits :: bit_set[Layer_Bit]
@@ -121,6 +122,7 @@ Layer :: struct {
 	// Scroll bars
 	x_scroll_time,
 	y_scroll_time: f32,
+	first_frame: int,
 }
 
 Layer_Agent :: struct {
@@ -265,6 +267,7 @@ layer_agent_create :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Opti
 	layer^ = {
 		reserved = true,
 		id = id,
+		first_frame = core.frame,
 		opacity = 0 if .Invisible in options else 1,
 	}
 	// Append the new layer

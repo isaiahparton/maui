@@ -63,7 +63,6 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		label = "\uEA4E", 
 		align = .Middle,
 		style = .Subtle,
-		no_key_select = true,
 	}, loc) {
 		new_value -= increment
 		if low, ok := info.low.?; ok {
@@ -79,7 +78,6 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		label = "\uEA78", 
 		align = .Middle,
 		style = .Subtle,
-		no_key_select = true,
 	}, loc) {
 		new_value += increment
 		if high, ok := info.high.?; ok {

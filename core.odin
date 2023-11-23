@@ -133,6 +133,7 @@ Core :: struct {
 	delta_time: f32,
 	frame_start_time: time.Time,
 	frame_duration: time.Duration,
+	frame: int,
 
 	// Debugification
 	debug_bits: Debug_Bits,
@@ -390,7 +391,7 @@ begin_frame :: proc() {
 
 		anchor: int
 		for widget in widget_agent.list {
-			if .No_Key_Select not_in widget.options && .Disabled not_in widget.bits {
+			if .Is_Text_Input in widget.options && .Disabled not_in widget.bits {
 				append(&array, widget)
 			}
 		}
@@ -444,7 +445,7 @@ begin_frame :: proc() {
 			}
 		}
 		// Find closest widget underneath it
-		if focused_widget, ok := focused_widget.?; ok && !(.No_Key_Select in focused_widget.options && (direction == .Left || direction == .Right)) {
+		if focused_widget, ok := focused_widget.?; ok && !(.Is_Text_Input in focused_widget.options && (direction == .Left || direction == .Right)) {
 			// Maybe new focused widget
 			next_focused_widget: Maybe(^Widget)
 			next_layer_focus_id: Maybe(Id)
@@ -468,7 +469,7 @@ begin_frame :: proc() {
 					case .Right:	direction_is_valid = (widget.box.x > focused_widget.box.x && widget.box.y + widget.box.h > focused_widget.box.y && widget.box.y < focused_widget.box.y + focused_widget.box.h)
 				}
 				// Find closest
-				if (layer_is_valid) && (direction_is_valid) && (.No_Key_Select not_in widget.options) && (.Disabled not_in widget.bits) {
+				if (layer_is_valid) && (direction_is_valid) && (.Disabled not_in widget.bits) {
 					is_closer: bool
 					point: [2]f32 = {widget.box.x, widget.box.y}
 					if widget.layer.id == focused_widget.layer.id {
@@ -534,6 +535,7 @@ end_frame :: proc() {
 	// Update timings
 	painted_last_frame = paint_this_frame
 	frame_duration = time.since(frame_start_time)
+	frame += 1
 }
 @private
 _count_layer_children :: proc(layer: ^Layer) -> int {

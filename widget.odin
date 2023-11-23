@@ -39,7 +39,7 @@ Widget_Option :: enum {
 	// the mouse is held after clicking even when not hovered
 	Draggable,
 	// Ignore key selection
-	No_Key_Select,
+	Is_Text_Input,
 }
 
 Widget_Options :: bit_set[Widget_Option]
@@ -1484,7 +1484,7 @@ do_toggled_chip :: proc(info: Toggled_Chip_Info, loc := #caller_location) -> (cl
 		}
 		set_size(min_size)
 	}
-	if self, ok := do_widget(id, layout_next(layout), {.No_Key_Select}); ok {
+	if self, ok := do_widget(id, layout_next(layout), {}); ok {
 		using self
 		push_id(self.id)
 		hover_time := animate_bool(hash(int(1)), .Hovered in state, 0.1)

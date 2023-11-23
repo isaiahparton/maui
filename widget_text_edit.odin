@@ -35,7 +35,7 @@ Text_Input_Result :: struct {
 	chip_clicked: Maybe(int),
 }
 do_text_input :: proc(info: Text_Input_Info, loc := #caller_location) -> (change: bool) {
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .No_Key_Select}); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .Is_Text_Input}); ok {
 		using self
 		// Text cursor
 		if .Hovered in self.state {
@@ -148,7 +148,7 @@ Number_Input_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 }
 do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) -> (new_value: T) {
 	new_value = info.value
-	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .No_Key_Select}); ok {
+	if self, ok := do_widget(hash(loc), use_next_box() or_else layout_next(current_layout()), {.Draggable, .Is_Text_Input}); ok {
 		using self
 		// Animation values
 		hover_time := animate_bool(self.id, .Hovered in state, 0.1)
