@@ -136,7 +136,15 @@ space :: proc(amount: Unit) {
 // Shrink the current layout (apply margin on all sides)
 shrink :: proc(amount: Exact, loc := #caller_location) {
 	layout := current_layout(loc)
-	layout.box = shrink_box(layout.box, amount)
+	if layout.mode == .Extending {
+		if side, ok := layout.side.?; ok {
+			#partial switch side {
+				case .Bottom: layout.box.high.y += amount * 2
+			}
+		}
+	} else {
+		layout.box = shrink_box(layout.box, amount)
+	}
 }
 // Uh
 layout_cut_or_extend :: proc(layout: ^Layout, side: Box_Side, size: Unit) -> (result: Box) {

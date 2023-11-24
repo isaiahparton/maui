@@ -11,9 +11,9 @@ Orientation :: enum {
 
 // Integer spinner (compound widget)
 Spinner_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
-	value,
+	value: T,
 	low,
-	high: T,
+	high,
 	increment: Maybe(T),
 	orientation: Orientation,
 	trim_decimal: bool,
@@ -23,6 +23,7 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	using maui
 	loc := loc
 	new_value = info.value
+	prev_rounded_corners := style.rounded_corners
 	// Sub-widget boxes
 	box := layout_next(current_layout())
 	increase_box, decrease_box: Box
@@ -31,42 +32,59 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		buttons_box := cut_box_right(&box, box_size.y)
 		increase_box = get_box_top(buttons_box, box_size.y / 2)
 		decrease_box = get_box_bottom(buttons_box, box_size.y / 2)
+		style.rounded_corners = prev_rounded_corners & {.Top_Left, .Bottom_Left}
 	} else {
-		increase_box = get_box_top(box, box_size.x / 2)
-		decrease_box = get_box_bottom(box, box_size.x / 2)
+		increase_box = cut_box_top(&box, box_size.x / 2)
+		decrease_box = cut_box_bottom(&box, box_size.x / 2)
+		style.rounded_corners = {}
 	}
 	increment := info.increment.? or_else T(1)
-	prev_rounded_corners := style.rounded_corners
 	// Number input
 	set_next_box(box)
-	style.rounded_corners = prev_rounded_corners & {.Top_Left, .Bottom_Left}
-	new_value = clamp(do_number_input(Number_Input_Info(T){
+	// Number field
+	new_value = do_number_input(Number_Input_Info(T){
 		value = info.value,
-		text_align = ([2]Alignment){
-			.Middle, 
-			.Middle,
-		} if info.orientation == .Vertical else nil,
+		text_align = .Middle if info.orientation == .Vertical else nil,
 		trim_decimal = info.trim_decimal,
-	}, loc), info.low, info.high)
-	// Step buttons
+	}, loc)
 	loc.column += 1
+	// Decrease button
 	set_next_box(decrease_box)
-	style.rounded_corners = prev_rounded_corners & {.Bottom_Right}
+	if info.orientation == .Horizontal {
+		style.rounded_corners = prev_rounded_corners & {.Bottom_Right}
+	} else {
+		style.rounded_corners = prev_rounded_corners & {.Bottom_Left, .Bottom_Right}
+	}
 	if do_button({
 		align = .Middle,
 	}, loc) {
-		new_value = max(info.low, info.value - increment)
+		new_value -= increment
 	}
 	paint_arrow(box_center(core.last_box), 5, 0, 1, style.color.substance_text[1])
 	loc.column += 1
+	// Increase button
 	set_next_box(increase_box)
-	style.rounded_corners = prev_rounded_corners & {.Top_Right}
+	if info.orientation == .Horizontal {
+		style.rounded_corners = prev_rounded_corners & {.Top_Right}
+	} else {
+		style.rounded_corners = prev_rounded_corners & {.Top_Left, .Top_Right}
+	}
 	if do_button({
 		align = .Middle,
 	}, loc) {
-		new_value = min(info.high, info.value + increment)
+		new_value += increment
 	}
+	// Draw up arrow
 	style.rounded_corners = prev_rounded_corners
 	paint_arrow(box_center(core.last_box), 5, -math.PI, 1, style.color.substance_text[1])
+	// Clamp value
+	if new_value != info.value {
+		if low, ok := info.low.?; ok {
+			new_value = max(new_value, low)
+		}
+		if high, ok := info.high.?; ok {
+			new_value = min(new_value, high)
+		}
+	}
 	return
 }

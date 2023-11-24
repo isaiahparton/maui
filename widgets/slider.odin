@@ -75,14 +75,18 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 				paint_pill_fill_h({{min(bar_box.low.x + offset, bar_box.low.y), bar_box.low.y}, {bar_box.high.x, bar_box.high.y}}, style.color.substance[0])
 				paint_pill_fill_h({bar_box.low, {max(bar_box.low.x, bar_box.low.x + offset), bar_box.high.y}}, style.color.accent[0])
 				case .Vertical: 
-				paint_pill_fill_h({{bar_box.low.x, bar_box.low.y}, {bar_box.high.x, max(bar_box.high.y - (offset), bar_box.low.y)}}, style.color.substance[0])
-				paint_pill_fill_h({{bar_box.low.x, min(bar_box.high.y - (offset), bar_box.high.y)}, {bar_box.high.x, bar_box.high.y}}, style.color.accent[0])
+				paint_pill_fill_v({bar_box.low, {bar_box.high.x, bar_box.high.y - (offset)}}, style.color.substance[0])
+				paint_pill_fill_v({{bar_box.low.x, bar_box.high.y - (offset)}, bar_box.high}, style.color.accent[0])
 			}
 			paint_circle_fill_texture(knob_center, RADIUS, alpha_blend_colors(style.color.accent[1], style.color.accent_hover, hover_time * 0.1))
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
-			tooltip(self.id, tmp_printf(format, info.value), knob_center + {0, -((RADIUS + 7) + 7 * press_time)}, {.Middle, .Far}, .Top)
+			if info.orientation == .Horizontal {
+				tooltip(self.id, tmp_printf(format, info.value), knob_center + {0, -((RADIUS + 7) + 7 * press_time)}, {.Middle, .Far}, .Top)
+			} else {
+				tooltip(self.id, tmp_printf(format, info.value), knob_center + {(RADIUS + 7) + 7 * press_time, 0}, {.Near, .Middle}, .Right)
+			}
 		}
 		// Detect press
 		if .Pressed in self.state {
@@ -108,7 +112,7 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 			}
 		}
 		// Update hover state
-		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box) || point_in_box(input.mouse_point, Box{knob_center - RADIUS, knob_center + RADIUS}))
 	}
 	return value
 }

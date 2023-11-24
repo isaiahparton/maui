@@ -164,7 +164,7 @@ style_default_fonts :: proc() -> bool {
 	style.font.monospace = load_font(&painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return
 	// Assign their handles and sizes
 	style.text_size.label = 18
-	style.button_rounding = 5
+	style.rounding = 5
 	style.panel_rounding = 5
 	style.tooltip_rounding = 5
 	style.text_size.title = 16

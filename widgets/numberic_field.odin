@@ -46,9 +46,9 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 		}
 		// Paint!
 		if (.Should_Paint in self.bits) {
-			paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, style.color.base[1])
+			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, style.color.base[1])
 			if .Focused in self.state {
-				paint_rounded_box_corners_stroke(self.box, style.button_rounding, 2, style.rounded_corners, style.color.accent[1])
+				paint_rounded_box_corners_stroke(self.box, style.rounding, 2, style.rounded_corners, style.color.accent[1])
 			}
 		}
 		// Get text origin
@@ -70,6 +70,7 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 			// Get the number info
 			power: f64 = math.pow(10.0, f64(info.precision))
 			base: f64 = 1.0 / power
+			factor: f64 = -1 if .Negative in self.bits else 1
 			// The delete key clears the value
 			if key_pressed(.Delete) {
 				value = T(0)
@@ -98,9 +99,15 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 					continue
 				}
 				value *= 10.0 
-				value += T(base) * T(number) 
+				value += T(base * factor) * T(number)
 				// Set changed flag
 				res.changed = true
+			}
+			when !intrinsics.type_is_unsigned(T) {
+				if key_pressed(.Minus) || key_pressed(.Keypad_Minus) {
+					value = -value
+					self.bits ~= {.Negative}
+				}
 			}
 			// Deletion
 			if (key_pressed(.Backspace) && value >= T(base)) {
@@ -108,7 +115,7 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 					value = T(int(value / T(base * 10.0)))
 					value *= T(base) 
 				} else {
-					value *= 0.1
+					value /= 10
 					value = T(int(value))
 				}
 				if value < T(base) {
@@ -137,7 +144,7 @@ Number_Input_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
 	title,
 	suffix,
 	format: Maybe(string),
-	text_align: Maybe([2]maui.Alignment),
+	text_align: Maybe(maui.Text_Align),
 	trim_decimal,
 	no_outline: bool,
 }
@@ -166,18 +173,18 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 		}
 		// Background
 		if .Should_Paint in self.bits {
-			paint_rounded_box_corners_fill(box, style.button_rounding, style.rounded_corners, style.color.base[1])
+			paint_rounded_box_corners_fill(box, style.rounding, style.rounded_corners, style.color.base[1])
 			if .Focused in self.state {
-				paint_rounded_box_corners_stroke(box, style.button_rounding, 2, style.rounded_corners, style.color.accent[1])
+				paint_rounded_box_corners_stroke(box, style.rounding, 2, style.rounded_corners, style.color.accent[1])
 			}
 		}
 		// Do text interaction
-		text_align := info.text_align.? or_else {
-			.Near,
-			.Middle,
-		}
+		text_align := info.text_align.? or_else .Left
 		inner_box: Box = {{self.box.low.x + style.layout.widget_padding, self.box.low.y}, {self.box.high.x - style.layout.widget_padding, self.box.high.y}}
 		text_origin: [2]f32 = {inner_box.low.x, (inner_box.low.y + inner_box.high.y) / 2} - self.offset
+		if text_align == .Middle {
+			text_origin.x += width(inner_box) / 2
+		}
 		text_res: Text_Interact_Result
 		// Focus
 		if .Focused in self.state {
@@ -222,7 +229,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				self,
 				&core.typing_agent, 
 				{text = string(buffer[:]), font = style.font.label, size = style.text_size.label},
-				{baseline = .Middle, clip = self.box},
+				{align = text_align, baseline = .Middle, clip = self.box},
 				{},
 				style.color.base_text[1],
 			)
@@ -249,7 +256,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				self,
 				&core.typing_agent, 
 				{text = text, font = style.font.label, size = style.text_size.label},
-				{baseline = .Middle, clip = self.box},
+				{align = text_align, baseline = .Middle, clip = self.box},
 				{},
 				style.color.base_text[1],
 			)

@@ -28,6 +28,7 @@ Widget_Bit :: enum {
 	Menu_Open,
 	// Should be painted this frame
 	Should_Paint,
+	Negative,
 }
 
 Widget_Bits :: bit_set[Widget_Bit]
@@ -401,6 +402,12 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment, side:
 				case .Top:
 				c := (layer.box.high.x + layer.box.low.x) / 2
 				paint_triangle_fill({c - SIZE, layer.box.high.y}, {c, layer.box.high.y + SIZE}, {c + SIZE, layer.box.high.y}, BLACK)
+				case .Right:
+				c := (layer.box.low.y + layer.box.high.y) / 2
+				paint_triangle_fill({layer.box.low.x, c - SIZE}, {layer.box.low.x, c + SIZE}, {layer.box.low.x - SIZE, c}, BLACK)
+				case .Left:
+				c := (layer.box.low.y + layer.box.high.y) / 2
+				paint_triangle_fill({layer.box.high.x, c - SIZE}, {layer.box.high.x + SIZE, c}, {layer.box.high.x, c + SIZE}, BLACK)
 			}
 		}
 		paint_text(

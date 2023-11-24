@@ -541,7 +541,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 			}
 			// Get hovered state
 			if it.new_line || at_end {
-				if it.glyph != nil && hovered_line == line {
+				if hovered_line == line {
 					// Left side of glyph
 					dist1 := math.abs((origin.x + it.offset.x) - input.mouse_point.x)
 					if dist1 < min_dist {
@@ -563,14 +563,14 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 				}
 			}
 			// Update hovered index
-			if it.glyph != nil && hovered_line == line {
+			if hovered_line == line {
 				// Left side of glyph
 				dist1 := math.abs((origin.x + it.offset.x) - input.mouse_point.x)
 				if dist1 < min_dist {
 					min_dist = dist1
 					hover_index = it.index
 				}
-				if it.new_line || it.next_index >= len(text_info.text) {
+				if it.glyph != nil && (it.new_line || it.next_index >= len(text_info.text)) {
 					// Right side of glyph
 					dist2 := math.abs((origin.x + it.offset.x + it.glyph.advance) - input.mouse_point.x)
 					if dist2 < min_dist {
@@ -655,14 +655,14 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 				last = max(0, strings.last_index_byte(text_info.text[:hover_index], ' ') + 1)
 				next = strings.index_byte(text_info.text[agent.anchor:], ' ')
 				if next == -1 {
-					next = len(text_info.text)
+					next = len(text_info.text) - agent.anchor
 				}
 				next += agent.anchor
 			} else {
 				last = max(0, strings.last_index_byte(text_info.text[:agent.anchor], ' ') + 1)
 				next = strings.index_byte(text_info.text[hover_index:], ' ')
 				if next == -1 {
-					next = len(text_info.text)
+					next = len(text_info.text) - hover_index
 				}
 				next += hover_index
 			}
@@ -756,7 +756,7 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 				baseline = info.baseline,
 			},  
 			{
-				read_only = true
+				read_only = true,
 			}, 
 			info.color.? or_else style.color.base_text[1],
 			)

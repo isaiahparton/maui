@@ -56,33 +56,67 @@ _main :: proc() {
 		begin_frame()
 
 		shrink(200)
-		if do_layout(.Top, Exact(30)) {
-			placement.side = .Left; placement.size = Exact(200)
-			if do_button({label = "a button"}) {
+		if do_layout(.Top, Exact(100)) {
+			if do_layout(.Right, Exact(300)) {
+				placement.side = .Right; placement.size = Exact(30)
+				slider_value = do_slider(Slider_Info(f32){orientation = .Vertical, value = slider_value, low = 0, high = 777})
+				space(Exact(20))
+				placement.size = Exact(50)
+				integer = do_spinner(Spinner_Info(int){orientation = .Vertical, value = integer})
+			}
+			if do_layout(.Top, Exact(30)) {
+				placement.side = .Left; placement.size = Exact(200)
+				attach_tooltip("I have a tooltip!", .Top)
+				if do_button({label = "a button"}) {
 
+				}
+				space(Exact(20))
+				placement.size = Exact(170)
+				if do_menu({label = "menu"}) {
+					placement.size = Exact(20)
+					prev_rounded_corners := style.rounded_corners
+					for member, i in Choice {
+						style.rounded_corners = {}
+						if i == 0 {
+							style.rounded_corners += {.Top_Left, .Top_Right}
+						}
+						if i == len(Choice) - 1 {
+							style.rounded_corners += {.Bottom_Left, .Bottom_Right}
+						}
+						push_id(i)
+							do_option({label = tmp_print(member)})
+						pop_id()
+					}
+					style.rounded_corners = prev_rounded_corners
+				}
+			}
+			cut(.Top, Exact(20))
+			if do_horizontal(Exact(60)) {
+				placement.side = .Left; placement.size = Exact(250)
+				if do_button({label = "a button\nwith multiple lines"}) {
+
+				}
 			}
 		}
-		cut(.Top, Exact(20))
-		if do_horizontal(Exact(60)) {
-			placement.side = .Left; placement.size = Exact(250)
-			if do_button({label = "a button\nwith multiple lines"}) {
-
-			}
-		}
+		
 		cut(.Top, Exact(20))
 		if do_layout(.Top, Exact(30)) {
-			placement.side = .Left; placement.size = Exact(200)
+			placement.side = .Left; placement.size = Exact(100)
 			integer = do_spinner(Spinner_Info(int){value = integer, low = 0, high = 999})
 			space(Exact(20))
-			placement.size = Exact(400)
-			do_text_field({data = &textation, title = "scriptum", placeholder = "scribes quod cogitas"})
-			space(Exact(20))
-			placement.size = Exact(100)
 			slider_value = do_numeric_field(Numeric_Field_Info(f32){value = slider_value, precision = 2, suffix = "kg"}).value
+			space(Exact(20))
+			integer = do_numeric_field(Numeric_Field_Info(int){value = integer}).value
 		}
 		cut(.Top, Exact(20))
-		if do_horizontal(Exact(100)) {
-			placement.size = Exact(240)
+		if do_horizontal(Exact(30)) {
+			placement.size = Exact(300)
+			do_text_field({data = &textation, title = "scriptum", placeholder = "scribes quod cogitas"})
+		}
+		cut(.Top, Exact(20))
+		if do_horizontal(Exact(180)) {
+			placement.size = Exact(320)
+			style.rounded_corners = {.Bottom_Left, .Bottom_Right}
 			do_text_field({data = &scribblage, placeholder = "multae lineae textus", multiline = true})
 		}
 		cut(.Top, Exact(20))

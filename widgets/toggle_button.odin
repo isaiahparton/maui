@@ -38,10 +38,10 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 			// Body
 			color := info.color.? or_else (style.color.accent[1] if info.state else style.color.substance[1])
 			if info.state {
-				paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
+				paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
 			} else if hover_time > 0 || press_time > 0 {
-				paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, fade(style.color.base_hover, hover_time))
-				paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, fade(style.color.base_click, press_time))
+				paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, fade(style.color.base_hover, hover_time))
+				paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, fade(style.color.base_click, press_time))
 			}
 			// Label
 			paint_label_box(info.label, self.box, style.color.base_text[1], .Middle, .Middle)

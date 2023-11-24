@@ -52,7 +52,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 		}
 		// Paint!
 		if (.Should_Paint in self.bits) {
-			paint_rounded_box_corners_fill(self.box, style.button_rounding, style.rounded_corners, style.color.base[1])
+			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, style.color.base[1])
 		}
 		// Get data source
 		text: string
@@ -143,7 +143,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 				}
 			}
 			if .Focused in self.state {
-				paint_rounded_box_corners_stroke(self.box, style.button_rounding, 2, style.rounded_corners, style.color.accent[1])
+				paint_rounded_box_corners_stroke(self.box, style.rounding, 2, style.rounded_corners, style.color.accent[1])
 			}
 		}
 		// Whatever

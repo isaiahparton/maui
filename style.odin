@@ -85,7 +85,7 @@ Style :: struct {
 	color: Style_Colors,
 	tooltip_rounding,
 	panel_rounding,
-	button_rounding: f32,
+	rounding: f32,
 	rounded_corners: Box_Corners,
 }
 

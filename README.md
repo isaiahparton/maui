@@ -1,5 +1,5 @@
 # maui
-Stands for magnificent user interface.  An immediate-mode gui library for my projects and maybe for you?  It's still in early development, but the end goal is a realistic, stylish and polished interface suitable for utility applications like sound mixers, database access and point of sale.  This is my main project, as it will be used in many others.  I have great plans for its future.
+Stands for marvelous user interface.  An immediate-mode gui library for my projects and maybe for you?  It's still in early development, but the end goal is a realistic, stylish and polished interface suitable for utility applications like sound mixers, database access and point of sale.  This is my main project, as it will be used in many others.  I have great plans for its future.
 
 # how it works
 

@@ -9,7 +9,7 @@ Menu_Info :: struct {
 	label: maui.Label,
 	title: Maybe(string),
 	size: [2]f32,
-	align: Maybe(maui.Alignment),
+	align: Maybe(maui.Text_Align),
 	side: Maybe(maui.Box_Side),
 	layer_align: Maybe(maui.Alignment),
 }
@@ -39,13 +39,12 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		press_time := animate_bool(&self.timers[1], .Pressed in self.state, DEFAULT_WIDGET_PRESS_TIME)
 		open_time := animate_bool(&self.timers[2], .Menu_Open in self.bits, 0.175)
 		// Painting
+		if .Hovered in self.state {
+			core.cursor = .Hand
+		}
 		if .Should_Paint in self.bits {
-			// Outline
-			paint_box_stroke(self.box, 1, style.color.accent[0])
-			// Interaction Shading
-			paint_box_fill(self.box, alpha_blend_colors(fade(255, hover_time * 0.1), style.color.accent[1], press_time * 0.5))
-			// Label
-			paint_label_box(info.label, self.box, style.color.base_text[1], .Middle, .Middle)
+			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
+			paint_label_box(info.label, self.box, style.color.base_text[1], info.align.? or_else .Middle, .Middle)
 		}
 		// Begin layer if expanded
 		if res, ok := begin_attached_layer({
@@ -57,7 +56,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			align = info.layer_align,
 			opacity = open_time,
 		}); ok {
-			paint_box_fill(res.self.box, style.color.base[1])
+			paint_rounded_box_fill(res.self.box, style.rounding, style.color.base[1])
 			active = true
 		}
 		// Update hovered state
@@ -69,9 +68,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 _do_menu :: proc(active: bool) {
 	using maui
 	if active {
-		end_attached_layer({
-			stroke_color = style.color.accent[1],
-		}, current_layer())
+		end_attached_layer({}, current_layer())
 	}
 }
 
@@ -145,8 +142,8 @@ do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool)
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
 		// Painting
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, fade(style.color.accent[1], hover_time))
-			label_color := blend_colors(style.color.base_text[0], style.color.accent[1], hover_time)
+			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, fade(style.color.substance[1], hover_time))
+			label_color := blend_colors(style.color.base_text[1], style.color.substance_text[1], hover_time)
 			label_box := self.box
 			icon_box := cut_box_left(&label_box, height(label_box))
 			if info.active {
