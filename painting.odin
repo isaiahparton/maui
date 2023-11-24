@@ -170,6 +170,7 @@ style_default_fonts :: proc() -> bool {
 	style.text_size.title = 16
 	style.text_size.field = 18
 	style.layout.title_size = 24
+	style.layout.size = 24
 	style.layout.gap_size = 5
 	style.layout.widget_padding = 7
 	return true
@@ -532,6 +533,24 @@ paint_circle_sector_mask :: proc(center: [2]f32, radius, start, end: f32, segmen
 		angle += step;
 	}
 }
+paint_radial_gradient_sector :: proc(center: [2]f32, radius, start, end: f32, segments: int, inner, outer: Color) {
+	step := (end - start) / f32(segments)
+	angle := start
+	for i in 0..<segments {
+		meshes := &painter.meshes[painter.target]
+		paint_indices(meshes, 
+			meshes.vertices_offset,
+			meshes.vertices_offset + 1,
+			meshes.vertices_offset + 2,
+		)
+		paint_vertices(meshes, 
+			{point = center, color = inner},
+			{point = center + {math.cos(angle + step) * radius, math.sin(angle + step) * radius}, color = outer},
+			{point = center + {math.cos(angle) * radius, math.sin(angle) * radius}, color = outer},
+		)
+		angle += step;
+	}
+}
 // Paint a filled ring
 paint_ring_fill :: proc(center: [2]f32, inner, outer: f32, segments: i32, color: Color) {
 	paint_ring_sector_fill(center, inner, outer, 0, math.TAU, segments, color)
@@ -834,5 +853,13 @@ paint_gradient_box_v :: proc(box: Box, top, bottom: Color) {
 		{point = {box.low.x, box.high.y}, color = bottom},
 		{point = box.high, color = bottom},
 		{point = {box.high.x, box.low.y}, color = top},
+	)
+}
+paint_gradient_box_h :: proc(box: Box, left, right: Color) {
+	paint_quad_vertices(
+		{point = box.low, color = left},
+		{point = {box.low.x, box.high.y}, color = left},
+		{point = box.high, color = right},
+		{point = {box.high.x, box.low.y}, color = right},
 	)
 }

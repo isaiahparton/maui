@@ -51,7 +51,7 @@ Cursor_Type :: enum {
 	Disabled,
 }
 
-PRINT_DEBUG_EVENTS :: false
+PRINT_DEBUG_EVENTS :: true
 GROUP_STACK_SIZE 		:: 32
 CHIP_STACK_SIZE 		:: 32
 MAX_CLIP_RECTS 			:: #config(MAUI_MAX_CLIP_RECTS, 32)

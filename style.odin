@@ -56,6 +56,7 @@ Style_Text_Size :: struct {
 Style_Layout :: struct {
 	widget_padding: f32,
 	tooltip_padding: f32,
+	size: f32,
 	title_size: f32,
 	gap_size: f32,
 }

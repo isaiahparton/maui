@@ -22,6 +22,7 @@ Attached_Layer_Info :: struct {
 	stroke_color: Maybe(Color),
 	layer_options: Layer_Options,
 	opacity: Maybe(f32),
+	shadow: Maybe(Layer_Shadow_Info),
 }
 
 Attached_Layer_Result :: struct {
@@ -78,6 +79,7 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 			options = info.layer_options + {.Attached},
 			opacity = info.opacity,
 			owner = info.parent.(^Widget) or_else nil,
+			shadow = info.shadow,
 		})
 
 		if ok {

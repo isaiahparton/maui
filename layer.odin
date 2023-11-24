@@ -288,7 +288,7 @@ create_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -
 	should_sort = true
 
 	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
-		fmt.printf("+ Layer %i\n", id)
+		fmt.printf("+ Layer %x\n", id)
 	}
 
 	return
@@ -451,10 +451,10 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		clear(&self.meshes)
 
 		// Shadows
-		if shadow, ok := info.shadow.?; ok {
+		if shadow, ok := info.shadow.?; ok && self.box.high.x > self.box.low.x && self.box.high.y > self.box.low.y {
 			painter.target = get_draw_target()
 			append(&self.meshes, painter.target)
-			paint_rounded_box_fill(move_box(self.box, shadow.offset), shadow.roundness, {0, 0, 0, 100})
+			paint_rounded_box_shadow(move_box(grow_box(self.box, shadow.roundness), shadow.offset), shadow.roundness * 1.75, fade({0, 0, 0, 150}, self.opacity))
 		}
 
 		painter.target = get_draw_target()

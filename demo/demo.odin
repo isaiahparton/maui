@@ -35,7 +35,7 @@ _main :: proc() {
 	gain, pitch: f64
 	textation,
 	scribblage: string
-	integer: int
+	integer,combo_box_index: int
 
 	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
 		return
@@ -88,6 +88,19 @@ _main :: proc() {
 						pop_id()
 					}
 					style.rounded_corners = prev_rounded_corners
+				}
+				space(Exact(20))
+				placement.size = Exact(170)
+				if index, ok := do_combo_box({
+					items = {
+						"first",
+						"second",
+						"third",
+						"fourth",
+					},
+					index = combo_box_index,
+				}); ok {
+					combo_box_index = index
 				}
 			}
 			cut(.Top, Exact(20))

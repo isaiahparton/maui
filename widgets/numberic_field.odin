@@ -69,8 +69,8 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 		if (.Focused in self.state) {
 			// Get the number info
 			power: f64 = math.pow(10.0, f64(info.precision))
-			base: f64 = 1.0 / power
 			factor: f64 = -1 if .Negative in self.bits else 1
+			base: f64 = 1.0 / power
 			// The delete key clears the value
 			if key_pressed(.Delete) {
 				value = T(0)
@@ -109,8 +109,14 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 					self.bits ~= {.Negative}
 				}
 			}
+			significant: bool
+			if .Negative in self.bits {
+				significant = value <= T(base)
+			} else {
+				significant = value >= T(base)
+			}
 			// Deletion
-			if (key_pressed(.Backspace) && value >= T(base)) {
+			if (key_pressed(.Backspace) && significant) {
 				if info.precision > 0 {
 					value = T(int(value / T(base * 10.0)))
 					value *= T(base) 
@@ -118,8 +124,14 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 					value /= 10
 					value = T(int(value))
 				}
-				if value < T(base) {
-					value = 0
+				if .Negative in self.bits {
+					if value > T(base) {
+						value = 0
+					}
+				} else {
+					if value < T(base) {
+						value = 0
+					}
 				}
 				// Set changed flag
 				res.changed = true

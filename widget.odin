@@ -131,7 +131,7 @@ widget_agent_create :: proc(using self: ^Widget_Agent, id: Id, layer: ^Layer) ->
 	ok = true
 
 	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
-		fmt.printf("+ Widget %i\n", id)
+		fmt.printf("+ Widget %x\n", id)
 	}
 
 	return
@@ -170,7 +170,7 @@ widget_agent_step :: proc(using self: ^Widget_Agent) {
 			widget.bits -= {.Stay_Alive}
 		} else {
 			when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
-				fmt.printf("- Widget %i\n", widget.id)
+				fmt.printf("- Widget %x\n", widget.id)
 			}
 			
 			for key, value in widget.layer.contents {

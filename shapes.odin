@@ -49,33 +49,17 @@ paint_rounded_box_fill :: proc(box: Box, radius: f32, color: Color) {
 }
 
 paint_rounded_box_shadow :: proc(box: Box, radius: f32, color: Color) {
-	paint_box_fill(box, color)
-	paint_quad_vertices(
-		{point = {box.low.x, box.low.y}, color = color},
-		{point = {box.low.x - radius, box.low.y}},
-		{point = {box.low.x - radius, box.high.y}},
-		{point = {box.low.x, box.high.y}, color = color},
-	)
-	paint_quad_vertices(
-		{point = {box.high.x + radius, box.low.y}},
-		{point = {box.high.x, box.low.y}, color = color},
-		{point = {box.high.x, box.high.y}, color = color},
-		{point = {box.high.x + radius, box.high.y}},
-	)
-	paint_quad_vertices(
-		{point = {box.low.x, box.low.y}, color = color},
-		{point = {box.high.x, box.low.y}, color = color},
-		{point = {box.high.x, box.low.y - radius}},
-		{point = {box.low.x, box.low.y - radius}},
-	)
-	paint_quad_vertices(
-		{point = {box.low.x, box.high.y}, color = color},
-		{point = {box.high.x, box.high.y}, color = color},
-		{point = {box.high.x, box.high.y + radius}},
-		{point = {box.low.x, box.high.y + radius}},
-	)
+	paint_gradient_box_v({{box.low.x + radius, box.low.y}, {box.high.x - radius, box.low.y + radius}}, {}, color)
+	paint_gradient_box_v({{box.low.x + radius, box.high.y - radius}, {box.high.x - radius, box.high.y}}, color, {})
+	paint_gradient_box_h({{box.low.x, box.low.y + radius}, {box.low.x + radius, box.high.y - radius}}, {}, color)
+	paint_gradient_box_h({{box.high.x - radius, box.low.y + radius}, {box.high.x, box.high.y - radius}}, color, {})
+	paint_box_fill({box.low + radius, box.high - radius}, color)
+	segments := int(radius)
+	paint_radial_gradient_sector(box.low + radius, radius, -math.PI / 2, -math.PI, segments, color, {})
+	paint_radial_gradient_sector({box.low.x + radius, box.high.y - radius}, radius, math.PI, math.PI / 2, segments, color, {})
+	paint_radial_gradient_sector({box.high.x - radius, box.low.y + radius}, radius, math.PI, -math.PI / 2, segments, color, {})
+	paint_radial_gradient_sector(box.high - radius, radius, 0, math.PI / 2, segments, color, {})
 }
-
 
 paint_rounded_box_stroke :: proc(box: Box, radius, thickness: f32, color: Color) {
 	if (box.high.x <= box.low.x) || (box.high.y <= box.low.y) {
