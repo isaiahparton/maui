@@ -47,6 +47,9 @@ _main :: proc() {
 
 	maui.init()
 
+	// Load fonts
+	icon_font, _ := maui.load_font(&maui.painter.atlas, "fonts/remixicon.ttf")
+
 	for maui_glfw.cycle(TARGET_FRAME_TIME) {
 		using maui 
 		using maui_widgets
@@ -97,6 +100,7 @@ _main :: proc() {
 						"second",
 						"third",
 						"fourth",
+						"fifth",
 					},
 					index = combo_box_index,
 				}); ok {
@@ -124,9 +128,26 @@ _main :: proc() {
 		cut(.Top, Exact(20))
 		if do_horizontal(Exact(30)) {
 			placement.size = Exact(300)
-			do_text_field({data = &textation, title = "scriptum", placeholder = "scribes quod cogitas"})
+			
 		}
 		cut(.Top, Exact(20))
+		if do_horizontal(Exact(30)) {
+			cut(.Right, Exact(width(current_layout().box) - 320))
+			placement.size = Exact(30)
+			style.rounded_corners = {.Top_Left}
+			prev_font := style.font.label
+			style.font.label = icon_font
+			do_button({label = "\uF0CD"})
+			placement.side = .Right
+			style.rounded_corners = {.Top_Right}
+			do_button({label = "\uEAE5"})
+			style.rounded_corners = {}
+			do_button({label = "\uF0FE"})
+			style.font.label = prev_font
+
+			placement.size = Relative(1)
+			do_text_field({data = &textation, placeholder = "search"})
+		}
 		if do_horizontal(Exact(180)) {
 			placement.size = Exact(320)
 			style.rounded_corners = {.Bottom_Left, .Bottom_Right}
@@ -158,7 +179,7 @@ _main :: proc() {
 		space(Exact(20))
 		do_interactable_text({text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit amet ex ut enim efficitur vestibulum. Vestibulum egestas ornare nisl, at congue odio tempor vel. Nullam hendrerit accumsan ipsum, tempus cursus tortor. Pellentesque congue leo ligula, eu semper sapien condimentum sed. Etiam eget euismod augue, ac dictum urna. Aenean scelerisque, turpis quis sollicitudin efficitur, tortor magna efficitur libero, at placerat dolor lacus vel sapien. Aliquam in velit elit. Fusce et orci a neque commodo elementum molestie id nunc. Sed blandit ex quis elit malesuada tincidunt. Sed rhoncus ex non lorem finibus, vitae pharetra ligula malesuada."})
 
-		/*
+		
 		if do_panel({
 			title = "window of opportunity", 
 			options = {.Title, .Closable, .Collapsable}, 
@@ -171,7 +192,7 @@ _main :: proc() {
 			shrink(10)
 
 		}
-		*/
+		
 
 		/*
 		DEBUG_TEXT_SIZE :: 12

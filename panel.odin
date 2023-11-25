@@ -218,7 +218,6 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 		options = {.No_Scroll_Y},
 		shadow = Layer_Shadow_Info{
 			roundness = style.panel_rounding,
-			offset = 7,
 		},
 	}); ok {
 		if .Collapsed not_in self.bits {
@@ -247,7 +246,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 				paint_rounded_box_fill(box, style.panel_rounding, fade(style.color.base[1], 0.2))
 			} else {
 				paint_rounded_box_fill(box, style.panel_rounding, fade(style.color.base[0], 0.9))
-				paint_rounded_box_stroke(box, style.panel_rounding, 2, style.color.base[1])
+				//paint_rounded_box_stroke(box, style.panel_rounding, 2, style.color.base[1])
 			}
 		}
 		// Draw title bar and get movement dragging

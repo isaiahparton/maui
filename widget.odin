@@ -106,6 +106,7 @@ Widget_Agent :: struct {
 	dragging,
 	auto_focus,
 	will_auto_focus: bool,
+	hover_time: time.Time,
 }
 
 widget_agent_assert :: proc(using self: ^Widget_Agent, id: Id) -> (widget: ^Widget, ok: bool) {
@@ -220,6 +221,7 @@ widget_agent_update_state :: proc(using self: ^Widget_Agent, w: ^Widget) {
 		w.state += {.Hovered}
 		if last_hover_id != w.id {
 			w.state += {.Got_Hover}
+			hover_time = time.now()
 		}
 		pressed_buttons := input.mouse_bits - input.last_mouse_bits
 		if pressed_buttons != {} {
@@ -330,7 +332,7 @@ _do_widget :: proc(self: ^Widget, ok: bool) {
 		}
 		// Display tooltip if there is one
 		if core.next_tooltip != nil {
-			if self.state >= {.Hovered} {
+			if self.state >= {.Hovered} && time.since(core.widget_agent.hover_time) > time.Millisecond * 500 {
 				tooltip_box(self.id, core.next_tooltip.?.text, self.box, core.next_tooltip.?.box_side, 10)
 			}
 			core.next_tooltip = nil
@@ -451,7 +453,7 @@ tooltip_box ::proc(id: Id, text: string, anchor: Box, side: Box_Side, offset: f3
 // Labels
 Label :: union {
 	string,
-	rune,
+	Box,
 }
 
 Paint_Label_Info :: struct {
@@ -464,12 +466,14 @@ get_size_for_label :: proc(l: ^Layout, label: Label) -> Exact {
 }
 
 paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: Text_Align, baseline: Text_Baseline) -> [2]f32 {
-	switch variant in label {
+	switch v in label {
 		case string: 	
-		return paint_text(origin, {font = style.font.label, size = style.text_size.label, text = variant}, {align = align, baseline = baseline}, color)
+		return paint_text(origin, {font = style.font.label, size = style.text_size.label, text = v}, {align = align, baseline = baseline}, color)
 
-		case rune: 		
-		return paint_aligned_rune(style.font.label, style.text_size.label, rune(variant), linalg.floor(origin), color, {.Middle, .Middle})
+		case Box:
+		size := v.high - v.low
+		paint_textured_box(painter.atlas.texture, v, {origin - size / 2, origin + size / 2}, color)
+		return size
 	}
 	return {}
 }
@@ -488,21 +492,16 @@ paint_label_box :: proc(label: Label, box: Box, color: Color, align: Text_Align,
 }
 
 measure_label :: proc(label: Label) -> (size: [2]f32) {
-	switch variant in label {
+	switch v in label {
 		case string: 
 		size = measure_text({
-			text = variant,
+			text = v,
 			font = style.font.label,
 			size = style.text_size.label, 
 		})
 
-		case rune:
-		font := &painter.atlas.fonts[style.font.label]
-		if font_size, ok := get_font_size(font, style.text_size.label); ok {
-			if glyph, ok := get_font_glyph(font, font_size, rune(variant)); ok {
-				size = glyph.src.high - glyph.src.low
-			}
-		}
+		case Box:
+		size = v.high - v.low
 	}
 	return
 }

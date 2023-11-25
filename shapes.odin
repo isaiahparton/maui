@@ -57,7 +57,7 @@ paint_rounded_box_shadow :: proc(box: Box, radius: f32, color: Color) {
 	segments := int(radius)
 	paint_radial_gradient_sector(box.low + radius, radius, -math.PI / 2, -math.PI, segments, color, {})
 	paint_radial_gradient_sector({box.low.x + radius, box.high.y - radius}, radius, math.PI, math.PI / 2, segments, color, {})
-	paint_radial_gradient_sector({box.high.x - radius, box.low.y + radius}, radius, math.PI, -math.PI / 2, segments, color, {})
+	paint_radial_gradient_sector({box.high.x - radius, box.low.y + radius}, radius, -math.PI / 2, 0, segments, color, {})
 	paint_radial_gradient_sector(box.high - radius, radius, 0, math.PI / 2, segments, color, {})
 }
 

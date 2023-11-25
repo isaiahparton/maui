@@ -226,6 +226,8 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 			}
 			destroy_layer(layer)
 			should_sort = true
+
+			painter.next_frame = true
 		}
 	}
 	// If a sorted layer was selected, then find it's root attached parent
@@ -286,6 +288,7 @@ create_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -
 	}
 	// Will sort layers this frame
 	should_sort = true
+	painter.next_frame = true
 
 	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
 		fmt.printf("+ Layer %x\n", id)
@@ -454,7 +457,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		if shadow, ok := info.shadow.?; ok && self.box.high.x > self.box.low.x && self.box.high.y > self.box.low.y {
 			painter.target = get_draw_target()
 			append(&self.meshes, painter.target)
-			paint_rounded_box_shadow(move_box(grow_box(self.box, shadow.roundness), shadow.offset), shadow.roundness * 1.75, fade({0, 0, 0, 150}, self.opacity))
+			paint_rounded_box_shadow(move_box(grow_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
 		}
 
 		painter.target = get_draw_target()

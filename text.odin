@@ -166,12 +166,15 @@ Text_Iterator :: struct {
 	// Font
 	font: ^Font,
 	size: ^Font_Size,
-	// Current line size
 	line_limit: Maybe(f32),
+	// Current line size
 	line_size: [2]f32,
+	// Set if `codepoint` is the first rune on a new line
 	new_line: bool,
 	// Glyph offset
 	offset: [2]f32,
+	// Last decoded rune 
+	last_codepoint,
 	// Current codepoint and glyph data
 	codepoint: rune,
 	glyph: ^Glyph_Data,
@@ -199,6 +202,7 @@ update_text_iterator_offset :: proc(it: ^Text_Iterator, info: Text_Info, paint_i
 	}
 }
 iterate_text_codepoint :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
+	it.last_codepoint = it.codepoint
 	if it.next_index >= len(info.text) {
 		return false
 	}
@@ -219,7 +223,7 @@ iterate_text_codepoint :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
 	}
 	return true
 }
-iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
+iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> (ok: bool) {
 	// Update horizontal offset with last glyph
 	if it.glyph != nil {
 		it.offset.x += it.glyph.advance
@@ -231,59 +235,58 @@ iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
 		Pre-paint
 			Decode the next codepoint -> Update glyph data -> New line if needed
 	*/
-	if !iterate_text_codepoint(it, info) {
+	ok = iterate_text_codepoint(it, info)
+	// Space needed to fit this glyph/word
+	space: f32 = it.glyph.advance if it.glyph != nil else 0
+	if !ok {
 		// We might need to use the end index
 		it.index = it.next_index
 		it.glyph = nil
 		it.codepoint = 0
-		it.offset.y += it.size.ascent - it.size.descent
-		return false
-	}
-	// Space needed to fit this glyph/word
-	space: f32 = it.glyph.advance if it.glyph != nil else 0
-	// Get the space for the next word if needed
-	if ( info.wrap == .Word ) && ( it.next_index >= it.next_word ) && ( it.codepoint != ' ' ) {
-		for i := it.next_word;; {
-			c, b := utf8.decode_rune(info.text[i:])
-			if c != '\n' {
-				if g, ok := get_font_glyph(it.font, it.size, it.codepoint); ok {
-					space += g.advance
+	} else {
+		// Get the space for the next word if needed
+		if (info.wrap == .Word) && (it.next_index >= it.next_word) && (it.codepoint != ' ') {
+			for i := it.next_word;; {
+				c, b := utf8.decode_rune(info.text[i:])
+				if c != '\n' {
+					if g, ok := get_font_glyph(it.font, it.size, it.codepoint); ok {
+						space += g.advance
+					}
 				}
+				if c == ' ' || i > len(info.text) - 1 {
+					it.next_word = i + b
+					break
+				}
+				i += b
 			}
-			if c == ' ' || i > len(info.text) - 1 {
-				it.next_word = i + b
-				break
-			}
-			i += b
 		}
 	}
 	// Reset new line state
 	it.new_line = false
-	new_line := false
-	// Detect new line codepoint
-	if ( it.codepoint == '\n' ) {
-		new_line = true
-	// Or detect overflow
+	// If the last rune was '\n' then this is a new line
+	if (it.last_codepoint == '\n') {
+		it.new_line = true
 	} else {
+		// Or if this rune would exceede the limit
 		if ( it.line_limit != nil && it.line_size.x + space >= it.line_limit.? ) {
 			if info.wrap == .None {
 				it.index = it.next_index
 				it.offset.y += it.size.ascent - it.size.descent
-				return false
+				ok = false
 			} else {
-				new_line = true
+				it.new_line = true
 			}
 		}
-	}
-	if !new_line && it.glyph != nil {
+	}	
+	// Increase line size
+	if !it.new_line && it.glyph != nil {
 		it.line_size.x += it.glyph.advance
 	}
-	// Update vertical offset
-	if it.index > 0 && new_line {
-		it.new_line = true
+	// Update vertical offset if there's a new line or if reached end
+	if it.new_line || !ok {
 		it.offset.y += it.size.ascent - it.size.descent + it.size.line_gap
 	}
-	return true
+	return
 }
 
 measure_next_line :: proc(info: Text_Info, it: Text_Iterator) -> f32 {
@@ -324,10 +327,6 @@ measure_text :: proc(info: Text_Info) -> [2]f32 {
 	}
 	return size
 }
-
-/*
-	Section [TEXT RESOURCES]
-*/
 
 // Load a font to the atlas
 load_font :: proc(atlas: ^Atlas, file: string) -> (handle: Font_Handle, success: bool) {
@@ -541,23 +540,22 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 			}
 			// Get hovered state
 			if it.new_line || at_end {
+				// Allows for highlighting the last run in a line
 				if hovered_line == line {
-					// Left side of glyph
 					dist1 := math.abs((origin.x + it.offset.x) - input.mouse_point.x)
 					if dist1 < min_dist {
 						min_dist = dist1
 						hover_index = it.index
 					}
 				}
-				line += 1
-				// Check for hover
+				// Check if the last line was hovered
 				line_box: Box = {low = origin + last_line}
 				line_box.high = {line_box.low.x + it.line_size.x, origin.y + it.offset.y}
-				//paint_box_stroke(line_box, 1, {255, 0, 255, 255})
 				if point_in_box(input.mouse_point, line_box) {
 					res.hovered = true
 				}
-				if !at_end {
+				if !at_end || it.new_line {
+					line += 1
 					update_text_iterator_offset(&it, text_info, text_paint_info)
 					last_line = it.offset
 				}

@@ -160,7 +160,7 @@ should_render :: proc() -> bool {
 style_default_fonts :: proc() -> bool {
 	// Load the fonts
 	style.font.label = load_font(&painter.atlas, "fonts/Roboto-Regular.ttf") or_return
-	style.font.title = load_font(&painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return
+	style.font.title = load_font(&painter.atlas, "fonts/RobotoSlab-Medium.ttf") or_return
 	style.font.monospace = load_font(&painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return
 	// Assign their handles and sizes
 	style.text_size.label = 18
