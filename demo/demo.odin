@@ -141,9 +141,8 @@ _main :: proc() {
 			do_button({label = "\uF0CD"})
 			placement.side = .Right
 			style.rounded_corners = {.Top_Right}
-			do_button({label = "\uEAE5"})
+			do_button({label = "\uEB99"})
 			style.rounded_corners = {}
-			do_button({label = "\uF0FE"})
 			style.font.label = prev_font
 
 			placement.size = Relative(1)
@@ -190,13 +189,8 @@ _main :: proc() {
 				align = {.Middle, .Middle},
 			},
 		}) {
-			shrink(10)
-			if do_horizontal(Exact(30)) {
-				placement.side = .Left;
-				if do_toggle_switch({state = &boolean}) {
-
-				}
-			}
+			shrink(30)
+			do_interactable_text({text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit amet ex ut enim efficitur vestibulum. Vestibulum egestas ornare nisl, at congue odio tempor vel. Nullam hendrerit accumsan ipsum, tempus cursus tortor. Pellentesque congue leo ligula, eu semper sapien condimentum sed. Etiam eget euismod augue, ac dictum urna. Aenean scelerisque, turpis quis sollicitudin efficitur, tortor magna efficitur libero, at placerat dolor lacus vel sapien. Aliquam in velit elit. Fusce et orci a neque commodo elementum molestie id nunc. Sed blandit ex quis elit malesuada tincidunt. Sed rhoncus ex non lorem finibus, vitae pharetra ligula malesuada."})
 		}
 		
 

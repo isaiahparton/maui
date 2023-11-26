@@ -21,7 +21,7 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 	WIDTH :: 56
 	HEIGHT :: 24
 	RADIUS :: HEIGHT / 2
-	TEXT_OFFSET :: RADIUS + 2
+	TEXT_OFFSET :: WIDTH / 2
 	if self, ok := do_widget(hash(loc)); ok {
 		// Colocate
 		self.box = use_next_box() or_else layout_next_child(current_layout(), {WIDTH, HEIGHT})
@@ -43,10 +43,10 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 			paint_pill_fill_h(self.box, style.color.substance[0])
 			// Text
 			if how_on > 0 {
-				paint_text(thumb_center + {-TEXT_OFFSET, 0}, {text = "ON", font = style.font.label, size = 16}, {align = .Right, baseline = .Middle, clip = self.box}, blend_colors(style.color.base[0], style.color.accent[0], how_on))
+				paint_text(thumb_center + {-TEXT_OFFSET, 0}, {text = "ON", font = style.font.label, size = 18}, {align = .Middle, baseline = .Middle, clip = self.box}, blend_colors(style.color.base[0], style.color.accent[0], how_on))
 			}
 			if how_on < 1 {
-				paint_text(thumb_center + {TEXT_OFFSET, 0}, {text = "OFF", font = style.font.label, size = 16}, {align = .Left, baseline = .Middle, clip = self.box}, style.color.base[0])
+				paint_text(thumb_center + {TEXT_OFFSET, 0}, {text = "OFF", font = style.font.label, size = 18}, {align = .Middle, baseline = .Middle, clip = self.box}, style.color.base[0])
 			}
 			// Knob
 			paint_circle_fill_texture(thumb_center, RADIUS, alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time))
