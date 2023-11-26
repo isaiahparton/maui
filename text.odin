@@ -503,6 +503,8 @@ Text_Interact_Result :: struct {
 	hovered: bool,
 	bounds,
 	selection_bounds: Box,
+	line_above,
+	line_below: int,
 }
 
 paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agent, text_info: Text_Info, text_paint_info: Text_Paint_Info, interact_info: Text_Interact_Info, color: Color) -> (res: Text_Interact_Result) {
@@ -618,7 +620,6 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 					paint_textured_box(painter.atlas.texture, it.glyph.src, dst, color)
 				}
 			}
-
 			if at_end {
 				break
 			}

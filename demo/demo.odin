@@ -114,6 +114,7 @@ _main :: proc() {
 
 				}
 			}
+			
 		}
 		
 		cut(.Top, Exact(20))
@@ -190,7 +191,12 @@ _main :: proc() {
 			},
 		}) {
 			shrink(10)
+			if do_horizontal(Exact(30)) {
+				placement.side = .Left;
+				if do_toggle_switch({state = &boolean}) {
 
+				}
+			}
 		}
 		
 

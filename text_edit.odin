@@ -25,7 +25,7 @@ Typing_Agent :: struct {
 	last_index,
 	last_length: int,
 
-	left_offset: f32,
+	vertical_anchor: int,
 
 	buffers: map[Id]Text_Buffer,
 }
@@ -204,6 +204,21 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		}
 	}
 	// Arrowkey navigation
+	if key_pressed(.Up) {
+		i := strings.last_index_byte(string(info.array[:vertical_anchor]), '\n')
+		offset := vertical_anchor - i
+		if i >= 0 {
+			index = strings.last_index_byte(string(info.array[:i]), '\n') + offset
+		}
+	}
+	if key_pressed(.Down) {
+		i := max(strings.last_index_byte(string(info.array[:vertical_anchor]), '\n'), 0)
+		offset := vertical_anchor - i
+		i = strings.index_byte(string(info.array[vertical_anchor:]), '\n')
+		if i >= 0 {
+			index = min(index + i + offset + 1, len(info.array))
+		}
+	}
 	if key_pressed(.Left) {
 		delta := 0
 		// How far should the cursor move?
@@ -235,6 +250,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		// Clamp cursor
 		index = max(0, index)
 		length = max(0, length)
+		vertical_anchor = index
 	}
 	if key_pressed(.Right) {
 		delta := 0
@@ -277,6 +293,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 		painter.next_frame = true
 		index = max(0, index)
 		length = max(0, length)
+		vertical_anchor = index
 	}
 	if change {
 		length = min(length, len(info.array) - index)

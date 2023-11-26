@@ -18,9 +18,10 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 	using maui
 	state := info.state.(bool) or_else info.state.(^bool)^
 	new_state = state
-	WIDTH :: 48
-	KNOB_WIDTH :: 16
+	WIDTH :: 56
 	HEIGHT :: 24
+	RADIUS :: HEIGHT / 2
+	TEXT_OFFSET :: RADIUS + 2
 	if self, ok := do_widget(hash(loc)); ok {
 		// Colocate
 		self.box = use_next_box() or_else layout_next_child(current_layout(), {WIDTH, HEIGHT})
@@ -34,21 +35,21 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 		if .Should_Paint in self.bits {
 			base_radius := height(self.box) * 0.5
 
-			move := width(self.box) - KNOB_WIDTH
-			offset := move * how_on
-			knob_box: Box = {{self.box.low.x + offset, self.box.low.y}, {self.box.low.x + KNOB_WIDTH + offset, self.box.high.y}}
+			move := width(self.box) - HEIGHT
+			offset := RADIUS + move * how_on
+			thumb_center: [2]f32 = self.box.low + {offset, RADIUS}
 			back_color: Color = {0, 150, 255, 100}
 			// Background
-			paint_box_stroke(self.box, 1, style.color.accent[0])
+			paint_pill_fill_h(self.box, style.color.substance[0])
 			// Text
 			if how_on > 0 {
-				paint_text(knob_box.low + {-6, 12}, {text = "ON", font = style.font.label, size = 16}, {align = .Right, baseline = .Middle, clip = self.box}, fade(style.color.accent[0], how_on))
+				paint_text(thumb_center + {-TEXT_OFFSET, 0}, {text = "ON", font = style.font.label, size = 16}, {align = .Right, baseline = .Middle, clip = self.box}, blend_colors(style.color.base[0], style.color.accent[0], how_on))
 			}
 			if how_on < 1 {
-				paint_text(knob_box.high + {4, -12}, {text = "OFF", font = style.font.label, size = 16}, {align = .Left, baseline = .Middle, clip = self.box}, fade(style.color.accent[0], 1 - how_on))
+				paint_text(thumb_center + {TEXT_OFFSET, 0}, {text = "OFF", font = style.font.label, size = 16}, {align = .Left, baseline = .Middle, clip = self.box}, style.color.base[0])
 			}
 			// Knob
-			paint_box_fill(knob_box, style.color.accent[0])
+			paint_circle_fill_texture(thumb_center, RADIUS, alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time))
 		}
 		// Invert state on click
 		if .Clicked in self.state {
