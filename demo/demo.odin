@@ -36,6 +36,7 @@ _main :: proc() {
 	textation,
 	scribblage: string
 	integer,combo_box_index: int
+	spin_counter_state: maui_widgets.Spin_Counter_State
 
 	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
 		return
@@ -120,7 +121,7 @@ _main :: proc() {
 		cut(.Top, Exact(20))
 		if do_layout(.Top, Exact(30)) {
 			placement.side = .Left; placement.size = Exact(100)
-			integer = do_spinner(Spinner_Info(int){value = integer, low = 0, high = 999})
+			integer = do_spinner(Spinner_Info(int){value = integer, low = 0, high = 99999})
 			space(Exact(20))
 			weight = do_numeric_field(Numeric_Field_Info(f64){value = weight, precision = 2, suffix = "kg"}).value
 			space(Exact(20))
@@ -178,6 +179,9 @@ _main :: proc() {
 		}
 		space(Exact(20))
 		do_toggle_switch({state = &boolean})
+		space(Exact(20))
+		placement.size = Exact(30)
+		do_spin_counter(Spin_Counter_Info(int){value = integer, digits = 5, digit_width = 20}, &spin_counter_state)
 		
 		if do_panel({
 			title = "window of opportunity", 

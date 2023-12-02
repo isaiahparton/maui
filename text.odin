@@ -497,6 +497,39 @@ paint_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]
 	return icon_size
 }
 
+paint_clipped_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]f32, color: Color, align: [2]Alignment, clip: Box) -> [2]f32 {
+	font := &painter.atlas.fonts[font]
+	font_size, _ := get_font_size(font, size)
+	glyph, _ := get_font_glyph(font, font_size, rune(icon))
+	icon_size := glyph.src.high - glyph.src.low
+
+	box: Box
+	switch align.x {
+		case .Far: 
+		box.low.x = origin.x - icon_size.x
+		box.high.x = origin.x 
+		case .Middle: 
+		box.low.x = origin.x - icon_size.x / 2 
+		box.high.x = origin.x + icon_size.x / 2
+		case .Near: 
+		box.low.x = origin.x 
+		box.high.x = origin.x + icon_size.x 
+	}
+	switch align.y {
+		case .Far: 
+		box.low.y = origin.y - icon_size.y
+		box.high.y = origin.y 
+		case .Middle: 
+		box.low.y = origin.y - icon_size.y / 2 
+		box.high.y = origin.y + icon_size.y / 2
+		case .Near: 
+		box.low.y = origin.y 
+		box.high.y = origin.y + icon_size.y 
+	}
+	paint_clipped_textured_box(painter.atlas.texture, glyph.src, box, clip, color)
+	return icon_size
+}
+
 Text_Interact_Info :: struct {
 	read_only,
 	focus_selects_all,
