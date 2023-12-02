@@ -449,23 +449,22 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		}
 		// Stay alive
 		self.bits += {.Stay_Alive}
-
+		//IMPORTANT: Set opacity before painting anything
+		self.opacity = info.opacity.? or_else self.opacity
+		painter.opacity = self.opacity
 		// Reset draw command
 		clear(&self.meshes)
-
-		// Shadows
-		if shadow, ok := info.shadow.?; ok && self.box.high.x > self.box.low.x && self.box.high.y > self.box.low.y {
+		// Paint shadow if needed
+		if shadow, ok := info.shadow.?; ok {
 			painter.target = get_draw_target()
 			append(&self.meshes, painter.target)
 			paint_rounded_box_shadow(move_box(grow_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
 		}
-
+		// Append draw target
 		painter.target = get_draw_target()
 		append(&self.meshes, painter.target)
-		
 		// Apply inner padding
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
-
 		// Hovering and stuff
 		self.state = {}
 		if agent.hover_id == self.id {
@@ -518,9 +517,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		if self.scrollbar_time.y > 0 && self.scrollbar_time.y < 1 {
 			painter.next_frame = true
 		}
-		
-		self.opacity = info.opacity.? or_else self.opacity
-		painter.opacity = self.opacity
 
 		self.content_box = {self.box.high, self.box.low}
 

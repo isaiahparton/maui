@@ -24,17 +24,31 @@ Choice :: enum {
 	Three,
 }
 
+Currency :: enum {
+	USD,
+	MXN,
+	CAD,
+	EUR,
+	RUB,
+}
+
 _main :: proc() {
 	t: time.Time
 	tt: time.Time
 	show_window: bool
 	boolean: bool
+
 	choice: Choice
 	choices: bit_set[Choice]
+
 	slider_value: f32
-	weight: f64
+
+	price: f64
+	currency: Currency
+
 	textation,
 	scribblage: string
+
 	integer,combo_box_index: int
 	spin_counter_state: maui_widgets.Spin_Counter_State
 
@@ -95,7 +109,7 @@ _main :: proc() {
 				}
 				space(Exact(20))
 				placement.size = Exact(170)
-				if index, ok := do_combo_box({
+				if index, ok := do_strings_menu({
 					items = {
 						"first",
 						"second",
@@ -123,14 +137,15 @@ _main :: proc() {
 			placement.side = .Left; placement.size = Exact(100)
 			integer = do_spinner(Spinner_Info(int){value = integer, low = 0, high = 99999})
 			space(Exact(20))
-			weight = do_numeric_field(Numeric_Field_Info(f64){value = weight, precision = 2, suffix = "kg"}).value
+			style.rounded_corners = {.Top_Left, .Bottom_Left}
+			placement.size = Exact(80)
+			price = do_numeric_field(Numeric_Field_Info(f64){value = price, precision = 2, prefix = "$"}).value
+			style.rounded_corners = {.Top_Right, .Bottom_Right}
+			placement.size = Exact(50)
+			currency = do_enum_menu(Enum_Menu_Info(Currency){value = currency}) or_else currency
+			style.rounded_corners = ALL_CORNERS
 			space(Exact(20))
 			integer = do_numeric_field(Numeric_Field_Info(int){value = integer}).value
-		}
-		cut(.Top, Exact(20))
-		if do_horizontal(Exact(30)) {
-			placement.size = Exact(300)
-			
 		}
 		cut(.Top, Exact(20))
 		if do_horizontal(Exact(30)) {
@@ -177,10 +192,8 @@ _main :: proc() {
 			}
 			style.rounded_corners = prev_rounded_corners
 		}
-		space(Exact(20))
-		do_toggle_switch({state = &boolean})
-		space(Exact(20))
 		placement.size = Exact(30)
+		space(Exact(20))
 		do_spin_counter(Spin_Counter_Info(int){value = integer, digits = 5, digit_width = 20}, &spin_counter_state)
 		
 		if do_panel({

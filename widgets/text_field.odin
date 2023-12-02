@@ -64,6 +64,10 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 		}
 		// Do text scrolling or whatever
 		// Focused state
+		if .Got_Focus in self.state {
+			core.typing_agent.index = len(text)
+			core.typing_agent.length = 0
+		}
 		if .Focused in self.state {
 			if key_pressed(.Enter) || key_pressed(.Keypad_Enter) {
 				res.submitted = true

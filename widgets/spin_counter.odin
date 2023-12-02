@@ -51,10 +51,14 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 					} else {
 						r = '0'
 					}
-					paint_clipped_aligned_rune(style.font.monospace, style.text_size.label, r, center(digit_box) + {0, state.offsets[i] + f32(j + a) * digit_size.y}, style.color.base_text[0], {.Middle, .Middle}, self.box)
+					paint_clipped_aligned_rune(style.font.monospace, style.text_size.label, r, center(digit_box) + {0, state.offsets[i] + f32(j + a) * digit_size.y}, style.color.base_text[int(i < len(text) && a > 0)], {.Middle, .Middle}, self.box)
 				}
 				diff := (target_offset - state.offsets[i])
-				state.offsets[i] += diff * 15 * core.delta_time
+				if abs(diff) > digit_size.y * 2 {
+					state.offsets[i] = target_offset
+				} else {
+					state.offsets[i] += diff * 15 * core.delta_time
+				}
 				if abs(diff) > 0.1 {
 					painter.next_frame = true
 				}
