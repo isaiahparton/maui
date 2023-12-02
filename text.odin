@@ -66,6 +66,10 @@ FMT_BUFFER_SIZE 		:: 256
 @private fmt_buffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
 @private fmt_buffer_index: u8
 
+get_tmp_builder :: proc() -> strings.Builder {
+	buf := get_tmp_buffer()
+	return strings.builder_from_bytes(buf)
+}
 get_tmp_buffer :: proc() -> []u8 {
 	defer	fmt_buffer_index = (fmt_buffer_index + 1) % FMT_BUFFER_COUNT
 	return fmt_buffers[fmt_buffer_index][:]
@@ -635,9 +639,12 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 	if .Got_Press in widget.state {
 		if widget.click_count == 2 {
 			// Select everything
-			agent.index = 0
-			agent.anchor = 0
-			agent.length = len(text_info.text)
+			agent.index = strings.last_index_byte(text_info.text[:hover_index], '\n') + 1
+			agent.anchor = agent.index
+			agent.length = strings.index_byte(text_info.text[agent.anchor:], '\n')
+			if agent.length == -1 {
+				agent.length = len(text_info.text) - agent.index
+			}
 		} else {
 			// Normal select
 			agent.index = hover_index
@@ -651,15 +658,15 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		if widget.click_count == 1 {
 			next, last: int
 			if hover_index < agent.anchor {
-				last = max(0, strings.last_index_byte(text_info.text[:hover_index], ' ') + 1)
-				next = strings.index_byte(text_info.text[agent.anchor:], ' ')
+				last = hover_index if text_info.text[hover_index] == ' ' else max(0, strings.last_index_any(text_info.text[:hover_index], " \n") + 1)
+				next = strings.index_any(text_info.text[agent.anchor:], " \n")
 				if next == -1 {
 					next = len(text_info.text) - agent.anchor
 				}
 				next += agent.anchor
 			} else {
-				last = max(0, strings.last_index_byte(text_info.text[:agent.anchor], ' ') + 1)
-				next = strings.index_byte(text_info.text[hover_index:], ' ')
+				last = max(0, strings.last_index_any(text_info.text[:agent.anchor], " \n") + 1)
+				next = 0 if (hover_index > 0 && text_info.text[hover_index - 1] == ' ') else strings.index_any(text_info.text[hover_index:], " \n")
 				if next == -1 {
 					next = len(text_info.text) - hover_index
 				}

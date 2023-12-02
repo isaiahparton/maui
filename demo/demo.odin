@@ -7,10 +7,10 @@ import "core:time"
 import "core:math"
 import "core:strings"
 import "core:math/linalg"
+import "core:strconv/decimal"
 import rl "vendor:raylib"
 import "../backend/maui_glfw"
 import "../backend/maui_opengl"
-
 
 import "core:fmt"
 import "core:mem"
@@ -32,7 +32,7 @@ _main :: proc() {
 	choice: Choice
 	choices: bit_set[Choice]
 	slider_value: f32
-	gain, pitch: f64
+	weight: f64
 	textation,
 	scribblage: string
 	integer,combo_box_index: int
@@ -122,7 +122,7 @@ _main :: proc() {
 			placement.side = .Left; placement.size = Exact(100)
 			integer = do_spinner(Spinner_Info(int){value = integer, low = 0, high = 999})
 			space(Exact(20))
-			slider_value = do_numeric_field(Numeric_Field_Info(f32){value = slider_value, precision = 2, suffix = "kg"}).value
+			weight = do_numeric_field(Numeric_Field_Info(f64){value = weight, precision = 2, suffix = "kg"}).value
 			space(Exact(20))
 			integer = do_numeric_field(Numeric_Field_Info(int){value = integer}).value
 		}
@@ -177,8 +177,7 @@ _main :: proc() {
 			style.rounded_corners = prev_rounded_corners
 		}
 		space(Exact(20))
-		do_interactable_text({text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit amet ex ut enim efficitur vestibulum. Vestibulum egestas ornare nisl, at congue odio tempor vel. Nullam hendrerit accumsan ipsum, tempus cursus tortor. Pellentesque congue leo ligula, eu semper sapien condimentum sed. Etiam eget euismod augue, ac dictum urna. Aenean scelerisque, turpis quis sollicitudin efficitur, tortor magna efficitur libero, at placerat dolor lacus vel sapien. Aliquam in velit elit. Fusce et orci a neque commodo elementum molestie id nunc. Sed blandit ex quis elit malesuada tincidunt. Sed rhoncus ex non lorem finibus, vitae pharetra ligula malesuada."})
-
+		do_toggle_switch({state = &boolean})
 		
 		if do_panel({
 			title = "window of opportunity", 

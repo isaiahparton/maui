@@ -35,9 +35,9 @@ do_combo_box :: proc(info: Combo_Box_Info, loc := #caller_location) -> (index: i
 			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
 			paint_label_box(info.items[info.index], self.box, style.color.base_text[1], .Middle, .Middle)
 		}
-		menu_top := self.box.low.y - f32(info.index) * option_height * open_time
+		menu_top := self.box.low.y - f32(info.index) * option_height
 		menu_height := f32(len(info.items)) * option_height
-		menu_bottom := max(menu_top + menu_height * open_time, self.box.high.y)
+		menu_bottom := max(menu_top + menu_height, self.box.high.y)
 		// Begin layer if expanded
 		if .Menu_Open in self.bits {
 			if layer, ok := do_layer({
@@ -53,15 +53,29 @@ do_combo_box :: proc(info: Combo_Box_Info, loc := #caller_location) -> (index: i
 			}); ok {
 				paint_rounded_box_fill(layer.box, style.rounding, style.color.base[1])
 				placement.side = .Top; placement.size = option_height
-				for item, i in info.items {
-					push_id(i)
-						if do_option({label = item}) {
-							index = i
-							was_changed = true
+				push_id(self.id)
+					for item, i in info.items {
+						if w, ok := do_widget(hash(i + 1)); ok {
+							w.box = layout_next(current_layout())
+							update_widget(w)
+							// Animation
+							hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
+							// Painting
+							if .Should_Paint in w.bits {
+								paint_rounded_box_corners_fill(w.box, style.rounding, style.rounded_corners, fade(style.color.substance[1], hover_time))
+								// Paint label
+								paint_label_box(item, w.box, blend_colors(style.color.base_text[1], style.color.substance_text[1], hover_time), .Middle, .Middle)
+							}
+							update_widget_hover(w, point_in_box(input.mouse_point, w.box))
+							if widget_clicked(w, .Left) {
+								index = i
+								was_changed = true
+								self.bits -= {.Menu_Open}
+							}
 						}
-					pop_id()
-				}
-				if (.Dismissed in layer.bits) || ((self.state & {.Focused, .Lost_Focus} == {}) && (layer.state & {.Focused} == {})) {
+					}
+				pop_id()
+				if ((self.state & {.Focused, .Lost_Focus} == {}) && (layer.state & {.Focused} == {})) {
 					self.bits -= {.Menu_Open}
 				}
 			}
