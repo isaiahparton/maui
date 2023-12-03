@@ -119,8 +119,6 @@ stack_top_ref :: proc(stack: ^Stack($T, $N)) -> (ref: ^T, ok: bool) #optional_ok
 	return &stack.items[stack.height - 1], true
 }
 
-
-
 Core :: struct {
 	// Time
 	current_time,

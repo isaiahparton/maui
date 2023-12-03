@@ -37,6 +37,10 @@ _main :: proc() {
 	scribblage: string
 	integer,combo_box_index: int
 
+	values: [20]f32
+	area_chart_state: maui_widgets.Area_Chart_State(f32)
+	last_update: time.Time
+
 	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
 		return
 	}
@@ -114,7 +118,6 @@ _main :: proc() {
 
 				}
 			}
-			
 		}
 		
 		cut(.Top, Exact(20))
@@ -152,6 +155,20 @@ _main :: proc() {
 			placement.size = Exact(320)
 			style.rounded_corners = {.Bottom_Left, .Bottom_Right}
 			do_text_field({data = &scribblage, placeholder = "multae lineae textus", multiline = true})
+			cut(.Left, Exact(30))
+			placement.size = Exact(400)
+
+			do_area_chart(Area_Chart_Info(f32){
+				members = {
+					{
+						data = values[:],
+						colors = {
+							{255, 60, 120, 255},
+							{230, 40, 140, 255},
+						},
+					},
+				},
+			}, &area_chart_state)
 		}
 		cut(.Top, Exact(20))
 		if do_horizontal(Exact(30)) {
@@ -205,6 +222,12 @@ _main :: proc() {
 
 		// End of ui calls
 		end_frame()
+
+		if time.since(last_update) > time.Millisecond * 100 {
+			copy(values[1:], values[:])
+			values[0] = cast(f32)core.frame_duration
+			last_update = time.now()
+		}
 		
 		// Update texture if necessary
 		if painter.atlas.should_update {
