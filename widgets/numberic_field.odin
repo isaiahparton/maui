@@ -1,12 +1,76 @@
 package maui_widgets
 import "../"
 
+import "core:io"
 import "core:fmt"
 import "core:strconv"
+import "core:strconv/decimal"
 import "core:math"
 import "core:math/linalg"
 import "core:runtime"
 import "core:intrinsics"
+
+Digit :: u8
+
+Digits :: struct {
+	digits: [39]Digit,
+	count,
+	decimal: int,
+	negative: bool,
+}
+pop_digit :: proc(d: ^Digits) -> Digit {
+	d.count = max(d.count - 1, 0)
+	return d.digits[d.count]
+}
+push_digit :: proc(d: ^Digits, digit: Digit) {
+	if d.count >= len(d.digits) {
+		return
+	}
+	d.digits[d.count] = min(digit, 9)
+	d.count += 1
+}
+f64_to_digits :: proc(value: f64, precision: int) -> (d: Digits) {
+	bits := transmute(u64)value
+	flt := &strconv._f64_info
+
+	neg := bits >> (flt.expbits + flt.mantbits) != 0
+	exp := int(bits >> flt.mantbits) & (1 << flt.expbits - 1)
+	mant := bits & (u64(1) << flt.mantbits - 1)
+
+	switch exp {
+		case 1 << flt.expbits - 1: break
+		case 0: exp += 1
+		case: mant |= u64(1) << flt.mantbits
+	}
+
+	exp += flt.bias
+
+	d_: decimal.Decimal
+	dec := &d_
+	decimal.assign(dec, mant)
+	decimal.shift(dec, exp - int(flt.mantbits))
+
+	return
+}
+digits_to_f64 :: proc(d: ^Digits) -> (value: f64) {
+	for n, e in d.digits[:d.count] {
+		e := e - d.decimal
+		value += math.pow(10, f64(e)) * f64(n)
+	}
+	if d.negative {
+		value = -value
+	}
+	return
+}
+write_digits :: proc(d: ^Digits, w: io.Writer) -> (n: int) {
+	for i := 0; i < d.count; i += 1 {
+		io.write_byte(w, '0' + d.digits[i], &n)
+		if i == d.count - d.decimal {
+			io.write_byte(w, '.', &n)
+		}
+	}
+	return
+}
 
 /*
 	Mathematical number input
@@ -59,11 +123,11 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 			text_origin.x -= size.x
 		}
 		// Main text
-		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle}, {read_only = true}, style.color.base_text[1])
+		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle, clip = self.box}, {read_only = true}, style.color.base_text[1])
 		text_origin.x = text_res.bounds.low.x
 		// Draw prefix
 		if text, ok := info.prefix.?; ok {
-			paint_text(text_origin, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.base_text[0])
+			paint_text(text_origin, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle, clip = self.box}, style.color.base_text[0])
 		}
 		// Value manipulation
 		if (.Focused in self.state) {

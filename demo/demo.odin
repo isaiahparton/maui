@@ -7,10 +7,10 @@ import "core:time"
 import "core:math"
 import "core:strings"
 import "core:math/linalg"
+import "core:strconv/decimal"
 import rl "vendor:raylib"
 import "../backend/maui_glfw"
 import "../backend/maui_opengl"
-
 
 import "core:fmt"
 import "core:mem"
@@ -24,18 +24,33 @@ Choice :: enum {
 	Three,
 }
 
+Currency :: enum {
+	USD,
+	MXN,
+	CAD,
+	EUR,
+	RUB,
+}
+
 _main :: proc() {
 	t: time.Time
 	tt: time.Time
 	show_window: bool
 	boolean: bool
+
 	choice: Choice
 	choices: bit_set[Choice]
+
 	slider_value: f32
-	gain, pitch: f64
+
+	price: f64
+	currency: Currency
+
 	textation,
 	scribblage: string
+
 	integer,combo_box_index: int
+	spin_counter_state: maui_widgets.Spin_Counter_State
 
 	values: [20]f32
 	area_chart_state: maui_widgets.Area_Chart_State(f32)
@@ -98,7 +113,7 @@ _main :: proc() {
 				}
 				space(Exact(20))
 				placement.size = Exact(170)
-				if index, ok := do_combo_box({
+				if index, ok := do_strings_menu({
 					items = {
 						"first",
 						"second",
@@ -123,16 +138,17 @@ _main :: proc() {
 		cut(.Top, Exact(20))
 		if do_layout(.Top, Exact(30)) {
 			placement.side = .Left; placement.size = Exact(100)
-			integer = do_spinner(Spinner_Info(int){value = integer, low = 0, high = 999})
+			integer = do_spinner(Spinner_Info(int){value = integer, low = 0, high = 99999})
 			space(Exact(20))
-			slider_value = do_numeric_field(Numeric_Field_Info(f32){value = slider_value, precision = 2, suffix = "kg"}).value
+			style.rounded_corners = {.Top_Left, .Bottom_Left}
+			placement.size = Exact(80)
+			price = do_numeric_field(Numeric_Field_Info(f64){value = price, precision = 2, prefix = "$"}).value
+			style.rounded_corners = {.Top_Right, .Bottom_Right}
+			placement.size = Exact(50)
+			currency = do_enum_menu(Enum_Menu_Info(Currency){value = currency}) or_else currency
+			style.rounded_corners = ALL_CORNERS
 			space(Exact(20))
 			integer = do_numeric_field(Numeric_Field_Info(int){value = integer}).value
-		}
-		cut(.Top, Exact(20))
-		if do_horizontal(Exact(30)) {
-			placement.size = Exact(300)
-			
 		}
 		cut(.Top, Exact(20))
 		if do_horizontal(Exact(30)) {
@@ -193,9 +209,9 @@ _main :: proc() {
 			}
 			style.rounded_corners = prev_rounded_corners
 		}
+		placement.size = Exact(30)
 		space(Exact(20))
-		do_interactable_text({text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit amet ex ut enim efficitur vestibulum. Vestibulum egestas ornare nisl, at congue odio tempor vel. Nullam hendrerit accumsan ipsum, tempus cursus tortor. Pellentesque congue leo ligula, eu semper sapien condimentum sed. Etiam eget euismod augue, ac dictum urna. Aenean scelerisque, turpis quis sollicitudin efficitur, tortor magna efficitur libero, at placerat dolor lacus vel sapien. Aliquam in velit elit. Fusce et orci a neque commodo elementum molestie id nunc. Sed blandit ex quis elit malesuada tincidunt. Sed rhoncus ex non lorem finibus, vitae pharetra ligula malesuada."})
-
+		do_spin_counter(Spin_Counter_Info(int){value = integer, digits = 5, digit_width = 20}, &spin_counter_state)
 		
 		if do_panel({
 			title = "window of opportunity", 

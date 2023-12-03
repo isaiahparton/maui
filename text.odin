@@ -66,6 +66,10 @@ FMT_BUFFER_SIZE 		:: 256
 @private fmt_buffers: [FMT_BUFFER_COUNT][FMT_BUFFER_SIZE]u8
 @private fmt_buffer_index: u8
 
+get_tmp_builder :: proc() -> strings.Builder {
+	buf := get_tmp_buffer()
+	return strings.builder_from_bytes(buf)
+}
 get_tmp_buffer :: proc() -> []u8 {
 	defer	fmt_buffer_index = (fmt_buffer_index + 1) % FMT_BUFFER_COUNT
 	return fmt_buffers[fmt_buffer_index][:]
@@ -493,6 +497,39 @@ paint_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]
 	return icon_size
 }
 
+paint_clipped_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]f32, color: Color, align: [2]Alignment, clip: Box) -> [2]f32 {
+	font := &painter.atlas.fonts[font]
+	font_size, _ := get_font_size(font, size)
+	glyph, _ := get_font_glyph(font, font_size, rune(icon))
+	icon_size := glyph.src.high - glyph.src.low
+
+	box: Box
+	switch align.x {
+		case .Far: 
+		box.low.x = origin.x - icon_size.x
+		box.high.x = origin.x 
+		case .Middle: 
+		box.low.x = origin.x - icon_size.x / 2 
+		box.high.x = origin.x + icon_size.x / 2
+		case .Near: 
+		box.low.x = origin.x 
+		box.high.x = origin.x + icon_size.x 
+	}
+	switch align.y {
+		case .Far: 
+		box.low.y = origin.y - icon_size.y
+		box.high.y = origin.y 
+		case .Middle: 
+		box.low.y = origin.y - icon_size.y / 2 
+		box.high.y = origin.y + icon_size.y / 2
+		case .Near: 
+		box.low.y = origin.y 
+		box.high.y = origin.y + icon_size.y 
+	}
+	paint_clipped_textured_box(painter.atlas.texture, glyph.src, box, clip, color)
+	return icon_size
+}
+
 Text_Interact_Info :: struct {
 	read_only,
 	focus_selects_all,
@@ -635,9 +672,12 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 	if .Got_Press in widget.state {
 		if widget.click_count == 2 {
 			// Select everything
-			agent.index = 0
-			agent.anchor = 0
-			agent.length = len(text_info.text)
+			agent.index = strings.last_index_byte(text_info.text[:hover_index], '\n') + 1
+			agent.anchor = agent.index
+			agent.length = strings.index_byte(text_info.text[agent.anchor:], '\n')
+			if agent.length == -1 {
+				agent.length = len(text_info.text) - agent.index
+			}
 		} else {
 			// Normal select
 			agent.index = hover_index
@@ -651,15 +691,15 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		if widget.click_count == 1 {
 			next, last: int
 			if hover_index < agent.anchor {
-				last = max(0, strings.last_index_byte(text_info.text[:hover_index], ' ') + 1)
-				next = strings.index_byte(text_info.text[agent.anchor:], ' ')
+				last = hover_index if text_info.text[hover_index] == ' ' else max(0, strings.last_index_any(text_info.text[:hover_index], " \n") + 1)
+				next = strings.index_any(text_info.text[agent.anchor:], " \n")
 				if next == -1 {
 					next = len(text_info.text) - agent.anchor
 				}
 				next += agent.anchor
 			} else {
-				last = max(0, strings.last_index_byte(text_info.text[:agent.anchor], ' ') + 1)
-				next = strings.index_byte(text_info.text[hover_index:], ' ')
+				last = max(0, strings.last_index_any(text_info.text[:agent.anchor], " \n") + 1)
+				next = 0 if (hover_index > 0 && text_info.text[hover_index - 1] == ' ') else strings.index_any(text_info.text[hover_index:], " \n")
 				if next == -1 {
 					next = len(text_info.text) - hover_index
 				}

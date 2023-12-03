@@ -233,7 +233,6 @@ update_texture :: proc(texture: Texture, image: Image, x, y, w, h: f32) {
 	_update_texture(texture, image.data, x, y, w, h)
 }
 
-
 stroke_path :: proc(pts: [][2]f32, closed: bool, thickness: f32, color: Color) {
 	draw := &painter.meshes[painter.target]
 	base_index := draw.vertices_offset
