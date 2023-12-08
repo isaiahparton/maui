@@ -8,7 +8,7 @@ import "core:intrinsics"
 
 MAX_SPIN_COUNTER_DIGITS :: 10
 
-Spin_Counter_Info :: struct($T: typeid) where intrinsics.type_is_integer(T) {
+Spin_Counter_Info :: struct($T: typeid) where intrinsics.type_is_integer(T) && intrinsics.type_is_unsigned(T) {
 	digits: int,
 	digit_width: f32,
 	value: T,
@@ -35,36 +35,50 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 			digits_box := self.box
 			text := tmp_print(info.value)
 			for i in 0..<info.digits {
+				// Some math
 				p := T(math.pow(10, f32(i)))
 				a := info.value / p
+				// The box in which this digit is displayed
 				digit_box := cut_box_right(&digits_box, info.digit_width)
-				target_offset := f32(a if i < len(text) else 0) * -digit_size.y
+				// The desired offset
+				target_offset := f32(a if i < len(text) else 0) * digit_size.y
+				// Difference of desired offset
+				diff := (target_offset - state.offsets[i])
+				mod_offset := math.mod(state.offsets[i], digit_size.y)// - math.floor(state.offsets[i] / digit_size.y) * digit_size.y
+				// Display the digits above and below in addition to the desired digit
 				for j in -1..<2 {
 					r: rune
 					if i < len(text) {
-						r = rune(text[len(text) - (i + 1)]) + rune(j)
+						r = (rune(text[len(text) - (i + 1)]) if i < len(text) else '0') - rune(j)
+						r -= rune(math.floor(diff / digit_size.y)) % 10
 						if r < '0' {
 							r = '9'
-						} else if r > '9' {
+						} if r > '9' {
 							r = '0'
 						}
 					} else {
 						r = '0'
 					}
-					paint_clipped_aligned_rune(style.font.monospace, style.text_size.label, r, center(digit_box) + {0, state.offsets[i] + f32(j + a) * digit_size.y}, style.color.base_text[int(i < len(text) && a > 0)], {.Middle, .Middle}, self.box)
+					// Paint a rune clipped to this box
+					paint_clipped_aligned_rune(
+						style.font.monospace, 
+						style.text_size.label, 
+						r, 
+						center(digit_box) + {0, mod_offset + f32(j - 1) * digit_size.y}, 
+						style.color.base_text[int(i < len(text) && a > 0)], 
+						{.Middle, .Middle},
+						digit_box,
+					)
 				}
-				diff := (target_offset - state.offsets[i])
-				if abs(diff) > digit_size.y * 2 {
-					state.offsets[i] = target_offset
-				} else {
-					state.offsets[i] += diff * 15 * core.delta_time
-				}
+				// Lerp to desired offset
+				state.offsets[i] += diff * 10 * core.delta_time
+				// Make sure to repaint if needed
 				if abs(diff) > 0.1 {
 					painter.next_frame = true
 				}
 			}
 		}
-
+		//
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}
 }

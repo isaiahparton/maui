@@ -393,7 +393,7 @@ get_font_glyph :: proc(font: ^Font, size: ^Font_Size, codepoint: rune) -> (data:
 			&image_height,
 			&glyph_offset_x,
 			&glyph_offset_y,
-			)
+		)
 		image: Image 
 		src: Box
 		if image_data != nil {
