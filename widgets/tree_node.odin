@@ -39,15 +39,16 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 		// Begin layer
 		if open_time > 0 {
 			layer: ^Layer
+			// Prepare layer box
 			layer_box := cut(.Top, info.size * open_time)
 			layer_box.low.x += h
+			// Deploy layer
 			layer, active = begin_layer({
 				placement = layer_box,
 				space = [2]f32{0, info.size},
 				id = self.id, 
 				options = {.Attached, .Clip_To_Parent, .No_Scroll_Y}, 
 			})
-			paint_rounded_box_fill(layer_box, style.rounding, style.color.base[1])
 		}
 	}
 	return 
