@@ -12,6 +12,8 @@ import rl "vendor:raylib"
 import "../backend/maui_glfw"
 import "../backend/maui_opengl"
 
+import "vendor:glfw"
+
 import "core:fmt"
 import "core:mem"
 
@@ -52,6 +54,8 @@ _main :: proc() {
 	integer,combo_box_index: int
 	spin_counter_state: maui_widgets.Spin_Counter_State
 
+	counter: u32
+
 	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
 		return
 	}
@@ -72,6 +76,8 @@ _main :: proc() {
 		// Beginning of ui calls
 		maui_glfw.begin_frame()
 		begin_frame()
+
+		paint_text({100, 100}, {text = tmp_printf("Frame time: %fms", time.duration_milliseconds(core.frame_duration)), font = style.font.label, size = style.text_size.tooltip}, {}, style.color.base_text[1])
 
 		shrink(200)
 		if do_layout(.Top, Exact(100)) {
@@ -145,7 +151,7 @@ _main :: proc() {
 			currency = do_enum_menu(Enum_Menu_Info(Currency){value = currency}) or_else currency
 			style.rounded_corners = ALL_CORNERS
 			space(Exact(20))
-			integer = do_numeric_field(Numeric_Field_Info(int){value = integer}).value
+			counter = do_numeric_field(Numeric_Field_Info(u32){value = counter}).value
 		}
 		cut(.Top, Exact(20))
 		if do_horizontal(Exact(30)) {
@@ -194,20 +200,26 @@ _main :: proc() {
 		}
 		placement.size = Exact(30)
 		space(Exact(20))
-		do_spin_counter(Spin_Counter_Info(int){value = integer, digits = 5, digit_width = 20}, &spin_counter_state)
+		do_spin_counter(Spin_Counter_Info(u32){value = u32(integer), digits = 5, digit_width = 20}, &spin_counter_state)
 		
-		if do_panel({
-			title = "window of opportunity", 
-			options = {.Title, .Closable, .Collapsable}, 
-			placement = Panel_Placement_Info{
-				origin = core.size / 2,
-				size = {320, 440},
-				align = {.Middle, .Middle},
-			},
-		}) {
-			shrink(30)
-			do_interactable_text({text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit amet ex ut enim efficitur vestibulum. Vestibulum egestas ornare nisl, at congue odio tempor vel. Nullam hendrerit accumsan ipsum, tempus cursus tortor. Pellentesque congue leo ligula, eu semper sapien condimentum sed. Etiam eget euismod augue, ac dictum urna. Aenean scelerisque, turpis quis sollicitudin efficitur, tortor magna efficitur libero, at placerat dolor lacus vel sapien. Aliquam in velit elit. Fusce et orci a neque commodo elementum molestie id nunc. Sed blandit ex quis elit malesuada tincidunt. Sed rhoncus ex non lorem finibus, vitae pharetra ligula malesuada."})
-		}
+		/*i := 0
+		for t: f32 = 0; t < math.PI / 2; t += 0.2 {
+			i += 1
+			push_id(i)
+				if do_panel({
+					title = "window of opportunity", 
+					options = {.Title, .Closable, .Collapsable}, 
+					placement = Panel_Placement_Info{
+						origin = core.size / 2 + {math.cos(t), math.sin(t)} * 50,
+						size = {320, 440},
+						align = {.Middle, .Middle},
+					},
+				}) {
+					shrink(30)
+					do_interactable_text({text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit amet ex ut enim efficitur vestibulum. Vestibulum egestas ornare nisl, at congue odio tempor vel. Nullam hendrerit accumsan ipsum, tempus cursus tortor. Pellentesque congue leo ligula, eu semper sapien condimentum sed. Etiam eget euismod augue, ac dictum urna. Aenean scelerisque, turpis quis sollicitudin efficitur, tortor magna efficitur libero, at placerat dolor lacus vel sapien. Aliquam in velit elit. Fusce et orci a neque commodo elementum molestie id nunc. Sed blandit ex quis elit malesuada tincidunt. Sed rhoncus ex non lorem finibus, vitae pharetra ligula malesuada."})
+				}
+			pop_id()
+		}*/
 		
 
 		/*
