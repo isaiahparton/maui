@@ -104,7 +104,6 @@ _main :: proc() {
 			
 		}
 		if do_tree_node({text = "Multiple choice", size = Exact(100)}) {
-			placement.size = Exact(30)
 			for member, i in Choice {
 				push_id(i)
 					do_checkbox_bit_set(&choices, member, tmp_print(member))
@@ -112,7 +111,7 @@ _main :: proc() {
 			}
 		}
 		if do_tree_node({text = "Single choice", size = Exact(100)}) {
-			
+			choice = do_enum_radio_buttons(choice)
 		}
 
 		// End of ui calls

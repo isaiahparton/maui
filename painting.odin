@@ -6,16 +6,20 @@
 package maui
 // Core dependencies
 import "core:os"
+import "core:fmt"
 import "core:mem"
 import "core:runtime"
 import "core:path/filepath"
-import "core:fmt"
+
 import "core:strings"
 import "core:strconv"
+
 import "core:unicode"
 import "core:unicode/utf8"
+
 import "core:math"
 import "core:math/linalg"
+
 import ttf "vendor:stb/truetype"
 import img "vendor:stb/image"
 
@@ -159,11 +163,11 @@ should_render :: proc() -> bool {
 
 style_default_fonts :: proc() -> bool {
 	// Load the fonts
-	style.font.label = load_font(&painter.atlas, "fonts/Rajdhani-Bold.ttf") or_return
-	style.font.title = load_font(&painter.atlas, "fonts/Gabarito-Regular.ttf") or_return
+	style.font.label = load_font(&painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return
+	style.font.title = load_font(&painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return
 	style.font.monospace = load_font(&painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return
 	// Assign their handles and sizes
-	style.text_size.label = 18
+	style.text_size.label = 16
 	style.rounding = 5
 	style.panel_rounding = 5
 	style.tooltip_rounding = 5

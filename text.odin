@@ -230,7 +230,7 @@ iterate_text_codepoint :: proc(it: ^Text_Iterator, info: Text_Info) -> bool {
 iterate_text :: proc(it: ^Text_Iterator, info: Text_Info) -> (ok: bool) {
 	// Update horizontal offset with last glyph
 	if it.glyph != nil {
-		it.offset.x += it.glyph.advance
+		it.offset.x += math.floor(it.glyph.advance)
 	}
 	if it.new_line {
 		it.line_size.x = 0 if it.glyph == nil else it.glyph.advance
@@ -563,7 +563,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		at_end := false
 		// Determine hovered line
 		line_height := it.size.ascent - it.size.descent + it.size.line_gap
-		line_count := int(math.floor(size.y / line_height)) - 1
+		line_count := int(math.floor(size.y / line_height))
 		hovered_line := clamp(int((input.mouse_point.y - origin.y) / line_height), 0, line_count)
 		min_dist: f32 = math.F32_MAX
 		line: int
@@ -633,7 +633,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 					}
 				} else if it.glyph != nil && it.index >= agent.index && it.index < agent.index + agent.length {
 					// Selection
-					box: Box = {point, {point.x + it.glyph.advance, point.y + it.size.ascent - it.size.descent}}
+					box: Box = {point, {point.x + math.floor(it.glyph.advance), point.y + it.size.ascent - it.size.descent}}
 					res.selection_bounds.low = linalg.min(res.selection_bounds.low, box.low)
 					res.selection_bounds.high = linalg.max(res.selection_bounds.high, box.high)
 					if line < line_count {
