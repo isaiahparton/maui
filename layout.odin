@@ -170,10 +170,10 @@ layout_cut_or_extend :: proc(layout: ^Layout, side: Box_Side, size: Unit) -> (re
 	return
 }
 // Get a box from a layout
-layout_next_of_size :: proc(using self: ^Layout, size: Unit) -> (res: Box) {
-	res = layout_cut_or_extend(self, placement.side, size)
-	res.low += {get_exact_margin(self, .Left), get_exact_margin(self, .Top)}
-	res.high -= {get_exact_margin(self, .Right), get_exact_margin(self, .Bottom)}
+layout_next_of_size :: proc(lt: ^Layout, size: Unit) -> (res: Box) {
+	res = layout_cut_or_extend(lt, placement.side, size)
+	res.low += {get_exact_margin(lt, .Left), get_exact_margin(lt, .Top)}
+	res.high -= {get_exact_margin(lt, .Right), get_exact_margin(lt, .Bottom)}
 	return
 }
 // Get the next box from a layout, according to the current placement settings
@@ -195,9 +195,17 @@ layout_fit :: proc(layout: ^Layout, size: [2]f32) {
 		placement.size = size.y
 	}
 }
-cut :: proc(side: Box_Side, amount: Unit) -> Box {
+cut :: proc(side: Box_Side, amount: Unit) -> (res: Box) {
 	layout := current_layout()
-	return cut_box(&layout.box, side, amount)
+	switch layout.mode {
+
+		case .Extending:
+		res = extend_box(&layout.box, side, amount)
+		
+		case .Fixed:
+		res = cut_box(&layout.box, side, amount)
+	}
+	return
 }
 fake_cut :: proc(side: Box_Side, amount: Unit) -> Box {
 	layout := current_layout()

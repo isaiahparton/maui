@@ -722,6 +722,8 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 
 Do_Text_Info :: struct {
 	text: string,
+	font: Maybe(Font_Handle),
+	size: Maybe(f32),
 	align: Text_Align,
 	baseline: Text_Baseline,
 	color: Maybe(Color),
@@ -744,8 +746,8 @@ do_text :: proc(info: Do_Text_Info) {
 		origin, 
 		{
 			text = info.text, 
-			font = style.font.label, 
-			size = style.text_size.label, 
+			font = info.font.? or_else style.font.label, 
+			size = info.size.? or_else style.text_size.label, 
 			limit = {width(box), nil}, 
 			wrap = .Word,
 		}, 
@@ -759,6 +761,8 @@ do_text :: proc(info: Do_Text_Info) {
 
 Interactable_Text_Info :: struct {
 	text: string,
+	font: Maybe(Font_Handle),
+	size: Maybe(f32),
 	align: Text_Align,
 	baseline: Text_Baseline,
 	color: Maybe(Color),
@@ -785,14 +789,15 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 			&core.typing_agent, 
 			{
 				text = info.text, 
-				font = style.font.label, 
-				size = style.text_size.label, 
+				font = info.font.? or_else style.font.label, 
+				size = info.size.? or_else style.text_size.label, 
 				limit = {width(self.box), nil}, 
 				wrap = .Word,
 			}, 
 			{
 				align = info.align, 
 				baseline = info.baseline,
+				clip = self.box,
 			},  
 			{
 				read_only = true,
