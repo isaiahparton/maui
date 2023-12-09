@@ -14,7 +14,7 @@ Spin_Counter_Info :: struct($T: typeid) where intrinsics.type_is_integer(T) && i
 	value: T,
 }
 Spin_Counter_State :: struct {
-	offsets: [MAX_SPIN_COUNTER_DIGITS]f32,
+	offsets: [MAX_SPIN_COUNTER_DIGITS]f64,
 }
 
 do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State, loc := #caller_location) {
@@ -36,21 +36,21 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 			text := tmp_print(info.value)
 			for i in 0..<info.digits {
 				// Some math
-				p := T(math.pow(10, f32(i)))
+				p := T(math.pow(10, f64(i)))
 				a := info.value / p
 				// The box in which this digit is displayed
 				digit_box := cut_box_right(&digits_box, info.digit_width)
 				// The desired offset
-				target_offset := f32(a if i < len(text) else 0) * digit_size.y
+				target_offset := f64(a if i < len(text) else 0) * f64(digit_size.y)
 				// Difference of desired offset
 				diff := (target_offset - state.offsets[i])
-				mod_offset := math.mod(state.offsets[i], digit_size.y)// - math.floor(state.offsets[i] / digit_size.y) * digit_size.y
+				mod_offset := math.mod(state.offsets[i], f64(digit_size.y))// - math.floor(state.offsets[i] / digit_size.y) * digit_size.y
 				// Display the digits above and below in addition to the desired digit
 				for j in -1..<2 {
 					r: rune
 					if i < len(text) {
 						r = (rune(text[len(text) - (i + 1)]) if i < len(text) else '0') - rune(j)
-						r -= rune(math.floor(diff / digit_size.y)) % 10
+						r -= rune(math.floor(diff / f64(digit_size.y))) % 10
 						if r < '0' {
 							r = '9'
 						} if r > '9' {
@@ -64,14 +64,14 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 						style.font.monospace, 
 						style.text_size.label, 
 						r, 
-						center(digit_box) + {0, mod_offset + f32(j - 1) * digit_size.y}, 
+						center(digit_box) + {0, f32(mod_offset) + f32(j - 1) * digit_size.y}, 
 						style.color.base_text[int(i < len(text) && a > 0)], 
 						{.Middle, .Middle},
 						digit_box,
 					)
 				}
 				// Lerp to desired offset
-				state.offsets[i] += diff * 10 * core.delta_time
+				state.offsets[i] += diff * 10 * f64(core.delta_time)
 				// Make sure to repaint if needed
 				if abs(diff) > 0.1 {
 					painter.next_frame = true

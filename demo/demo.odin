@@ -200,7 +200,7 @@ _main :: proc() {
 		}
 		placement.size = Exact(30)
 		space(Exact(20))
-		do_spin_counter(Spin_Counter_Info(u32){value = u32(integer), digits = 5, digit_width = 20}, &spin_counter_state)
+		do_spin_counter(Spin_Counter_Info(u32){value = u32(integer), digits = 7, digit_width = 20}, &spin_counter_state)
 		
 		/*i := 0
 		for t: f32 = 0; t < math.PI / 2; t += 0.2 {
