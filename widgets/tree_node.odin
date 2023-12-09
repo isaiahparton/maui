@@ -1,5 +1,8 @@
 package maui_widgets
 import "../"
+import "core:math"
+import "core:math/linalg"
+import "core:math/ease"
 
 /*
 	Combo box
@@ -13,36 +16,37 @@ Tree_Node_Info :: struct{
 do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: bool) {
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
-		using self
 		self.box = use_next_box() or_else layout_next(current_layout())
-		if state & {.Hovered} != {} {
+		if self.state & {.Hovered} != {} {
 			core.cursor = .Hand
 		}
-
 		// Animation
-		hover_time := animate_bool(&self.timers[0], .Hovered in state, 0.15)
-		state_time := animate_bool(&self.timers[1], .Active in bits, 0.15)
+		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
+		open_time := animate_bool(&self.timers[1], .Active in self.bits, 0.3, .Cubic_In_Out)
 		update_widget(self)
+		h := height(self.box)
 		// Paint
-		if .Should_Paint in bits {
-			//TODO: Replace with nice new arrow yes
-			// paint_aligned_rune(painter.style.button_font, painter.style.button_font_size, .Chevron_Down if .Active in bits else .Chevron_Right, center(box), color, {.Middle, .Middle})
-			paint_text({box.low.x + height(box), center_y(box)}, {text = info.text, font = style.font.title, size = style.text_size.title}, {align = .Left, baseline = .Middle}, style.color.base_text[0])
+		if .Should_Paint in self.bits {
+			color := blend_colors(style.color.base_text[0], style.color.base_text[1], hover_time)
+			paint_arrow(self.box.low + h / 2, 6, -math.PI * 0.5 * (1 - open_time), 1, color)
+			paint_text({self.box.low.x + h, center_y(self.box)}, {text = info.text, font = style.font.title, size = style.text_size.title}, {align = .Left, baseline = .Middle}, color)
 		}
-
 		// Invert state on click
-		if .Clicked in state {
-			bits = bits ~ {.Active}
+		if .Clicked in self.state {
+			self.bits = self.bits ~ {.Active}
 		}
-
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 		// Begin layer
-		if state_time > 0 {
-			box := cut(.Top, info.size * state_time)
+		if open_time > 0 {
 			layer: ^Layer
+			// Prepare layer box
+			layer_box := cut(.Top, info.size * open_time)
+			layer_box.low.x += h
+			// Deploy layer
 			layer, active = begin_layer({
-				placement = box, 
-				space = [2]f32{0, info.size}, 
-				id = id, 
+				placement = layer_box,
+				space = [2]f32{0, info.size},
+				id = self.id, 
 				options = {.Attached, .Clip_To_Parent, .No_Scroll_Y}, 
 			})
 		}

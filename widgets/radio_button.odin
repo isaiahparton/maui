@@ -40,26 +40,35 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 		if .Should_Paint in self.bits {
 			center: [2]f32
 			switch text_side {
+				
 				case .Left: 	
 				center = {self.box.low.x + RADIUS, self.box.low.y + RADIUS}
+
 				case .Right: 	
 				center = {self.box.high.x - RADIUS, self.box.low.y + RADIUS}
+
 				case .Top: 		
 				center = {center_x(self.box), self.box.high.y - RADIUS}
+
 				case .Bottom: 	
 				center = {center_x(self.box), self.box.low.y + RADIUS}
 			}
 			// Glowy thing
-			paint_circle_fill(center, RADIUS * (0.2 + 0.3 * ease.circular_out(how_on)), 12, fade(style.color.substance[1], how_on))
+			paint_circle_fill(center, RADIUS * (0.2 + 0.3 * ease.circular_out(how_on)), 12, fade(style.color.accent[1], how_on))
 			paint_circle_fill_texture(center, RADIUS, fade(style.color.substance[1], 0.1 + 0.1 * hover_time))
-			paint_ring_fill_texture(center, RADIUS - 1, RADIUS, fade(style.color.substance[1], 0.5 + 0.5 * hover_time))
+			paint_ring_fill_texture(center, RADIUS - 2, RADIUS, fade(style.color.substance[1], 0.5 + 0.5 * hover_time))
+			// Paint text
 			switch text_side {
+
 				case .Left: 	
 				paint_text({self.box.low.x + SIZE + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
+
 				case .Right: 	
 				paint_text({self.box.low.x, center.y - text_size.y / 2}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
+
 				case .Top: 		
 				paint_text(self.box.low, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
+
 				case .Bottom: 	
 				paint_text({self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
 			}

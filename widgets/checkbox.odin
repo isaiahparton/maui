@@ -96,8 +96,8 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			}
 
 			// Paint box
-			paint_box_fill(icon_box, fade(style.color.substance[1], 0.1 + 0.1 * hover_time))
-			paint_box_stroke(icon_box, 1, fade(style.color.substance[1], 0.5 + 0.5 * hover_time))
+			paint_rounded_box_fill(icon_box, style.rounding, fade(style.color.substance[1], 0.1 + 0.1 * hover_time))
+			paint_rounded_box_stroke(icon_box, style.rounding, 2, fade(style.color.substance[1], 0.5 + 0.5 * hover_time))
 			
 			center := box_center(icon_box)
 
@@ -120,13 +120,13 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			if has_text {
 				switch text_side {
 					case .Left: 	
-					paint_text({icon_box.high.x + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[0])
+					paint_text({icon_box.high.x + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
 					case .Right: 	
-					paint_text({icon_box.low.x - style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[0])
+					paint_text({icon_box.low.x - style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
 					case .Top: 		
-					paint_text(box.low, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[0])
+					paint_text(box.low, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
 					case .Bottom: 	
-					paint_text({box.low.x, box.high.y - text_size.y}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[0])
+					paint_text({box.low.x, box.high.y - text_size.y}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
 				}
 			}
 		}
@@ -157,7 +157,7 @@ do_checkbox_bit_set :: proc(set: ^$S/bit_set[$E;$U], bit: E, text: string, loc :
 		return false
 	}
 	if change, _ := do_checkbox({
-		state = .on if bit in set else .off, 
+		state = .On if bit in set else .Off, 
 		text = text,
 	}, loc); change {
 		set^ = set^ ~ {bit}

@@ -9,7 +9,6 @@ Toggle_Button_Info :: struct {
 	align: Maybe(maui.Alignment),
 	color: Maybe(maui.Color),
 	fit_to_label: bool,
-	join: maui.Box_Sides,
 }
 do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	using maui
@@ -68,16 +67,24 @@ do_enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value
 	new_value = value
 	layout := current_layout()
 	horizontal := placement.side == .Left || placement.side == .Right
+	prev_rounded_corners := style.rounded_corners
 	for member, i in T {
 		push_id(int(member))
-			sides: Box_Sides
-			if i > 0 {
-				sides += {.Left} if horizontal else {.Top}
+			style.rounded_corners = {}
+			if horizontal {
+				if i == 0 {
+					style.rounded_corners += {.Top_Left, .Bottom_Left}
+				} else if i == len(T) - 1 {
+					style.rounded_corners += {.Top_Right, .Bottom_Right}
+				}
+			} else {
+				if i == 0 {
+					style.rounded_corners += {.Top_Left, .Top_Right}
+				} else if i == len(T) - 1 {
+					style.rounded_corners += {.Bottom_Left, .Bottom_Right}
+				}
 			}
-			if i < len(T) - 1 {
-				sides += {.Right} if horizontal else {.Bottom}
-			}
-			if do_toggle_button({label = tmp_printf("%v", member), state = value == member, join = sides}) {
+			if do_toggle_button({label = tmp_printf("%v", member), state = value == member}) {
 				new_value = member
 			}
 		pop_id()

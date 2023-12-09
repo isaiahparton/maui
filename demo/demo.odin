@@ -77,159 +77,42 @@ _main :: proc() {
 		maui_glfw.begin_frame()
 		begin_frame()
 
-		paint_text({100, 100}, {text = tmp_printf("Frame time: %fms", time.duration_milliseconds(core.frame_duration)), font = style.font.label, size = style.text_size.tooltip}, {}, style.color.base_text[1])
+		paint_text({4, 4}, {text = tmp_printf("Frame time: %fms", time.duration_milliseconds(core.frame_duration)), font = style.font.content, size = style.text_size.label}, {}, style.color.base_text[1])
 
-		shrink(200)
-		if do_layout(.Top, Exact(100)) {
-			if do_layout(.Right, Exact(300)) {
-				placement.side = .Right; placement.size = Exact(30)
-				slider_value = do_slider(Slider_Info(f32){orientation = .Vertical, value = slider_value, low = 0, high = 777})
-				space(Exact(20))
-				placement.size = Exact(50)
-				integer = do_spinner(Spinner_Info(int){orientation = .Vertical, value = integer})
-			}
+		cut(.Left, Exact(300))
+		cut(.Right, Exact(300))
+		cut(.Top, Exact(50))
+		placement.size = Exact(30)
+
+		do_text({text = "maui", font = style.font.title, size = 40, align = .Middle})
+		cut(.Top, Exact(20))
+		placement.size = Exact(100)
+		do_interactable_text({text = "is an immediate mode UI framework designed for easy development of desktop applications and tools. It is renderer and platform independant, currently supporting GLFW and OpenGL.", font = style.font.content, size = 18})
+		cut(.Top, Exact(20))
+
+		placement.size = Exact(30)
+		if do_tree_node({text = "Buttons", size = Exact(100)}) {
 			if do_layout(.Top, Exact(30)) {
 				placement.side = .Left; placement.size = Exact(200)
-				attach_tooltip("I have a tooltip!", .Top)
-				if do_button({label = "a button"}) {
-
-				}
-				space(Exact(20))
-				placement.size = Exact(170)
-				if do_menu({label = "menu"}) {
-					placement.size = Exact(20)
-					prev_rounded_corners := style.rounded_corners
-					for member, i in Choice {
-						style.rounded_corners = {}
-						if i == 0 {
-							style.rounded_corners += {.Top_Left, .Top_Right}
-						}
-						if i == len(Choice) - 1 {
-							style.rounded_corners += {.Bottom_Left, .Bottom_Right}
-						}
-						push_id(i)
-							do_option({label = tmp_print(member)})
-						pop_id()
-					}
-					style.rounded_corners = prev_rounded_corners
-				}
-				space(Exact(20))
-				placement.size = Exact(170)
-				if index, ok := do_strings_menu({
-					items = {
-						"first",
-						"second",
-						"third",
-						"fourth",
-						"fifth",
-					},
-					index = combo_box_index,
-				}); ok {
-					combo_box_index = index
-				}
+				do_button({label = "Button"})
 			}
-			cut(.Top, Exact(20))
-			if do_horizontal(Exact(60)) {
-				placement.side = .Left; placement.size = Exact(250)
-				if do_button({label = "a button\nwith multiple lines"}) {
+		}
+		if do_tree_node({text = "Toggle switches", size = Exact(100)}) {
 
-				}
-			}
+		}
+		if do_tree_node({text = "Text input", size = Exact(100)}) {
 			
 		}
-		
-		cut(.Top, Exact(20))
-		if do_layout(.Top, Exact(30)) {
-			placement.side = .Left; placement.size = Exact(100)
-			integer = do_spinner(Spinner_Info(int){value = integer, low = 0, high = 99999})
-			space(Exact(20))
-			style.rounded_corners = {.Top_Left, .Bottom_Left}
-			placement.size = Exact(80)
-			price = do_numeric_field(Numeric_Field_Info(f64){value = price, precision = 2, prefix = "$"}).value
-			style.rounded_corners = {.Top_Right, .Bottom_Right}
-			placement.size = Exact(50)
-			currency = do_enum_menu(Enum_Menu_Info(Currency){value = currency}) or_else currency
-			style.rounded_corners = ALL_CORNERS
-			space(Exact(20))
-			counter = do_numeric_field(Numeric_Field_Info(u32){value = counter}).value
-		}
-		cut(.Top, Exact(20))
-		if do_horizontal(Exact(30)) {
-			cut(.Right, Exact(width(current_layout().box) - 320))
-			placement.size = Exact(30)
-			style.rounded_corners = {.Top_Left}
-			prev_font := style.font.label
-			style.font.label = icon_font
-			do_button({label = "\uF0CD"})
-			placement.side = .Right
-			style.rounded_corners = {.Top_Right}
-			do_button({label = "\uEB99"})
-			style.rounded_corners = {}
-			style.font.label = prev_font
-
-			placement.size = Relative(1)
-			do_text_field({data = &textation, placeholder = "search"})
-		}
-		if do_horizontal(Exact(180)) {
-			placement.size = Exact(320)
-			style.rounded_corners = {.Bottom_Left, .Bottom_Right}
-			do_text_field({data = &scribblage, placeholder = "multae lineae textus", multiline = true})
-		}
-		cut(.Top, Exact(20))
-		if do_horizontal(Exact(30)) {
-			placement.size = Exact(200)
-			slider_value = do_slider(Slider_Info(f32){value = slider_value, low = 0, high = 777, format = "%.0f"})
-		}
-		cut(.Top, Exact(30))
-		if do_horizontal(Exact(30)) {
-			placement.size = Exact(80)
-			prev_rounded_corners := style.rounded_corners
+		if do_tree_node({text = "Multiple choice", size = Exact(100)}) {
 			for member, i in Choice {
-				style.rounded_corners = {}
-				if i == 0 {
-					style.rounded_corners += {.Top_Left, .Bottom_Left}
-				}
-				if i == len(Choice) - 1 {
-					style.rounded_corners += {.Top_Right, .Bottom_Right}
-				}
 				push_id(i)
-					do_toggle_button_bit(&choices, member, tmp_print(member))
+					do_checkbox_bit_set(&choices, member, tmp_print(member))
 				pop_id()
 			}
-			style.rounded_corners = prev_rounded_corners
 		}
-		placement.size = Exact(30)
-		space(Exact(20))
-		do_spin_counter(Spin_Counter_Info(u32){value = u32(integer), digits = 7, digit_width = 20}, &spin_counter_state)
-		
-		/*i := 0
-		for t: f32 = 0; t < math.PI / 2; t += 0.2 {
-			i += 1
-			push_id(i)
-				if do_panel({
-					title = "window of opportunity", 
-					options = {.Title, .Closable, .Collapsable}, 
-					placement = Panel_Placement_Info{
-						origin = core.size / 2 + {math.cos(t), math.sin(t)} * 50,
-						size = {320, 440},
-						align = {.Middle, .Middle},
-					},
-				}) {
-					shrink(30)
-					do_interactable_text({text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit amet ex ut enim efficitur vestibulum. Vestibulum egestas ornare nisl, at congue odio tempor vel. Nullam hendrerit accumsan ipsum, tempus cursus tortor. Pellentesque congue leo ligula, eu semper sapien condimentum sed. Etiam eget euismod augue, ac dictum urna. Aenean scelerisque, turpis quis sollicitudin efficitur, tortor magna efficitur libero, at placerat dolor lacus vel sapien. Aliquam in velit elit. Fusce et orci a neque commodo elementum molestie id nunc. Sed blandit ex quis elit malesuada tincidunt. Sed rhoncus ex non lorem finibus, vitae pharetra ligula malesuada."})
-				}
-			pop_id()
-		}*/
-		
-
-		/*
-		DEBUG_TEXT_SIZE :: 12
-		paint_text({}, {text = "Layer list", font = style.font.monospace, size = DEBUG_TEXT_SIZE}, {}, style.color.base_text[0])
-		for layer, i in core.layer_agent.list {
-			paint_text({12, 18 + 32 * f32(i)}, {text = tmp_printf("%x: %v", layer.id, layer.box), font = style.font.monospace, size = DEBUG_TEXT_SIZE}, {}, style.color.base_text[1])
-			paint_text({12, 32 + 32 * f32(i)}, {text = tmp_printf("%v", layer.state), font = style.font.monospace, size = DEBUG_TEXT_SIZE}, {}, style.color.base_text[1])
+		if do_tree_node({text = "Single choice", size = Exact(100)}) {
+			choice = do_enum_radio_buttons(choice)
 		}
-		*/
 
 		// End of ui calls
 		end_frame()

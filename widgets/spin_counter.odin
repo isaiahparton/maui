@@ -16,7 +16,6 @@ Spin_Counter_Info :: struct($T: typeid) where intrinsics.type_is_integer(T) && i
 Spin_Counter_State :: struct {
 	offsets: [MAX_SPIN_COUNTER_DIGITS]f64,
 }
-
 do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State, loc := #caller_location) {
 	using maui
 	//

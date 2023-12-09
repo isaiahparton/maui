@@ -75,19 +75,11 @@ Layer_Order :: enum {
 	Background,
 	// Free floating layers, dynamic order
 	Floating,
-	// Allways in the foreground, fixed order
+	// Always in the foreground, fixed order
 	Tooltip,
 	// Special layer for debug drawing
 	Debug,
 }
-
-/*
-	start_layer 0
-		start_layer 1
-
-		end_layer (state of layer 1 added to layer 0)
-	end_layer
-*/
 
 // A layer's own data
 Layer :: struct {
@@ -383,7 +375,6 @@ current_layer :: proc() -> ^Layer {
 }
 // Begins a new layer, the layer is created if it doesn't exist
 // and is managed internally
-//@private 
 begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	agent := &core.layer_agent
 
@@ -554,7 +545,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 	return
 }
 // Called for every 'BeginLayer' that is called
-//@private 
 end_layer :: proc(self: ^Layer) {
 	if self != nil {
 		// Pop layout
