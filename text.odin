@@ -299,7 +299,7 @@ measure_next_line :: proc(info: Text_Info, it: Text_Iterator) -> f32 {
 	for iterate_text(&it, info) {
 		if it.new_line {
 			break
-		} else if it.glyph != nil {
+		} else if it.glyph != nil && it.last_codepoint != '\n' {
 			size += it.glyph.advance
 		}
 	}

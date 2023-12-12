@@ -38,14 +38,14 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 		// Begin layer
 		if open_time > 0 {
-			layer: ^Layer
-			// Prepare layer box
-			layer_box := cut(.Top, info.size * open_time)
-			layer_box.low.x += h
 			// Deploy layer
-			layer, active = begin_layer({
-				placement = layer_box,
-				space = [2]f32{0, info.size},
+			_, active = begin_layer({
+				placement = Layer_Placement_Info{
+					origin = {self.box.low.x + h, self.box.high.y},
+					size = {width(self.box) - h, nil},
+				},
+				scale = [2]f32{1, open_time},
+				grow = .Top,
 				id = self.id, 
 				options = {.Attached, .Clip_To_Parent, .No_Scroll_Y}, 
 			})
@@ -59,5 +59,6 @@ _do_tree_node :: proc(active: bool) {
 	if active {
 		layer := current_layer()
 		end_layer(layer)
+		layout_cut_or_grow(current_layout(), .Top, height(layer.box))
 	}
 }

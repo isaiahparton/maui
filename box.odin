@@ -170,7 +170,7 @@ shrink_box :: proc {
 	shrink_box_double,
 }
 
-grow_box :: proc(a: Box, amount: f32) -> Box {
+expand_box :: proc(a: Box, amount: f32) -> Box {
 	return {a.low - amount, a.high + amount}
 }
 
@@ -218,36 +218,36 @@ cut_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
 }
 
 // extend a box and return the attached piece
-extend_box_left :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+grow_box_left :: proc(box: ^Box, amount: Unit) -> (res: Box) {
 	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.x - box.low.x))
 	box.low.x -= a
 	res = {box.low, {box.low.x + a, box.high.y}}
 	return
 }
-extend_box_top :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+grow_box_top :: proc(box: ^Box, amount: Unit) -> (res: Box) {
 	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.y - box.low.y))
 	box.low.y -= a
 	res = {box.low, {box.high.x, box.low.y + a}}
 	return
 }
-extend_box_right :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+grow_box_right :: proc(box: ^Box, amount: Unit) -> (res: Box) {
 	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.x - box.low.x))
 	box.high.x -= a 
 	res = {{box.high.x - a, box.low.y}, box.high}
 	return
 }
-extend_box_bottom :: proc(box: ^Box, amount: Unit) -> (res: Box) {
+grow_box_bottom :: proc(box: ^Box, amount: Unit) -> (res: Box) {
 	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.y - box.low.y))
 	res = {{box.low.x, box.high.y}, {box.high.x, box.high.y + a}}
 	box.high.y += a 
 	return
 }
-extend_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
+grow_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
 	switch side {
-		case .Top: 			return extend_box_top(box, amount)
-		case .Bottom: 	return extend_box_bottom(box, amount)
-		case .Left: 		return extend_box_left(box, amount)
-		case .Right: 		return extend_box_right(box, amount)
+		case .Bottom: 	return grow_box_top(box, amount)
+		case .Top: 			return grow_box_bottom(box, amount)
+		case .Right: 		return grow_box_left(box, amount)
+		case .Left: 		return grow_box_right(box, amount)
 	}
 	return {}
 }
@@ -312,15 +312,19 @@ side_corners :: proc(side: Box_Side) -> Box_Corners {
 // attach a box
 get_attached_box :: proc(box: Box, side: Box_Side, size: [2]f32, offset: f32) -> Box {
 	switch side {
+		
 		case .Bottom: 
 		middle := (box.low.x + box.high.x) / 2
 		return {{middle - size.x / 2, box.high.y + offset}, {middle + size.x / 2, box.high.y + offset + size.y}}
+		
 		case .Left: 
 		middle := (box.low.y + box.high.y) / 2 
 		return {{box.low.x - (offset + size.x), middle - size.y / 2}, {box.low.x - offset, middle + size.y / 2}}
+		
 		case .Right: 
 		middle := (box.low.y + box.high.y) / 2 
 		return {{box.high.x + offset, middle - size.y / 2}, {box.low.x + offset + size.x, middle + size.y / 2}}
+		
 		case .Top: 
 		middle := (box.low.x + box.high.x) / 2
 		return {{middle - size.x / 2, box.high.y + offset}, {middle + size.x / 2, box.high.y + offset + size.y}}

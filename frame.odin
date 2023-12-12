@@ -15,7 +15,7 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 		placement = box,
 		scrollbar_padding = 0,//info.scrollbar_padding.? or_else 0,
 		id = hash(loc),
-		extend = .Bottom,
+		grow = .Bottom,
 		options = info.options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
 	if ok {

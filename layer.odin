@@ -339,9 +339,10 @@ Layer_Info :: struct {
 	placement: Layer_Placement,
 	// Scrollbar padding
 	scrollbar_padding: Maybe([2]f32),
-	// Extending layout?
-	extend: Maybe(Box_Side),
+	// Growing layout?
+	grow: Maybe(Box_Side),
 	// Defined space or the layer size whichever is larger
+	scale,
 	space: Maybe([2]f32),
 	// Sorting order
 	order: Maybe(Layer_Order),
@@ -413,6 +414,9 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 				placement.size.x.? or_else self.space.x,
 				placement.size.y.? or_else self.space.y,
 			}
+			if scale, ok := info.scale.?; ok {
+				size *= scale
+			}
 			// Align x
 			switch placement.align.x {
 				case .Far: 
@@ -449,7 +453,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		if shadow, ok := info.shadow.?; ok {
 			painter.target = get_draw_target()
 			append(&self.meshes, painter.target)
-			paint_rounded_box_shadow(move_box(grow_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
+			paint_rounded_box_shadow(move_box(expand_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
 		}
 		// Append draw target
 		painter.target = get_draw_target()
@@ -473,11 +477,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		}
 		// Update clip status
 		self.bits -= {.Clipped}
-		if .Clip_To_Parent in self.options {
-			if parent, ok := self.parent.?; ok {
-				self.box = clamp_box(self.box, parent.box)
-			}
-		}
 		// Scrolling
 		SCROLL_LERP_SPEED :: 7
 		// Horizontal scrolling
@@ -525,19 +524,18 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Push layout
 		layout := push_layout(layout_box)
 		// Extending layout
-		if side, ok := info.extend.?; ok {
+		if side, ok := info.grow.?; ok {
 			#partial switch side {
 				case .Bottom: 
-				layout.box.high.y = layout.box.low.y
-				case .Top: 
 				layout.box.low.y = layout.box.high.y 
+				case .Top: 
+				layout.box.high.y = layout.box.low.y
 				case .Left: 
-				layout.box.low.x = layout.box.high.x 
-				case .Right: 
 				layout.box.high.x = layout.box.low.x
+				case .Right: 
+				layout.box.low.x = layout.box.high.x 
 			}
-			layout.mode = .Extending
-			layout.side = side
+			layout.grow = side
 		} else {
 			layout.box.high = layout.box.low + self.space
 		}
@@ -547,17 +545,33 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 // Called for every 'BeginLayer' that is called
 end_layer :: proc(self: ^Layer) {
 	if self != nil {
+		when ODIN_DEBUG {
+			if self.id != 0 {
+				paint_box_fill(self.box, {0, 255, 0, 10})
+				paint_box_stroke(self.box, 1, {0, 255, 0, 255})
+			}
+		}
+
 		// Pop layout
 		layout := current_layout()
-		if layout.mode == .Extending {
+		if layout.grow != nil {
 			self.space = layout.box.high - layout.box.low
 		}
 		pop_layout()
 		
 		// Detect clipping
-		if (self.box != Box{{}, core.size} && !box_in_box(self.box, self.content_box)) || (.Force_Clip in self.options) {
+		clip_box := self.box
+		if .Clip_To_Parent in self.options {
+			if parent, ok := self.parent.?; ok {
+				clip_box = {
+					linalg.clamp(clip_box.low, parent.box.low, parent.box.high),
+					linalg.clamp(clip_box.high, parent.box.low, parent.box.high),
+				}
+			}
+		}
+		if (clip_box != Box{{}, core.size} && !box_in_box(clip_box, self.content_box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
-			painter.meshes[painter.target].clip = self.box
+			painter.meshes[painter.target].clip = clip_box
 		}
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {

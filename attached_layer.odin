@@ -15,7 +15,7 @@ Attached_Layer_Info :: struct {
 	mode: Attached_Layer_Mode,
 	parent: Attached_Layer_Parent,
 	size: [2]f32,
-	extend: Maybe(Box_Side),
+	grow: Maybe(Box_Side),
 	side: Maybe(Box_Side),
 	align: Maybe(Alignment),
 	fill_color: Maybe(Color),
@@ -75,7 +75,7 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 		result.self, ok = begin_layer({
 			id = info.id.? or_else info.parent.(^Widget).id, 
 			placement = placement_info,
-			extend = info.extend,
+			grow = info.grow,
 			options = info.layer_options + {.Attached},
 			opacity = info.opacity,
 			owner = info.parent.(^Widget) or_else nil,

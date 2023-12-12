@@ -91,27 +91,29 @@ _main :: proc() {
 		cut(.Top, Exact(20))
 
 		placement.size = Exact(30)
-		if do_tree_node({text = "Buttons", size = Exact(100)}) {
+		if do_tree_node({text = "Buttons"}) {
 			if do_layout(.Top, Exact(30)) {
 				placement.side = .Left; placement.size = Exact(200)
 				do_button({label = "Button"})
 			}
+			space(Exact(20))
+			placement.size = Exact(60)
+			do_button({label = "Multiple\nlines"})
 		}
-		if do_tree_node({text = "Toggle switches", size = Exact(100)}) {
-
-		}
-		if do_tree_node({text = "Text input", size = Exact(100)}) {
-			
-		}
-		if do_tree_node({text = "Multiple choice", size = Exact(100)}) {
-			for member, i in Choice {
-				push_id(i)
-					do_checkbox_bit_set(&choices, member, tmp_print(member))
-				pop_id()
+		placement.size = Exact(30)
+		if do_tree_node({text = "hello"}) {
+			do_checkbox({state = &boolean, text = "Did homework"})
+			if do_tree_node({text = "darkness"}) {
+				if do_tree_node({text = "my old friend"}) {
+					choice = do_enum_radio_buttons(choice)
+				}
+				if do_tree_node({text = "yeh"}) {
+					choice = do_enum_radio_buttons(choice)
+				}
 			}
-		}
-		if do_tree_node({text = "Single choice", size = Exact(100)}) {
-			choice = do_enum_radio_buttons(choice)
+			if do_tree_node({text = "dude"}) {
+				choice = do_enum_radio_buttons(choice)
+			}
 		}
 
 		// End of ui calls
