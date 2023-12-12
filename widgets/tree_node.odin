@@ -44,6 +44,7 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 					origin = {self.box.low.x + h, self.box.high.y},
 					size = {width(self.box) - h, nil},
 				},
+				layout_align = {.Near, .Far},
 				scale = [2]f32{1, open_time},
 				grow = .Top,
 				id = self.id, 

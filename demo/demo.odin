@@ -105,14 +105,23 @@ _main :: proc() {
 			do_checkbox({state = &boolean, text = "Did homework"})
 			if do_tree_node({text = "darkness"}) {
 				if do_tree_node({text = "my old friend"}) {
-					choice = do_enum_radio_buttons(choice)
+					if do_tree_node({text = "I've come to"}) {
+						if do_button({label = "Talk with you again"}) {
+
+						}
+					}
 				}
-				if do_tree_node({text = "yeh"}) {
+				if do_tree_node({text = ":}"}) {
 					choice = do_enum_radio_buttons(choice)
 				}
 			}
-			if do_tree_node({text = "dude"}) {
-				choice = do_enum_radio_buttons(choice)
+			if do_tree_node({text = ":)"}) {
+				placement.align.y = .Middle
+				for member, i in Choice {
+					push_id(i)
+						do_checkbox_bit_set(&choices, member, tmp_print(member))
+					pop_id()
+				}
 			}
 		}
 

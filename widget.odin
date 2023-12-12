@@ -22,12 +22,13 @@ Widget_Bit :: enum {
 	Stay_Alive,
 	// For independently toggled widgets
 	Active,
-	// If the widget is diabled (duh)
+	// If the widget is disabled
 	Disabled,
 	// For attached menus
 	Menu_Open,
 	// Should be painted this frame
 	Should_Paint,
+	// Negative number in numeric fields
 	Negative,
 }
 
