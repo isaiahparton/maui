@@ -39,6 +39,8 @@ _main :: proc() {
 	tt: time.Time
 	show_window: bool
 	boolean: bool
+	graph_state: maui_widgets.Graph_State
+	n: int
 
 	choice: Choice
 	choices: bit_set[Choice]
@@ -66,9 +68,6 @@ _main :: proc() {
 
 	maui.init()
 
-	// Load fonts
-	icon_font, _ := maui.load_font(&maui.painter.atlas, "fonts/remixicon.ttf")
-
 	for maui_glfw.cycle(TARGET_FRAME_TIME) {
 		using maui 
 		using maui_widgets
@@ -87,41 +86,53 @@ _main :: proc() {
 		do_text({text = "maui", font = style.font.title, size = 40, align = .Middle})
 		cut(.Top, Exact(20))
 		placement.size = Exact(100)
-		do_interactable_text({text = "is an immediate mode UI framework designed for easy development of desktop applications and tools. It is renderer and platform independant, currently supporting GLFW and OpenGL.", font = style.font.content, size = 18})
+		do_interactable_text({text = "is a mixed mode UI framework designed for easy development of desktop applications and tools. It is renderer and platform independant, currently supporting GLFW and OpenGL.", font = style.font.content, size = 18})
 		cut(.Top, Exact(20))
 
 		placement.size = Exact(30)
-		if do_tree_node({text = "Buttons"}) {
-			if do_layout(.Top, Exact(30)) {
-				placement.side = .Left; placement.size = Exact(200)
-				do_button({label = "Button"})
+		
+		placement.size = Exact(30); placement.align.y = .Middle
+		if do_tree_node({text = "Single choice"}) {
+			if do_tree_node({text = "Multi switches"}) {
+				n = do_multi_switch({
+					options = {'\uEA27', '\uEA25', '\uEA28'},
+					index = n,
+				}) or_else n
 			}
-			space(Exact(20))
-			placement.size = Exact(60)
-			do_button({label = "Multiple\nlines"})
+			if do_tree_node({text = "Radio buttons"}) {
+				choice = do_enum_radio_buttons(choice)
+			}
 		}
-		placement.size = Exact(30)
-		if do_tree_node({text = "hello"}) {
-			do_checkbox({state = &boolean, text = "Did homework"})
-			if do_tree_node({text = "darkness"}) {
-				if do_tree_node({text = "my old friend"}) {
-					if do_tree_node({text = "I've come to"}) {
-						if do_button({label = "Talk with you again"}) {
-
-						}
-					}
-				}
-				if do_tree_node({text = ":}"}) {
-					choice = do_enum_radio_buttons(choice)
-				}
+		if do_tree_node({text = "Checkboxes"}) {
+			for member, i in Choice {
+				push_id(i)
+					do_checkbox_bit_set(&choices, member, tmp_print(member))
+				pop_id()
 			}
-			if do_tree_node({text = ":)"}) {
-				placement.align.y = .Middle
-				for member, i in Choice {
+		}
+		if do_tree_node({text = "Buttons"}) {
+			placement.size = Exact(50)
+			if do_horizontal(3) {
+				paint_rounded_box_fill(current_layout().box, style.rounding, style.color.base[1])
+				shrink(10)
+
+				placement.margin[.Left] = Exact(10)
+				placement.margin[.Right] = Exact(10)
+				for style, i in Button_Style {
 					push_id(i)
-						do_checkbox_bit_set(&choices, member, tmp_print(member))
+						do_button({label = tmp_print(style), style = style})
 					pop_id()
 				}
+			}
+			space(Exact(10))
+			placement.size = Exact(70)
+			do_button({label = "A larger button\nwith several\nlines of text"})
+		}
+		space(Exact(10))
+		if do_layout(.Top, Exact(300)) {
+			placement.side = .Left; placement.size = Exact(300)
+			if do_graph({step = {1, 1}}, &graph_state) {
+
 			}
 		}
 

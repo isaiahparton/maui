@@ -541,18 +541,18 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		layout_box := Box{self.box.low, {}}
 		// Layout alignment
 		switch info.layout_align.x {
-			case .Far:
-			layout_box.low.x = self.box.high.x - self.last_space.x
 			case .Middle:
 			layout_box.low.x = center_x(self.box) - self.last_space.x / 2
+			case .Far:
+			layout_box.low.x = self.box.high.x - self.last_space.x
 			case .Near:
 			layout_box.low.x = self.box.low.x
 		}
 		switch info.layout_align.y {
-			case .Far:
-			layout_box.low.y = self.box.high.y - self.last_space.y
 			case .Middle:
 			layout_box.low.y = center_y(self.box) - self.last_space.y / 2
+			case .Far:
+			layout_box.low.y = self.box.high.y - self.last_space.y
 			case .Near:
 			layout_box.low.y = self.box.low.y
 		}

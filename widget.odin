@@ -454,7 +454,7 @@ tooltip_box ::proc(id: Id, text: string, anchor: Box, side: Box_Side, offset: f3
 // Labels
 Label :: union {
 	string,
-	Box,
+	rune,
 }
 
 Paint_Label_Info :: struct {
@@ -471,10 +471,8 @@ paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: Text_Alig
 		case string: 	
 		return paint_text(origin, {font = style.font.label, size = style.text_size.label, text = v}, {align = align, baseline = baseline}, color)
 
-		case Box:
-		size := v.high - v.low
-		paint_textured_box(painter.atlas.texture, v, {origin - size / 2, origin + size / 2}, color)
-		return size
+		case rune:
+		return paint_aligned_rune(style.font.icon, style.text_size.label, v, origin, color, align, baseline)
 	}
 	return {}
 }
@@ -501,8 +499,13 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 			size = style.text_size.label, 
 		})
 
-		case Box:
-		size = v.high - v.low
+		case rune:
+		font := &painter.atlas.fonts[style.font.icon]
+		if font_size, ok := get_font_size(font, style.text_size.label); ok {
+			if glyph, ok := get_font_glyph(font, font_size, v); ok {
+				size = {glyph.advance, font_size.ascent - font_size.descent}
+			}
+		}
 	}
 	return
 }

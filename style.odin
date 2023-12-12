@@ -39,6 +39,7 @@ Style_Fonts :: struct {
 	label,
 	tooltip,
 	monospace,
+	icon,
 	title: Font_Handle,
 }
 /*

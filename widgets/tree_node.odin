@@ -10,6 +10,7 @@ import "core:math/ease"
 Tree_Node_Info :: struct{
 	text: string,
 	size: f32,
+	persistent: bool,
 }
 
 @(deferred_out=_do_tree_node)
@@ -29,7 +30,7 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 		if .Should_Paint in self.bits {
 			color := blend_colors(style.color.base_text[0], style.color.base_text[1], hover_time)
 			paint_arrow(self.box.low + h / 2, 6, -math.PI * 0.5 * (1 - open_time), 1, color)
-			paint_text({self.box.low.x + h, center_y(self.box)}, {text = info.text, font = style.font.title, size = style.text_size.title}, {align = .Left, baseline = .Middle}, color)
+			paint_text({self.box.low.x + h, center_y(self.box)}, {text = info.text, font = style.font.title, size = style.text_size.label}, {align = .Left, baseline = .Middle}, color)
 		}
 		// Invert state on click
 		if .Clicked in self.state {
@@ -37,7 +38,7 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 		}
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 		// Begin layer
-		if open_time > 0 {
+		if open_time > 0 || info.persistent {
 			// Deploy layer
 			_, active = begin_layer({
 				placement = Layer_Placement_Info{
@@ -47,12 +48,12 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 				layout_align = {.Near, .Far},
 				scale = [2]f32{1, open_time},
 				grow = .Top,
-				id = self.id, 
-				options = {.Attached, .Clip_To_Parent, .No_Scroll_Y}, 
+				id = self.id,
+				options = {.Attached, .Clip_To_Parent, .No_Scroll_Y},
 			})
 		}
 	}
-	return 
+	return
 }
 @private 
 _do_tree_node :: proc(active: bool) {

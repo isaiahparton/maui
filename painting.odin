@@ -166,6 +166,7 @@ style_default_fonts :: proc() -> bool {
 	style.font.label = load_font(&painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return
 	style.font.title = load_font(&painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return
 	style.font.monospace = load_font(&painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return
+	style.font.icon = load_font(&painter.atlas, "fonts/remixicon.ttf") or_return
 	// Assign their handles and sizes
 	style.text_size.label = 16
 	style.rounding = 5
