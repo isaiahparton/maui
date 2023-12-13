@@ -545,13 +545,6 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 // Called for every 'BeginLayer' that is called
 end_layer :: proc(self: ^Layer) {
 	if self != nil {
-		when ODIN_DEBUG {
-			if self.id != 0 {
-				paint_box_fill(self.box, {0, 255, 0, 10})
-				paint_box_stroke(self.box, 1, {0, 255, 0, 255})
-			}
-		}
-
 		// Pop layout
 		layout := current_layout()
 		if layout.grow != nil {
@@ -563,9 +556,13 @@ end_layer :: proc(self: ^Layer) {
 		clip_box := self.box
 		if .Clip_To_Parent in self.options {
 			if parent, ok := self.parent.?; ok {
-				clip_box = {
-					linalg.clamp(clip_box.low, parent.box.low, parent.box.high),
-					linalg.clamp(clip_box.high, parent.box.low, parent.box.high),
+				if !box_in_box(clip_box, parent.box) {
+					self.bits += {.Clipped}
+					clip_box = {
+						linalg.clamp(clip_box.low, parent.box.low, parent.box.high),
+						linalg.clamp(clip_box.high, parent.box.low, parent.box.high),
+					}
+					painter.meshes[painter.target].clip = clip_box
 				}
 			}
 		}
