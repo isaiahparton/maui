@@ -131,7 +131,7 @@ _main :: proc() {
 		space(Exact(10))
 		if do_layout(.Top, Exact(300)) {
 			placement.side = .Left; placement.size = Exact(300)
-			if do_graph({step = {1, 1}}, &graph_state) {
+			if do_graph({step = {10, 10}}, &graph_state) {
 
 			}
 		}
