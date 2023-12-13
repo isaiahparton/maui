@@ -5,6 +5,9 @@ import "core:math"
 import "core:math/linalg"
 /*
 	Layers are the root of all gui
+
+	Clipping to parent
+
 */
 
 SCROLL_SPEED :: 16
@@ -81,6 +84,48 @@ Layer_Order :: enum {
 	Debug,
 }
 
+Layer_Shadow_Info :: struct {
+	offset,
+	roundness: f32,
+}
+
+Layer_Placement_Info :: struct {
+	origin: [2]f32,
+	size: [2]Maybe(f32), 
+	align: [2]Alignment,
+}
+
+Layer_Placement :: union {
+	Box,
+	Layer_Placement_Info,
+}
+
+Layer_Info :: struct {
+	// Explicit id assignment
+	id: Maybe(Id),
+	// Placement
+	placement: Layer_Placement,
+	// Scrollbar padding
+	scrollbar_padding: Maybe([2]f32),
+	// Growing layout?
+	grow: Maybe(Box_Side),
+	// Defined space or the layer size whichever is larger
+	scale,
+	space: Maybe([2]f32),
+	// Alignment of the layout
+	layout_align: [2]Alignment,
+	// Sorting order
+	order: Maybe(Layer_Order),
+	// Optional shadow
+	shadow: Maybe(Layer_Shadow_Info),
+	// Optional options
+	options: Layer_Options,
+	// bruh
+	owner: Maybe(^Widget),
+	// Opacity
+	opacity: Maybe(f32),
+}
+
 // A layer's own data
 Layer :: struct {
 	// Owner widget
@@ -98,13 +143,16 @@ Layer :: struct {
 	state: Layer_State,
 	// Painting settings
 	opacity: f32,
-	// Viewport box
+	// Viewport
+	clip_box,
+	// Body
 	box: Box,
 	// Box on which scrollbars are anchored
 	inner_box: Box,
 	// Bounding box of all painted content
 	content_box: Box,
 	// Space for scrolling
+	last_space,
 	space: [2]f32,
 	// Scrolling
 	scroll, 
@@ -316,46 +364,6 @@ destroy_layer :: proc(self: ^Layer) {
 	self^ = {}
 }
 
-Layer_Shadow_Info :: struct {
-	offset,
-	roundness: f32,
-}
-
-Layer_Placement_Info :: struct {
-	origin: [2]f32,
-	size: [2]Maybe(f32), 
-	align: [2]Alignment,
-}
-
-Layer_Placement :: union {
-	Box,
-	Layer_Placement_Info,
-}
-
-Layer_Info :: struct {
-	// Explicit id assignment
-	id: Maybe(Id),
-	// Placement
-	placement: Layer_Placement,
-	// Scrollbar padding
-	scrollbar_padding: Maybe([2]f32),
-	// Growing layout?
-	grow: Maybe(Box_Side),
-	// Defined space or the layer size whichever is larger
-	scale,
-	space: Maybe([2]f32),
-	// Sorting order
-	order: Maybe(Layer_Order),
-	// Optional shadow
-	shadow: Maybe(Layer_Shadow_Info),
-	// Optional options
-	options: Layer_Options,
-	// bruh
-	owner: Maybe(^Widget),
-	// Opacity
-	opacity: Maybe(f32),
-}
-
 @(deferred_out=_do_layer)
 do_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	info := info
@@ -510,34 +518,65 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 
 		self.content_box = {self.box.high, self.box.low}
 
+		// Clip box
+		self.clip_box = self.box
+		// Clip to parent's clip box
+		if .Clip_To_Parent in self.options {
+			if parent, ok := self.parent.?; ok {
+				self.clip_box = {
+					linalg.clamp(self.clip_box.low, parent.clip_box.low, parent.clip_box.high),
+					linalg.clamp(self.clip_box.high, parent.clip_box.low, parent.clip_box.high),
+				}
+			}
+		}
+
+		// Save last space for layout alignment
+		self.last_space = self.space
 		// Get layout size
 		self.space = info.space.? or_else 0
 		// Get space
 		self.space = linalg.max(self.space, self.box.high - self.box.low)
 
 		// Copy box
-		layout_box := self.box 
+		layout_box := Box{self.box.low, {}}
+		// Layout alignment
+		switch info.layout_align.x {
+			case .Middle:
+			layout_box.low.x = center_x(self.box) - self.last_space.x / 2
+			case .Far:
+			layout_box.low.x = self.box.high.x - self.last_space.x
+			case .Near:
+			layout_box.low.x = self.box.low.x
+		}
+		switch info.layout_align.y {
+			case .Middle:
+			layout_box.low.y = center_y(self.box) - self.last_space.y / 2
+			case .Far:
+			layout_box.low.y = self.box.high.y - self.last_space.y
+			case .Near:
+			layout_box.low.y = self.box.low.y
+		}
 		// Apply scroll offset
 		layout_box.low -= self.scroll
-		layout_box.high -= self.scroll 
+		// Set size
+		layout_box.high = layout_box.low + self.space
+		// Apply scroll padding
 		layout_box.high -= self.scrollbar_time * SCROLL_BAR_SIZE
 		// Push layout
 		layout := push_layout(layout_box)
 		// Extending layout
 		if side, ok := info.grow.?; ok {
 			#partial switch side {
-				case .Bottom: 
-				layout.box.low.y = layout.box.high.y 
-				case .Top: 
+				case .Bottom:
+				layout.box.low.y = layout.box.high.y
+				case .Top:
 				layout.box.high.y = layout.box.low.y
-				case .Left: 
+				case .Left:
 				layout.box.high.x = layout.box.low.x
-				case .Right: 
-				layout.box.low.x = layout.box.high.x 
+				case .Right:
+				layout.box.low.x = layout.box.high.x
 			}
 			layout.grow = side
-		} else {
-			layout.box.high = layout.box.low + self.space
 		}
 	}
 	return
@@ -568,7 +607,7 @@ end_layer :: proc(self: ^Layer) {
 		}
 		if (clip_box != Box{{}, core.size} && !box_in_box(clip_box, self.content_box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
-			painter.meshes[painter.target].clip = clip_box
+			painter.meshes[painter.target].clip = self.clip_box
 		}
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {

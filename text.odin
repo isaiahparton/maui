@@ -299,7 +299,7 @@ measure_next_line :: proc(info: Text_Info, it: Text_Iterator) -> f32 {
 	for iterate_text(&it, info) {
 		if it.new_line {
 			break
-		} else if it.glyph != nil && it.last_codepoint != '\n' {
+		} else if it.glyph != nil {
 			size += it.glyph.advance
 		}
 	}
@@ -351,6 +351,12 @@ load_font :: proc(atlas: ^Atlas, file: string) -> (handle: Font_Handle, success:
 		fmt.printf("Failed to load font from %s\n", file)
 	}
 	return
+}
+unload_font :: proc(atlas: ^Atlas, font: Font_Handle) {
+	if atlas.font_exists[font] {
+		atlas.font_exists[font] = false
+		destroy_font(&atlas.fonts[font])
+	}
 }
 // Get the data for a given pixel size of the font
 get_font_size :: proc(font: ^Font, size: f32) -> (data: ^Font_Size, ok: bool) {
@@ -464,32 +470,32 @@ paint_text :: proc(origin: [2]f32, info: Text_Info, paint_info: Text_Paint_Info,
 	return size 
 }
 
-paint_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]f32, color: Color, align: [2]Alignment) -> [2]f32 {
+paint_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]f32, color: Color, align: Text_Align, baseline: Text_Baseline) -> [2]f32 {
 	font := &painter.atlas.fonts[font]
 	font_size, _ := get_font_size(font, size)
 	glyph, _ := get_font_glyph(font, font_size, rune(icon))
 	icon_size := glyph.src.high - glyph.src.low
 
 	box: Box
-	switch align.x {
-		case .Far: 
+	switch align {
+		case .Right: 
 		box.low.x = origin.x - icon_size.x
 		box.high.x = origin.x 
 		case .Middle: 
-		box.low.x = origin.x - icon_size.x / 2 
-		box.high.x = origin.x + icon_size.x / 2
-		case .Near: 
+		box.low.x = origin.x - math.floor(icon_size.x / 2) 
+		box.high.x = origin.x + math.floor(icon_size.x / 2)
+		case .Left: 
 		box.low.x = origin.x 
 		box.high.x = origin.x + icon_size.x 
 	}
-	switch align.y {
-		case .Far: 
+	switch baseline {
+		case .Bottom: 
 		box.low.y = origin.y - icon_size.y
 		box.high.y = origin.y 
 		case .Middle: 
-		box.low.y = origin.y - icon_size.y / 2 
-		box.high.y = origin.y + icon_size.y / 2
-		case .Near: 
+		box.low.y = origin.y - math.floor(icon_size.y / 2) 
+		box.high.y = origin.y + math.floor(icon_size.y / 2)
+		case .Top: 
 		box.low.y = origin.y 
 		box.high.y = origin.y + icon_size.y 
 	}
@@ -756,7 +762,7 @@ do_text :: proc(info: Do_Text_Info) {
 			baseline = info.baseline,
 		}, 
 		info.color.? or_else style.color.base_text[1],
-		)
+	)
 }
 
 Interactable_Text_Info :: struct {

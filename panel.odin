@@ -167,14 +167,14 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 			self.real_box = v
 			case Panel_Placement_Info:
 			switch v.align.x {
-				case .Near: self.real_box.low.x = v.origin.x
-				case .Far: self.real_box.low.x = v.origin.x - v.size.x
-				case .Middle: self.real_box.low.x = v.origin.x - v.size.x / 2
+				case .Near: 		self.real_box.low.x = v.origin.x
+				case .Far: 			self.real_box.low.x = v.origin.x - v.size.x
+				case .Middle: 	self.real_box.low.x = v.origin.x - v.size.x / 2
 			}
 			switch v.align.y {
-				case .Near: self.real_box.low.y = v.origin.y
-				case .Far: self.real_box.low.y = v.origin.y - v.size.y
-				case .Middle: self.real_box.low.y = v.origin.y - v.size.y / 2
+				case .Near: 		self.real_box.low.y = v.origin.y
+				case .Far: 			self.real_box.low.y = v.origin.y - v.size.y
+				case .Middle: 	self.real_box.low.y = v.origin.y - v.size.y / 2
 			}
 			self.real_box.high = self.real_box.low + v.size
 		}

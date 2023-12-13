@@ -135,7 +135,9 @@ shrink :: proc(amount: Exact, loc := #caller_location) {
 	layout := current_layout(loc)
 	if grow, ok := layout.grow.?; ok {
 		#partial switch grow {
-			case .Bottom: layout.box.high.y += amount * 2
+			case .Bottom, .Top: 
+			layout.box.low.y += amount
+			layout.box.high.y += amount * 2
 		}
 	} else {
 		layout.box = shrink_box(layout.box, amount)
@@ -226,10 +228,11 @@ _do_layout :: proc(ok: bool) {
 }
 
 @(deferred_out=_do_horizontal)
-do_horizontal :: proc(size: Unit) -> (ok: bool) {
-	box := cut(placement.side, size)
+do_horizontal :: proc(divisions: int) -> (ok: bool) {
+	box := cut(placement.side, placement.size)
 	layout := push_layout(box)
 	placement.side = .Left
+	placement.size = width(layout.box) / max(f32(divisions), 1)
 	return true
 }
 @private 
