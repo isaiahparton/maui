@@ -3,12 +3,14 @@ import "../"
 import "core:math"
 import "core:math/linalg"
 
-Graph_Curve_Proc :: proc(f32) -> f32 
+/*Graph_Curve_Proc :: proc(f32) -> f32 
 Graph_Info :: struct {
 	step: [2]f32,
+	show_axes: bool,
 }
 Graph_State :: struct {
-	view: maui.Box,
+	offset: [2]f32,
+	transform: linalg.Matrix3x3f32,
 }
 do_graph :: proc(info: Graph_Info, state: ^Graph_State, loc := #caller_location) -> (ok: bool) {
 	using maui
@@ -16,16 +18,10 @@ do_graph :: proc(info: Graph_Info, state: ^Graph_State, loc := #caller_location)
 		self.box = use_next_box() or_else layout_next(current_layout())
 		update_widget(self)
 
+		view_box := self.box
 		if .Should_Paint in self.bits {
-			paint_rounded_box_fill(self.box, style.rounding, style.color.base[1])
+			paint_rounded_box_fill(view_box, style.rounding, style.color.base[1])
 
-			// Grid
-			for f: f32 = 0; f < state.view.high.x - state.view.low.x; f += info.step.x {
-				lp := self.box.low.x + state.view.low.x + f
-				paint_line({lp, self.box.low.y}, {lp, self.box.high.y}, 1, style.color.substance[int(f == 0)])
-			}
-
-			paint_text(self.box.low, {text = tmp_print(state.view), font = style.font.label, size = style.text_size.label}, {}, style.color.base_text[1])
 		}
 
 		if .Hovered in self.state {
@@ -42,20 +38,20 @@ do_graph :: proc(info: Graph_Info, state: ^Graph_State, loc := #caller_location)
 		}
 
 		if .Got_Press in self.state {
-			core.drag_anchor = (input.mouse_point - self.box.low) - state.view.low
+			core.drag_anchor = (input.mouse_point - view_box.low) - state.view.low
 		} else if .Pressed in self.state {
 			view_size := state.view.high - state.view.low
-			state.view.low = (input.mouse_point - self.box.low) - core.drag_anchor
+			state.view.low = (input.mouse_point - view_box.low) - core.drag_anchor
 			state.view.high = state.view.low + view_size
 		}
 
 		state.view.high = linalg.max(state.view.high, state.view.low + info.step * 10)
 
-		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+		update_widget_hover(self, point_in_box(input.mouse_point, view_box))
 	}
 	return
 }
 
 graph_curve :: proc(curve_proc: Graph_Curve_Proc) {
 
-}
+}*/

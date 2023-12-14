@@ -228,11 +228,11 @@ _do_layout :: proc(ok: bool) {
 }
 
 @(deferred_out=_do_horizontal)
-do_horizontal :: proc(divisions: int) -> (ok: bool) {
+do_horizontal :: proc(divisions: int, spacing: f32 = 0) -> (ok: bool) {
 	box := cut(placement.side, placement.size)
 	layout := push_layout(box)
 	placement.side = .Left
-	placement.size = width(layout.box) / max(f32(divisions), 1)
+	placement.size = width(layout.box) / max(f32(divisions), 1) - (spacing * f32(divisions - 1))
 	return true
 }
 @private 

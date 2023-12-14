@@ -32,7 +32,7 @@ RESOURCES_PATH :: #config(MAUI_RESOURCES_PATH, ".")
 TEXTURE_WIDTH :: 4096
 TEXTURE_HEIGHT :: 4096
 // Triangle helper
-TRIANGLE_STEP :: math.TAU / 3
+TRIANGLE_STEP :: math.TAU / 3.0
 // What sizes of circles to pre-render
 MIN_CIRCLE_SIZE :: 2
 MAX_CIRCLE_SIZE :: 60

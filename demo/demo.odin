@@ -39,8 +39,9 @@ _main :: proc() {
 	tt: time.Time
 	show_window: bool
 	boolean: bool
-	graph_state: maui_widgets.Graph_State
 	n: int
+
+	hsva: [4]f32
 
 	choice: Choice
 	choices: bit_set[Choice]
@@ -103,7 +104,7 @@ _main :: proc() {
 				choice = do_enum_radio_buttons(choice)
 			}
 		}
-		if do_tree_node({text = "Checkboxes"}) {
+		if do_tree_node({text = "Multiple choice"}) {
 			for member, i in Choice {
 				push_id(i)
 					do_checkbox_bit_set(&choices, member, tmp_print(member))
@@ -128,13 +129,40 @@ _main :: proc() {
 			placement.size = Exact(70)
 			do_button({label = "A larger button\nwith several\nlines of text"})
 		}
-		space(Exact(10))
-		if do_layout(.Top, Exact(300)) {
-			placement.side = .Left; placement.size = Exact(300)
-			if do_graph({step = {10, 10}}, &graph_state) {
-
+		if do_tree_node({text = "Menus"}) {
+			if do_horizontal(2, 10) {
+				if do_menu({label = "Menu"}) {
+					placement.size = Exact(24); placement.side = .Top
+					do_option({label = "option"})
+					do_option({label = "opción"})
+					do_option({label = "выбор"})
+					do_option({label = "επιλογή"})
+				}
+				space(Exact(10))
+				if new_index, changed := do_strings_menu({
+					items = {"happ :)", "sab :(", "angy >:(", "chair"},
+					index = n,
+				}); changed {
+					n = new_index
+				}
 			}
 		}
+
+		placement.size = Exact(140)
+
+		if new_hsva, changed := do_color_wheel({hsva = hsva}); changed {
+			hsva = new_hsva
+		}
+		space(Exact(20))
+		cut(.Right, Exact(200))
+		placement.size = Exact(30)
+
+		hsva.x = do_slider(Slider_Info(f32){value = hsva.x, low = 0, high = 360})
+		hsva.y = do_slider(Slider_Info(f32){value = hsva.y, low = 0, high = 1})
+		hsva.z = do_slider(Slider_Info(f32){value = hsva.z, low = 0, high = 1})
+		hsva.w = do_slider(Slider_Info(f32){value = hsva.w, low = 0, high = 1})
+
+		paint_box_fill({core.size - 200, core.size}, hsva_to_rgba(hsva))
 
 		// End of ui calls
 		end_frame()

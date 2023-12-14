@@ -20,6 +20,7 @@ Atlas :: struct {
 	fonts: [MAX_FONTS]Font,
 	// Pre-rasterized ring locations
 	rings: [MAX_RING_RADIUS][MAX_RING_RADIUS]Maybe(Box),
+	hue_ring: Maybe(Box),
 }
 /*
 	Get a pre-rasterized ring from the atlas or create one
