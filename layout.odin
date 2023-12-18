@@ -39,6 +39,7 @@ Layout :: struct {
 	// Growing?
 	grow: Maybe(Box_Side),
 	// State
+	original_box,
 	box: Box,
 	// Temporary placement settings
 	last_placement: Placement_Info,
@@ -51,6 +52,8 @@ Layout_Agent :: struct {
 	current_layout: ^Layout,
 }
 layout_agent_push :: proc(using self: ^Layout_Agent, layout: Layout) -> ^Layout {
+	layout := layout
+	layout.original_box = layout.box
 	stack_push(&stack, layout)
 	current_layout = stack_top_ref(&stack)
 	return current_layout
@@ -148,19 +151,23 @@ shrink :: proc(amount: Exact, loc := #caller_location) {
 */
 layout_cut_or_grow :: proc(lt: ^Layout, side: Box_Side, amount: Unit) -> (result: Box) {
 	// Get the base box
-	if grow, ok := lt.grow.?; ok {
-		if side == grow {
-			result = grow_box(&lt.box, side, amount)
-		} else {
-			result = cut_box(&lt.box, side, amount)
-		}
-	} else {
+	if grow, ok := lt.grow.?; ok && grow == side {
 		switch side {
-			case .Bottom:		result = cut_box_bottom(&lt.box, amount)
-			case .Top:			result = cut_box_top(&lt.box, amount)
-			case .Left:			result = cut_box_left(&lt.box, amount)
-			case .Right:		result = cut_box_right(&lt.box, amount)
+			case .Bottom:	
+			lt.box.low.y = min(lt.box.low.y, lt.box.high.y - (amount.(Exact) or_else Exact(f32(amount.(Relative)) * height(lt.box))))
+			case .Top:	
+			lt.box.high.y = max(lt.box.high.y, lt.box.low.y + (amount.(Exact) or_else Exact(f32(amount.(Relative)) * height(lt.box))))
+			case .Right:	
+			lt.box.low.x = min(lt.box.low.x, lt.box.high.x - (amount.(Exact) or_else Exact(f32(amount.(Relative)) * width(lt.box))))
+			case .Left:	
+			lt.box.high.x = max(lt.box.high.x, lt.box.low.x + (amount.(Exact) or_else Exact(f32(amount.(Relative)) * width(lt.box))))
 		}
+	}
+	switch side {
+		case .Bottom:		result = cut_box_bottom(&lt.box, amount)
+		case .Top:			result = cut_box_top(&lt.box, amount)
+		case .Left:			result = cut_box_left(&lt.box, amount)
+		case .Right:		result = cut_box_right(&lt.box, amount)
 	}
 	return
 }
@@ -224,6 +231,19 @@ do_layout_box :: proc(box: Box) -> (ok: bool) {
 _do_layout :: proc(ok: bool) {
 	if ok {
 		pop_layout()
+	}
+}
+
+@(deferred_out=_do_growing_layout)
+do_growing_layout :: proc(side: Box_Side) -> (ok: bool) {
+	layout := current_layout()
+	push_growing_layout(layout.box, side)
+	return true
+}
+@private
+_do_growing_layout :: proc(ok: bool) {
+	if ok {
+		pop_growing_layout()
 	}
 }
 
