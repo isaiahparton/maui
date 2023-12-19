@@ -152,8 +152,9 @@ do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new
 			// Selector circle
 			point := point_c
 			point += (point_a - point) * info.hsva.z
-			point += (point_b - point) * info.hsva.y * info.hsva.z
-			paint_ring_fill_texture(point, 3, 5, 255)
+			point += (point_b - point) * info.hsva.y
+			point += (point_c - point) * (1 - info.hsva.z)
+			paint_ring_fill_texture(point, 3, 5, {0, 0, 0, 255} if (info.hsva.y < 0.3 && info.hsva.z > 0.7) else 255)
 		}
 
 		diff := input.mouse_point - center
@@ -171,20 +172,9 @@ do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new
 					new_hsva.x += 360
 				}
 			} else {
-				// Saturation and value assignment
-				u, v, w := barycentric(input.mouse_point, point_a, point_b, point_c)
-				u = clamp(u, 0, 1)
-				v = clamp(v, 0, 1)
-				w = clamp(w, 0, 1)
-				when ODIN_DEBUG {
-					paint_text(point_a, {text = tmp_print(u), font = style.font.label, size = 16}, {}, {0, 0, 0, 255})
-					paint_text(point_b, {text = tmp_print(v), font = style.font.label, size = 16}, {}, {0, 0, 0, 255})
-					paint_text(point_c, {text = tmp_print(w), font = style.font.label, size = 16}, {}, {0, 0, 0, 255})
-				}
-				// Saturation
-				new_hsva.y = 1 if w >= 1 else ((1 - u) * v)
-				// Value
-				new_hsva.z = 1 - w
+				
+				// Paint the next frame yo
+				painter.next_frame = true
 			}
 			changed = true
 		} else {

@@ -403,7 +403,7 @@ end_frame :: proc() {
 	// Update panels
 	update_panel_agent(&panel_agent)
 	// Decide if rendering is needed next frame
-	if input.last_mouse_point != input.mouse_point || input.last_key_set != input.key_set|| input.last_mouse_bits != input.mouse_bits || input.mouse_scroll != {} {
+	if (input.last_mouse_point != input.mouse_point) || (input.last_key_set != input.key_set) || (input.last_mouse_bits != input.mouse_bits) || (input.mouse_scroll != {}) {
 		painter.next_frame = true
 	}
 	if size != last_size {
