@@ -5,9 +5,6 @@ import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 
-COLOR_PICKER_INNER_RADIUS :: 50
-COLOR_PICKER_OUTER_RADIUS :: 70
-
 /*
 	Coordinate conversion
 */
@@ -161,7 +158,7 @@ do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new
 		dist := linalg.length(diff)
 
 		if .Got_Press in self.state {
-			if dist > inner && dist <= outer {
+			if dist > inner {
 				self.bits += {.Active}
 			}
 		} else if .Pressed in self.state {
@@ -181,7 +178,7 @@ do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new
 			self.bits -= {.Active}
 		}
 
-		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+		update_widget_hover(self, point_in_box(input.mouse_point, self.box) && dist < outer)
 	}
 	return
 }

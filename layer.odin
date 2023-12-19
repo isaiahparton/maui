@@ -587,7 +587,7 @@ end_layer :: proc(self: ^Layer) {
 		// Pop layout
 		layout := current_layout()
 		if layout.grow != nil {
-			self.space = layout.box.high - layout.box.low
+			self.space = layout.box.high - layout.original_box.low
 		}
 		pop_layout()
 		
