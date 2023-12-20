@@ -52,12 +52,12 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 	// Determine total size
 	size, text_size: [2]f32
 	if has_text {
-		text_size = measure_text({font = style.font.label, size = style.text_size.label, text = info.text.?})
+		text_size = measure_text({font = ctx.style.font.label, size = ctx.style.text_size.label, text = info.text.?})
 		if text_side == .Bottom || text_side == .Top {
 			size.x = max(SIZE, text_size.x)
 			size.y = SIZE + text_size.y
 		} else {
-			size.x = SIZE + text_size.x + style.layout.widget_padding * 2
+			size.x = SIZE + text_size.x + ctx.style.layout.widget_padding * 2
 			size.y = SIZE
 		}
 	} else {
@@ -96,8 +96,8 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			}
 
 			// Paint box
-			paint_rounded_box_fill(icon_box, style.rounding, fade(style.color.substance[1], 0.1 + 0.1 * hover_time))
-			paint_rounded_box_stroke(icon_box, style.rounding, 2, fade(style.color.substance[1], 0.5 + 0.5 * hover_time))
+			paint_rounded_box_fill(icon_box, ctx.style.rounding, fade(ctx.style.color.substance[1], 0.1 + 0.1 * hover_time))
+			paint_rounded_box_stroke(icon_box, ctx.style.rounding, 2, fade(ctx.style.color.substance[1], 0.5 + 0.5 * hover_time))
 			
 			center := box_center(icon_box)
 
@@ -109,10 +109,10 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 				#partial switch real_state {
 					case .Unknown: 
 					a, b: [2]f32 = {-1, 0} * scale, {1, 0} * scale
-					paint_line(center + a, center + b, 2, style.color.accent[0])
+					paint_line(center + a, center + b, 2, ctx.style.color.accent[0])
 					case .On: 
 					a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-					stroke_path({center + a, center + b, center + c}, false, 1, style.color.accent[0])
+					stroke_path({center + a, center + b, center + c}, false, 1, ctx.style.color.accent[0])
 				}
 			}
 
@@ -120,13 +120,13 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 			if has_text {
 				switch text_side {
 					case .Left: 	
-					paint_text({icon_box.high.x + style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
+					paint_text({icon_box.high.x + ctx.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = ctx.style.font.label, size = ctx.style.text_size.label}, {align = .Left}, ctx.style.color.base_text[1])
 					case .Right: 	
-					paint_text({icon_box.low.x - style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
+					paint_text({icon_box.low.x - ctx.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = ctx.style.font.label, size = ctx.style.text_size.label}, {align = .Left}, ctx.style.color.base_text[1])
 					case .Top: 		
-					paint_text(box.low, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
+					paint_text(box.low, {text = info.text.?, font = ctx.style.font.label, size = ctx.style.text_size.label}, {align = .Left}, ctx.style.color.base_text[1])
 					case .Bottom: 	
-					paint_text({box.low.x, box.high.y - text_size.y}, {text = info.text.?, font = style.font.label, size = style.text_size.label}, {align = .Left}, style.color.base_text[1])
+					paint_text({box.low.x, box.high.y - text_size.y}, {text = info.text.?, font = ctx.style.font.label, size = ctx.style.text_size.label}, {align = .Left}, ctx.style.color.base_text[1])
 				}
 			}
 		}

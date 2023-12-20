@@ -113,7 +113,7 @@ end_attached_layer :: proc(info: Attached_Layer_Info, layer: ^Layer) {
 
 	// Paint stroke color
 	if info.stroke_color != nil {
-		paint_rounded_box_stroke(layer.box, style.rounding, 2, info.stroke_color.?)
+		paint_rounded_box_stroke(layer.box, ctx.style.rounding, 2, info.stroke_color.?)
 	}
 
 	// End the layer

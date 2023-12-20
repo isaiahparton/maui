@@ -346,9 +346,11 @@ load_font :: proc(atlas: ^Atlas, file: string) -> (handle: Font_Handle, success:
 					break
 				}
 			}
+		} else {
+			fmt.printf("Failed to initialize font from '%s'\n", file)
 		}
 	} else {
-		fmt.printf("Failed to load font from %s\n", file)
+		fmt.printf("Failed to load font from '%s'\n", file)
 	}
 	return
 }
@@ -635,7 +637,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 						if clip, ok := text_paint_info.clip.?; ok {
 							box = clamp_box(box, clip)
 						}
-						paint_box_fill(box, style.color.accent[1])
+						paint_box_fill(box, ctx.style.color.accent[1])
 					}
 				} else if it.glyph != nil && it.index >= agent.index && it.index < agent.index + agent.length {
 					// Selection
@@ -648,7 +650,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 					if clip, ok := text_paint_info.clip.?; ok {
 						box = clamp_box(box, clip)
 					}
-					paint_box_fill(box, fade(style.color.accent[1], 0.5))
+					paint_box_fill(box, fade(ctx.style.color.accent[1], 0.5))
 				}
 			}
 			// Paint the glyph
@@ -736,7 +738,7 @@ Do_Text_Info :: struct {
 }
 do_text :: proc(info: Do_Text_Info) {
 	box := use_next_box() or_else layout_next(current_layout())
-	box = shrink_box(box, style.layout.widget_padding)
+	box = shrink_box(box, ctx.style.layout.widget_padding)
 	origin: [2]f32
 	switch info.align {
 		case .Left: origin.x = box.low.x
@@ -752,8 +754,8 @@ do_text :: proc(info: Do_Text_Info) {
 		origin, 
 		{
 			text = info.text, 
-			font = info.font.? or_else style.font.label, 
-			size = info.size.? or_else style.text_size.label, 
+			font = info.font.? or_else ctx.style.font.label, 
+			size = info.size.? or_else ctx.style.text_size.label, 
 			limit = {width(box), nil}, 
 			wrap = .Word,
 		}, 
@@ -761,7 +763,7 @@ do_text :: proc(info: Do_Text_Info) {
 			align = info.align, 
 			baseline = info.baseline,
 		}, 
-		info.color.? or_else style.color.base_text[1],
+		info.color.? or_else ctx.style.color.base_text[1],
 	)
 }
 
@@ -795,8 +797,8 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 			&ctx.typing_agent, 
 			{
 				text = info.text, 
-				font = info.font.? or_else style.font.label, 
-				size = info.size.? or_else style.text_size.label, 
+				font = info.font.? or_else ctx.style.font.label, 
+				size = info.size.? or_else ctx.style.text_size.label, 
 				limit = {width(self.box), nil}, 
 				wrap = .Word,
 			}, 
@@ -808,7 +810,7 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 			{
 				read_only = true,
 			}, 
-			info.color.? or_else style.color.base_text[1],
+			info.color.? or_else ctx.style.color.base_text[1],
 			)
 		update_widget_hover(self, res.hovered)
 

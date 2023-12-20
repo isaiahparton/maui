@@ -20,7 +20,7 @@ do_graph :: proc(info: Graph_Info, state: ^Graph_State, loc := #caller_location)
 
 		view_box := self.box
 		if .Should_Paint in self.bits {
-			paint_rounded_box_fill(view_box, style.rounding, style.color.base[1])
+			paint_rounded_box_fill(view_box, ctx.style.rounding, ctx.style.color.base[1])
 
 		}
 

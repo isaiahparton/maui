@@ -11,7 +11,7 @@ do_multi_switch :: proc(info: Multi_Switch_Info, loc := #caller_location) -> (ne
 	using maui
 	box := use_next_box() or_else layout_next(current_layout())
 
-	paint_rounded_box_fill(box, style.rounding, style.color.substance[0])
+	paint_rounded_box_fill(box, ctx.style.rounding, ctx.style.color.substance[0])
 	size := width(box) / f32(len(info.options))
 	push_id(hash(loc))
 		for option, i in info.options {
@@ -21,11 +21,11 @@ do_multi_switch :: proc(info: Multi_Switch_Info, loc := #caller_location) -> (ne
 
 				hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
 				if info.index == i {
-					paint_rounded_box_fill(w.box, style.rounding, alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time))
-					paint_label_box(option, w.box, style.color.base_text[1], .Middle, .Middle)
+					paint_rounded_box_fill(w.box, ctx.style.rounding, alpha_blend_colors(ctx.style.color.substance[1], ctx.style.color.substance_hover, hover_time))
+					paint_label_box(option, w.box, ctx.style.color.base_text[1], .Middle, .Middle)
 				} else {
-					paint_rounded_box_fill(w.box, style.rounding, fade(style.color.substance_hover, hover_time))
-					paint_label_box(option, w.box, style.color.base_text[0], .Middle, .Middle)
+					paint_rounded_box_fill(w.box, ctx.style.rounding, fade(ctx.style.color.substance_hover, hover_time))
+					paint_label_box(option, w.box, ctx.style.color.base_text[0], .Middle, .Middle)
 				}
 
 				if widget_clicked(w, .Left) {

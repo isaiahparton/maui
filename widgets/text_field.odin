@@ -52,7 +52,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 		}
 		// Paint!
 		if (.Should_Paint in self.bits) {
-			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, style.color.base[1])
+			paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, ctx.style.color.base[1])
 		}
 		// Get data source
 		text: string
@@ -78,7 +78,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			})
 		}
 		// Do text interaction
-		inner_box: Box = {{self.box.low.x + style.layout.widget_padding, self.box.low.y}, {self.box.high.x - style.layout.widget_padding, self.box.high.y}}
+		inner_box: Box = {{self.box.low.x + ctx.style.layout.widget_padding, self.box.low.y}, {self.box.high.x - ctx.style.layout.widget_padding, self.box.high.y}}
 		text_origin: [2]f32 = inner_box.low
 		paint_info: Text_Paint_Info = {
 			clip = self.box,
@@ -87,16 +87,16 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			text_origin.y += height(inner_box) / 2
 			paint_info.baseline = .Middle
 		} else {
-			text_origin.y += style.layout.widget_padding
+			text_origin.y += ctx.style.layout.widget_padding
 		}
 		text_res := paint_interact_text(
 			text_origin - self.offset, 
 			self,
 			&ctx.typing_agent, 
-			{text = text, font = style.font.label, size = style.text_size.field},
+			{text = text, font = ctx.style.font.label, size = ctx.style.text_size.field},
 			paint_info,
 			{},
-			style.color.base_text[1],
+			ctx.style.color.base_text[1],
 		)
 		if .Focused in self.state {
 			offset_x_limit := max(width(text_res.bounds) - width(inner_box), 0)
@@ -140,14 +140,14 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 				if len(text) == 0 {
 					paint_text(
 						text_origin, 
-						{font = style.font.label, size = style.text_size.field, text = info.placeholder.?}, 
+						{font = ctx.style.font.label, size = ctx.style.text_size.field, text = info.placeholder.?}, 
 						paint_info, 
-						style.color.base_text[0],
+						ctx.style.color.base_text[0],
 					)
 				}
 			}
 			if .Focused in self.state {
-				paint_rounded_box_corners_stroke(self.box, style.rounding, 2, style.rounded_corners, style.color.accent[1])
+				paint_rounded_box_corners_stroke(self.box, ctx.style.rounding, 2, ctx.style.rounded_corners, ctx.style.color.accent[1])
 			}
 		}
 		// Whatever

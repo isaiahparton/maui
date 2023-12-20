@@ -22,6 +22,8 @@ Platform :: struct {
 	frame_time: f64,
 }
 
+_platform: ^Platform
+
 make_platform :: proc(width, height: int, title: string, api: backend.Render_API) -> (result: Platform, ok: bool) {
 	glfw.Init()
 	if api == .OpenGL {
@@ -62,12 +64,10 @@ make_platform :: proc(width, height: int, title: string, api: backend.Render_API
 	result.cursors[.Resize_NWSE] = glfw.CreateStandardCursor(glfw.RESIZE_NWSE_CURSOR)
 	result.cursors[.Resize] = glfw.CreateStandardCursor(glfw.CENTER_CURSOR)
 
-	// resize_callback :: proc(window: glfw.WindowHandle, width, height: i32) {
-	// 	interface.screen_size = {width, height}
-	// 	maui.ctx.size = {f32(width), f32(height)}
-		
-	// }
-	// glfw.SetFramebufferSizeCallback(result.window, glfw.FramebufferSizeProc(resize_callback))
+	resize_callback :: proc(window: glfw.WindowHandle, width, height: i32) {
+		maui.ctx.size = {f32(width), f32(height)}
+	}
+	glfw.SetFramebufferSizeCallback(result.window, glfw.FramebufferSizeProc(resize_callback))
 
 	scroll_proc :: proc(window: glfw.WindowHandle, x, y: f64) {
 		maui.input.mouse_scroll = {f32(x), f32(y)}
@@ -114,20 +114,19 @@ make_platform :: proc(width, height: int, title: string, api: backend.Render_API
 	// Set up opengl
 	glfw.MakeContextCurrent(result.window)
 
-	
-
 	if api == .OpenGL {
 		gl.load_up_to(3, 3, glfw.gl_set_proc_address)
 	}
-	
+	ok = true
+
 	return
 }
 
 begin :: proc(using platform: ^Platform, ctx: ^maui.Context) {
 	width, height := glfw.GetFramebufferSize(window)
 	layer.screen_size = {width, height}
-
 	ctx.size = {f32(width), f32(height)}
+
 	ctx.current_time = glfw.GetTime()
 	if ctx.cursor == .None {
 		glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)

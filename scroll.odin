@@ -33,10 +33,10 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 		knob_box.high[i] = knob_box.low[i] + knob_size
 		// Painting
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, fade(style.color.substance[0], 0.1))
-			paint_box_stroke(self.box, 1, style.color.substance[0])
-			paint_box_fill(knob_box, fade(style.color.substance[1], 0.1 + hover_time * 0.1 + press_time * 0.8))
-			paint_box_stroke(knob_box, 1, style.color.substance[1])
+			paint_box_fill(self.box, fade(ctx.style.color.substance[0], 0.1))
+			paint_box_stroke(self.box, 1, ctx.style.color.substance[0])
+			paint_box_fill(knob_box, fade(ctx.style.color.substance[1], 0.1 + hover_time * 0.1 + press_time * 0.8))
+			paint_box_stroke(knob_box, 1, ctx.style.color.substance[1])
 		}
 		// Dragging
 		if .Got_Press in self.state {

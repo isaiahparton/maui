@@ -28,9 +28,9 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 		h := height(self.box)
 		// Paint
 		if .Should_Paint in self.bits {
-			color := blend_colors(style.color.base_text[0], style.color.base_text[1], hover_time)
+			color := blend_colors(ctx.style.color.base_text[0], ctx.style.color.base_text[1], hover_time)
 			paint_arrow(self.box.low + h / 2, 6, -math.PI * 0.5 * (1 - open_time), 1, color)
-			paint_text({self.box.low.x + h, center_y(self.box)}, {text = info.text, font = style.font.title, size = style.text_size.label}, {align = .Left, baseline = .Middle}, color)
+			paint_text({self.box.low.x + h, center_y(self.box)}, {text = info.text, font = ctx.style.font.title, size = ctx.style.text_size.label}, {align = .Left, baseline = .Middle}, color)
 		}
 		// Invert state on click
 		if .Clicked in self.state {

@@ -39,13 +39,13 @@ do_knob :: proc(info: Knob_Info($T), loc := #caller_location) -> (new_value: T) 
 
 		// Knob body
 		// Line
-		paint_line(center + norm * radius, center + norm * (radius - 10), 1, style.color.substance[1])
+		paint_line(center + norm * radius, center + norm * (radius - 10), 1, ctx.style.color.substance[1])
 		// Outline
-		paint_ring_fill(center, radius, radius + 1, 32, style.color.substance[1])
+		paint_ring_fill(center, radius, radius + 1, 32, ctx.style.color.substance[1])
 		// Another line
-		paint_ring_sector_fill(center, RADIUS + 6, RADIUS + 8, start, end, 24, fade(style.color.substance[1], 0.5))
+		paint_ring_sector_fill(center, RADIUS + 6, RADIUS + 8, start, end, 24, fade(ctx.style.color.substance[1], 0.5))
 		// Text
-		paint_text(center + {0, RADIUS + 4}, {text = tmp_printf(info.format.? or_else "%v", info.value), font = style.font.label, size = 14}, {align = .Middle, baseline = .Top}, style.color.base_text)
+		paint_text(center + {0, RADIUS + 4}, {text = tmp_printf(info.format.? or_else "%v", info.value), font = ctx.style.font.label, size = 14}, {align = .Middle, baseline = .Top}, ctx.style.color.base_text)
 
 		if .Pressed in self.state {
 			new_value -= T(input.last_mouse_point.x - input.mouse_point.x) * (range / (math.PI * 1.5)) * 0.005

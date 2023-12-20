@@ -371,8 +371,8 @@ attach_tooltip :: proc(text: string, side: Box_Side) {
 tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment, side: Maybe(Box_Side) = nil) {
 	text_size := measure_text({
 		text = text,
-		font = style.font.title,
-		size = style.text_size.title,
+		font = ctx.style.font.title,
+		size = ctx.style.text_size.title,
 	})
 	PADDING :: 3
 	size := text_size + PADDING * 2
@@ -395,7 +395,7 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment, side:
 	}); ok {
 		layer.order = .Tooltip
 		BLACK :: Color{0, 0, 0, 255}
-		paint_rounded_box_fill(layer.box, style.tooltip_rounding, {0, 0, 0, 255})
+		paint_rounded_box_fill(layer.box, ctx.style.tooltip_rounding, {0, 0, 0, 255})
 		if side, ok := side.?; ok {
 			SIZE :: 5
 			#partial switch side {
@@ -415,7 +415,7 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment, side:
 		}
 		paint_text(
 			layer.box.low + PADDING, 
-			{font = style.font.title, size = style.text_size.title, text = text}, 
+			{font = ctx.style.font.title, size = ctx.style.text_size.title, text = text}, 
 			{}, 
 			255,
 			)
@@ -469,10 +469,10 @@ get_size_for_label :: proc(l: ^Layout, label: Label) -> Exact {
 paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: Text_Align, baseline: Text_Baseline) -> [2]f32 {
 	switch v in label {
 		case string: 	
-		return paint_text(origin, {font = style.font.label, size = style.text_size.label, text = v}, {align = align, baseline = baseline}, color)
+		return paint_text(origin, {font = ctx.style.font.label, size = ctx.style.text_size.label, text = v}, {align = align, baseline = baseline}, color)
 
 		case rune:
-		return paint_aligned_rune(style.font.icon, style.text_size.label, v, origin, color, align, baseline)
+		return paint_aligned_rune(ctx.style.font.icon, ctx.style.text_size.label, v, origin, color, align, baseline)
 	}
 	return {}
 }
@@ -495,13 +495,13 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 		case string: 
 		size = measure_text({
 			text = v,
-			font = style.font.label,
-			size = style.text_size.label, 
+			font = ctx.style.font.label,
+			size = ctx.style.text_size.label, 
 		})
 
 		case rune:
-		font := &ctx.painter.atlas.fonts[style.font.icon]
-		if font_size, ok := get_font_size(font, style.text_size.label); ok {
+		font := &ctx.painter.atlas.fonts[ctx.style.font.icon]
+		if font_size, ok := get_font_size(font, ctx.style.text_size.label); ok {
 			if glyph, ok := get_font_glyph(font, font_size, v); ok {
 				size = {glyph.advance, font_size.ascent - font_size.descent}
 			}

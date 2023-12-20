@@ -61,15 +61,15 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 		}
 		if .Should_Paint in self.bits {
 			if info.style == .Filled {
-				paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
+				paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, alpha_blend_colors(alpha_blend_colors(ctx.style.color.substance[1], ctx.style.color.substance_hover, hover_time), ctx.style.color.substance_click, press_time))
 			} else {
 				if info.style == .Outlined {
-					paint_rounded_box_corners_stroke(self.box, style.rounding, 2, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
+					paint_rounded_box_corners_stroke(self.box, ctx.style.rounding, 2, ctx.style.rounded_corners, alpha_blend_colors(alpha_blend_colors(ctx.style.color.substance[1], ctx.style.color.substance_hover, hover_time), ctx.style.color.substance_click, press_time))
 				}
-				paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, fade(style.color.base_hover, hover_time))
-				paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, fade(style.color.base_click, press_time))
+				paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, fade(ctx.style.color.base_hover, hover_time))
+				paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, fade(ctx.style.color.base_click, press_time))
 			}
-			paint_label_box(info.label, self.box, style.color.base_text[1], info.align.? or_else .Middle, .Middle)
+			paint_label_box(info.label, self.box, ctx.style.color.base_text[1], info.align.? or_else .Middle, .Middle)
 		}
 		// Result
 		clicked = widget_clicked(self, .Left)

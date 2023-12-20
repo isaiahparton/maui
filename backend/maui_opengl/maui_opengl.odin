@@ -149,9 +149,9 @@ delete_pingpong_fbos :: proc(using renderer: ^Renderer) {
 		Load shaders
 		Set texture handling procedures
 */
-make_renderer :: proc() -> (result: Renderer, ok: bool) {
+make_renderer :: proc(platform: maui.Platform_Layer) -> (result: Renderer, ok: bool) {
 	// Set viewport
-  // gl.Viewport(0, 0, screen_size.x, screen_size.y)
+  gl.Viewport(0, 0, platform.screen_size.x, platform.screen_size.y)
   
   {
 		VERTEX_SHADER_330 := #load("./default.vert")
@@ -214,9 +214,14 @@ make_renderer :: proc() -> (result: Renderer, ok: bool) {
 		gl.DeleteTextures(1, &id)
 	}
 	maui._update_texture = proc(tex: maui.Texture, data: []u8, x, y, w, h: f32) {
+		prev_tex: i32
+		gl.GetIntegerv(gl.TEXTURE_BINDING_2D, &prev_tex)
 		gl.BindTexture(gl.TEXTURE_2D, tex.id)
 		gl.TexSubImage2D(gl.TEXTURE_2D, 0, i32(x), i32(y), i32(w), i32(h), gl.RGBA, gl.UNSIGNED_BYTE, (transmute(runtime.Raw_Slice)data).data)
+		gl.BindTexture(gl.TEXTURE_2D, u32(prev_tex))
 	}
+
+	ok = true
 
 	return
 }
@@ -287,6 +292,7 @@ render :: proc(using renderer: ^Renderer, ctx: ^maui.Context) -> int {
 	gl.VertexAttribPointer(uv_attrib_loc, 2, gl.FLOAT, gl.FALSE, size_of(maui.Vertex), 8)
 	gl.VertexAttribPointer(col_attrib_loc, 4, gl.UNSIGNED_BYTE, gl.TRUE, size_of(maui.Vertex), 16)
 
+	gl.BindTexture(gl.TEXTURE_2D, ctx.painter.atlas.texture.id)
 	render_meshes(renderer, ctx)
 
 	// Delete the temporary VAO

@@ -90,5 +90,3 @@ Style :: struct {
 	rounding: f32,
 	rounded_corners: Box_Corners,
 }
-
-style: Style

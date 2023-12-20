@@ -35,15 +35,15 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 		if .Should_Paint in self.bits {
 			inner_box := shrink_box(self.box, 1)
 			// Body
-			color := info.color.? or_else (style.color.accent[1] if info.state else style.color.substance[1])
+			color := info.color.? or_else (ctx.style.color.accent[1] if info.state else ctx.style.color.substance[1])
 			if info.state {
-				paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
+				paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, alpha_blend_colors(alpha_blend_colors(ctx.style.color.substance[1], ctx.style.color.substance_hover, hover_time), ctx.style.color.substance_click, press_time))
 			} else if hover_time > 0 || press_time > 0 {
-				paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, fade(style.color.base_hover, hover_time))
-				paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, fade(style.color.base_click, press_time))
+				paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, fade(ctx.style.color.base_hover, hover_time))
+				paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, fade(ctx.style.color.base_click, press_time))
 			}
 			// Label
-			paint_label_box(info.label, self.box, style.color.base_text[1], .Middle, .Middle)
+			paint_label_box(info.label, self.box, ctx.style.color.base_text[1], .Middle, .Middle)
 		}
 		// Hover
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
@@ -67,21 +67,21 @@ do_enum_toggle_buttons :: proc(value: $T, loc := #caller_location) -> (new_value
 	new_value = value
 	layout := current_layout()
 	horizontal := placement.side == .Left || placement.side == .Right
-	prev_rounded_corners := style.rounded_corners
+	prev_rounded_corners := ctx.style.rounded_corners
 	for member, i in T {
 		push_id(int(member))
-			style.rounded_corners = {}
+			ctx.style.rounded_corners = {}
 			if horizontal {
 				if i == 0 {
-					style.rounded_corners += {.Top_Left, .Bottom_Left}
+					ctx.style.rounded_corners += {.Top_Left, .Bottom_Left}
 				} else if i == len(T) - 1 {
-					style.rounded_corners += {.Top_Right, .Bottom_Right}
+					ctx.style.rounded_corners += {.Top_Right, .Bottom_Right}
 				}
 			} else {
 				if i == 0 {
-					style.rounded_corners += {.Top_Left, .Top_Right}
+					ctx.style.rounded_corners += {.Top_Left, .Top_Right}
 				} else if i == len(T) - 1 {
-					style.rounded_corners += {.Bottom_Left, .Bottom_Right}
+					ctx.style.rounded_corners += {.Bottom_Left, .Bottom_Right}
 				}
 			}
 			if do_toggle_button({label = tmp_printf("%v", member), state = value == member}) {

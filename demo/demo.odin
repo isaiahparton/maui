@@ -62,7 +62,7 @@ _main :: proc() -> bool {
 	// Create the platform
 	platform := maui_glfw.make_platform(1200, 1000, "Maui", .OpenGL) or_return
 	// Create the renderer
-	renderer := maui_opengl.make_renderer() or_return
+	renderer := maui_opengl.make_renderer(platform.layer) or_return
 	// Set up the UI context
 	maui.ctx = new(maui.Context)
 	maui.ctx^ = maui.make_context(platform.layer, renderer.layer) or_return
@@ -75,7 +75,7 @@ _main :: proc() -> bool {
 		maui_glfw.begin(&platform, ctx)
 		begin()
 
-		paint_text({4, 4}, {text = tmp_printf("Frame time: %fms", time.duration_milliseconds(ctx.frame_duration)), font = style.font.content, size = style.text_size.label}, {}, style.color.base_text[1])
+		paint_text({4, 4}, {text = tmp_printf("Frame time: %fms", time.duration_milliseconds(ctx.frame_duration)), font = ctx.style.font.content, size = ctx.style.text_size.label}, {}, ctx.style.color.base_text[1])
 
 		cut(.Left, Exact(300))
 		cut(.Right, Exact(300))
@@ -85,10 +85,10 @@ _main :: proc() -> bool {
 			
 			placement.size = Exact(30)
 
-			do_text({text = "maui", font = style.font.title, size = 40, align = .Middle})
+			do_text({text = "maui", font = ctx.style.font.title, size = 40, align = .Middle})
 			cut(.Top, Exact(20))
 			placement.size = Exact(100)
-			do_interactable_text({text = "is a mixed mode UI framework designed for easy development of desktop applications and tools. It is renderer and platform independant, currently supporting GLFW and OpenGL.", font = style.font.content, size = 18})
+			do_interactable_text({text = "is a mixed mode UI framework designed for easy development of desktop applications and tools. It is renderer and platform independant, currently supporting GLFW and OpenGL.", font = ctx.style.font.content, size = 18})
 			cut(.Top, Exact(20))
 
 			placement.size = Exact(30)
@@ -115,7 +115,7 @@ _main :: proc() -> bool {
 			if do_tree_node({text = "Buttons"}) {
 				placement.size = Exact(50)
 				if do_horizontal(3) {
-					paint_rounded_box_fill(current_layout().box, style.rounding, style.color.base[1])
+					paint_rounded_box_fill(current_layout().box, ctx.style.rounding, ctx.style.color.base[1])
 					shrink(10)
 
 					placement.margin[.Left] = Exact(10)
@@ -185,7 +185,7 @@ _main :: proc() -> bool {
 
 		// Render if needed
 		if maui.should_render() {
-			maui_opengl.clear(style.color.base[0])
+			maui_opengl.clear(ctx.style.color.base[0])
 			maui_opengl.render(&renderer, ctx)
 			maui_glfw.end(&platform)
 		}

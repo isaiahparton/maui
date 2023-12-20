@@ -13,11 +13,11 @@ do_window_handle :: proc(loc := #caller_location) {
 		if .Should_Paint in self.bits {
 			box := shrink_box(self.box, 5) 
 			line_size := height(box) / 5
-			paint_box_fill(cut_box_top(&box, line_size), style.color.accent[1])
+			paint_box_fill(cut_box_top(&box, line_size), ctx.style.color.accent[1])
 			cut_box_top(&box, line_size)
-			paint_box_fill(cut_box_top(&box, line_size), style.color.accent[1])
+			paint_box_fill(cut_box_top(&box, line_size), ctx.style.color.accent[1])
 			cut_box_top(&box, line_size)
-			paint_box_fill(cut_box_top(&box, line_size), style.color.accent[1])
+			paint_box_fill(cut_box_top(&box, line_size), ctx.style.color.accent[1])
 		}
 		if .Got_Press in self.state {
 			ctx.drag_anchor = input.mouse_point - window.box.low

@@ -237,13 +237,11 @@ set_screen_size :: proc(w, h: f32) {
 }
 
 make_context :: proc(platform: Platform_Layer, renderer: Renderer_Layer) -> (result: Context, ok: bool) {
-	// First make th painter
-	painter := make_painter() or_return
 	// Assign the result
 	result, ok = Context{
 		platform = platform,
 		renderer = renderer,
-		painter = painter,
+		painter = make_painter() or_return,
 		style = {
 			color = DARK_STYLE_COLORS,
 			layout = {
@@ -251,12 +249,6 @@ make_context :: proc(platform: Platform_Layer, renderer: Renderer_Layer) -> (res
 				size = 24,
 				gap_size = 5,
 				widget_padding = 7,
-			},
-			font = {
-				label = load_font(&painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return,
-				title = load_font(&painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return,
-				monospace = load_font(&painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return,
-				icon = load_font(&painter.atlas, "fonts/remixicon.ttf") or_return,
 			},
 			text_size = {
 				label = 16,
@@ -269,6 +261,12 @@ make_context :: proc(platform: Platform_Layer, renderer: Renderer_Layer) -> (res
 			tooltip_rounding = 5,
 		},
 	}, true
+	result.style.font = {
+		label = load_font(&result.painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return,
+		title = load_font(&result.painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return,
+		monospace = load_font(&result.painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return,
+		icon = load_font(&result.painter.atlas, "fonts/remixicon.ttf") or_return,
+	}
 	return
 }
 destroy_context :: proc() {
@@ -290,6 +288,9 @@ destroy_context :: proc() {
 begin :: proc() {
 	using ctx
 
+	renderer.screen_size = platform.screen_size
+	size = linalg.array_cast(platform.screen_size, f32)
+
 	// Try tell the user what went wrong if
 	// a stack overflow occours
 	assert(layout_agent.stack.height == 0, "You forgot to pop_layout()")
@@ -304,7 +305,7 @@ begin :: proc() {
 	// Reset painter
 	painter.mesh_index = 0
 	painter.opacity = 1
-	style.rounded_corners = ALL_CORNERS
+	ctx.style.rounded_corners = ALL_CORNERS
 
 	// Reset placement
 	placement = {}

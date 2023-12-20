@@ -1,4 +1,4 @@
-#version 330 ctx
+#version 330 core
 in vec2 Frag_UV;
 in vec4 Frag_Color;
 out vec4 Out_Color;
