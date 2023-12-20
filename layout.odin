@@ -64,18 +64,18 @@ layout_agent_pop :: proc(using self: ^Layout_Agent) {
 }
 
 push_layout :: proc(box: Box) -> (layout: ^Layout) {
-	if core.layout_agent.stack.height > 0 {
+	if ctx.layout_agent.stack.height > 0 {
 		current_layout().last_placement = placement
 	}
-	return layout_agent_push(&core.layout_agent, Layout({
+	return layout_agent_push(&ctx.layout_agent, Layout({
 		box = box,
 		last_placement = placement,
 	}))
 }
 pop_layout :: proc() {
 	last_layout := current_layout()
-	layout_agent_pop(&core.layout_agent)
-	if core.layout_agent.stack.height > 0 {
+	layout_agent_pop(&ctx.layout_agent)
+	if ctx.layout_agent.stack.height > 0 {
 		layout := current_layout()
 		// Update placement settings
 		placement = layout.last_placement
@@ -91,9 +91,8 @@ push_growing_layout :: proc(box: Box, side: Box_Side) -> ^Layout {
 }
 pop_growing_layout :: proc() {
 	last_layout := current_layout()
-	paint_box_stroke(last_layout.box, 1, {255, 0, 130, 255})
-	layout_agent_pop(&core.layout_agent)
-	if core.layout_agent.stack.height > 0 {
+	layout_agent_pop(&ctx.layout_agent)
+	if ctx.layout_agent.stack.height > 0 {
 		layout := current_layout()
 		// Update placement settings
 		placement = layout.last_placement
@@ -106,17 +105,17 @@ pop_growing_layout :: proc() {
 }
 // Get the current layout (asserts that there be one)
 current_layout :: proc(loc := #caller_location) -> ^Layout {
-	assert(core.layout_agent.current_layout != nil, "No current layout", loc)
-	return core.layout_agent.current_layout
+	assert(ctx.layout_agent.current_layout != nil, "No current layout", loc)
+	return ctx.layout_agent.current_layout
 }
 // Set the next box to be used instead of `layout_next()`
 set_next_box :: proc(box: Box) {
-	core.next_box = box
+	ctx.next_box = box
 }
 use_next_box :: proc() -> (box: Box, ok: bool) {
-	box, ok = core.next_box.?
+	box, ok = ctx.next_box.?
 	if ok {
-		core.next_box = nil
+		ctx.next_box = nil
 	}
 	return
 }
@@ -183,7 +182,7 @@ layout_next :: proc(lt: ^Layout) -> (result: Box) {
 	assert(lt != nil)
 	result = layout_next_of_size(lt, placement.size)
 	// Set the last box
-	core.last_box = result
+	ctx.last_box = result
 	return
 }
 layout_next_child :: proc(using self: ^Layout, size: [2]f32) -> Box {

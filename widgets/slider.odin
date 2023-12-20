@@ -154,12 +154,12 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 		text := tmp_printf("%i", info.value)
 		if .Active in self.bits {
 			if self.state & {.Pressed, .Hovered} != {} {
-				core.cursor = .Beam
+				ctx.cursor = .Beam
 			}
 			// Get the buffer
-			buffer := typing_agent_get_buffer(&core.typing_agent, self.id)
+			buffer := typing_agent_get_buffer(&ctx.typing_agent, self.id)
 			// Do interactable text
-			text_res := paint_interact_text(box_center(self.box), self, &core.typing_agent, {text = string(buffer[:]), font = style.font.monospace, size = style.text_size.field}, {align = .Middle, baseline = .Middle}, {}, style.color.base_text[1])
+			text_res := paint_interact_text(box_center(self.box), self, &ctx.typing_agent, {text = string(buffer[:]), font = style.font.monospace, size = style.text_size.field}, {align = .Middle, baseline = .Middle}, {}, style.color.base_text[1])
 			// Copy text to buffer when focused
 			if .Got_Focus in self.state {
 				resize(buffer, len(text))
@@ -167,14 +167,14 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 			}
 			// Update text editing
 			if .Focused in self.state {
-				if typing_agent_edit(&core.typing_agent, {
+				if typing_agent_edit(&ctx.typing_agent, {
 					array = buffer,
 					bits = {.Numeric, .Integer},
 				}) {
 					if parsed_value, parse_ok := strconv.parse_int(string(buffer[:])); parse_ok {
 						new_value = T(parsed_value)
 					}
-					painter.next_frame = true
+					ctx.painter.next_frame = true
 				}
 			}
 		} else {
@@ -188,7 +188,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 				}
 			}
 			if .Hovered in self.state {
-				core.cursor = .Resize_EW
+				ctx.cursor = .Resize_EW
 			}
 		}
 		// Unfocus

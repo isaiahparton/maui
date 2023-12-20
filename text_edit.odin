@@ -246,7 +246,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 			length = 0
 			anchor = index
 		}
-		painter.next_frame = true
+		ctx.painter.next_frame = true
 		// Clamp cursor
 		index = max(0, index)
 		length = max(0, length)
@@ -290,7 +290,7 @@ typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (c
 				length = len(info.array) - index
 			}
 		}
-		painter.next_frame = true
+		ctx.painter.next_frame = true
 		index = max(0, index)
 		length = max(0, length)
 		vertical_anchor = index

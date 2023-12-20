@@ -70,10 +70,10 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 					)
 				}
 				// Lerp to desired offset
-				state.offsets[i] += diff * 10 * f64(core.delta_time)
+				state.offsets[i] += diff * 10 * f64(ctx.delta_time)
 				// Make sure to repaint if needed
 				if abs(diff) > 0.1 {
-					painter.next_frame = true
+					ctx.painter.next_frame = true
 				}
 			}
 		}

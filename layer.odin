@@ -222,7 +222,7 @@ destroy_layer_agent :: proc(using self: ^Layer_Agent) {
 begin_root_layer :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 	root_layer, ok = begin_layer({
 		id = 0,
-		placement = Box{{}, core.size}, 
+		placement = Box{{}, ctx.size}, 
 		options = {.No_ID},
 	})
 	return
@@ -267,7 +267,7 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 			destroy_layer(layer)
 			should_sort = true
 
-			painter.next_frame = true
+			ctx.painter.next_frame = true
 		}
 	}
 	// If a sorted layer was selected, then find it's root attached parent
@@ -328,7 +328,7 @@ create_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -
 	}
 	// Will sort layers this frame
 	should_sort = true
-	painter.next_frame = true
+	ctx.painter.next_frame = true
 
 	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
 		fmt.printf("+ Layer %x\n", id)
@@ -379,13 +379,13 @@ _do_layer :: proc(self: ^Layer, ok: bool) {
 }
 
 current_layer :: proc() -> ^Layer {
-	assert(core.layer_agent.current_layer != nil)
-	return core.layer_agent.current_layer
+	assert(ctx.layer_agent.current_layer != nil)
+	return ctx.layer_agent.current_layer
 }
 // Begins a new layer, the layer is created if it doesn't exist
 // and is managed internally
 begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
-	agent := &core.layer_agent
+	agent := &ctx.layer_agent
 
 	if self, ok = assert_layer(
 		self = agent,
@@ -393,7 +393,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		options = info.options,
 	); ok {
 		// Push layer stack
-		push_layer(&core.layer_agent, self)
+		push_layer(&ctx.layer_agent, self)
 
 		// Set sort order
 		self.order = info.order.? or_else self.order
@@ -454,18 +454,20 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.bits += {.Stay_Alive}
 		//IMPORTANT: Set opacity before painting anything
 		self.opacity = info.opacity.? or_else self.opacity
-		painter.opacity = self.opacity
+		ctx.painter.opacity = self.opacity
 		// Reset draw command
 		clear(&self.meshes)
 		// Paint shadow if needed
 		if shadow, ok := info.shadow.?; ok {
-			painter.target = get_draw_target()
-			append(&self.meshes, painter.target)
-			paint_rounded_box_shadow(move_box(expand_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
+			if target, ok := get_draw_target(&ctx.painter); ok {
+				ctx.painter.target = target
+				append(&self.meshes, ctx.painter.target)
+				paint_rounded_box_shadow(move_box(expand_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
+			}
 		}
 		// Append draw target
-		painter.target = get_draw_target()
-		append(&self.meshes, painter.target)
+		ctx.painter.target = get_draw_target(&ctx.painter) or_return
+		append(&self.meshes, ctx.painter.target)
 		// Apply inner padding
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
 		// Hovering and stuff
@@ -490,30 +492,30 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Horizontal scrolling
 		if (self.space.x > width(self.box)) && (.No_Scroll_X not_in self.options) {
 			self.bits += {.Scroll_X}
-			self.scrollbar_time.x = min(1, self.scrollbar_time.x + core.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.x = min(1, self.scrollbar_time.x + ctx.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.Scroll_X}
-			self.scrollbar_time.x = max(0, self.scrollbar_time.x - core.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.x = max(0, self.scrollbar_time.x - ctx.delta_time * SCROLL_LERP_SPEED)
 		}
 		if .No_Scroll_Margin_Y not_in self.options && self.space.y <= height(self.box) {
 			self.space.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE
 		}
 		if self.scrollbar_time.x > 0 && self.scrollbar_time.x < 1 {
-			painter.next_frame = true
+			ctx.painter.next_frame = true
 		}
 		// Vertical scrolling
 		if (self.space.y > height(self.box)) && (.No_Scroll_Y not_in self.options) {
 			self.bits += {.Scroll_Y}
-			self.scrollbar_time.y = min(1, self.scrollbar_time.y + core.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.y = min(1, self.scrollbar_time.y + ctx.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.Scroll_Y}
-			self.scrollbar_time.y = max(0, self.scrollbar_time.y - core.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.y = max(0, self.scrollbar_time.y - ctx.delta_time * SCROLL_LERP_SPEED)
 		}
 		if .No_Scroll_Margin_X not_in self.options && self.space.x <= width(self.box) {
 			self.space.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE
 		}
 		if self.scrollbar_time.y > 0 && self.scrollbar_time.y < 1 {
-			painter.next_frame = true
+			ctx.painter.next_frame = true
 		}
 
 		self.content_box = {self.box.high, self.box.low}
@@ -601,13 +603,13 @@ end_layer :: proc(self: ^Layer) {
 						linalg.clamp(clip_box.low, parent.box.low, parent.box.high),
 						linalg.clamp(clip_box.high, parent.box.low, parent.box.high),
 					}
-					painter.meshes[painter.target].clip = clip_box
+					ctx.painter.meshes[ctx.painter.target].clip = clip_box
 				}
 			}
 		}
-		if (clip_box != Box{{}, core.size} && !box_in_box(clip_box, self.content_box)) || (.Force_Clip in self.options) {
+		if (clip_box != Box{{}, ctx.size} && !box_in_box(clip_box, self.content_box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
-			painter.meshes[painter.target].clip = self.clip_box
+			ctx.painter.meshes[ctx.painter.target].clip = self.clip_box
 		}
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {
@@ -620,13 +622,13 @@ end_layer :: proc(self: ^Layer) {
 		}
 		// Repaint if scrolling with wheel
 		if linalg.floor(self.scroll_target - self.scroll) != {} {
-			painter.next_frame = true
+			ctx.painter.next_frame = true
 		}
 		// Clamp scrolling
 		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
 		self.scroll_target.y = clamp(self.scroll_target.y, 0, max_scroll.y)
 		// Interpolate scrolling
-		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * core.delta_time
+		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * ctx.delta_time
 		// Manifest scroll bars
 		if self.scrollbar_time.x > 0 {
 			// Horizontal scrolling
@@ -680,11 +682,11 @@ end_layer :: proc(self: ^Layer) {
 			pop_id()
 		}
 	}
-	pop_layer(&core.layer_agent)
-	if core.layer_agent.stack.height > 0 {
+	pop_layer(&ctx.layer_agent)
+	if ctx.layer_agent.stack.height > 0 {
 		layer := current_layer()
 
-		painter.opacity = layer.opacity
-		painter.target = layer.meshes[len(layer.meshes) - 1]
+		ctx.painter.opacity = layer.opacity
+		ctx.painter.target = layer.meshes[len(layer.meshes) - 1]
 	}
 }

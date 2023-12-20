@@ -60,7 +60,7 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	}, loc) {
 		new_value -= increment
 	}
-	paint_arrow(box_center(core.last_box), 5, 0, 1, style.color.substance_text[1])
+	paint_arrow(box_center(ctx.last_box), 5, 0, 1, style.color.substance_text[1])
 	loc.column += 1
 	// Increase button
 	set_next_box(increase_box)
@@ -76,7 +76,7 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	}
 	// Draw up arrow
 	style.rounded_corners = prev_rounded_corners
-	paint_arrow(box_center(core.last_box), 5, -math.PI, 1, style.color.substance_text[1])
+	paint_arrow(box_center(ctx.last_box), 5, -math.PI, 1, style.color.substance_text[1])
 	// Clamp value
 	if new_value != info.value {
 		if low, ok := info.low.?; ok {

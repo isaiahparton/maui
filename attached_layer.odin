@@ -104,9 +104,9 @@ end_attached_layer :: proc(info: Attached_Layer_Info, layer: ^Layer) {
 		}
 		if .Dismissed in layer.bits || dismiss || key_pressed(.Escape) {
 			widget.bits -= {.Menu_Open}
-			painter.next_frame = true
+			ctx.painter.next_frame = true
 			if dismiss {
-				core.open_menus = false
+				ctx.open_menus = false
 			}
 		}
 	}

@@ -38,10 +38,10 @@ do_graph :: proc(info: Graph_Info, state: ^Graph_State, loc := #caller_location)
 		}
 
 		if .Got_Press in self.state {
-			core.drag_anchor = (input.mouse_point - view_box.low) - state.view.low
+			ctx.drag_anchor = (input.mouse_point - view_box.low) - state.view.low
 		} else if .Pressed in self.state {
 			view_size := state.view.high - state.view.low
-			state.view.low = (input.mouse_point - view_box.low) - core.drag_anchor
+			state.view.low = (input.mouse_point - view_box.low) - ctx.drag_anchor
 			state.view.high = state.view.low + view_size
 		}
 

@@ -1,24 +1,3 @@
-/*
-	Maui is an immediate mode gui library, but that doesn't mean we can't have retained helper structs
-
-	TODO:
-		[X] Nice shiny global variables for placement instead of yucky set functions
-		[X] Move animations to widget struct (duh)
-		[X] Customizable fonts (default themes provides default fonts)
-		[X] Implement new texture atlas system
-		[X] Figure out if dynamic fonts are feasable
-			[X] Implement dynamic font loading
-			[ ] Or Don't
-		[ ] Cached text painting
-			* Save commands and just copy them when needed
-		[X] Remove animation map
-		[X] Widget code takes on a more flexible form: assert->layout->update->paint->result
-		[ ] Lazy resizing for label fitting widgets
-		[ ] Clipped loader painting proc for cool loading animation on buttons
-		[ ] Implement measures to reduce the need for constant text formatting
-		[ ] Panels become user managed (retained)
-*/
-
 package maui
 
 import "core:fmt"
@@ -118,7 +97,17 @@ stack_top_ref :: proc(stack: ^Stack($T, $N)) -> (ref: ^T, ok: bool) #optional_ok
 	return &stack.items[stack.height - 1], true
 }
 
-Core :: struct {
+Platform_Layer :: struct {
+	screen_size: [2]i32,
+	set_cursor: Maybe(Cursor_Type),
+	set_mouse_position: Maybe([2]i32),
+}
+
+Renderer_Layer :: struct {
+	screen_size: [2]i32,
+}
+
+Context :: struct {
 	// Time
 	current_time,
 	last_time: f64,
@@ -126,16 +115,21 @@ Core :: struct {
 	frame_start_time: time.Time,
 	frame_duration: time.Duration,
 
-	set_cursor: Maybe([2]f32),
-
 	disabled, 
 	open_menus,
 	is_key_selecting: bool,
+
+	platform: Platform_Layer,
+	renderer: Renderer_Layer,
 
 	// Uh
 	last_size,
 	size: [2]f32,
 	last_box: Box,
+
+	painter: Painter,
+
+	style: Style,
 
 	// Mouse cursor type
 	cursor: Cursor_Type,
@@ -168,7 +162,6 @@ Core :: struct {
 	clip_box: Box,
 
 	// Next stuff
-	next_id: Maybe(Id),
 	next_box: Maybe(Box),
 	next_tooltip: Maybe(Tooltip_Info),
 }
@@ -199,24 +192,24 @@ set_clipboard_string :: proc(str: string) {
 @(deferred_none=_enabled)
 enabled :: proc(condition: bool) -> bool {
 	if !condition {
-		core.disabled = true
+		ctx.disabled = true
 	}
 	return true
 }
 @private
 _enabled :: proc() {
-	core.disabled = false
+	ctx.disabled = false
 }
 
 /*
 	Groups widget states
 */
 begin_group :: proc() {
-	stack_push(&core.group_stack, Group({}))
+	stack_push(&ctx.group_stack, Group({}))
 }
 end_group :: proc() -> (result: ^Group) {
-	result = stack_top_ref(&core.group_stack)
-	stack_pop(&core.group_stack)
+	result = stack_top_ref(&ctx.group_stack)
+	stack_pop(&ctx.group_stack)
 	return
 }
 
@@ -226,12 +219,12 @@ end_group :: proc() -> (result: ^Group) {
 animate_bool :: proc(value: ^f32, condition: bool, duration: f32, easing: ease.Ease = .Linear) -> f32 {
 	old_value := value^
 	if condition {
-		value^ = min(1, value^ + core.delta_time * (1 / duration))
+		value^ = min(1, value^ + ctx.delta_time * (1 / duration))
 	} else {
-		value^ = max(0, value^ - core.delta_time * (1 / duration))
+		value^ = max(0, value^ - ctx.delta_time * (1 / duration))
 	}
 	if value^ != old_value {
-		painter.next_frame = true
+		ctx.painter.next_frame = true
 	}
 	return ease.ease(easing, value^)
 }
@@ -239,53 +232,63 @@ animate_bool :: proc(value: ^f32, condition: bool, duration: f32, easing: ease.E
 /*
 	The global state
 */
-set_next_id :: proc(id: Id) {
-	core.next_id = id
+set_screen_size :: proc(w, h: f32) {
+	ctx.size = {w, h}
 }
-use_next_id :: proc() -> (id: Id, ok: bool) {
-	id, ok = core.next_id.?
-	if ok {
-		core.next_id = nil
-	}
+
+make_context :: proc(platform: Platform_Layer, renderer: Renderer_Layer) -> (result: Context, ok: bool) {
+	// First make th painter
+	painter := make_painter() or_return
+	// Assign the result
+	result, ok = Context{
+		platform = platform,
+		renderer = renderer,
+		painter = painter,
+		style = {
+			color = DARK_STYLE_COLORS,
+			layout = {
+				title_size = 24,
+				size = 24,
+				gap_size = 5,
+				widget_padding = 7,
+			},
+			font = {
+				label = load_font(&painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return,
+				title = load_font(&painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return,
+				monospace = load_font(&painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return,
+				icon = load_font(&painter.atlas, "fonts/remixicon.ttf") or_return,
+			},
+			text_size = {
+				label = 16,
+				title = 16,
+				tooltip = 16,
+				field = 18,
+			},
+			rounding = 5,
+			panel_rounding = 5,
+			tooltip_rounding = 5,
+		},
+	}, true
 	return
 }
-
-get_screen_point :: proc(h, v: f32) -> [2]f32 {
-	return {h * f32(core.size.x), v * f32(core.size.y)}
-}
-set_screen_size :: proc(w, h: f32) {
-	core.size = {w, h}
-}
-
-init :: proc() -> bool {
-	if core == nil {
-		core = new(Core)
-		// Load graphics
-		if !painter_init() {
-			return false
-		}
-		return true
-	}
-	return false
-}
-uninit :: proc() {
-	if core != nil {
+destroy_context :: proc() {
+	if ctx != nil {
 		// Free text buffers
-		typing_agent_destroy(&core.typing_agent)
+		typing_agent_destroy(&ctx.typing_agent)
 		// Free layer data
-		destroy_layer_agent(&core.layer_agent)
+		destroy_layer_agent(&ctx.layer_agent)
 		// Free panel data
-		destroy_panel_agent(&core.panel_agent)
+		destroy_panel_agent(&ctx.panel_agent)
 		// Free widgets
-		widget_agent_destroy(&core.widget_agent)
+		widget_agent_destroy(&ctx.widget_agent)
 		//
-		painter_destroy()
+		destroy_painter(&ctx.painter)
 		//
-		free(core)
+		free(ctx)
 	}
 }
-begin_frame :: proc() {
-	using core
+begin :: proc() {
+	using ctx
 
 	// Try tell the user what went wrong if
 	// a stack overflow occours
@@ -308,9 +311,9 @@ begin_frame :: proc() {
 
 	// Decide if painting is required this frame
 	painter.this_frame = false
-	if painter.next_frame {
+	if ctx.painter.next_frame {
 		painter.this_frame = true
-		painter.next_frame = false
+		ctx.painter.next_frame = false
 	}
 
 	// Reset cursor to default state
@@ -331,7 +334,7 @@ begin_frame :: proc() {
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
 	//FIXME(isaiah): Text inputs selected with 'tab' do not behave correctly
-	if key_pressed(.Tab) && core.widget_agent.focus_id != 0 {
+	if key_pressed(.Tab) && ctx.widget_agent.focus_id != 0 {
 		array: [dynamic]^Widget
 		defer delete(array)
 
@@ -354,12 +357,12 @@ begin_frame :: proc() {
 				return false
 			})
 			for entry, i in array {
-				if entry.id == core.widget_agent.focus_id {
+				if entry.id == ctx.widget_agent.focus_id {
 					anchor = i
 				}
 			}
-			core.widget_agent.focus_id = array[(anchor + 1) % len(array)].id
-			core.is_key_selecting = true
+			ctx.widget_agent.focus_id = array[(anchor + 1) % len(array)].id
+			ctx.is_key_selecting = true
 		}
 	}
 
@@ -369,29 +372,10 @@ begin_frame :: proc() {
 	}
 
 	// Reset clip box
-	clip_box = {{}, core.size}
+	clip_box = {{}, ctx.size}
 }
-end_frame :: proc() {
-	using core
-	// Helper layer
-	/*if layer, ok := do_layer({
-		placement = core.fullscreen_box,
-		options = {.No_Sorting},
-	}); ok {
-		if box, ok1 := panel_agent.attach_box.?; ok1 {
-			if display_box, ok2 := &panel_agent.attach_display_box.?; ok2 {
-				display_box.low += (box.low - display_box.low) * delta_time * 12
-				display_box.high += (box.high - display_box.high) * delta_time * 12
-				paint_box_fill(display_box^, fade(style.color.accent[1], 0.5))
-				painter.next_frame = true
-			} else {
-				panel_agent.attach_display_box = box
-			}
-			panel_agent.attach_box = nil
-		} else {
-			panel_agent.attach_display_box = nil
-		}
-	}*/
+end :: proc() {
+	using ctx
 	// End root layout
 	pop_layout()
 	// End root layer
@@ -404,10 +388,10 @@ end_frame :: proc() {
 	update_panel_agent(&panel_agent)
 	// Decide if rendering is needed next frame
 	if (input.last_mouse_point != input.mouse_point) || (input.last_key_set != input.key_set) || (input.last_mouse_bits != input.mouse_bits) || (input.mouse_scroll != {}) {
-		painter.next_frame = true
+		ctx.painter.next_frame = true
 	}
 	if size != last_size {
-		painter.next_frame = true
+		ctx.painter.next_frame = true
 		last_size = size
 	}
 	// Reset input bits
@@ -429,5 +413,5 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 	return count
 }
 
-//@private
-core: ^Core
+// @private
+ctx: ^Context

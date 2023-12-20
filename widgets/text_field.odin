@@ -39,10 +39,10 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 		focus_time := animate_bool(&self.timers[1], .Focused in self.state, 0.1)
 		// Text cursor
 		if .Hovered in self.state {
-			core.cursor = .Beam
+			ctx.cursor = .Beam
 		}
 		// Get a temporary buffer if necessary
-		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&core.typing_agent, self.id)
+		buffer := info.data.(^[dynamic]u8) or_else typing_agent_get_buffer(&ctx.typing_agent, self.id)
 		// Text edit
 		if .Got_Focus in self.state {
 			if text, ok := info.data.(^string); ok {
@@ -65,14 +65,14 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 		// Do text scrolling or whatever
 		// Focused state
 		if .Got_Focus in self.state {
-			core.typing_agent.index = len(text)
-			core.typing_agent.length = 0
+			ctx.typing_agent.index = len(text)
+			ctx.typing_agent.length = 0
 		}
 		if .Focused in self.state {
 			if key_pressed(.Enter) || key_pressed(.Keypad_Enter) {
 				res.submitted = true
 			}
-			res.changed = typing_agent_edit(&core.typing_agent, {
+			res.changed = typing_agent_edit(&ctx.typing_agent, {
 				array = buffer,
 				bits = Text_Edit_Bits{.Multiline} if info.multiline else {},
 			})
@@ -92,7 +92,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 		text_res := paint_interact_text(
 			text_origin - self.offset, 
 			self,
-			&core.typing_agent, 
+			&ctx.typing_agent, 
 			{text = text, font = style.font.label, size = style.text_size.field},
 			paint_info,
 			{},
@@ -104,20 +104,20 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 				left_over := self.box.low.x - input.mouse_point.x 
 				if left_over > 0 {
 					self.offset.x -= left_over * 0.2
-					painter.next_frame = true
+					ctx.painter.next_frame = true
 				}
 				right_over := input.mouse_point.x - self.box.high.x
 				if right_over > 0 {
 					self.offset.x += right_over * 0.2
-					painter.next_frame = true
+					ctx.painter.next_frame = true
 				}
 				self.offset.x = clamp(self.offset.x, 0, offset_x_limit)
 			} else {
-				if core.typing_agent.index < core.typing_agent.last_index {
+				if ctx.typing_agent.index < ctx.typing_agent.last_index {
 					if text_res.selection_bounds.low.x < inner_box.low.x {
 						self.offset.x = max(0, text_res.selection_bounds.low.x - text_res.bounds.low.x)
 					}
-				} else if core.typing_agent.index > core.typing_agent.last_index || core.typing_agent.length > core.typing_agent.last_length {
+				} else if ctx.typing_agent.index > ctx.typing_agent.last_index || ctx.typing_agent.length > ctx.typing_agent.last_length {
 					if text_res.selection_bounds.high.x > inner_box.high.x {
 						self.offset.x = min(offset_x_limit, (text_res.selection_bounds.high.x - text_res.bounds.low.x) - width(inner_box))
 					}
@@ -126,7 +126,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			// What to do if change occoured
 			if res.changed {
 				self.state += {.Changed}
-				painter.next_frame = true
+				ctx.painter.next_frame = true
 				if value, ok := info.data.(^string); ok {
 					delete(value^)
 					value^ = strings.clone_from_bytes(buffer[:])

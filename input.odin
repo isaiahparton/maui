@@ -180,13 +180,13 @@ input_step :: proc(using self: ^Input) {
 
 	key_pulse = false
 	if last_key in key_bits {
-		key_hold_timer += core.delta_time
+		key_hold_timer += ctx.delta_time
 	} else {
 		key_hold_timer = 0
 	}
 	if key_hold_timer >= KEY_REPEAT_DELAY {
 		if key_pulse_timer > 0 {
-			key_pulse_timer -= core.delta_time
+			key_pulse_timer -= ctx.delta_time
 		} else {
 			key_pulse_timer = 1.0 / KEY_REPEAT_RATE
 			key_pulse = true

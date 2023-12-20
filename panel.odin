@@ -79,7 +79,7 @@ Panel_Agent :: struct {
 	attach_display_box: Maybe(Box),
 }
 current_panel :: proc(loc := #caller_location) -> ^Panel {
-	handle, ok := core.panel_agent.current.?
+	handle, ok := ctx.panel_agent.current.?
 	assert(ok, "No current panel to speak of", loc)
 	panel, k := &handle.?
 	assert(k, "The current panel is invalid", loc)
@@ -154,8 +154,8 @@ Panel_Info :: struct {
 @(deferred_out=_do_panel)
 do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 	id := info.id.? or_else hash(loc)
-	handle := assert_panel(&core.panel_agent, id) or_return
-	push_panel(&core.panel_agent, handle)
+	handle := assert_panel(&ctx.panel_agent, id) or_return
+	push_panel(&ctx.panel_agent, handle)
 	self := &handle.?
 	ok = true
 	self.bits += {.Stay_Alive}
@@ -183,9 +183,9 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 	self.min_layout_size = info.layout_size.? or_else self.min_layout_size
 	
 	if .Should_Collapse in self.bits {
-		self.how_collapsed = min(1, self.how_collapsed + core.delta_time * 5)
+		self.how_collapsed = min(1, self.how_collapsed + ctx.delta_time * 5)
 	} else {
-		self.how_collapsed = max(0, self.how_collapsed - core.delta_time * 5)
+		self.how_collapsed = max(0, self.how_collapsed - ctx.delta_time * 5)
 	}
 	if self.how_collapsed >= 1 {
 		self.bits += {.Collapsed}
@@ -194,7 +194,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 	}
 
 	// Layer body
-	self.box = {core.size, 0}
+	self.box = {ctx.size, 0}
 
 	inner_box := self.real_box
 	title_box: Box 
@@ -293,9 +293,9 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 			)
 			// Moving 
 			if (.Hovered in self.root_layer.?.state) && point_in_box(input.mouse_point, title_box) {
-				if (.Static not_in self.options) && (core.widget_agent.hover_id == 0) && mouse_pressed(.Left) {
+				if (.Static not_in self.options) && (ctx.widget_agent.hover_id == 0) && mouse_pressed(.Left) {
 					self.bits += {.Moving}
-					core.drag_anchor = self.root_layer.?.box.low - input.mouse_point
+					ctx.drag_anchor = self.root_layer.?.box.low - input.mouse_point
 				}
 				if can_collapse && mouse_pressed(.Right) {
 					self.bits ~= {.Should_Collapse}
@@ -314,7 +314,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 	layer_options := info.layer_options + {.Attached}
 	if (self.how_collapsed > 0 && self.how_collapsed < 1) || (self.how_collapsed == 1 && .Should_Collapse not_in self.bits) {
 		layer_options += {.Force_Clip, .No_Scroll_Y}
-		painter.next_frame = true
+		ctx.painter.next_frame = true
 	}
 
 	// Push layout if necessary
@@ -334,7 +334,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 @private
 _do_panel :: proc(ok: bool) {
 	self := current_panel()
-	pop_panel(&core.panel_agent)
+	pop_panel(&ctx.panel_agent)
 	// End main layer
 	if .Collapsed not_in self.bits {
 		box := self.content_layer.?.box
@@ -359,14 +359,14 @@ _do_panel :: proc(ok: bool) {
 	end_layer(self.root_layer.?)
 	// Handle movement
 	if .Moving in self.bits {
-		core.cursor = .Resize
+		ctx.cursor = .Resize
 
-		origin := input.mouse_point + core.drag_anchor
+		origin := input.mouse_point + ctx.drag_anchor
 
 		real_size := self.real_box.high - self.real_box.low
 		size := self.box.high - self.box.low
 
-		self.real_box.low = linalg.clamp(origin, 0, core.size - size)
+		self.real_box.low = linalg.clamp(origin, 0, ctx.size - size)
 		self.real_box.high = self.real_box.low + real_size
 		if mouse_released(.Left) {
 			self.bits -= {.Moving}
@@ -375,9 +375,9 @@ _do_panel :: proc(ok: bool) {
 	// Handle Resizing
 	WINDOW_SNAP_DISTANCE :: 10
 	if .Resizing in self.bits {
-		core.widget_agent.hover_id = 0
+		ctx.widget_agent.hover_id = 0
 		min_size: [2]f32 = self.min_layout_size if .Fit_To_Layout in self.options else {180, 240}
-		core.cursor = .Resize_NWSE
+		ctx.cursor = .Resize_NWSE
 		self.real_box.high = linalg.max(input.mouse_point, self.real_box.low + {240, 120})
 		if mouse_released(.Left) {
 			self.bits -= {.Resizing}

@@ -190,10 +190,10 @@ Text_Iterator :: struct {
 	do_offset: bool,
 }
 make_text_iterator :: proc(info: Text_Info) -> (it: Text_Iterator, ok: bool) {
-	if !painter.atlas.font_exists[info.font] || info.size <= 0 {
+	if !ctx.painter.atlas.font_exists[info.font] || info.size <= 0 {
 		return
 	}
-	it.font = &painter.atlas.fonts[info.font]
+	it.font = &ctx.painter.atlas.fonts[info.font]
 	it.size, ok = get_font_size(it.font, info.size)
 	it.line_limit = info.limit.x
 	return
@@ -409,7 +409,7 @@ get_font_glyph :: proc(font: ^Font, size: ^Font_Size, codepoint: rune) -> (data:
 				width = int(image_width),
 				height = int(image_height),
 			}
-			src = atlas_add(&painter.atlas, image) or_else Box{}
+			src = atlas_add(&ctx.painter.atlas, image) or_else Box{}
 		}
 		// Set glyph data
 		data = map_insert(&size.glyphs, codepoint, Glyph_Data({
@@ -453,9 +453,9 @@ paint_text :: proc(origin: [2]f32, info: Text_Info, paint_info: Text_Paint_Info,
 				dst: Box = {low = origin + it.offset + it.glyph.offset}
 				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
 				if clip, ok := paint_info.clip.?; ok {
-					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, color)
+					paint_clipped_textured_box(ctx.painter.atlas.texture, it.glyph.src, dst, clip, color)
 				} else {
-					paint_textured_box(painter.atlas.texture, it.glyph.src, dst, color)
+					paint_textured_box(ctx.painter.atlas.texture, it.glyph.src, dst, color)
 				}
 			}
 			// Update size
@@ -471,7 +471,7 @@ paint_text :: proc(origin: [2]f32, info: Text_Info, paint_info: Text_Paint_Info,
 }
 
 paint_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]f32, color: Color, align: Text_Align, baseline: Text_Baseline) -> [2]f32 {
-	font := &painter.atlas.fonts[font]
+	font := &ctx.painter.atlas.fonts[font]
 	font_size, _ := get_font_size(font, size)
 	glyph, _ := get_font_glyph(font, font_size, rune(icon))
 	icon_size := glyph.src.high - glyph.src.low
@@ -499,12 +499,12 @@ paint_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]
 		box.low.y = origin.y 
 		box.high.y = origin.y + icon_size.y 
 	}
-	paint_textured_box(painter.atlas.texture, glyph.src, box, color)
+	paint_textured_box(ctx.painter.atlas.texture, glyph.src, box, color)
 	return icon_size
 }
 
 paint_clipped_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, origin: [2]f32, color: Color, align: [2]Alignment, clip: Box) -> [2]f32 {
-	font := &painter.atlas.fonts[font]
+	font := &ctx.painter.atlas.fonts[font]
 	font_size, _ := get_font_size(font, size)
 	glyph, _ := get_font_glyph(font, font_size, rune(icon))
 	icon_size := glyph.src.high - glyph.src.low
@@ -532,7 +532,7 @@ paint_clipped_aligned_rune :: proc(font: Font_Handle, size: f32, icon: rune, ori
 		box.low.y = origin.y 
 		box.high.y = origin.y + icon_size.y 
 	}
-	paint_clipped_textured_box(painter.atlas.texture, glyph.src, box, clip, color)
+	paint_clipped_textured_box(ctx.painter.atlas.texture, glyph.src, box, clip, color)
 	return icon_size
 }
 
@@ -556,7 +556,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 
 	size := measure_text(text_info)
 	origin := origin
-	res.selection_bounds.low = core.size
+	res.selection_bounds.low = ctx.size
 
 	// Apply baseline if needed
 	#partial switch text_paint_info.baseline {
@@ -658,9 +658,9 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
 				res.bounds.high = linalg.max(res.bounds.high, dst.high)
 				if clip, ok := text_paint_info.clip.?; ok {
-					paint_clipped_textured_box(painter.atlas.texture, it.glyph.src, dst, clip, color)
+					paint_clipped_textured_box(ctx.painter.atlas.texture, it.glyph.src, dst, clip, color)
 				} else {
-					paint_textured_box(painter.atlas.texture, it.glyph.src, dst, color)
+					paint_textured_box(ctx.painter.atlas.texture, it.glyph.src, dst, color)
 				}
 			}
 			if at_end {
@@ -792,7 +792,7 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 
 		res := paint_interact_text(
 			origin, self, 
-			&core.typing_agent, 
+			&ctx.typing_agent, 
 			{
 				text = info.text, 
 				font = info.font.? or_else style.font.label, 
@@ -814,7 +814,7 @@ do_interactable_text :: proc(info: Interactable_Text_Info, loc := #caller_locati
 
 		self.layer.content_box = update_bounding_box(self.layer.content_box, res.bounds)
 		if self.state & {.Hovered, .Pressed} != {} {
-			core.cursor = .Beam
+			ctx.cursor = .Beam
 		}
 	}
 }

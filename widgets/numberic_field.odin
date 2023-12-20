@@ -99,7 +99,7 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
 		// Cursor style
 		if self.state & {.Hovered, .Pressed} != {} {
-			core.cursor = .Beam
+			ctx.cursor = .Beam
 		}
 		// Get a temporary buffer
 		buffer := get_tmp_buffer()
@@ -123,7 +123,7 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 			text_origin.x -= size.x
 		}
 		// Main text
-		text_res := paint_interact_text(text_origin, self, &core.typing_agent, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle, clip = self.box}, {read_only = true}, style.color.base_text[1])
+		text_res := paint_interact_text(text_origin, self, &ctx.typing_agent, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle, clip = self.box}, {read_only = true}, style.color.base_text[1])
 		text_origin.x = text_res.bounds.low.x
 		// Draw prefix
 		if text, ok := info.prefix.?; ok {
@@ -235,7 +235,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 		hover_time := animate_bool(&timers[0], .Hovered in state, 0.1)
 		// Cursor style
 		if state & {.Hovered, .Pressed} != {} {
-			core.cursor = .Beam
+			ctx.cursor = .Beam
 		}
 		// Has decimal?
 		has_decimal := false 
@@ -269,20 +269,20 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				left_over := self.box.low.x - input.mouse_point.x 
 				if left_over > 0 {
 					self.offset.x -= left_over * 0.2
-					painter.next_frame = true
+					ctx.painter.next_frame = true
 				}
 				right_over := input.mouse_point.x - self.box.high.x
 				if right_over > 0 {
 					self.offset.x += right_over * 0.2
-					painter.next_frame = true
+					ctx.painter.next_frame = true
 				}
 				self.offset.x = clamp(self.offset.x, 0, offset_x_limit)
 			} else {
-				if core.typing_agent.index < core.typing_agent.last_index {
+				if ctx.typing_agent.index < ctx.typing_agent.last_index {
 					if text_res.selection_bounds.low.x < inner_box.low.x {
 						self.offset.x = max(0, text_res.selection_bounds.low.x - text_res.bounds.low.x)
 					}
-				} else if core.typing_agent.index > core.typing_agent.last_index || core.typing_agent.length > core.typing_agent.last_length {
+				} else if ctx.typing_agent.index > ctx.typing_agent.last_index || ctx.typing_agent.length > ctx.typing_agent.last_length {
 					if text_res.selection_bounds.high.x > inner_box.high.x {
 						self.offset.x = min(offset_x_limit, (text_res.selection_bounds.high.x - text_res.bounds.low.x) - width(inner_box))
 					}
@@ -291,7 +291,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 		}
 		// Update text input
 		if state >= {.Focused} {
-			buffer := typing_agent_get_buffer(&core.typing_agent, id)
+			buffer := typing_agent_get_buffer(&ctx.typing_agent, id)
 			if state >= {.Got_Focus} {
 				resize(buffer, len(text))
 				copy(buffer[:], text[:])
@@ -303,18 +303,18 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			text_res = paint_interact_text(
 				text_origin, 
 				self,
-				&core.typing_agent, 
+				&ctx.typing_agent, 
 				{text = string(buffer[:]), font = style.font.label, size = style.text_size.label},
 				{align = text_align, baseline = .Middle, clip = self.box},
 				{},
 				style.color.base_text[1],
 			)
-			if typing_agent_edit(&core.typing_agent, {
+			if typing_agent_edit(&ctx.typing_agent, {
 				array = buffer, 
 				bits = text_edit_bits, 
 				capacity = 18,
 			}) {
-				painter.next_frame = true
+				ctx.painter.next_frame = true
 				str := string(buffer[:])
 				switch typeid_of(T) {
 					case f64, f32, f16:  		
@@ -330,7 +330,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 			text_res = paint_interact_text(
 				text_origin, 
 				self,
-				&core.typing_agent, 
+				&ctx.typing_agent, 
 				{text = text, font = style.font.label, size = style.text_size.label},
 				{align = text_align, baseline = .Middle, clip = self.box},
 				{},

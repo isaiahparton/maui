@@ -20,7 +20,7 @@ do_window_handle :: proc(loc := #caller_location) {
 			paint_box_fill(cut_box_top(&box, line_size), style.color.accent[1])
 		}
 		if .Got_Press in self.state {
-			core.drag_anchor = input.mouse_point - window.box.low
+			ctx.drag_anchor = input.mouse_point - window.box.low
 		}
 		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
 	}

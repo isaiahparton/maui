@@ -82,8 +82,8 @@ begin_frame :: proc() {
 		key = rl.GetCharPressed()
 	}
 	
-	ui.core.delta_time = rl.GetFrameTime()
-	ui.core.current_time = rl.GetTime()
+	ui.ctx.delta_time = rl.GetFrameTime()
+	ui.ctx.current_time = rl.GetTime()
 }
 
 render :: proc() -> int {
@@ -95,14 +95,14 @@ render :: proc() -> int {
 	rl.rlDisableBackfaceCulling()
 	rl.rlEnableScissorTest()
 
-	if core.cursor == .None {
+	if ctx.cursor == .None {
 		rl.HideCursor()
 	} else {
 		rl.ShowCursor()
-		rl.SetMouseCursor(rl.MouseCursor(int(core.cursor)))
+		rl.SetMouseCursor(rl.MouseCursor(int(ctx.cursor)))
 	}
 
-	for &layer in core.layer_agent.list {
+	for &layer in ctx.layer_agent.list {
 		for index in layer.draws {
 			draw := &painter.draws[index]
 			triangle_count += int(draw.vertices_offset / 3)

@@ -27,8 +27,8 @@ do_frame :: proc(info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 @private
 _do_frame :: proc(ok: bool) {
 	if ok {
-		assert(core.layer_agent.current_layer != nil)
-		paint_box_stroke(core.layer_agent.current_layer.box, 1, style.color.substance[1])
-		end_layer(core.layer_agent.current_layer)
+		assert(ctx.layer_agent.current_layer != nil)
+		paint_box_stroke(ctx.layer_agent.current_layer.box, 1, style.color.substance[1])
+		end_layer(ctx.layer_agent.current_layer)
 	}
 }

@@ -33,7 +33,7 @@ Currency :: enum {
 	RUB,
 }
 
-_main :: proc() {
+_main :: proc() -> bool {
 	t: time.Time
 	tt: time.Time
 	show_window: bool
@@ -59,25 +59,23 @@ _main :: proc() {
 
 	counter: u32
 
-	if !maui_glfw.init(1200, 1000, "Maui", .OpenGL) {
-		return
-	}
-
-	if !maui_opengl.init(maui_glfw.interface) {
-		return
-	}
-
-	maui.init()
-
-	for maui_glfw.cycle(TARGET_FRAME_TIME) {
+	// Create the platform
+	platform := maui_glfw.make_platform(1200, 1000, "Maui", .OpenGL) or_return
+	// Create the renderer
+	renderer := maui_opengl.make_renderer() or_return
+	// Set up the UI context
+	maui.ctx = new(maui.Context)
+	maui.ctx^ = maui.make_context(platform.layer, renderer.layer) or_return
+	// Begin the cycle
+	for maui_glfw.cycle(&platform, TARGET_FRAME_TIME) {
 		using maui 
 		using maui_widgets
 
 		// Beginning of ui calls
-		maui_glfw.begin_frame()
-		begin_frame()
+		maui_glfw.begin(&platform, ctx)
+		begin()
 
-		paint_text({4, 4}, {text = tmp_printf("Frame time: %fms", time.duration_milliseconds(core.frame_duration)), font = style.font.content, size = style.text_size.label}, {}, style.color.base_text[1])
+		paint_text({4, 4}, {text = tmp_printf("Frame time: %fms", time.duration_milliseconds(ctx.frame_duration)), font = style.font.content, size = style.text_size.label}, {}, style.color.base_text[1])
 
 		cut(.Left, Exact(300))
 		cut(.Right, Exact(300))
@@ -167,35 +165,37 @@ _main :: proc() {
 
 			placement.size = Exact(50)
 			do_progress_bar({time = load_time})
-			load_time = min(load_time + core.delta_time * 0.1, 1)
+			load_time = min(load_time + ctx.delta_time * 0.1, 1)
 			if load_time < 1 {
-				painter.next_frame = true
+				ctx.painter.next_frame = true
 			}
 		}
 
 
-		paint_box_fill({core.size - 200, core.size}, hsva_to_rgba(hsva))
+		paint_box_fill({ctx.size - 200, ctx.size}, hsva_to_rgba(hsva))
 
 		// End of ui calls
-		end_frame()
+		end()
 		
 		// Update texture if necessary
-		if painter.atlas.should_update {
-			painter.atlas.should_update = false
-			update_texture(painter.atlas.texture, painter.atlas.image, 0, 0, f32(painter.atlas.image.width), f32(painter.atlas.image.height))
+		if ctx.painter.atlas.should_update {
+			ctx.painter.atlas.should_update = false
+			update_texture(ctx.painter.atlas.texture, ctx.painter.atlas.image, 0, 0, f32(ctx.painter.atlas.image.width), f32(ctx.painter.atlas.image.height))
 		}
 
 		// Render if needed
 		if maui.should_render() {
 			maui_opengl.clear(style.color.base[0])
-			maui_opengl.render(maui_glfw.interface)
-			maui_glfw.end_frame()
+			maui_opengl.render(&renderer, ctx)
+			maui_glfw.end(&platform)
 		}
 	}
 
-	maui.uninit()	
-	maui_opengl.destroy()
-	maui_glfw.destroy()
+	maui.destroy_context()	
+	maui_opengl.destroy_renderer(&renderer)
+	maui_glfw.destroy_platform(&platform)
+
+	return true
 }
 
 main :: proc() {

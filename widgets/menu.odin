@@ -29,10 +29,10 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		// Update state
 		update_widget(self)
 		if .Focused in self.state {
-			core.widget_agent.will_auto_focus = true
-		} else if .Hovered in self.state && core.widget_agent.auto_focus {
-			core.widget_agent.press_id = self.id
-			core.widget_agent.focus_id = self.id
+			ctx.widget_agent.will_auto_focus = true
+		} else if .Hovered in self.state && ctx.widget_agent.auto_focus {
+			ctx.widget_agent.press_id = self.id
+			ctx.widget_agent.focus_id = self.id
 		}
 		// Animation
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
@@ -40,7 +40,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		open_time := animate_bool(&self.timers[2], .Menu_Open in self.bits, 0.175)
 		// Painting
 		if .Hovered in self.state {
-			core.cursor = .Hand
+			ctx.cursor = .Hand
 		}
 		if .Should_Paint in self.bits {
 			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))

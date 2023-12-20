@@ -129,7 +129,7 @@ widget_agent_create :: proc(using self: ^Widget_Agent, id: Id, layer: ^Layer) ->
 	}
 	append(&list, widget)
 	layer.contents[id] = widget
-	painter.next_frame = true
+	ctx.painter.next_frame = true
 	ok = true
 
 	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
@@ -183,7 +183,7 @@ widget_agent_step :: proc(using self: ^Widget_Agent) {
 			free(widget)
 			ordered_remove(&list, i)
 			// Make sure we paint the next frame
-			painter.next_frame = true
+			ctx.painter.next_frame = true
 		}
 	}
 }
@@ -196,7 +196,7 @@ widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
 	if dragging && press_id != 0 {
 		hover_id = press_id
 	}
-	if core.is_key_selecting {
+	if ctx.is_key_selecting {
 		hover_id = focus_id
 		if key_pressed(.Enter) {
 			press_id = hover_id
@@ -211,8 +211,8 @@ widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
 }
 
 update_widget_hover :: proc(w: ^Widget, condition: bool) {
-	if !(core.widget_agent.dragging && w.id != core.widget_agent.hover_id) && core.layer_agent.hover_id == w.layer.id && condition {
-		core.widget_agent.next_hover_id = w.id
+	if !(ctx.widget_agent.dragging && w.id != ctx.widget_agent.hover_id) && ctx.layer_agent.hover_id == w.layer.id && condition {
+		ctx.widget_agent.next_hover_id = w.id
 	}
 }
 widget_agent_update_state :: proc(using self: ^Widget_Agent, w: ^Widget) {
@@ -288,21 +288,21 @@ update_widget :: proc(w: ^Widget) {
 	// Prepare widget
 	w.state = {}
 	w.bits += {.Stay_Alive}
-	if core.disabled {
+	if ctx.disabled {
 		w.bits += {.Disabled}
 	} else {
 		w.bits -= {.Disabled}
 	}
-	if painter.this_frame && get_clip(current_layer().box, w.box) != .Full {
+	if ctx.painter.this_frame && get_clip(current_layer().box, w.box) != .Full {
 		w.bits += {.Should_Paint}
 	} else {
 		w.bits -= {.Should_Paint}
 	}
 
-	core.last_box = w.box
+	ctx.last_box = w.box
 	// Get input
-	if !core.disabled {
-		widget_agent_update_state(&core.widget_agent, w)
+	if !ctx.disabled {
+		widget_agent_update_state(&ctx.widget_agent, w)
 	}
 }
 
@@ -310,12 +310,12 @@ update_widget :: proc(w: ^Widget) {
 @(deferred_out=_do_widget)
 do_widget :: proc(id: Id, options: Widget_Options = {}) -> (self: ^Widget, ok: bool) {
 	// Check if clipped
-	self, ok = widget_agent_assert(&core.widget_agent, id)
+	self, ok = widget_agent_assert(&ctx.widget_agent, id)
 	if !ok {
 		return
 	}
 	self.options = options
-	widget_agent_push(&core.widget_agent, self)
+	widget_agent_push(&ctx.widget_agent, self)
 	return
 }
 
@@ -324,32 +324,32 @@ _do_widget :: proc(self: ^Widget, ok: bool) {
 	if ok {
 		assert(self != nil)
 		// Pop widget stack
-		widget_agent_pop(&core.widget_agent)
+		widget_agent_pop(&ctx.widget_agent)
 		// Update the parent layer's content box
 		self.layer.content_box = update_bounding_box(self.layer.content_box, self.box)
 		// Update group if there is one
-		if core.group_stack.height > 0 {
-			stack_top_ref(&core.group_stack).state += self.state
+		if ctx.group_stack.height > 0 {
+			stack_top_ref(&ctx.group_stack).state += self.state
 		}
 		// Display tooltip if there is one
-		if core.next_tooltip != nil {
-			if self.state >= {.Hovered} && time.since(core.widget_agent.hover_time) > time.Millisecond * 500 {
-				tooltip_box(self.id, core.next_tooltip.?.text, self.box, core.next_tooltip.?.box_side, 10)
+		if ctx.next_tooltip != nil {
+			if self.state >= {.Hovered} && time.since(ctx.widget_agent.hover_time) > time.Millisecond * 500 {
+				tooltip_box(self.id, ctx.next_tooltip.?.text, self.box, ctx.next_tooltip.?.box_side, 10)
 			}
-			core.next_tooltip = nil
+			ctx.next_tooltip = nil
 		}
 	}
 }
 
 // Helper functions
 current_widget :: proc(loc := #caller_location) -> ^Widget {
-	assert(core.widget_agent.current_widget != nil, "There is no current widget", loc)
-	return core.widget_agent.current_widget
+	assert(ctx.widget_agent.current_widget != nil, "There is no current widget", loc)
+	return ctx.widget_agent.current_widget
 }
 
 last_widget :: proc(loc := #caller_location) -> ^Widget {
-	assert(core.widget_agent.last_widget != nil, "There is no previous widget", loc)
-	return core.widget_agent.last_widget
+	assert(ctx.widget_agent.last_widget != nil, "There is no previous widget", loc)
+	return ctx.widget_agent.last_widget
 }
 
 widget_clicked :: proc(using self: ^Widget, button: Mouse_Button, times: int = 1) -> bool {
@@ -362,7 +362,7 @@ Tooltip_Info :: struct {
 }
 
 attach_tooltip :: proc(text: string, side: Box_Side) {
-	core.next_tooltip = Tooltip_Info({
+	ctx.next_tooltip = Tooltip_Info({
 		text = text,
 		box_side = side,
 	})
@@ -500,7 +500,7 @@ measure_label :: proc(label: Label) -> (size: [2]f32) {
 		})
 
 		case rune:
-		font := &painter.atlas.fonts[style.font.icon]
+		font := &ctx.painter.atlas.fonts[style.font.icon]
 		if font_size, ok := get_font_size(font, style.text_size.label); ok {
 			if glyph, ok := get_font_glyph(font, font_size, v); ok {
 				size = {glyph.advance, font_size.ascent - font_size.descent}

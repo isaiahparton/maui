@@ -41,7 +41,7 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 		// Dragging
 		if .Got_Press in self.state {
 			if point_in_box(input.mouse_point, transmute(Box)knob_box) {
-				core.drag_anchor = input.mouse_point - knob_box.low
+				ctx.drag_anchor = input.mouse_point - knob_box.low
 				self.bits += {.Active}
 			} else {
 				normal := clamp((input.mouse_point[i] - self.box.low[i]) / range, 0, 1)
@@ -50,7 +50,7 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 			}
 		}
 		if self.bits >= {.Active} {
-			normal := clamp(((input.mouse_point[i] - core.drag_anchor[i]) - self.box.low[i]) / range, 0, 1)
+			normal := clamp(((input.mouse_point[i] - ctx.drag_anchor[i]) - self.box.low[i]) / range, 0, 1)
 			new_value = info.low + (info.high - info.low) * normal
 			changed = true
 		}

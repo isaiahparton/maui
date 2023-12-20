@@ -26,7 +26,7 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 		update_widget(self)
 		// Cursor
 		if .Hovered in self.state {
-			core.cursor = .Hand
+			ctx.cursor = .Hand
 		}
 		// Animate
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)

@@ -38,13 +38,13 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 			// Find optimal side of attachment
 			if self.box.low.x < size.x + OFFSET {
 				side = .Right 
-			} else if self.box.high.x + size.x + OFFSET >= core.size.x {
+			} else if self.box.high.x + size.x + OFFSET >= ctx.size.x {
 				side = .Left
-			} else if self.box.high.y + size.y + OFFSET >= core.size.y {
+			} else if self.box.high.y + size.y + OFFSET >= ctx.size.y {
 				side = .Top
 			}
 			box := get_attached_box(self.box, side, size, OFFSET * open_time)
-			box.low = linalg.clamp(box.low, 0, core.size - size)
+			box.low = linalg.clamp(box.low, 0, ctx.size - size)
 			box.high = box.low + size
 			// Layer
 			if layer, ok := do_layer({

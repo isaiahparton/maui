@@ -19,7 +19,7 @@ do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: 
 	if self, ok := do_widget(hash(loc)); ok {
 		self.box = use_next_box() or_else layout_next(current_layout())
 		if self.state & {.Hovered} != {} {
-			core.cursor = .Hand
+			ctx.cursor = .Hand
 		}
 		// Animation
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)

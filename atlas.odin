@@ -54,6 +54,7 @@ destroy_atlas :: proc(using self: ^Atlas) {
 	}
 	unload_texture(texture.id)
 	delete(image.data)
+	self^ = {}
 }
 /*
 	Clear the atlas

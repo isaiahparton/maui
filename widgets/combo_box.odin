@@ -19,10 +19,10 @@ do_strings_menu :: proc(info: Strings_Menu_Info, loc := #caller_location) -> (ne
 		// Update state
 		update_widget(self)
 		if .Focused in self.state {
-			core.widget_agent.will_auto_focus = true
-		} else if .Hovered in self.state && core.widget_agent.auto_focus {
-			core.widget_agent.press_id = self.id
-			core.widget_agent.focus_id = self.id
+			ctx.widget_agent.will_auto_focus = true
+		} else if .Hovered in self.state && ctx.widget_agent.auto_focus {
+			ctx.widget_agent.press_id = self.id
+			ctx.widget_agent.focus_id = self.id
 		}
 		option_height := height(self.box)
 		// Animation
@@ -31,7 +31,7 @@ do_strings_menu :: proc(info: Strings_Menu_Info, loc := #caller_location) -> (ne
 		open_time := animate_bool(&self.timers[2], .Menu_Open in self.bits, 0.15)
 		// Painting
 		if .Hovered in self.state {
-			core.cursor = .Hand
+			ctx.cursor = .Hand
 		}
 		if .Should_Paint in self.bits {
 			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
@@ -89,10 +89,10 @@ do_enum_menu :: proc(info: Enum_Menu_Info($T), loc := #caller_location) -> (new_
 		// Update state
 		update_widget(self)
 		if .Focused in self.state {
-			core.widget_agent.will_auto_focus = true
-		} else if .Hovered in self.state && core.widget_agent.auto_focus {
-			core.widget_agent.press_id = self.id
-			core.widget_agent.focus_id = self.id
+			ctx.widget_agent.will_auto_focus = true
+		} else if .Hovered in self.state && ctx.widget_agent.auto_focus {
+			ctx.widget_agent.press_id = self.id
+			ctx.widget_agent.focus_id = self.id
 		}
 		option_height := height(self.box)
 		// Animation
@@ -101,7 +101,7 @@ do_enum_menu :: proc(info: Enum_Menu_Info($T), loc := #caller_location) -> (new_
 		open_time := animate_bool(&self.timers[2], .Menu_Open in self.bits, 0.15)
 		// Painting
 		if .Hovered in self.state {
-			core.cursor = .Hand
+			ctx.cursor = .Hand
 		}
 		if .Should_Paint in self.bits {
 			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))

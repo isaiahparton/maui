@@ -8,19 +8,19 @@ import "core:math/linalg"
 /*
 	Coordinate conversion
 */
-barycentric :: proc(point, a, b, c: [2]f32) -> (u, v, w: f32) {
-	v0 := b - a
-	v1 := c - a
-	v2 := point - a
-	d00 := linalg.dot(v0, v0)
-	d01 := linalg.dot(v0, v1)
-	d11 := linalg.dot(v1, v1)
-	d20 := linalg.dot(v2, v0)
-	d21 := linalg.dot(v2, v1)
-	denom := d00 * d11 - d01 * d01
-	v = (d11 * d20 - d01 * d21) / denom
-	w = (d00 * d21 - d01 * d20) / denom
-	u = 1.0 - v - w
+barycentric :: proc(point, a, b, c: [2]f32) -> (u, v: f32) {
+	d := c - a
+	e := b - a
+	f := point - a
+	dd := linalg.dot(d, d)
+	ed := linalg.dot(e, d)
+	fd := linalg.dot(f, d)
+	ee := linalg.dot(e, e)
+	fe := linalg.dot(f, e)
+
+	denom := dd * ee - ed * ed
+	u = (ee * fd - ed * fe) / denom
+	v = (dd * fe - ed * fd) / denom
 	return
 }
 /*
@@ -109,9 +109,9 @@ do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new
 		point_c: [2]f32 = center + {math.cos(angle + TRIANGLE_STEP), math.sin(angle + TRIANGLE_STEP)} * inner
 		
 		if .Should_Paint in self.bits {
-			mesh := &painter.meshes[painter.target]
+			mesh := &ctx.painter.meshes[ctx.painter.target]
 			// Outer ring
-			STEP :: math.TAU / 36.0
+			STEP :: math.TAU / 48.0
 			for t: f32 = 0; t < math.TAU; t += STEP {
 				color: Color = hsva_to_rgba({t * math.DEG_PER_RAD, 1, 1, 1})
 				next_color: Color = hsva_to_rgba({(t + STEP) * math.DEG_PER_RAD, 1, 1, 1})
@@ -150,7 +150,6 @@ do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new
 			point := point_c
 			point += (point_a - point) * info.hsva.z
 			point += (point_b - point) * info.hsva.y
-			point += (point_c - point) * (1 - info.hsva.z)
 			paint_ring_fill_texture(point, 3, 5, {0, 0, 0, 255} if (info.hsva.y < 0.3 && info.hsva.z > 0.7) else 255)
 		}
 
@@ -169,9 +168,14 @@ do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new
 					new_hsva.x += 360
 				}
 			} else {
-				
+				u, v := barycentric(input.mouse_point, point_c, point_a, point_b)
+				w, _ := barycentric(input.mouse_point, point_a, point_b, point_c)
+				new_hsva.yz = {u, v}
+				paint_circle_fill(point_c + (point_b - point_c) * u, 4, 12, {255, 0, 255, 255})
+				paint_circle_fill(point_c + (point_a - point_c) * v, 4, 12, {255, 0, 255, 255})
+				paint_circle_fill(point_a + (point_b - point_a) * w, 4, 12, {255, 0, 255, 255})
 				// Paint the next frame yo
-				painter.next_frame = true
+				ctx.painter.next_frame = true
 			}
 			changed = true
 		} else {

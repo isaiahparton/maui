@@ -25,7 +25,7 @@ do_knob :: proc(info: Knob_Info($T), loc := #caller_location) -> (new_value: T) 
 		press_time := animate_bool(&self.timers[0], .Pressed in self.state, 0.35, .Cubic_In_Out)
 		// Trap and hide cursor when dragging
 		if .Pressed in self.state {
-			core.cursor = .None
+			ctx.cursor = .None
 		}
 		// Other stuff
 		center := box_center(self.box)

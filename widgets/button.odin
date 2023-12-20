@@ -57,7 +57,7 @@ do_button :: proc(info: Button_Info, loc := #caller_location) -> (clicked: bool)
 		press_time := animate_bool(&self.timers[1], .Pressed in self.state, DEFAULT_WIDGET_PRESS_TIME)
 		// Cursor
 		if .Hovered in self.state {
-			core.cursor = .Hand
+			ctx.cursor = .Hand
 		}
 		if .Should_Paint in self.bits {
 			if info.style == .Filled {

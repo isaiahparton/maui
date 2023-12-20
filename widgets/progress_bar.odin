@@ -17,15 +17,15 @@ do_progress_bar :: proc(info: Progress_Bar_Info, loc := #caller_location) {
 		if .Should_Paint in self.bits {
 			size := self.box.high - self.box.low
 			radius := math.floor(size.y / 2)
-			if src, ok := atlas_get_ring(&painter.atlas, 0, radius); ok {
+			if src, ok := atlas_get_ring(&ctx.painter.atlas, 0, radius); ok {
 				half_size := math.trunc(width(src) / 2)
 				half_width := min(half_size, size.x / 2)
 
 				src_left: Box = {src.low, {src.low.x + half_width, src.high.y}}
 				src_right: Box = {{src.high.x - half_width, src.low.y}, src.high}
 
-				paint_textured_box(painter.atlas.texture, src_left, {self.box.low, {self.box.low.x + half_width, self.box.high.y}}, style.color.substance[0])
-				paint_textured_box(painter.atlas.texture, src_right, {{self.box.high.x - half_width, self.box.low.y}, self.box.high}, style.color.substance[0])
+				paint_textured_box(ctx.painter.atlas.texture, src_left, {self.box.low, {self.box.low.x + half_width, self.box.high.y}}, style.color.substance[0])
+				paint_textured_box(ctx.painter.atlas.texture, src_right, {{self.box.high.x - half_width, self.box.low.y}, self.box.high}, style.color.substance[0])
 				if self.box.high.x > self.box.low.x + size.y {
 					paint_box_fill({{self.box.low.x + radius, self.box.low.y}, {self.box.high.x - radius, self.box.high.y}}, style.color.substance[0])
 				}
