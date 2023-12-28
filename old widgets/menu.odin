@@ -44,8 +44,8 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			ctx.cursor = .Hand
 		}
 		if .Should_Paint in self.bits {
-			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
-			paint_label_box(info.label, self.box, style.color.base_text[1], info.align.? or_else .Middle, .Middle)
+			paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, alpha_blend_colors(alpha_blend_colors(ctx.style.color.substance[1], ctx.style.color.substance_hover, hover_time), ctx.style.color.substance_click, press_time))
+			paint_label_box(info.label, self.box, ctx.style.color.base_text[1], info.align.? or_else .Middle, .Middle)
 		}
 		// Begin layer if expanded
 		if res, ok := begin_attached_layer({
@@ -58,10 +58,10 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			opacity = open_time,
 			shadow = Layer_Shadow_Info{
 				offset = 0,
-				roundness = style.rounding,
+				roundness = ctx.style.rounding,
 			},
 		}); ok {
-			paint_rounded_box_fill(res.self.box, style.rounding, style.color.base[1])
+			paint_rounded_box_fill(res.self.box, ctx.style.rounding, ctx.style.color.base[1])
 			active = true
 		}
 		// Update hovered state
@@ -92,11 +92,11 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 		open_time := animate_bool(&self.timers[1], .Menu_Open in self.bits, 0.15)
 		// Paint
 		if .Should_Paint in self.bits {
-			paint_box_fill(self.box, fade(style.color.accent[0], hover_time))
+			paint_box_fill(self.box, fade(ctx.style.color.accent[0], hover_time))
 			// Paint label
 			label_box := self.box
 			cut_box_left(&label_box, height(label_box))
-			label_color := blend_colors(style.color.base_text[0], style.color.accent[0], hover_time)
+			label_color := blend_colors(ctx.style.color.base_text[0], ctx.style.color.accent[0], hover_time)
 			paint_label_box(info.label, label_box, label_color, .Left, .Middle)
 			paint_arrow_flip({label_box.high.x - height(label_box) * 0.5, center_y(label_box)}, height(label_box) * 0.25, -0.5 * math.PI, 1, open_time, label_color)
 		}
@@ -112,7 +112,7 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 			layer_options = {.Attached},
 			opacity = open_time,
 		}); ok {
-			paint_box_fill(res.self.box, style.color.base[1])
+			paint_box_fill(res.self.box, ctx.style.color.base[1])
 			active = true
 		}
 		// Update hover state with own box
@@ -126,7 +126,7 @@ _do_submenu :: proc(active: bool) {
 	if active {
 		end_attached_layer({
 			mode = .Hover,
-			stroke_color = style.color.accent[1],
+			stroke_color = ctx.style.color.accent[1],
 		}, current_layer())
 	}
 }
@@ -147,8 +147,8 @@ do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool)
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
 		// Painting
 		if .Should_Paint in self.bits {
-			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, fade(style.color.substance[1], hover_time))
-			label_color := blend_colors(style.color.base_text[1], style.color.substance_text[1], hover_time)
+			paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, fade(ctx.style.color.substance[1], hover_time))
+			label_color := blend_colors(ctx.style.color.base_text[1], ctx.style.color.substance_text[1], hover_time)
 			label_box := self.box
 			icon_box := cut_box_left(&label_box, height(label_box))
 			if info.active {

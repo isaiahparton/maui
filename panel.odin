@@ -200,7 +200,7 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 	title_box: Box 
 	root_layer_box := inner_box
 	if .Title in self.options {
-		title_box = cut_box_top(&inner_box, Exact(style.layout.title_size))
+		title_box = cut_box_top(&inner_box, Exact(ctx.style.layout.title_size))
 		self.box.low = linalg.min(self.box.low, title_box.low)
 		self.box.high = linalg.max(self.box.high, title_box.high)
 	}
@@ -217,13 +217,13 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 		order = .Floating,
 		options = {.No_Scroll_Y},
 		shadow = Layer_Shadow_Info{
-			roundness = style.panel_rounding,
+			roundness = ctx.style.panel_rounding,
 		},
 	}); ok {
 		if .Collapsed not_in self.bits {
 			box := inner_box
 			// Compensate for title bar rounding
-			box.low.y -= style.panel_rounding
+			box.low.y -= ctx.style.panel_rounding
 			when false {
 				// Capture paint target
 				prev_target := painter.target
@@ -231,36 +231,36 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 				painter.target = get_draw_target()
 				painter.meshes[painter.target].material = Gradient_Material{
 					corners = {
-						.Top_Left = style.color.base[0],
-						.Bottom_Left = style.color.base[1],
-						.Top_Right = style.color.base[1],
-						.Bottom_Right = style.color.base[0],
+						.Top_Left = ctx.style.color.base[0],
+						.Bottom_Left = ctx.style.color.base[1],
+						.Top_Right = ctx.style.color.base[1],
+						.Bottom_Right = ctx.style.color.base[0],
 					},
 				}
 				inject_at(&self.root_layer.?.meshes, 0, painter.target)
 				// Paint the shader mask
-				paint_rounded_box_mask(box, style.panel_rounding, 255)
+				paint_rounded_box_mask(box, ctx.style.panel_rounding, 255)
 				// Set previous paint target
 				painter.target = prev_target
 				// Paint overlay
-				paint_rounded_box_fill(box, style.panel_rounding, fade(style.color.base[1], 0.2))
+				paint_rounded_box_fill(box, ctx.style.panel_rounding, fade(ctx.style.color.base[1], 0.2))
 			} else {
-				paint_rounded_box_fill(box, style.panel_rounding, fade(style.color.base[0], 0.9))
-				//paint_rounded_box_stroke(box, style.panel_rounding, 2, style.color.base[1])
+				paint_rounded_box_fill(box, ctx.style.panel_rounding, fade(ctx.style.color.base[0], 0.9))
+				//paint_rounded_box_stroke(box, ctx.style.panel_rounding, 2, ctx.style.color.base[1])
 			}
 		}
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			// Draw title
-			paint_rounded_box_fill(title_box, style.panel_rounding, style.color.substance[1])
+			paint_rounded_box_fill(title_box, ctx.style.panel_rounding, ctx.style.color.substance[1])
 			// Close button
 			if .Closable in self.options {
 				if w, _ok := do_widget(hash(&self.id, size_of(Id))); _ok {
 					w.box = cut_box_right(&title_box, height(title_box))
 					update_widget(w)
 					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_rounded_box_corners_fill(w.box, style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(style.color.accent[1], hover_time * 0.1))
-					paint_cross(box_center(w.box), 5, math.PI * 0.25, 2, blend_colors(style.color.substance_text[0], style.color.substance_text[1], hover_time))
+					paint_rounded_box_corners_fill(w.box, ctx.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ctx.style.color.accent[1], hover_time * 0.1))
+					paint_cross(box_center(w.box), 5, math.PI * 0.25, 2, blend_colors(ctx.style.color.substance_text[0], ctx.style.color.substance_text[1], hover_time))
 					update_widget_hover(w, point_in_box(input.mouse_point, w.box))
 				}
 			}
@@ -270,8 +270,8 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 					w.box = cut_box_right(&title_box, height(title_box))
 					update_widget(w)
 					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_rounded_box_corners_fill(w.box, style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(style.color.accent[1], hover_time * 0.1))
-					paint_arrow_flip(box_center(w.box), 5, 0, 1, self.how_collapsed, blend_colors(style.color.substance_text[0], style.color.substance_text[1], hover_time))
+					paint_rounded_box_corners_fill(w.box, ctx.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ctx.style.color.accent[1], hover_time * 0.1))
+					paint_arrow_flip(box_center(w.box), 5, 0, 1, self.how_collapsed, blend_colors(ctx.style.color.substance_text[0], ctx.style.color.substance_text[1], hover_time))
 					if widget_clicked(w, .Left) {
 						self.bits ~= {.Should_Collapse}
 					}
@@ -287,9 +287,9 @@ do_panel :: proc(info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 			//TODO: Make sure the text doesn't overflow
 			paint_text(
 				{title_box.low.x + text_offset, baseline}, 
-				{text = info.title, font = style.font.title, size = style.text_size.label}, 
+				{text = info.title, font = ctx.style.font.title, size = ctx.style.text_size.label}, 
 				{align = .Left, baseline = .Middle}, 
-				color = blend_colors(style.color.substance_text[1], style.color.substance_text[0], self.how_collapsed),
+				color = blend_colors(ctx.style.color.substance_text[1], ctx.style.color.substance_text[0], self.how_collapsed),
 			)
 			// Moving 
 			if (.Hovered in self.root_layer.?.state) && point_in_box(input.mouse_point, title_box) {
@@ -344,8 +344,8 @@ _do_panel :: proc(ok: bool) {
 				w.box = {box.high - 20, box.high}
 				update_widget(w)
 				hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-				paint_triangle_fill({w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, fade(style.color.substance[1], 0.1 + 0.1 * hover_time))
-				paint_triangle_stroke({w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, 1, fade(style.color.substance[1], 0.5 + 0.5 * hover_time))
+				paint_triangle_fill({w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, fade(ctx.style.color.substance[1], 0.1 + 0.1 * hover_time))
+				paint_triangle_stroke({w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, 1, fade(ctx.style.color.substance[1], 0.5 + 0.5 * hover_time))
 				if .Got_Press in w.state {
 					self.bits += {.Resizing}
 				}

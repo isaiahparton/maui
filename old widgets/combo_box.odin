@@ -35,8 +35,8 @@ do_strings_menu :: proc(info: Strings_Menu_Info, loc := #caller_location) -> (ne
 			ctx.cursor = .Hand
 		}
 		if .Should_Paint in self.bits {
-			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
-			paint_label_box(info.items[info.index], self.box, style.color.base_text[1], .Middle, .Middle)
+			paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, alpha_blend_colors(alpha_blend_colors(ctx.style.color.substance[1], ctx.style.color.substance_hover, hover_time), ctx.style.color.substance_click, press_time))
+			paint_label_box(info.items[info.index], self.box, ctx.style.color.base_text[1], .Middle, .Middle)
 		}
 		// Begin layer if expanded
 		if .Menu_Open in self.bits {
@@ -51,10 +51,10 @@ do_strings_menu :: proc(info: Strings_Menu_Info, loc := #caller_location) -> (ne
 				options = {.Attached, .No_Scroll_X, .No_Scroll_Y},
 				shadow = Layer_Shadow_Info{
 					offset = 0,
-					roundness = style.rounding,
+					roundness = ctx.style.rounding,
 				},
 			}); ok {
-				paint_rounded_box_fill(layer.box, style.rounding, style.color.base[1])
+				paint_rounded_box_fill(layer.box, ctx.style.rounding, ctx.style.color.base[1])
 				placement.side = .Top; placement.size = option_height
 				push_id(self.id)
 					for item, i in info.items {
@@ -106,8 +106,8 @@ do_enum_menu :: proc(info: Enum_Menu_Info($T), loc := #caller_location) -> (new_
 			ctx.cursor = .Hand
 		}
 		if .Should_Paint in self.bits {
-			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, alpha_blend_colors(alpha_blend_colors(style.color.substance[1], style.color.substance_hover, hover_time), style.color.substance_click, press_time))
-			paint_label_box(reflect.enum_string(info.value), self.box, style.color.base_text[1], .Middle, .Middle)
+			paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, alpha_blend_colors(alpha_blend_colors(ctx.style.color.substance[1], ctx.style.color.substance_hover, hover_time), ctx.style.color.substance_click, press_time))
+			paint_label_box(reflect.enum_string(info.value), self.box, ctx.style.color.base_text[1], .Middle, .Middle)
 		}
 		// Begin layer if expanded
 		if .Menu_Open in self.bits {
@@ -130,14 +130,14 @@ do_enum_menu :: proc(info: Enum_Menu_Info($T), loc := #caller_location) -> (new_
 				options = {.Attached, .No_Scroll_X, .No_Scroll_Y},
 				shadow = Layer_Shadow_Info{
 					offset = 0,
-					roundness = style.rounding,
+					roundness = ctx.style.rounding,
 				},
 			}); ok {
-				paint_rounded_box_fill(layer.box, style.rounding, style.color.base[1])
+				paint_rounded_box_fill(layer.box, ctx.style.rounding, ctx.style.color.base[1])
 				placement.side = .Top; placement.size = option_height
-				prev_rounded_corners := style.rounded_corners
-				defer style.rounded_corners = prev_rounded_corners
-				style.rounded_corners = ALL_CORNERS
+				prev_rounded_corners := ctx.style.rounded_corners
+				defer ctx.style.rounded_corners = prev_rounded_corners
+				ctx.style.rounded_corners = ALL_CORNERS
 				push_id(self.id)
 					for member, i in T {
 						if do_combo_box_option(tmp_print(member), i) {
@@ -170,9 +170,9 @@ do_combo_box_option :: proc(text: string, index: int) -> (clicked: bool) {
 		hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
 		// Painting
 		if .Should_Paint in w.bits {
-			paint_rounded_box_corners_fill(w.box, style.rounding, style.rounded_corners, fade(style.color.substance[1], hover_time))
+			paint_rounded_box_corners_fill(w.box, ctx.style.rounding, ctx.style.rounded_corners, fade(ctx.style.color.substance[1], hover_time))
 			// Paint label
-			paint_label_box(text, w.box, blend_colors(style.color.base_text[1], style.color.substance_text[1], hover_time), .Middle, .Middle)
+			paint_label_box(text, w.box, blend_colors(ctx.style.color.base_text[1], ctx.style.color.substance_text[1], hover_time), .Middle, .Middle)
 		}
 		update_widget_hover(w, point_in_box(input.mouse_point, w.box))
 		clicked = widget_clicked(w, .Left)

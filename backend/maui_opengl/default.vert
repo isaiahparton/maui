@@ -1,4 +1,4 @@
-#version 330 ctx
+#version 330 core
 in vec2 Position;
 in vec2 UV;
 in vec4 Color;

@@ -21,7 +21,7 @@ do_area_chart :: proc(info: Area_Chart_Info($T), state: ^Area_Chart_State(T), lo
 		self.box = info.box.? or_else layout_next(current_layout())
 		update_widget(self)
 		if .Should_Paint in self.bits {
-			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, style.color.base[1])
+			paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, ctx.style.color.base[1])
 			inner_box := self.box
 			for &member in info.members {
 				step := width(inner_box) / f32(len(member.data) - 1)

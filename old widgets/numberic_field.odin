@@ -111,24 +111,24 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 		}
 		// Paint!
 		if (.Should_Paint in self.bits) {
-			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, style.color.base[1])
+			paint_rounded_box_corners_fill(self.box, ctx.style.rounding, ctx.style.rounded_corners, ctx.style.color.base[1])
 			if .Focused in self.state {
-				paint_rounded_box_corners_stroke(self.box, style.rounding, 2, style.rounded_corners, style.color.accent[1])
+				paint_rounded_box_corners_stroke(self.box, ctx.style.rounding, 2, ctx.style.rounded_corners, ctx.style.color.accent[1])
 			}
 		}
 		// Get text origin
-		text_origin: [2]f32 = {self.box.high.x - style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
+		text_origin: [2]f32 = {self.box.high.x - ctx.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
 		// Draw suffix
 		if text, ok := info.suffix.?; ok {
-			size := paint_text(text_origin, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle}, style.color.base_text[0])
+			size := paint_text(text_origin, {text = text, font = ctx.style.font.content, size = ctx.style.text_size.field}, {align = .Right, baseline = .Middle}, ctx.style.color.base_text[0])
 			text_origin.x -= size.x
 		}
 		// Main text
-		text_res := paint_interact_text(text_origin, self, &ctx.typing_agent, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle, clip = self.box}, {read_only = true}, style.color.base_text[1])
+		text_res := paint_interact_text(text_origin, self, &ctx.typing_agent, {text = text, font = ctx.style.font.content, size = ctx.style.text_size.field}, {align = .Right, baseline = .Middle, clip = self.box}, {read_only = true}, ctx.style.color.base_text[1])
 		text_origin.x = text_res.bounds.low.x
 		// Draw prefix
 		if text, ok := info.prefix.?; ok {
-			paint_text(text_origin, {text = text, font = style.font.content, size = style.text_size.field}, {align = .Right, baseline = .Middle, clip = self.box}, style.color.base_text[0])
+			paint_text(text_origin, {text = text, font = ctx.style.font.content, size = ctx.style.text_size.field}, {align = .Right, baseline = .Middle, clip = self.box}, ctx.style.color.base_text[0])
 		}
 		// Value manipulation
 		if (.Focused in self.state) {
@@ -250,14 +250,14 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 		}
 		// Background
 		if .Should_Paint in self.bits {
-			paint_rounded_box_corners_fill(box, style.rounding, style.rounded_corners, style.color.base[1])
+			paint_rounded_box_corners_fill(box, ctx.style.rounding, ctx.style.rounded_corners, ctx.style.color.base[1])
 			if .Focused in self.state {
-				paint_rounded_box_corners_stroke(box, style.rounding, 2, style.rounded_corners, style.color.accent[1])
+				paint_rounded_box_corners_stroke(box, ctx.style.rounding, 2, ctx.style.rounded_corners, ctx.style.color.accent[1])
 			}
 		}
 		// Do text interaction
 		text_align := info.text_align.? or_else .Left
-		inner_box: Box = {{self.box.low.x + style.layout.widget_padding, self.box.low.y}, {self.box.high.x - style.layout.widget_padding, self.box.high.y}}
+		inner_box: Box = {{self.box.low.x + ctx.style.layout.widget_padding, self.box.low.y}, {self.box.high.x - ctx.style.layout.widget_padding, self.box.high.y}}
 		text_origin: [2]f32 = {inner_box.low.x, (inner_box.low.y + inner_box.high.y) / 2} - self.offset
 		if text_align == .Middle {
 			text_origin.x += width(inner_box) / 2
@@ -305,10 +305,10 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				text_origin, 
 				self,
 				&ctx.typing_agent, 
-				{text = string(buffer[:]), font = style.font.label, size = style.text_size.label},
+				{text = string(buffer[:]), font = ctx.style.font.label, size = ctx.style.text_size.label},
 				{align = text_align, baseline = .Middle, clip = self.box},
 				{},
-				style.color.base_text[1],
+				ctx.style.color.base_text[1],
 			)
 			if typing_agent_edit(&ctx.typing_agent, {
 				array = buffer, 
@@ -332,10 +332,10 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				text_origin, 
 				self,
 				&ctx.typing_agent, 
-				{text = text, font = style.font.label, size = style.text_size.label},
+				{text = text, font = ctx.style.font.label, size = ctx.style.text_size.label},
 				{align = text_align, baseline = .Middle, clip = self.box},
 				{},
-				style.color.base_text[1],
+				ctx.style.color.base_text[1],
 			)
 		}
 

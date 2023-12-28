@@ -238,8 +238,8 @@ paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickn
 	if text != nil {
 		text_size := measure_text({
 			text = text.?,
-			font = style.font.title,
-			size = style.text_size.title,
+			font = ctx.style.font.title,
+			size = ctx.style.text_size.title,
 		})
 		paint_widget_frame(box, offset - 2, text_size.x + 4, thickness, color)
 		paint_text(
@@ -248,14 +248,14 @@ paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickn
 				box.low.y - text_size.y / 2,
 			}, 
 			{
-				font = style.font.title, 
-				size = style.text_size.title,
+				font = ctx.style.font.title, 
+				size = ctx.style.text_size.title,
 				text = text.?, 
 			},
 			{
 				align = .Left,
 			}, 
-			style.color.base_text[1],
+			ctx.style.color.base_text[1],
 		)
 	} else {
 		paint_box_stroke(box, thickness, color)
