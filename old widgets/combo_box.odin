@@ -8,6 +8,7 @@ import "core:math"
 import "core:fmt"
 
 Strings_Menu_Info :: struct {
+	using info: maui.Widget_Info,
 	index: int,
 	items: []string,
 }
@@ -15,7 +16,7 @@ do_strings_menu :: proc(info: Strings_Menu_Info, loc := #caller_location) -> (ne
 	using maui
 	shared_id := hash(loc)
 	if self, ok := do_widget(shared_id); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update state
 		update_widget(self)
 		if .Focused in self.state {
@@ -79,13 +80,14 @@ do_strings_menu :: proc(info: Strings_Menu_Info, loc := #caller_location) -> (ne
 }
 
 Enum_Menu_Info :: struct($T: typeid) where intrinsics.type_is_enum(T) {
+	using info: maui.Widget_Info,
 	value: T,
 }
 do_enum_menu :: proc(info: Enum_Menu_Info($T), loc := #caller_location) -> (new_value: T, changed: bool) {
 	using maui
 	shared_id := hash(loc)
 	if self, ok := do_widget(shared_id); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update state
 		update_widget(self)
 		if .Focused in self.state {

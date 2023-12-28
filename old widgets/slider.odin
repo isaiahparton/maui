@@ -8,6 +8,7 @@ import "core:intrinsics"
 
 // Fancy slider
 Slider_Info :: struct($T: typeid) {
+	using info: maui.Widget_Info,
 	value,
 	low,
 	high: T,
@@ -22,9 +23,9 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 	THICKNESS :: 1
 	HALF_THICKNESS :: SIZE - THICKNESS
 	value := info.value
-	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
+	if self, ok := do_widget(info.id.? or_else hash(loc), {.Draggable}); ok {
 		// Colocate
-		self.box = layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		size: [2]f32 = {width(self.box), SIZE} if info.orientation == .Horizontal else {SIZE, height(self.box)}
 		self.box = child_box(self.box, size, {.Near, .Middle})
 		// Update
@@ -128,7 +129,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 	new_value = info.value
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
 		// Colocate
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update
 		update_widget(self)
 		// Animate

@@ -98,9 +98,9 @@ end_attached_layer :: proc(info: Attached_Layer_Info, layer: ^Layer) {
 		dismiss: bool
 		switch info.mode {
 			case .Focus:
-			dismiss = (widget.state & {.Focused, .Lost_Focus} == {}) && (layer.state & {.Focused} == {})
+			dismiss = (.Focused not_in widget.state | widget.last_state) && (layer.state & {.Focused} == {})
 			case .Hover:
-			dismiss = (.Hovered not_in widget.state) && (layer.state & {.Hovered, .Lost_Hover} == {})
+			dismiss = (.Hovered not_in widget.state) && (.Hovered not_in layer.state | layer.last_state)
 		}
 		if .Dismissed in layer.bits || dismiss || key_pressed(.Escape) {
 			widget.bits -= {.Menu_Open}

@@ -8,6 +8,7 @@ import "core:math/ease"
 	Combo box
 */
 Tree_Node_Info :: struct{
+	using info: maui.Widget_Info,
 	text: string,
 	size: f32,
 	persistent: bool,
@@ -17,7 +18,7 @@ Tree_Node_Info :: struct{
 do_tree_node :: proc(info: Tree_Node_Info, loc := #caller_location) -> (active: bool) {
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		if self.state & {.Hovered} != {} {
 			ctx.cursor = .Hand
 		}

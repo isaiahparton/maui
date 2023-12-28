@@ -2,6 +2,7 @@ package maui
 
 // Scroll bars for scrolling bars
 Scrollbar_Info :: struct {
+	using info: Generic_Widget_Info,
 	value,
 	low,
 	high,
@@ -13,7 +14,7 @@ do_scrollbar :: proc(info: Scrollbar_Info, loc := #caller_location) -> (changed:
 	new_value = info.value
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
 		// Colocate
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update
 		update_widget(self)
 		// Animate

@@ -18,6 +18,7 @@ Text_Field_Data :: union {
 }
 
 Text_Field_Info :: struct {
+	using info: maui.Widget_Info,
 	data: Text_Field_Data,
 	title: Maybe(string),
 	placeholder: Maybe(string),
@@ -31,7 +32,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 	using maui
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		// Colocate
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update
 		update_widget(self)
 		// Animate

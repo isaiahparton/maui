@@ -108,17 +108,6 @@ current_layout :: proc(loc := #caller_location) -> ^Layout {
 	assert(ctx.layout_agent.current_layout != nil, "No current layout", loc)
 	return ctx.layout_agent.current_layout
 }
-// Set the next box to be used instead of `layout_next()`
-set_next_box :: proc(box: Box) {
-	ctx.next_box = box
-}
-use_next_box :: proc() -> (box: Box, ok: bool) {
-	box, ok = ctx.next_box.?
-	if ok {
-		ctx.next_box = nil
-	}
-	return
-}
 get_exact_margin :: proc(l: ^Layout, side: Box_Side) -> Exact {
 	return (placement.margin[side].(Exact) or_else Exact(f32(placement.margin[side].(Relative)) * ((l.box.high.x - l.box.low.x) if int(side) > 1 else (l.box.high.y - l.box.low.y))))
 }
@@ -259,4 +248,10 @@ _do_horizontal :: proc(ok: bool) {
 	if ok {
 		pop_layout()
 	}
+}
+/*
+	Generic getter of next box in the current layout based on the current placement info
+*/
+next_box :: proc(loc := #caller_location) -> Box {
+	return layout_next(current_layout(loc))
 }

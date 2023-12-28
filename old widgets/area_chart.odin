@@ -9,6 +9,7 @@ Chart_Member :: struct($T: typeid) {
 	colors: [2]maui.Color,
 }
 Area_Chart_Info :: struct($T: typeid) {
+	using info: maui.Widget_Info,
 	members: []Chart_Member(T),
 }
 Area_Chart_State :: struct($T: typeid) {
@@ -17,7 +18,7 @@ Area_Chart_State :: struct($T: typeid) {
 do_area_chart :: proc(info: Area_Chart_Info($T), state: ^Area_Chart_State(T), loc := #caller_location) {
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		update_widget(self)
 		if .Should_Paint in self.bits {
 			paint_rounded_box_corners_fill(self.box, style.rounding, style.rounded_corners, style.color.base[1])

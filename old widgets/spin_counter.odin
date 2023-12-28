@@ -9,6 +9,7 @@ import "core:intrinsics"
 MAX_SPIN_COUNTER_DIGITS :: 10
 
 Spin_Counter_Info :: struct($T: typeid) where intrinsics.type_is_integer(T) && intrinsics.type_is_unsigned(T) {
+	using info: maui.Widget_Info,
 	digits: int,
 	digit_width: f32,
 	value: T,
@@ -20,7 +21,7 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 	using maui
 	//
 	if self, ok := do_widget(hash(loc)); ok {
-		parent_box := use_next_box() or_else layout_next(current_layout())
+		parent_box := info.box.? or_else layout_next(current_layout())
 
 		digit_count := min(info.digits, MAX_SPIN_COUNTER_DIGITS)
 		digit_size: [2]f32 = {info.digit_width, height(parent_box)}

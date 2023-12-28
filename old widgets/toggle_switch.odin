@@ -10,6 +10,7 @@ Toggle_Switch_State :: union #no_nil {
 }
 
 Toggle_Switch_Info :: struct {
+	using info: maui.Widget_Info,
 	state: Toggle_Switch_State,
 	color: Maybe(maui.Color),
 }
@@ -25,7 +26,7 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 	TEXT_OFFSET :: WIDTH / 2
 	if self, ok := do_widget(hash(loc)); ok {
 		// Colocate
-		self.box = use_next_box() or_else layout_next_child(current_layout(), {WIDTH, HEIGHT})
+		self.box = info.box.? or_else layout_next_child(current_layout(), {WIDTH, HEIGHT})
 		// Update
 		update_widget(self)
 		// Animation

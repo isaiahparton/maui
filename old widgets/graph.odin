@@ -5,6 +5,7 @@ import "core:math/linalg"
 
 /*Graph_Curve_Proc :: proc(f32) -> f32 
 Graph_Info :: struct {
+	using info: maui.Widget_Info,
 	step: [2]f32,
 	show_axes: bool,
 }
@@ -15,7 +16,7 @@ Graph_State :: struct {
 do_graph :: proc(info: Graph_Info, state: ^Graph_State, loc := #caller_location) -> (ok: bool) {
 	using maui
 	if self, _ok := do_widget(hash(loc), {.Draggable}); _ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		update_widget(self)
 
 		view_box := self.box

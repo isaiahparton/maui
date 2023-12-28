@@ -76,6 +76,7 @@ write_digits :: proc(d: ^Digits, w: io.Writer) -> (n: int) {
 	Mathematical number input
 */
 Numeric_Field_Info :: struct($T: typeid) where intrinsics.type_is_numeric(T) {
+	using info: maui.Widget_Info,
 	precision: int,
 	value: T,
 	title,
@@ -92,7 +93,7 @@ do_numeric_field :: proc(info: Numeric_Field_Info($T), loc := #caller_location) 
 	value := info.value
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		// Colocate
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update
 		update_widget(self)
 		// Animate
@@ -229,7 +230,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 	new_value = info.value
 	if self, ok := do_widget(hash(loc), {.Draggable, .Can_Key_Select}); ok {
 		using self
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		update_widget(self)
 		// Animation values
 		hover_time := animate_bool(&timers[0], .Hovered in state, 0.1)

@@ -7,6 +7,7 @@ import "core:math/linalg"
 
 // Radio buttons
 Radio_Button_Info :: struct {
+	using info: maui.Widget_Info,
 	on: bool,
 	text: string,
 	text_side: Maybe(maui.Box_Side),
@@ -30,7 +31,7 @@ do_radio_button :: proc(info: Radio_Button_Info, loc := #caller_location) -> (cl
 	// The widget
 	if self, ok := do_widget(hash(loc)); ok {
 		// Colocate
-		self.box = use_next_box() or_else layout_next_child(current_layout(), size)
+		self.box = info.box.? or_else layout_next_child(current_layout(), size)
 		// Update
 		update_widget(self)
 		// Animate

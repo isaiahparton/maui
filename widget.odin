@@ -13,10 +13,9 @@ import "core:slice"
 import "core:time"
 
 MAX_WIDGET_TIMERS :: 3
-DEFAULT_WIDGET_HOVER_TIME :: 0.1
-DEFAULT_WIDGET_PRESS_TIME :: 0.075
-
-// General purpose booleans
+DEFAULT_WIDGET_HOVER_TIME :: 0.15
+DEFAULT_WIDGET_PRESS_TIME :: 0.1
+// General purpose bit flags
 Widget_Bit :: enum {
 	// Widget thrown away if no
 	Stay_Alive,
@@ -31,9 +30,7 @@ Widget_Bit :: enum {
 	// Negative number in numeric fields
 	Negative,
 }
-
-Widget_Bits :: bit_set[Widget_Bit]
-
+Widget_Bits :: bit_set[Widget_Bit;u8]
 // Behavior options
 Widget_Option :: enum {
 	// The widget does not receive input
@@ -44,129 +41,140 @@ Widget_Option :: enum {
 	// If the widget can be selected with the keyboard
 	Can_Key_Select,
 }
-
-Widget_Options :: bit_set[Widget_Option]
-
+Widget_Options :: bit_set[Widget_Option;u8]
 // Interaction state
 Widget_Status :: enum {
-	// Just got status
-	Got_Hover,
-	Got_Focus,
-	Got_Press,
 	// Has status
 	Hovered,
 	Focused,
 	Pressed,
-	// Just lost status
-	Lost_Hover,
-	Lost_Focus,
-	Lost_Press,
 	// Data modified
 	Changed,
 	// Pressed and released
 	Clicked,
 }
-
-Widget_State :: bit_set[Widget_Status]
-
-// Universal control data (stoopid get rid of it)
-Widget :: struct {
-	id: 						Id,
-	box: 						Box,
-	bits: 					Widget_Bits,
-	options: 				Widget_Options,
-	state: 					Widget_State,
-	click_button:  	Mouse_Button,
-	click_time: 		time.Time,
-	click_count: 		int,
-	// Parent layer
-	layer: 					^Layer,
-	// Retained data (impossible!!)
-	offset,
-	label_size: [2]f32,
-	timers: [MAX_WIDGET_TIMERS]f32,
+Widget_State :: bit_set[Widget_Status;u8]
+/*
+	Generic info for calling widgets	
+*/
+Generic_Widget_Info :: struct {
+	disabled: bool,
+	id: Maybe(Id),
+	box: Maybe(Box),
+	tooltip: Maybe(Tooltip_Info),
+	options: Widget_Options,
 }
-
-WIDGET_STACK_SIZE :: 32
-
+Generic_Widget_Result :: struct {
+	id: Id,
+	box: Box,
+	state,
+	last_state: Widget_State,
+	press_count: Maybe(int),
+	time_held: Maybe(time.Duration),
+	time_hovered: Maybe(time.Duration),
+}
+/*
+	Generic widget state
+*/
+Widget :: struct {
+	id: Id,
+	box: Box,
+	bits: Widget_Bits,
+	options: Widget_Options,
+	state,
+	last_state: Widget_State,
+	click_button: Mouse_Button,
+	click_time: time.Time,
+	click_count: int,
+	// Parent layer (set each frame when widget is invoked)
+	layer: ^Layer,
+}
+/*
+	Store widgets and manage their interaction state
+*/
 Widget_Agent :: struct {
 	list: [dynamic]^Widget,
-	stack: [WIDGET_STACK_SIZE]^Widget,
-	stack_height: int,
-	last_widget,
+	stack: Stack(^Widget, 8),
 	current_widget: ^Widget,
-	// State
+	// Drag anchor
+	drag_anchor: Maybe([2]f32),
 	last_hover_id, 
 	next_hover_id, 
 	hover_id, 
 	last_press_id, 
 	press_id, 
-	next_focus_fd,
+	next_focus_id,
 	focus_id,
 	last_focus_id: Id,
-	dragging,
-	auto_focus,
-	will_auto_focus: bool,
+	// Action timestamps
+	press_time,
 	hover_time: time.Time,
 }
-
-widget_agent_assert :: proc(using self: ^Widget_Agent, id: Id) -> (widget: ^Widget, ok: bool) {
+/*
+	Ensure that a widget with this id exists
+*/
+get_widget :: proc(id: Id) -> (wgt: ^Widget, ok: bool) {
 	layer := current_layer()
-	widget, ok = layer.contents[id]
+	wgt, ok = layer.contents[id]
 	if !ok {
-		widget, ok = widget_agent_create(self, id, layer)
+		// Allocate a new widget
+		wgt = new(Widget)
+		wgt^ = {
+			id = id,
+		}
+		// Add the widget to the list
+		append(&list, wgt)
+		// Assign the widget to the layer
+		layer.contents[id] = wgt
+		// Paint the next frame
+		ctx.painter.next_frame = true
+		// Debug info
+		when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
+			fmt.printf("+ Widget %x\n", id)
+		}
+		ok = true
 	}
-	assert(ok)
-	assert(widget != nil)
+	wdt.layer = layer
 	return
 }
-
-widget_agent_create :: proc(using self: ^Widget_Agent, id: Id, layer: ^Layer) -> (widget: ^Widget, ok: bool) {
-	widget = new(Widget)
-	widget^ = {
-		id = id,
-		layer = layer,
-	}
-	append(&list, widget)
-	layer.contents[id] = widget
-	ctx.painter.next_frame = true
-	ok = true
-
-	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
-		fmt.printf("+ Widget %x\n", id)
-	}
-
-	return
-}
-
-widget_agent_push :: proc(using self: ^Widget_Agent, widget: ^Widget) {
-	stack[stack_height] = widget
-	stack_height += 1
-	current_widget = widget
-	last_widget = widget
-}
-
-widget_agent_pop :: proc(using self: ^Widget_Agent, loc := #caller_location) {
-	assert(stack_height > 0, "", loc)
-	stack_height -= 1
-	if stack_height > 0 {
-		current_widget = stack[stack_height - 1]
-	} else {
-		current_widget = nil
-	}
-}
-
-widget_agent_destroy :: proc(using self: ^Widget_Agent) {
+/*
+	Free the memory belonging to a widget agent
+*/
+destroy_widget_agent :: proc(using self: ^Widget_Agent) {
 	for entry in list {
 		free(entry)
 	}
 	delete(list)
 }
-
-widget_agent_step :: proc(using self: ^Widget_Agent) {
-	dragging = false
-	auto_focus = will_auto_focus
-	will_auto_focus = false
+/*
+	Update general ids of widget agent
+*/
+update_widget_agent :: proc(using self: ^Widget_Agent) {
+	last_hover_id = hover_id
+	last_press_id = press_id
+	last_focus_id = focus_id
+	hover_id = next_hover_id
+	// Make sure dragged idgets are hovered
+	if drag_anchor != nil && press_id != 0 {
+		hover_id = press_id
+	}
+	// Keyboard navigation
+	if ctx.is_key_selecting {
+		hover_id = focus_id
+		if key_pressed(.Enter) {
+			press_id = hover_id
+		}
+	}
+	// Reset next hover id so if nothing is hovered nothing will be hovered
+	next_hover_id = 0
+	// Press whatever is hovered and focus what is pressed
+	if mouse_pressed(.Left) {
+		press_id = hover_id
+		focus_id = press_id
+	}
+	// Reset drag status
+	drag_anchor = nil
+	// Free unused widgets
 	for widget, i in &list {
 		if .Stay_Alive in widget.bits {
 			widget.bits -= {.Stay_Alive}
@@ -174,200 +182,151 @@ widget_agent_step :: proc(using self: ^Widget_Agent) {
 			when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
 				fmt.printf("- Widget %x\n", widget.id)
 			}
-			
+			// Remove the record from parent layer
 			for key, value in widget.layer.contents {
 				if key == widget.id {
 					delete_key(&widget.layer.contents, key)
 				}
 			}
+			// Free memory
 			free(widget)
+			// Remove from list
 			ordered_remove(&list, i)
 			// Make sure we paint the next frame
 			ctx.painter.next_frame = true
 		}
 	}
 }
-
-widget_agent_update_ids :: proc(using self: ^Widget_Agent) {
-	last_hover_id = hover_id
-	last_press_id = press_id
-	last_focus_id = focus_id
-	hover_id = next_hover_id
-	if dragging && press_id != 0 {
-		hover_id = press_id
-	}
-	if ctx.is_key_selecting {
-		hover_id = focus_id
-		if key_pressed(.Enter) {
-			press_id = hover_id
-		}
-	}
-	next_hover_id = 0
-	if mouse_pressed(.Left) {
-		press_id = hover_id
-		focus_id = press_id
-	}
-	dragging = false
-}
-
-update_widget_hover :: proc(w: ^Widget, condition: bool) {
-	if !(ctx.widget_agent.dragging && w.id != ctx.widget_agent.hover_id) && ctx.layer_agent.hover_id == w.layer.id && condition {
-		ctx.widget_agent.next_hover_id = w.id
+/*
+	Try to update a widget's hover state
+*/
+update_widget_hover :: proc(wdg: ^Widget, condition: bool) {
+	if !(ctx.widget_agent.dragging && wdg.id != ctx.widget_agent.hover_id) && ctx.layer_agent.hover_id == wdg.layer.id && condition {
+		ctx.widget_agent.next_hover_id = wdg.id
 	}
 }
-widget_agent_update_state :: proc(using self: ^Widget_Agent, w: ^Widget) {
-	assert(w != nil)
+/*
+	Update the interaction state of a widget
+	TODO: Move this
+*/
+update_widget_state :: proc(wdg: ^Widget) {
+	using ctx.widget_agent
 	// If hovered
-	if hover_id == w.id {
-		w.state += {.Hovered}
-		if last_hover_id != w.id {
-			w.state += {.Got_Hover}
+	if hover_id == wdg.id {
+		wdg.state += {.Hovered}
+		if last_hover_id != wdg.id {
 			hover_time = time.now()
 		}
 		pressed_buttons := input.mouse_bits - input.last_mouse_bits
 		if pressed_buttons != {} {
-			if w.click_count == 0 {
-				w.click_button = input.last_mouse_button
+			if wdg.click_count == 0 {
+				wdg.click_button = input.last_mouse_button
 			}
-			if w.click_button == input.last_mouse_button && time.since(w.click_time) <= DOUBLE_CLICK_TIME {
-				w.click_count = (w.click_count + 1) % MAX_CLICK_COUNT
+			if wdg.click_button == input.last_mouse_button && time.since(wdg.click_time) <= DOUBLE_CLICK_TIME {
+				wdg.click_count = (wdg.click_count + 1) % MAX_CLICK_COUNT
 			} else {
-				w.click_count = 0
+				wdg.click_count = 0
 			}
-			w.click_button = input.last_mouse_button
-			w.click_time = time.now()
-			press_id = w.id
+			wdg.click_button = input.last_mouse_button
+			wdg.click_time = time.now()
+			press_id = wdg.id
 		}
 	} else {
-		if last_hover_id == w.id {
-			w.state += {.Lost_Hover}
-		}
-		if press_id == w.id {
-			if .Draggable not_in w.options {
+		if press_id == wdg.id {
+			if .Draggable not_in wdg.options {
 				press_id = 0
 			}
 		}
-		if .Draggable not_in w.options {
-			w.click_count = 0
+		if .Draggable not_in wdg.options {
+			wdg.click_count = 0
 		}
 	}
 	// Press
-	if press_id == w.id {
-		w.state += {.Pressed}
-		if last_press_id != w.id {
-			w.state += {.Got_Press}
-		}
+	if press_id == wdg.id {
+		wdg.state += {.Pressed}
 		// Just released buttons
 		released_buttons := input.last_mouse_bits - input.mouse_bits
 		if released_buttons != {} {
 			for button in Mouse_Button {
-				if button == w.click_button {
-					w.state += {.Clicked}
+				if button == wdg.click_button {
+					wdg.state += {.Clicked}
 					break
 				}
 			}
-			w.state += {.Lost_Press}
 			press_id = 0
 		}
-		dragging = .Draggable in w.options
-	} else if last_press_id == w.id {
-		w.state += {.Lost_Press}
+		if .Draggable in wdg.options && .Pressed not_in wdg.last_state {
+			drag_anchor = input.mouse_point
+		}
 	}
 	// Focus
-	if focus_id == w.id {
-		w.state += {.Focused}
-		if last_focus_id != w.id {
-			w.state += {.Got_Focus}
-		}
-	} else if last_focus_id == w.id {
-		w.state += {.Lost_Focus}
+	if focus_id == wdg.id {
+		wdg.state += {.Focused}
 	}
 }
-
-update_widget :: proc(w: ^Widget) {
+/*
+	Simply update the state of the widget for this frame
+*/
+update_widget :: proc(wdg: ^Widget) {
 	// Prepare widget
-	w.state = {}
-	w.bits += {.Stay_Alive}
+	wdg.state = {}
+	wdg.bits += {.Stay_Alive}
 	if ctx.disabled {
-		w.bits += {.Disabled}
+		wdg.bits += {.Disabled}
 	} else {
-		w.bits -= {.Disabled}
+		wdg.bits -= {.Disabled}
 	}
-	if ctx.painter.this_frame && get_clip(current_layer().box, w.box) != .Full {
-		w.bits += {.Should_Paint}
+	if ctx.painter.this_frame && get_clip(current_layer().box, wdg.box) != .Full {
+		wdg.bits += {.Should_Paint}
 	} else {
-		w.bits -= {.Should_Paint}
+		wdg.bits -= {.Should_Paint}
 	}
 
-	ctx.last_box = w.box
+	ctx.last_box = wdg.box
 	// Get input
 	if !ctx.disabled {
 		widget_agent_update_state(&ctx.widget_agent, w)
 	}
 }
-
-// Main widget functionality
+/*
+	Context deferred helper proc pair for unique widgets
+*/
 @(deferred_out=_do_widget)
-do_widget :: proc(id: Id, options: Widget_Options = {}) -> (self: ^Widget, ok: bool) {
+do_widget :: proc(id: Id, options: Widget_Options = {}, tooltip: Maybe(Tooltip_Info) = nil) -> (wgt: ^Widget, ok: bool) {
 	// Check if clipped
-	self, ok = widget_agent_assert(&ctx.widget_agent, id)
-	if !ok {
-		return
+	wgt = get_widget(id) or_return
+	// Deploy tooltip
+	if tooltip, ok := tooltip; ok { 
+		if wgt.state >= {.Hovered} && time.since(ctx.widget_agent.hover_time) > time.Millisecond * 500 {
+			tooltip_box(wgt.id, tooltip.?.text, wgt.box, tooltip.?.box_side, 10)
+		}
 	}
-	self.options = options
-	widget_agent_push(&ctx.widget_agent, self)
+	wgt.options = options
 	return
 }
-
 @private
-_do_widget :: proc(self: ^Widget, ok: bool) {
+_do_widget :: proc(wgt: ^Widget, ok: bool) {
 	if ok {
-		assert(self != nil)
 		// Pop widget stack
 		widget_agent_pop(&ctx.widget_agent)
 		// Update the parent layer's content box
-		self.layer.content_box = update_bounding_box(self.layer.content_box, self.box)
-		// Update group if there is one
-		if ctx.group_stack.height > 0 {
-			stack_top_ref(&ctx.group_stack).state += self.state
-		}
-		// Display tooltip if there is one
-		if ctx.next_tooltip != nil {
-			if self.state >= {.Hovered} && time.since(ctx.widget_agent.hover_time) > time.Millisecond * 500 {
-				tooltip_box(self.id, ctx.next_tooltip.?.text, self.box, ctx.next_tooltip.?.box_side, 10)
-			}
-			ctx.next_tooltip = nil
-		}
+		wgt.layer.content_box = update_bounding_box(wgt.layer.content_box, wgt.box)
 	}
 }
-
-// Helper functions
-current_widget :: proc(loc := #caller_location) -> ^Widget {
-	assert(ctx.widget_agent.current_widget != nil, "There is no current widget", loc)
-	return ctx.widget_agent.current_widget
-}
-
-last_widget :: proc(loc := #caller_location) -> ^Widget {
-	assert(ctx.widget_agent.last_widget != nil, "There is no previous widget", loc)
-	return ctx.widget_agent.last_widget
-}
-
+// Helper procs
 widget_clicked :: proc(using self: ^Widget, button: Mouse_Button, times: int = 1) -> bool {
 	return .Clicked in state && click_button == button && click_count >= times - 1
 }
-
+/*
+	Tooltips
+*/
 Tooltip_Info :: struct {
 	text: string,
 	box_side: Box_Side,
 }
-
-attach_tooltip :: proc(text: string, side: Box_Side) {
-	ctx.next_tooltip = Tooltip_Info({
-		text = text,
-		box_side = side,
-	})
-}
-
+/*
+	Deploy a tooltip layer aligned to a given side of the origin
+*/
 tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment, side: Maybe(Box_Side) = nil) {
 	text_size := measure_text({
 		text = text,
@@ -422,7 +381,9 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment, side:
 		end_layer(layer)
 	}
 }
-
+/*
+	Helper proc for displaying a tooltip attached to a box
+*/
 tooltip_box ::proc(id: Id, text: string, anchor: Box, side: Box_Side, offset: f32) {
 	origin: [2]f32
 	align: [2]Alignment
@@ -449,63 +410,4 @@ tooltip_box ::proc(id: Id, text: string, anchor: Box, side: Box_Side, offset: f3
 		align.y = .Far
 	}
 	tooltip(id, text, origin, align, side)
-}
-
-// Labels
-Label :: union {
-	string,
-	rune,
-}
-
-Paint_Label_Info :: struct {
-	align: [2]Alignment,
-	clip_box: Maybe(Box),
-}
-
-get_size_for_label :: proc(l: ^Layout, label: Label) -> Exact {
-	return measure_label(label).x + get_layout_height(l) + get_exact_margin(l, .Left) + get_exact_margin(l, .Right)
-}
-
-paint_label :: proc(label: Label, origin: [2]f32, color: Color, align: Text_Align, baseline: Text_Baseline) -> [2]f32 {
-	switch v in label {
-		case string: 	
-		return paint_text(origin, {font = style.font.label, size = style.text_size.label, text = v}, {align = align, baseline = baseline}, color)
-
-		case rune:
-		return paint_aligned_rune(style.font.icon, style.text_size.label, v, origin, color, align, baseline)
-	}
-	return {}
-}
-
-paint_label_box :: proc(label: Label, box: Box, color: Color, align: Text_Align, baseline: Text_Baseline) {
-	origin: [2]f32 = box.low
-	#partial switch align {
-		case .Right: origin.x += width(box)
-		case .Middle: origin.x += width(box) * 0.5
-	}
-	#partial switch baseline {
-		case .Bottom: origin.y += height(box)
-		case .Middle: origin.y += height(box) * 0.5
-	}
-	paint_label(label, origin, color, align, baseline)
-}
-
-measure_label :: proc(label: Label) -> (size: [2]f32) {
-	switch v in label {
-		case string: 
-		size = measure_text({
-			text = v,
-			font = style.font.label,
-			size = style.text_size.label, 
-		})
-
-		case rune:
-		font := &ctx.painter.atlas.fonts[style.font.icon]
-		if font_size, ok := get_font_size(font, style.text_size.label); ok {
-			if glyph, ok := get_font_glyph(font, font_size, v); ok {
-				size = {glyph.advance, font_size.ascent - font_size.descent}
-			}
-		}
-	}
-	return
 }

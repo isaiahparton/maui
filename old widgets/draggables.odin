@@ -4,28 +4,6 @@ import "../"
 import "core:math"
 import "core:math/linalg"
 
-do_window_handle :: proc(loc := #caller_location) {
-	using maui
-	window := current_panel()
-	if self, ok := do_widget(hash(loc)); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
-		update_widget(self)
-		if .Should_Paint in self.bits {
-			box := shrink_box(self.box, 5) 
-			line_size := height(box) / 5
-			paint_box_fill(cut_box_top(&box, line_size), style.color.accent[1])
-			cut_box_top(&box, line_size)
-			paint_box_fill(cut_box_top(&box, line_size), style.color.accent[1])
-			cut_box_top(&box, line_size)
-			paint_box_fill(cut_box_top(&box, line_size), style.color.accent[1])
-		}
-		if .Got_Press in self.state {
-			ctx.drag_anchor = input.mouse_point - window.box.low
-		}
-		update_widget_hover(self, point_in_box(input.mouse_point, self.box))
-	}
-}
-
 /*import maui "../"
 
 import "core:math"
@@ -47,7 +25,7 @@ Draggable_Info :: struct {
 do_draggable :: proc(info: Draggable_Info, loc := #caller_location) -> (res: Draggable_Result, ok: bool) {
 	using maui
 	if self, _ok := do_widget(hash(loc), {.Draggable}); _ok {
-		home_box := use_next_box() or_else layout_next(current_layout())
+		home_box := info.box.? or_else layout_next(current_layout())
 		self.box = home_box
 		// Relocate
 		if .Active in self.bits {

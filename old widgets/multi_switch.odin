@@ -4,17 +4,18 @@ import "../"
 import "core:fmt"
 
 Multi_Switch_Info :: struct {
-	options: []maui.Label,
+	using info: maui.Widget_Info,
+	items: []maui.Label,
 	index: int,
 }
 do_multi_switch :: proc(info: Multi_Switch_Info, loc := #caller_location) -> (new_index: int, changed: bool) {
 	using maui
-	box := use_next_box() or_else layout_next(current_layout())
+	box := info.box.? or_else layout_next(current_layout())
 
 	paint_rounded_box_fill(box, style.rounding, style.color.substance[0])
-	size := width(box) / f32(len(info.options))
+	size := width(box) / f32(len(info.items))
 	push_id(hash(loc))
-		for option, i in info.options {
+		for item, i in info.items {
 			if w, ok := do_widget(hash(i)); ok {
 				w.box = shrink_box(cut_box_left(&box, size), 3)
 				update_widget(w)

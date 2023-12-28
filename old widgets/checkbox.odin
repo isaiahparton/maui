@@ -14,6 +14,7 @@ Check_Box_State :: union {
 	Check_Box_Status,
 }
 Check_Box_Info :: struct {
+	using info: maui.Widget_Info,
 	state: Check_Box_State,
 	text: Maybe(string),
 	text_side: Maybe(maui.Box_Side),
@@ -64,12 +65,11 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 		size = SIZE
 	}
 	layout := current_layout()
-	//placement.size = size.x if layout.side == .Left || layout.side == .Right else size.y
 
 	// Widget
 	if self, ok := do_widget(hash(loc)); ok {
 		using self
-		self.box = use_next_box() or_else layout_next_child(layout, size)
+		self.box = info.box.? or_else layout_next_child(layout, size)
 		update_widget(self)
 		// Determine state
 		active := evaluate_checkbox_state(info.state)

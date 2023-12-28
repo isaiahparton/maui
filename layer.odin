@@ -5,11 +5,9 @@ import "core:math"
 import "core:math/linalg"
 /*
 	Layers are the root of all gui
-
-	Clipping to parent
-
 */
 
+MAX_LAYERS :: 128
 SCROLL_SPEED :: 16
 SCROLL_STEP :: 20
 SCROLL_BAR_SIZE :: 12
@@ -17,13 +15,10 @@ SCROLL_BAR_PADDING :: 0
 
 // Layer interaction state
 Layer_Status :: enum {
-	Got_Hover,
 	Hovered,
-	Lost_Hover,
 	Focused,
-	Lost_Focus,
 }
-Layer_State :: bit_set[Layer_Status]
+Layer_State :: bit_set[Layer_Status;u8]
 
 // General purpose booleans
 Layer_Bit :: enum {
@@ -39,7 +34,7 @@ Layer_Bit :: enum {
 	// If the layer pushed to the id stack this frame
 	Did_Push_ID,
 }
-Layer_Bits :: bit_set[Layer_Bit]
+Layer_Bits :: bit_set[Layer_Bit;u8]
 
 // Options
 Layer_Option :: enum {
@@ -140,7 +135,8 @@ Layer :: struct {
 	// User options
 	options: Layer_Options,
 	// The layer's own state
-	state: Layer_State,
+	state,
+	last_state: Layer_State,
 	// Painting settings
 	opacity: f32,
 	// Viewport
@@ -169,7 +165,6 @@ Layer :: struct {
 	meshes: [dynamic]int,
 }
 
-MAX_LAYERS :: 128
 
 Layer_Agent :: struct {
 	root_layer: ^Layer,
@@ -191,7 +186,9 @@ Layer_Agent :: struct {
 	focus_id,
 	last_focus_id: Id,
 }
-
+/*
+	Add a layer
+*/
 sort_layer :: proc(list: ^[dynamic]^Layer, layer: ^Layer) {
 	append(list, layer)
 	if len(layer.children) > 0 {
@@ -204,7 +201,10 @@ sort_layer :: proc(list: ^[dynamic]^Layer, layer: ^Layer) {
 		for child in layer.children do sort_layer(list, child)
 	}
 }
-
+/*
+	Get a layer's main draw target
+	TODO: Remove this
+*/
 layer_draw_target :: proc(using self: ^Layer) -> int {
 	assert(len(meshes) > 0)
 	return meshes[len(meshes) - 1]
@@ -218,7 +218,9 @@ destroy_layer_agent :: proc(using self: ^Layer_Agent) {
 	delete(list)
 	self^ = {}
 }
-
+/*
+	Begin and end the root layer
+*/
 begin_root_layer :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 	root_layer, ok = begin_layer({
 		id = 0,
@@ -227,11 +229,12 @@ begin_root_layer :: proc(using self: ^Layer_Agent) -> (ok: bool) {
 	})
 	return
 }
-
 end_root_layer :: proc(using self: ^Layer_Agent) {
 	end_layer(root_layer)
 }
-
+/*
+	Update a layer agent
+*/
 update_layer_agent :: proc(using self: ^Layer_Agent) {
 	sorted_layer: ^Layer
 	last_focus_id = focus_id
@@ -471,19 +474,13 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Apply inner padding
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
 		// Hovering and stuff
+		self.last_state = self.state
 		self.state = {}
 		if agent.hover_id == self.id {
 			self.state += {.Hovered}
-			if agent.last_hover_id != self.id {
-				self.state += {.Got_Hover}
-			}
-		} else if agent.last_hover_id == self.id {
-			self.state += {.Lost_Hover}
 		}
 		if agent.focus_id == self.id {
 			self.state += {.Focused}
-		} else if agent.last_focus_id == self.id {
-			self.state += {.Lost_Focus}
 		}
 		// Update clip status
 		self.bits -= {.Clipped}
@@ -636,8 +633,8 @@ end_layer :: proc(self: ^Layer) {
 			box.high.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.y -= SCROLL_BAR_PADDING
 			box.low.x += SCROLL_BAR_PADDING
-			set_next_box(box)
 			if changed, new_value := do_scrollbar({
+				box = box,
 				value = self.scroll.x, 
 				low = 0, 
 				high = max_scroll.x, 
@@ -653,8 +650,8 @@ end_layer :: proc(self: ^Layer) {
 			box.high.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.x -= SCROLL_BAR_PADDING
 			box.low.y += SCROLL_BAR_PADDING
-			set_next_box(box)
 			if change, new_value := do_scrollbar({
+				box = box,
 				value = self.scroll.y, 
 				low = 0, 
 				high = max_scroll.y, 

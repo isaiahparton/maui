@@ -5,6 +5,7 @@ import "core:math"
 import "core:math/linalg"
 
 Knob_Info :: struct($T: typeid) {
+	using info: maui.Widget_Info,
 	value,
 	low,
 	high: T,
@@ -18,7 +19,7 @@ do_knob :: proc(info: Knob_Info($T), loc := #caller_location) -> (new_value: T) 
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
 		// Load resources
 		// Colocate
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update
 		update_widget(self)
 		// Animate

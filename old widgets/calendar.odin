@@ -9,6 +9,7 @@ CALENDAR_WIDTH :: 440
 CALENDAR_HEIGHT :: 250
 
 Date_Picker_Info :: struct {
+	using info: maui.Widget_Info,
 	value,
 	temp_value: ^time.Time,
 	title: Maybe(string),
@@ -17,7 +18,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
 		// Colocate
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update
 		update_widget(self)
 		// Animate

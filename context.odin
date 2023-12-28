@@ -137,9 +137,6 @@ Context :: struct {
 	// Hash stack
 	id_stack: Stack(Id, ID_STACK_SIZE),
 
-	// Group stack
-	group_stack: Stack(Group, GROUP_STACK_SIZE),
-
 	// Handles text editing
 	typing_agent: Typing_Agent,
 
@@ -160,10 +157,6 @@ Context :: struct {
 
 	// Current clip box
 	clip_box: Box,
-
-	// Next stuff
-	next_box: Maybe(Box),
-	next_tooltip: Maybe(Tooltip_Info),
 }
 
 // Set by platform backend
@@ -180,37 +173,6 @@ set_clipboard_string :: proc(str: string) {
 	if _set_clipboard_string != nil {
 		_set_clipboard_string(str)
 	}
-}
-
-/*
-	Scoped interactability toggling
-
-	if enabled(condition) {
-		do_button()
-	}
-*/
-@(deferred_none=_enabled)
-enabled :: proc(condition: bool) -> bool {
-	if !condition {
-		ctx.disabled = true
-	}
-	return true
-}
-@private
-_enabled :: proc() {
-	ctx.disabled = false
-}
-
-/*
-	Groups widget states
-*/
-begin_group :: proc() {
-	stack_push(&ctx.group_stack, Group({}))
-}
-end_group :: proc() -> (result: ^Group) {
-	result = stack_top_ref(&ctx.group_stack)
-	stack_pop(&ctx.group_stack)
-	return
 }
 
 /*
@@ -295,7 +257,6 @@ begin :: proc() {
 	assert(layout_agent.stack.height == 0, "You forgot to pop_layout()")
 	assert(layer_agent.stack.height == 0, "You forgot to pop_layer()")
 	assert(id_stack.height == 0, "You forgot to pop_id()")
-	assert(group_stack.height == 0, "You forgot to end_group()")
 
 	// Begin frame
 	delta_time = f32(current_time - last_time)	
@@ -383,7 +344,7 @@ end :: proc() {
 	// Update layers
 	update_layer_agent(&layer_agent)
 	// Update widgets
-	widget_agent_step(&widget_agent)
+	update_widget_agent(&widget_agent)
 	// Update panels
 	update_panel_agent(&panel_agent)
 	// Decide if rendering is needed next frame

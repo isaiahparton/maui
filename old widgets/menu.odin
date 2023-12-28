@@ -6,6 +6,7 @@ import "core:math"
 import "core:fmt"
 
 Menu_Info :: struct {
+	using info: maui.Widget_Info,
 	label: maui.Label,
 	title: Maybe(string),
 	size: [2]f32,
@@ -25,7 +26,7 @@ do_menu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	using maui
 	shared_id := hash(loc)
 	if self, ok := do_widget(shared_id); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update state
 		update_widget(self)
 		if .Focused in self.state {
@@ -83,7 +84,7 @@ do_submenu :: proc(info: Menu_Info, loc := #caller_location) -> (active: bool) {
 	shared_id := hash(loc)
 	if self, ok := do_widget(shared_id); ok {
 		// Get box
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Update
 		update_widget(self)
 		// Animation
@@ -140,7 +141,7 @@ Option_Info :: struct {
 do_option :: proc(info: Option_Info, loc := #caller_location) -> (clicked: bool) {
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		update_widget(self)
 		// Animation
 		hover_time := animate_bool(&self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)

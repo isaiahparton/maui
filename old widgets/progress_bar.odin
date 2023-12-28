@@ -5,13 +5,14 @@ import "core:math"
 import "core:math/linalg"
 
 Progress_Bar_Info :: struct {
+	using info: maui.Widget_Info,
 	time: f32,
 	text: string,
 }
 do_progress_bar :: proc(info: Progress_Bar_Info, loc := #caller_location) {
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		update_widget(self)
 
 		if .Should_Paint in self.bits {

@@ -86,13 +86,14 @@ hsva_to_rgba :: proc(hsva: [4]f32) -> maui.Color {
 }
 
 Color_Picker_Info :: struct {
+	using info: maui.Widget_Info,
 	hsva: [4]f32,
 }
 do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new_hsva: [4]f32, changed: bool) {
 	using maui
 	new_hsva = info.hsva
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 
 		size := min(width(self.box), height(self.box))
 		outer := size / 2
@@ -191,7 +192,7 @@ do_color_picker_2d :: proc(info: Color_Picker_Info, loc := #caller_location) -> 
 	using maui
 	new_hsva = info.hsva
 	if self, ok := do_widget(hash(loc), {.Draggable}); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 
 		size := min(width(self.box), height(self.box))
 		outer := size / 2

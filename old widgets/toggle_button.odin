@@ -4,6 +4,7 @@ import "../"
 
 // Square buttons that toggle something
 Toggle_Button_Info :: struct {
+	using info: maui.Widget_Info,
 	label: maui.Label,
 	state: bool,
 	align: Maybe(maui.Alignment),
@@ -15,7 +16,7 @@ do_toggle_button :: proc(info: Toggle_Button_Info, loc := #caller_location) -> (
 	if self, ok := do_widget(hash(loc)); ok {
 		// Colocate
 		layout := current_layout()
-		if next_box, ok := use_next_box(); ok {
+		if next_box, ok := info.box.?; ok {
 			self.box = next_box
 		} else if info.fit_to_label && int(placement.side) > 1 {
 			self.box = layout_next_of_size(layout, get_size_for_label(layout, info.label))

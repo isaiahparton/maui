@@ -19,46 +19,7 @@ import "core:mem"
 TARGET_FRAME_RATE :: 75
 TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
 
-Choice :: enum {
-	One,
-	Two,
-	Three,
-}
-
-Currency :: enum {
-	USD,
-	MXN,
-	CAD,
-	EUR,
-	RUB,
-}
-
 _main :: proc() -> bool {
-	t: time.Time
-	tt: time.Time
-	show_window: bool
-	boolean: bool
-	n: int
-	load_time: f32
-
-	hsva: [4]f32
-
-	choice: Choice
-	choices: bit_set[Choice]
-
-	slider_value: f32
-
-	price: f64
-	currency: Currency
-
-	textation,
-	scribblage: string
-
-	integer,combo_box_index: int
-	spin_counter_state: maui_widgets.Spin_Counter_State
-
-	counter: u32
-
 	// Create the platform
 	platform := maui_glfw.make_platform(1200, 1000, "Maui", .OpenGL) or_return
 	// Create the renderer
@@ -75,108 +36,8 @@ _main :: proc() -> bool {
 		maui_glfw.begin(&platform, ctx)
 		begin()
 
-		paint_text({4, 4}, {text = tmp_printf("Frame time: %fms", time.duration_milliseconds(ctx.frame_duration)), font = style.font.content, size = style.text_size.label}, {}, style.color.base_text[1])
-
-		cut(.Left, Exact(300))
-		cut(.Right, Exact(300))
-		cut(.Top, Exact(50))
-
-		if do_growing_layout(.Top) {
-			
-			placement.size = Exact(30)
-
-			do_text({text = "maui", font = style.font.title, size = 40, align = .Middle})
-			cut(.Top, Exact(20))
-			placement.size = Exact(100)
-			do_interactable_text({text = "is a mixed mode UI framework designed for easy development of desktop applications and tools. It is renderer and platform independant, currently supporting GLFW and OpenGL.", font = style.font.content, size = 18})
-			cut(.Top, Exact(20))
-
-			placement.size = Exact(30)
-			
-			placement.size = Exact(30); placement.align.y = .Middle
-			if do_tree_node({text = "Single choice"}) {
-				if do_tree_node({text = "Multi switches"}) {
-					n = do_multi_switch({
-						options = {'\uEA27', '\uEA25', '\uEA28'},
-						index = n,
-					}) or_else n
-				}
-				if do_tree_node({text = "Radio buttons"}) {
-					choice = do_enum_radio_buttons(choice)
-				}
-			}
-			if do_tree_node({text = "Multiple choice"}) {
-				for member, i in Choice {
-					push_id(i)
-						do_checkbox_bit_set(&choices, member, tmp_print(member))
-					pop_id()
-				}
-			}
-			if do_tree_node({text = "Buttons"}) {
-				placement.size = Exact(50)
-				if do_horizontal(3) {
-					paint_rounded_box_fill(current_layout().box, style.rounding, style.color.base[1])
-					shrink(10)
-
-					placement.margin[.Left] = Exact(10)
-					placement.margin[.Right] = Exact(10)
-					for style, i in Button_Style {
-						push_id(i)
-							do_button({label = tmp_print(style), style = style})
-						pop_id()
-					}
-				}
-				space(Exact(10))
-				placement.size = Exact(70)
-				do_button({label = "A larger button\nwith several\nlines of text"})
-			}
-			if do_tree_node({text = "Menus"}) {
-				if do_horizontal(2, 10) {
-					if do_menu({label = "Menu"}) {
-						placement.size = Exact(24); placement.side = .Top
-						do_option({label = "option"})
-						do_option({label = "opción"})
-						do_option({label = "выбор"})
-						do_option({label = "επιλογή"})
-					}
-					space(Exact(10))
-					if new_index, changed := do_strings_menu({
-						items = {"happ :)", "sab :(", "angy >:(", "chair"},
-						index = n,
-					}); changed {
-						n = new_index
-					}
-				}
-			}
-
-			placement.size = Exact(140)
-
-			if new_hsva, changed := do_color_wheel({hsva = hsva}); changed {
-				hsva = new_hsva
-			}
-			space(Exact(20))
-			cut(.Right, Exact(200))
-			placement.size = Exact(30)
-
-			hsva.x = do_slider(Slider_Info(f32){value = hsva.x, low = 0, high = 360})
-			hsva.y = do_slider(Slider_Info(f32){value = hsva.y, low = 0, high = 1})
-			hsva.z = do_slider(Slider_Info(f32){value = hsva.z, low = 0, high = 1})
-			hsva.w = do_slider(Slider_Info(f32){value = hsva.w, low = 0, high = 1})
-
-			placement.size = Exact(50)
-			do_progress_bar({time = load_time})
-			load_time = min(load_time + ctx.delta_time * 0.1, 1)
-			if load_time < 1 {
-				ctx.painter.next_frame = true
-			}
-		}
-
-
-		paint_box_fill({ctx.size - 200, ctx.size}, hsva_to_rgba(hsva))
-
-		// End of ui calls
 		end()
-		
+
 		// Update texture if necessary
 		if ctx.painter.atlas.should_update {
 			ctx.painter.atlas.should_update = false

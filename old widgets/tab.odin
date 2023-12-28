@@ -3,6 +3,7 @@ package maui_widgets
 
 // Navigation tabs
 Tab_Info :: struct {
+	using info: maui.Widget_Info,
 	state: bool,
 	label: maui.Label,
 	side: Maybe(maui.Box_Side),
@@ -19,7 +20,7 @@ Tab_Result :: struct {
 do_tab :: proc(info: Tab_Info, loc := #caller_location) -> (result: Tab_Result) {
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
-		self.box = use_next_box() or_else layout_next(current_layout())
+		self.box = info.box.? or_else layout_next(current_layout())
 		// Default connecting side
 		side := info.side.? or_else .Bottom
 		// Animations

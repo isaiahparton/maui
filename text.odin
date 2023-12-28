@@ -727,6 +727,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 }
 
 Do_Text_Info :: struct {
+	using info: Generic_Widget_Info,
 	text: string,
 	font: Maybe(Font_Handle),
 	size: Maybe(f32),
@@ -735,7 +736,7 @@ Do_Text_Info :: struct {
 	color: Maybe(Color),
 }
 do_text :: proc(info: Do_Text_Info) {
-	box := use_next_box() or_else layout_next(current_layout())
+	box := info.box.? or_else layout_next(current_layout())
 	box = shrink_box(box, style.layout.widget_padding)
 	origin: [2]f32
 	switch info.align {
