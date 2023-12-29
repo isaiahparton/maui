@@ -116,8 +116,8 @@ Painter :: struct {
 	mesh_index: int,
 }
 
-should_render :: proc() -> bool {
-	return ctx.painter.mode == .Continuous || ctx.painter.this_frame
+should_render :: proc(painter: ^Painter) -> bool {
+	return painter.mode == .Continuous || painter.this_frame
 }
 
 make_painter :: proc() -> (result: Painter, ok: bool) {
@@ -133,6 +133,9 @@ destroy_painter :: proc(using self: ^Painter) {
 	destroy_atlas(&atlas)
 	self^ = {}
 }
+/*
+	Returns a fresh mesh for seshing
+*/
 get_draw_target :: proc(painter: ^Painter) -> (index: int, ok: bool) {
 	ok = painter.mesh_index < MAX_MESHES
 	if !ok {
@@ -148,123 +151,14 @@ get_draw_target :: proc(painter: ^Painter) -> (index: int, ok: bool) {
 
 	return
 }
-// Must be defined by backend
-_load_texture: proc(image: Image) -> (id: u32, ok: bool)
-_unload_texture: proc(id: u32)
-_update_texture: proc(texture: Texture, data: []u8, x, y, w, h: f32)
-// Backend interface
-load_texture :: proc(image: Image) -> (texture: Texture, ok: bool) {
-	assert(_load_texture != nil)
-	id := _load_texture(image) or_return
-	return Texture{
-		id = id,
-		width = image.width,
-		height = image.height,
-		channels = image.channels,
-	}, true
-}
-unload_texture :: proc(id: u32) {
-	assert(_unload_texture != nil)
-	_unload_texture(id)
-}
-update_texture :: proc(texture: Texture, image: Image, x, y, w, h: f32) {
-	assert(_update_texture != nil)
-	_update_texture(texture, image.data, x, y, w, h)
-}
-
-stroke_path :: proc(pts: [][2]f32, closed: bool, thickness: f32, color: Color) {
-	draw := &ctx.painter.meshes[ctx.painter.target]
-	base_index := draw.vertices_offset
-	if len(pts) < 2 {
-		return
-	}
-	for i in 0..<len(pts) {
-		a := max(0, i - 1)
-		b := i 
-		c := min(len(pts) - 1, i + 1)
-		d := min(len(pts) - 1, i + 2)
-		p0 := pts[a]
-		p1 := pts[b]
-		p2 := pts[c]
-		p3 := pts[d]
-
-		if p1 == p2 {
-			continue
-		}
-
-		line := linalg.normalize(p2 - p1)
-		normal := linalg.normalize([2]f32{-line.y, line.x})
-		tangent1 := line if p0 == p1 else linalg.normalize(linalg.normalize(p1 - p0) + line)
-		tangent2 := line if p2 == p3 else linalg.normalize(linalg.normalize(p3 - p2) + line)
-		miter1: [2]f32 = {-tangent1.y, tangent1.x}
-		miter2: [2]f32 = {-tangent2.y, tangent2.x}
-		length1 := thickness / linalg.dot(normal, miter1)
-		length2 := thickness / linalg.dot(normal, miter2)
-
-		if closed && i == len(pts) - 1 {
-			paint_indices(draw, base_index + u16(i * 2))
-			paint_indices(draw, base_index + u16(i * 2 + 1))
-			paint_indices(draw, base_index)
-			paint_indices(draw, base_index + u16(i * 2 + 3))
-			paint_indices(draw, base_index)
-			paint_indices(draw, base_index + 1)
-		} else {
-			paint_indices(draw, base_index + u16(i * 2))
-			paint_indices(draw, base_index + u16(i * 2 + 1))
-			paint_indices(draw, base_index + u16(i * 2 + 2))
-			paint_indices(draw, base_index + u16(i * 2 + 3))
-			paint_indices(draw, base_index + u16(i * 2 + 1))
-			paint_indices(draw, base_index + u16(i * 2 + 2))
-		}
-
-		if i == 0 && !closed {
-			paint_vertices(draw, 
-				{point = p1 - length1 * miter1, color = color},
-				{point = p1 + length1 * miter1, color = color},
-			)
-		}
-		paint_vertices(draw, 
-			{point = p2 - length2 * miter2, color = color},
-			{point = p2 + length2 * miter2, color = color},
-		)
-	}
-}
-
 /*
 	Painting procedures
 		Most of these eventually call `paint_triangle_fill()`
 */
-paint_labeled_widget_frame :: proc(box: Box, text: Maybe(string), offset, thickness: f32, color: Color) {
-	if text != nil {
-		text_size := measure_text({
-			text = text.?,
-			font = ctx.style.font.title,
-			size = ctx.style.text_size.title,
-		})
-		paint_widget_frame(box, offset - 2, text_size.x + 4, thickness, color)
-		paint_text(
-			{
-				box.low.x + offset, 
-				box.low.y - text_size.y / 2,
-			}, 
-			{
-				font = ctx.style.font.title, 
-				size = ctx.style.text_size.title,
-				text = text.?, 
-			},
-			{
-				align = .Left,
-			}, 
-			ctx.style.color.base_text[1],
-		)
-	} else {
-		paint_box_stroke(box, thickness, color)
-	}
-}
-paint_quad_fill :: proc(a, b, c, d: [2]f32, color: Color) {
-	draw := &ctx.painter.meshes[ctx.painter.target]
+paint_quad_fill :: proc(painter: ^Painter, a, b, c, d: [2]f32, color: Color) {
+	draw := &painter.meshes[painter.target]
 	color := color
-	color.a = u8(f32(color.a) * ctx.painter.opacity)
+	color.a = u8(f32(color.a) * painter.opacity)
 	paint_indices(draw, 
 		draw.vertices_offset,
 		draw.vertices_offset + 1,
@@ -280,27 +174,11 @@ paint_quad_fill :: proc(a, b, c, d: [2]f32, color: Color) {
 		{point = d, color = color},
 	)
 }
-paint_quad_mask :: proc(a, b, c, d: [2]f32, color: Color) {
-	draw := &ctx.painter.meshes[ctx.painter.target]
-	color := color
-	color.a = u8(f32(color.a) * ctx.painter.opacity)
-	paint_indices(draw, 
-		draw.vertices_offset,
-		draw.vertices_offset + 1,
-		draw.vertices_offset + 2,
-		draw.vertices_offset,
-		draw.vertices_offset + 2,
-		draw.vertices_offset + 3,
-	)
-	paint_vertices(draw, 
-		{point = a, uv = [2]f32{0, 1} + (a / ctx.size) * {1, -1}, color = color},
-		{point = b, uv = [2]f32{0, 1} + (b / ctx.size) * {1, -1}, color = color},
-		{point = c, uv = [2]f32{0, 1} + (c / ctx.size) * {1, -1}, color = color},
-		{point = d, uv = [2]f32{0, 1} + (d / ctx.size) * {1, -1}, color = color},
-	)
-}
-paint_quad_vertices :: proc(a, b, c, d: Vertex) {
-	draw := &ctx.painter.meshes[ctx.painter.target]
+/*
+	Paint a quad but define each vertex
+*/
+paint_quad_vertices :: proc(painter: ^Painter, a, b, c, d: Vertex) {
+	draw := &painter.meshes[painter.target]
 	paint_indices(draw, 
 		draw.vertices_offset,
 		draw.vertices_offset + 1,
@@ -311,10 +189,13 @@ paint_quad_vertices :: proc(a, b, c, d: Vertex) {
 	)
 	paint_vertices(draw, a, b, c, d)
 }
-paint_triangle_fill :: proc(a, b, c: [2]f32, color: Color) {
-	draw := &ctx.painter.meshes[ctx.painter.target]
+/*
+	Triangl
+*/
+paint_triangle_fill :: proc(painter: ^Painter, a, b, c: [2]f32, color: Color) {
+	draw := &painter.meshes[painter.target]
 	color := color
-	color.a = u8(f32(color.a) * ctx.painter.opacity)
+	color.a = u8(f32(color.a) * painter.opacity)
 	paint_indices(draw, 
 		draw.vertices_offset,
 		draw.vertices_offset + 1,
@@ -326,41 +207,20 @@ paint_triangle_fill :: proc(a, b, c: [2]f32, color: Color) {
 		{point = c, color = color},
 	)
 }
-paint_triangle_mask :: proc(a, b, c: [2]f32, color: Color) {
-	draw := &ctx.painter.meshes[ctx.painter.target]
-	paint_indices(draw, 
-		draw.vertices_offset,
-		draw.vertices_offset + 1,
-		draw.vertices_offset + 2,
-	)
-	paint_vertices(draw, 
-		{point = a, uv = [2]f32{0, 1} + (a / ctx.size) * {1, -1}, color = color},
-		{point = b, uv = [2]f32{0, 1} + (b / ctx.size) * {1, -1}, color = color},
-		{point = c, uv = [2]f32{0, 1} + (c / ctx.size) * {1, -1}, color = color},
-	)
+paint_triangle_stroke :: proc(painter: ^Painter, a, b, c: [2]f32, thickness: f32, color: Color) {
+	paint_path_stroke(painter, {a, b, c}, true, thickness, color)
 }
-paint_triangle_stroke :: proc(a, b, c: [2]f32, thickness: f32, color: Color) {
-	paint_line(a, b, thickness, color)
-	paint_line(b, c, thickness, color)
-	paint_line(c, a, thickness, color)
-}
-
-paint_box_mask :: proc(box: Box, color: Color) {
-	paint_quad_mask(
-		box.low,
-		{box.low.x, box.high.y},
-		box.high,
-		{box.high.x, box.low.y},
-		color,
-	)
-}
-paint_triangle_strip_fill :: proc(points: [][2]f32, color: Color) {
+/*
+	Triangle strip
+*/
+paint_triangle_strip_fill :: proc(painter: ^Painter, points: [][2]f32, color: Color) {
 	if len(points) < 4 {
 		return
 	}
 	for i in 2 ..< len(points) {
 		if i % 2 == 0 {
 			paint_triangle_fill(
+				painter,
 				{points[i].x, points[i].y},
 				{points[i - 2].x, points[i - 2].y},
 				{points[i - 1].x, points[i - 1].y},
@@ -368,6 +228,7 @@ paint_triangle_strip_fill :: proc(points: [][2]f32, color: Color) {
 			)
 		} else {
 			paint_triangle_fill(
+				painter,
 				{points[i].x, points[i].y},
 				{points[i - 1].x, points[i - 1].y},
 				{points[i - 2].x, points[i - 2].y},
@@ -376,15 +237,16 @@ paint_triangle_strip_fill :: proc(points: [][2]f32, color: Color) {
 		}
 	}
 }
-
-// A simple line painting procedure
-paint_line :: proc(start, end: [2]f32, thickness: f32, color: Color) {
+/*
+	Paint lines
+*/
+paint_line :: proc(painter: ^Painter, start, end: [2]f32, thickness: f32, color: Color) {
 	delta := end - start
 	length := math.sqrt(f32(delta.x * delta.x + delta.y * delta.y))
 	if length > 0 && thickness > 0 {
 		scale := thickness / (2 * length)
 		radius: [2]f32 = {-scale * delta.y, scale * delta.x}
-		paint_triangle_strip_fill({
+		paint_triangle_strip_fill(painter, {
 				{ start.x - radius.x, start.y - radius.y },
 				{ start.x + radius.x, start.y + radius.y },
 				{ end.x - radius.x, end.y - radius.y },
@@ -392,11 +254,10 @@ paint_line :: proc(start, end: [2]f32, thickness: f32, color: Color) {
 		}, color)
 	}
 }
-
 /*
 	Cubic bezier curve
 */
-paint_cubic_bezier_curve :: proc(p0, p1, p2, p3: [2]f32, segments: int, thickness: f32, color: Color) {
+paint_cubic_bezier_curve :: proc(painter: ^Painter, p0, p1, p2, p3: [2]f32, segments: int, thickness: f32, color: Color) {
 	p := p0
 	step: f32 = 1.0 / f32(segments)
 	for t: f32 = 0; t <= 1; t += step {
@@ -411,30 +272,27 @@ paint_cubic_bezier_curve :: proc(p0, p1, p2, p3: [2]f32, segments: int, thicknes
 			(times * weights * (matrix[4, 1]f32){p0.x, p1.x, p2.x, p3.x})[0][0],
 			(times * weights * (matrix[4, 1]f32){p0.y, p1.y, p2.y, p3.y})[0][0],
 		}
-		paint_line(p, np, thickness, color)
+		paint_line(painter, p, np, thickness, color)
 		p = np
 	}
 }
-
 // Paints an inner stroke along a given box
-paint_box_stroke :: proc(box: Box, thickness: f32, color: Color) {
-	paint_box_fill({box.low, {box.high.x, box.low.y + thickness}}, color)
-	paint_box_fill({{box.low.x, box.low.y + thickness}, {box.low.x + thickness, box.high.y - thickness}}, color)
-	paint_box_fill({{box.high.x - thickness, box.low.y + thickness}, {box.high.x, box.high.y - thickness}}, color)
-	paint_box_fill({{box.low.x, box.high.y - thickness}, box.high}, color)
+paint_box_stroke :: proc(painter: ^Painter, box: Box, thickness: f32, color: Color) {
+	paint_box_fill(painter, {box.low, {box.high.x, box.low.y + thickness}}, color)
+	paint_box_fill(painter, {{box.low.x, box.low.y + thickness}, {box.low.x + thickness, box.high.y - thickness}}, color)
+	paint_box_fill(painter, {{box.high.x - thickness, box.low.y + thickness}, {box.high.x, box.high.y - thickness}}, color)
+	paint_box_fill(painter, {{box.low.x, box.high.y - thickness}, box.high}, color)
 }
-
 // Paints a box stroke with a gap for text
-paint_widget_frame :: proc(box: Box, gap_offset, gap_size, thickness: f32, color: Color) {
-	paint_box_fill({box.low, {box.low.x + gap_offset, box.low.y + thickness}}, color)
-	paint_box_fill({{box.low.x + gap_offset + gap_size, box.low.y}, {box.high.x, box.low.y + thickness}}, color)
-	paint_box_fill({{box.low.x, box.low.y + thickness}, {box.low.x + thickness, box.high.y - thickness}}, color)
-	paint_box_fill({{box.high.x - thickness, box.low.y + thickness}, {box.high.x, box.high.y - thickness}}, color)
-	paint_box_fill({{box.low.x, box.high.y - thickness}, box.high}, color)
+paint_widget_frame :: proc(painter: ^Painter, box: Box, gap_offset, gap_size, thickness: f32, color: Color) {
+	paint_box_fill(painter, {box.low, {box.low.x + gap_offset, box.low.y + thickness}}, color)
+	paint_box_fill(painter, {{box.low.x + gap_offset + gap_size, box.low.y}, {box.high.x, box.low.y + thickness}}, color)
+	paint_box_fill(painter, {{box.low.x, box.low.y + thickness}, {box.low.x + thickness, box.high.y - thickness}}, color)
+	paint_box_fill(painter, {{box.high.x - thickness, box.low.y + thickness}, {box.high.x, box.high.y - thickness}}, color)
+	paint_box_fill(painter, {{box.low.x, box.high.y - thickness}, box.high}, color)
 }
-
 // Paint a textured box clipped to the `clip` parameter
-paint_clipped_textured_box :: proc(texture: Texture, src, dst, clip: Box, tint: Color) {
+paint_clipped_textured_box :: proc(painter: ^Painter, texture: Texture, src, dst, clip: Box, tint: Color) {
 	src := src
 	dst := dst
 	if dst.low.x < clip.low.x {
@@ -460,13 +318,13 @@ paint_clipped_textured_box :: proc(texture: Texture, src, dst, clip: Box, tint: 
 	if src.high.x <= src.low.x || src.high.y <= src.low.y {
 		return
 	}
-	paint_textured_box(texture, src, dst, tint)
+	paint_textured_box(painter, texture, src, dst, tint)
 }
 // Paint a given texture on a box
-paint_textured_box :: proc(tex: Texture, src, dst: Box, tint: Color) {
-	draw := &ctx.painter.meshes[ctx.painter.target]
+paint_textured_box :: proc(painter: ^Painter, tex: Texture, src, dst: Box, tint: Color) {
+	draw := &painter.meshes[painter.target]
 	tint := tint
-	tint.a = u8(f32(tint.a) * ctx.painter.opacity)
+	tint.a = u8(f32(tint.a) * painter.opacity)
 	paint_indices(draw, 
 		draw.vertices_offset,
 		draw.vertices_offset + 1,
@@ -503,7 +361,6 @@ paint_textured_box :: proc(tex: Texture, src, dst: Box, tint: Color) {
 rotate_point :: proc(v: [2]f32, a: f32) -> [2]f32 {
 	cosres := math.cos(a);
   sinres := math.sin(a);
-
   return {
   	v.x * cosres - v.y * sinres,
   	v.x * sinres + v.y * cosres,

@@ -241,8 +241,8 @@ clear :: proc(color: maui.Color) {
   gl.Clear(gl.COLOR_BUFFER_BIT)
 }
 
-render :: proc(using renderer: ^Renderer, ctx: ^maui.Context) -> int {
-	layer = ctx.renderer
+render :: proc(using renderer: ^Renderer, ui: ^maui.UI) -> int {
+	layer = ui.renderer
 	if last_screen_size != layer.screen_size {
 		delete_big_fbo(renderer)
 		load_big_fbo(renderer)
@@ -292,8 +292,8 @@ render :: proc(using renderer: ^Renderer, ctx: ^maui.Context) -> int {
 	gl.VertexAttribPointer(uv_attrib_loc, 2, gl.FLOAT, gl.FALSE, size_of(maui.Vertex), 8)
 	gl.VertexAttribPointer(col_attrib_loc, 4, gl.UNSIGNED_BYTE, gl.TRUE, size_of(maui.Vertex), 16)
 
-	gl.BindTexture(gl.TEXTURE_2D, ctx.painter.atlas.texture.id)
-	render_meshes(renderer, ctx)
+	gl.BindTexture(gl.TEXTURE_2D, ui.painter.atlas.texture.id)
+	render_meshes(renderer, ui)
 
 	// Delete the temporary VAO
 	gl.DeleteVertexArrays(1, &vao_handle)
@@ -307,10 +307,10 @@ render :: proc(using renderer: ^Renderer, ctx: ^maui.Context) -> int {
 	return 0
 }
 
-render_meshes :: proc(using renderer: ^Renderer, ctx: ^maui.Context) {
-	for &layer in ctx.layer_agent.list {
+render_meshes :: proc(using renderer: ^Renderer, ui: ^maui.UI) {
+	for &layer in ui.layer_agent.list {
 		for index in layer.meshes {
-			mesh := &ctx.painter.meshes[index]
+			mesh := &ui.painter.meshes[index]
 			if clip, ok := mesh.clip.?; ok {
 				gl.Enable(gl.SCISSOR_TEST)
 				gl.Scissor(i32(clip.low.x), renderer.layer.screen_size.y - i32(clip.high.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))

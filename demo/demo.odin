@@ -23,36 +23,38 @@ _main :: proc() -> bool {
 	// Create the platform
 	platform := maui_glfw.make_platform(1200, 1000, "Maui", .OpenGL) or_return
 	// Create the renderer
-	renderer := maui_opengl.make_renderer() or_return
+	renderer := maui_opengl.make_renderer(platform.layer) or_return
 	// Set up the UI context
-	maui.ctx = new(maui.Context)
-	maui.ctx^ = maui.make_context(platform.layer, renderer.layer) or_return
+	ui := maui.make_ui(platform.layer, renderer.layer) or_return
 	// Begin the cycle
 	for maui_glfw.cycle(&platform, TARGET_FRAME_TIME) {
 		using maui 
 		using maui_widgets
 
 		// Beginning of ui calls
-		maui_glfw.begin(&platform, ctx)
-		begin()
+		maui_glfw.begin(&platform, &ui)
 
-		end()
+		begin_ui(&ui)
+		if was_clicked(button(&ui, {text = "click me! uwu"})) {
+			
+		}
+		end_ui(&ui)
 
 		// Update texture if necessary
-		if ctx.painter.atlas.should_update {
-			ctx.painter.atlas.should_update = false
-			update_texture(ctx.painter.atlas.texture, ctx.painter.atlas.image, 0, 0, f32(ctx.painter.atlas.image.width), f32(ctx.painter.atlas.image.height))
+		if ui.painter.atlas.should_update {
+			ui.painter.atlas.should_update = false
+			update_texture(ui.painter.atlas.texture, ui.painter.atlas.image, 0, 0, f32(ui.painter.atlas.image.width), f32(ui.painter.atlas.image.height))
 		}
 
 		// Render if needed
-		if maui.should_render() {
-			maui_opengl.clear(style.color.base[0])
-			maui_opengl.render(&renderer, ctx)
+		if maui.should_render(&ui.painter) {
+			maui_opengl.clear(ui.style.color.base[0])
+			maui_opengl.render(&renderer, &ui)
 			maui_glfw.end(&platform)
 		}
 	}
 
-	maui.destroy_context()	
+	maui.destroy_ui(&ui)	
 	maui_opengl.destroy_renderer(&renderer)
 	maui_glfw.destroy_platform(&platform)
 

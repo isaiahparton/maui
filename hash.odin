@@ -33,38 +33,38 @@ hash :: proc {
 	hash_loc,
 	hash_int,
 }
-hash_int :: #force_inline proc(num: int) -> Id {
-	hash := stack_top(&ctx.id_stack) or_else FNV1A32_OFFSET_BASIS
+hash_int :: #force_inline proc(ui: ^UI, num: int) -> Id {
+	hash := ui.id_stack.items[ui.id_stack.height - 1] if ui.id_stack.height > 0 else FNV1A32_OFFSET_BASIS
 	return hash ~ (Id(num) * FNV1A32_PRIME)
 }
-hash_string :: #force_inline proc(str: string) -> Id { 
-	return hash_bytes(transmute([]byte)str) 
+hash_string :: #force_inline proc(ui: ^UI, str: string) -> Id { 
+	return hash_bytes(ui, transmute([]byte)str) 
 }
-hash_rawptr :: #force_inline proc(data: rawptr, size: int) -> Id { 
-	return hash_bytes(([^]u8)(data)[:size])  
+hash_rawptr :: #force_inline proc(ui: ^UI, data: rawptr, size: int) -> Id { 
+	return hash_bytes(ui, ([^]u8)(data)[:size])  
 }
-hash_uintptr :: #force_inline proc(ptr: uintptr) -> Id { 
+hash_uintptr :: #force_inline proc(ui: ^UI, ptr: uintptr) -> Id { 
 	ptr := ptr
-	return hash_bytes(([^]u8)(&ptr)[:size_of(ptr)])  
+	return hash_bytes(ui, ([^]u8)(&ptr)[:size_of(ptr)])  
 }
-hash_bytes :: proc(bytes: []byte) -> Id {
-	return fnv32a(bytes, stack_top(&ctx.id_stack) or_else FNV1A32_OFFSET_BASIS)
+hash_bytes :: proc(ui: ^UI, bytes: []byte) -> Id {
+	return fnv32a(bytes, ui.id_stack.items[ui.id_stack.height - 1] if ui.id_stack.height > 0 else FNV1A32_OFFSET_BASIS)
 }
-hash_loc :: proc(loc: runtime.Source_Code_Location) -> Id {
-	hash := hash_bytes(transmute([]byte)loc.file_path)
+hash_loc :: proc(ui: ^UI, loc: runtime.Source_Code_Location) -> Id {
+	hash := hash_bytes(ui, transmute([]byte)loc.file_path)
 	hash = hash ~ (Id(loc.line) * FNV1A32_PRIME)
 	hash = hash ~ (Id(loc.column) * FNV1A32_PRIME)
 	return hash
 }
 
-push_id_int :: proc(num: int) {
-	stack_push(&ctx.id_stack, hash_int(num))
+push_id_int :: proc(ui: ^UI, num: int) {
+	stack_push(&ui.id_stack, hash_int(ui, num))
 }
-push_id_string :: proc(str: string) {
-	stack_push(&ctx.id_stack, hash_string(str))
+push_id_string :: proc(ui: ^UI, str: string) {
+	stack_push(&ui.id_stack, hash_string(ui, str))
 }
-push_id_other :: proc(id: Id) {
-	stack_push(&ctx.id_stack, id)
+push_id_other :: proc(ui: ^UI, id: Id) {
+	stack_push(&ui.id_stack, id)
 }
 push_id :: proc {
 	push_id_int,
@@ -72,6 +72,6 @@ push_id :: proc {
 	push_id_other,
 }
 
-pop_id :: proc() {
-	stack_pop(&ctx.id_stack)
+pop_id :: proc(ui: ^UI) {
+	stack_pop(&ui.id_stack)
 }

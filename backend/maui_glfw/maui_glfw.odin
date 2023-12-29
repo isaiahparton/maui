@@ -122,17 +122,17 @@ make_platform :: proc(width, height: int, title: string, api: backend.Render_API
 	return
 }
 
-begin :: proc(using platform: ^Platform, ctx: ^maui.Context) {
+begin :: proc(using platform: ^Platform, ui: ^maui.UI) {
 	width, height := glfw.GetFramebufferSize(window)
 	layer.screen_size = {width, height}
-	ctx.size = {f32(width), f32(height)}
+	ui.size = {f32(width), f32(height)}
 
-	ctx.current_time = glfw.GetTime()
-	if ctx.cursor == .None {
+	ui.current_time = glfw.GetTime()
+	if ui.cursor == .None {
 		glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
 	} else {
 		glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_NORMAL)
-		glfw.SetCursor(window, cursors[ctx.cursor])
+		glfw.SetCursor(window, cursors[ui.cursor])
 	}
 	glfw.PollEvents()
 	/*if point, ok := maui.ctx.set_cursor.?; ok {

@@ -30,7 +30,7 @@ Typing_Agent :: struct {
 	buffers: map[Id]Text_Buffer,
 }
 
-typing_agent_destroy :: proc(using self: ^Typing_Agent) {
+destroy_typing_agent :: proc(using self: ^Typing_Agent) {
 	for _, value in buffers {
 		delete(value.buffer)
 	}

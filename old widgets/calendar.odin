@@ -28,7 +28,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 		year, month, day := time.date(info.value^)
 		// Paint (kinda rhymes)
 		if .Should_Paint in self.bits {
-			paint_shaded_box(self.box, {ctx.style.color.indent_dark, ctx.style.color.indent, ctx.style.color.indent_light})
+			paint_shaded_box(self.box, {ui.style.color.indent_dark, ui.style.color.indent, ui.style.color.indent_light})
 			paint_label_box(tmp_printf("%2i/%2i/%4i", day, int(month), year), shrink_box(self.box, [2]f32{height(self.box) * 0.25, 0}), get_color(.Button_Base), .Left, .Middle)
 		}
 		// Activate!
@@ -56,7 +56,7 @@ do_date_picker :: proc(info: Date_Picker_Info, loc := #caller_location) -> (chan
 				// Temporary state
 				year, month, day := time.date(info.temp_value^)
 				// Fill
-				paint_shaded_box(layer.box, {ctx.style.color.base_light, ctx.style.color.base, ctx.style.color.base_dark})
+				paint_shaded_box(layer.box, {ui.style.color.base_light, ui.style.color.base, ui.style.color.base_dark})
 				// Stuff
 				shrink(10)
 				placement.side = .Top

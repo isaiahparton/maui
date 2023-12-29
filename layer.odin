@@ -1,6 +1,7 @@
 package maui
 import "core:fmt"
 import "core:slice"
+import "core:runtime"
 import "core:math"
 import "core:math/linalg"
 /*
@@ -167,7 +168,6 @@ Layer :: struct {
 
 
 Layer_Agent :: struct {
-	root_layer: ^Layer,
 	// Fixed memory arena
 	arena: Arena(Layer, MAX_LAYERS),
 	// Internal layer data
@@ -179,7 +179,7 @@ Layer_Agent :: struct {
 	should_sort: bool,
 	last_top_id, 
 	top_id: Id,
-	current_layer: ^Layer,
+	current: ^Layer,
 	// Current layer state
 	hover_id,
 	last_hover_id,
@@ -219,34 +219,20 @@ destroy_layer_agent :: proc(using self: ^Layer_Agent) {
 	self^ = {}
 }
 /*
-	Begin and end the root layer
-*/
-begin_root_layer :: proc(using self: ^Layer_Agent) -> (ok: bool) {
-	root_layer, ok = begin_layer({
-		id = 0,
-		placement = Box{{}, ctx.size}, 
-		options = {.No_ID},
-	})
-	return
-}
-end_root_layer :: proc(using self: ^Layer_Agent) {
-	end_layer(root_layer)
-}
-/*
 	Update a layer agent
 */
-update_layer_agent :: proc(using self: ^Layer_Agent) {
+update_layers :: proc(ui: ^UI) {
 	sorted_layer: ^Layer
-	last_focus_id = focus_id
-	last_hover_id = hover_id
-	hover_id = 0
-	for layer, i in list {
+	ui.layers.last_focus_id = ui.layers.focus_id
+	ui.layers.last_hover_id = ui.layers.hover_id
+	ui.layers.hover_id = 0
+	for layer, i in ui.layers.list {
 		if .Stay_Alive in layer.bits {
 			layer.bits -= {.Stay_Alive}
 			if point_in_box(input.mouse_point, layer.box) {
-				hover_id = layer.id
+				ui.layers.hover_id = layer.id
 				if mouse_pressed(.Left) {
-					focus_id = layer.id
+					ui.layers.focus_id = layer.id
 					if .No_Sorting not_in layer.options {
 						sorted_layer = layer
 					}
@@ -258,7 +244,7 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 			}
 
 			//NOTE: Should children be left to be deleted separately? (probably yes)
-			delete_key(&pool, layer.id)
+			delete_key(&ui.layers.pool, layer.id)
 			if parent, ok := layer.parent.?; ok {
 				for child, j in parent.children {
 					if child == layer {
@@ -268,9 +254,9 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 				}
 			}
 			destroy_layer(layer)
-			should_sort = true
+			ui.layers.should_sort = true
 
-			ctx.painter.next_frame = true
+			ui.painter.next_frame = true
 		}
 	}
 	// If a sorted layer was selected, then find it's root attached parent
@@ -278,7 +264,7 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 		child := sorted_layer
 		for {
 			if parent, ok := child.parent.?; ok {
-				top_id = child.id
+				ui.layers.top_id = child.id
 				sorted_layer = child
 				child = parent
 			} else {
@@ -287,11 +273,11 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 		}
 	}
 	// Then reorder it with it's siblings
-	if top_id != last_top_id {
+	if ui.layers.top_id != ui.layers.last_top_id {
 		if parent, ok := sorted_layer.parent.?; ok {
 			for child in parent.children {
 				if child.order == sorted_layer.order {
-					if child.id == top_id {
+					if child.id == ui.layers.top_id {
 						child.index = len(parent.children)
 					} else {
 						child.index -= 1
@@ -299,20 +285,20 @@ update_layer_agent :: proc(using self: ^Layer_Agent) {
 				}
 			}
 		}
-		should_sort = true
-		last_top_id = top_id
+		ui.layers.should_sort = true
+		ui.layers.last_top_id = ui.layers.top_id
 	}
 	// Sort the layers
-	if should_sort {
-		should_sort = false
+	if ui.layers.should_sort {
+		ui.layers.should_sort = false
 
-		clear(&list)
-		sort_layer(&list, root_layer)
+		clear(&ui.layers.list)
+		sort_layer(&ui.layers.list, ui.root_layer)
 	}
 }
 
-create_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
-	handle := arena_allocate(&arena) or_return
+create_layer :: proc(ui: ^UI, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
+	handle := arena_allocate(&ui.layers.arena) or_return
 	layer = &handle.?
 	ok = true
 	// Initiate the layer
@@ -321,43 +307,42 @@ create_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -
 		opacity = 0 if .Invisible in options else 1,
 	}
 	// Append the new layer
-	append(&list, layer)
-	pool[id] = layer
-	if stack.height > 0 {
-		parent := current_layer if .Attached in options else root_layer
+	append(&ui.layers.list, layer)
+	ui.layers.pool[id] = layer
+	if ui.layers.stack.height > 0 {
+		parent := ui.layers.current if .Attached in options else ui.root_layer
 		append(&parent.children, layer)
 		layer.parent = parent
 		layer.index = len(parent.children)
 	}
 	// Will sort layers this frame
-	should_sort = true
-	ctx.painter.next_frame = true
-
+	ui.layers.should_sort = true
+	ui.painter.next_frame = true
+	// Debug info
 	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
 		fmt.printf("+ Layer %x\n", id)
 	}
-
 	return
 }
 
-assert_layer :: proc(using self: ^Layer_Agent, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
-	layer, ok = pool[id]
+get_layer :: proc(ui: ^UI, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
+	layer, ok = ui.layers.pool[id]
 	if !ok {
-		layer, ok = create_layer(self, id, options)
+		layer, ok = create_layer(ui, id, options)
 	}
 	assert(ok)
 	assert(layer != nil)
 	return
 }
 
-push_layer :: proc(using self: ^Layer_Agent, layer: ^Layer) {
-	stack_push(&stack, layer)
-	current_layer = stack_top(&stack)
+push_layer :: proc(ui: ^UI, layer: ^Layer) {
+	stack_push(&ui.layers.stack, layer)
+	ui.layers.current = stack_top(&ui.layers.stack)
 }
 
-pop_layer :: proc(using self: ^Layer_Agent) {
-	stack_pop(&stack)
-	current_layer = stack_top(&stack)
+pop_layer :: proc(ui: ^UI) {
+	stack_pop(&ui.layers.stack)
+	ui.layers.current = stack_top(&ui.layers.stack)
 }
 
 destroy_layer :: proc(self: ^Layer) {
@@ -367,36 +352,32 @@ destroy_layer :: proc(self: ^Layer) {
 	self^ = {}
 }
 
-@(deferred_out=_do_layer)
-do_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
+@(deferred_in_out=_do_layer)
+do_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	info := info
-	info.id = info.id.? or_else hash(loc)
-	return begin_layer(info)
+	info.id = info.id.? or_else hash(ui, loc)
+	return begin_layer(ui, info)
 }
 
 @private
-_do_layer :: proc(self: ^Layer, ok: bool) {
+_do_layer :: proc(ui: ^UI, _: Layer_Info, _: runtime.Source_Code_Location, self: ^Layer, ok: bool) {
 	if ok {
-		end_layer(self)
+		end_layer(ui, self)
 	}
 }
 
-current_layer :: proc() -> ^Layer {
-	assert(ctx.layer_agent.current_layer != nil)
-	return ctx.layer_agent.current_layer
+current_layer :: proc(ui: ^UI) -> ^Layer {
+	assert(ui.layers.current != nil)
+	return ui.layers.current
 }
 // Begins a new layer, the layer is created if it doesn't exist
 // and is managed internally
-begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
-	agent := &ctx.layer_agent
+begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
+	agent := &ui.layers
 
-	if self, ok = assert_layer(
-		self = agent,
-		id = info.id.? or_else panic("Must define a layer id", loc),
-		options = info.options,
-	); ok {
+	if self, ok = get_layer(ui, info.id.? or_else panic("Must define a layer id", loc), info.options); ok {
 		// Push layer stack
-		push_layer(&ctx.layer_agent, self)
+		push_layer(ui, self)
 
 		// Set sort order
 		self.order = info.order.? or_else self.order
@@ -408,7 +389,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 
 		// Begin id context for layer contents
 		if .No_ID not_in self.options {
-			push_id(self.id)
+			push_id(ui, self.id)
 			self.bits += {.Did_Push_ID}
 		} else {
 			self.bits -= {.Did_Push_ID}
@@ -457,20 +438,20 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		self.bits += {.Stay_Alive}
 		//IMPORTANT: Set opacity before painting anything
 		self.opacity = info.opacity.? or_else self.opacity
-		ctx.painter.opacity = self.opacity
+		ui.painter.opacity = self.opacity
 		// Reset draw command
 		clear(&self.meshes)
 		// Paint shadow if needed
 		if shadow, ok := info.shadow.?; ok {
-			if target, ok := get_draw_target(&ctx.painter); ok {
-				ctx.painter.target = target
-				append(&self.meshes, ctx.painter.target)
-				paint_rounded_box_shadow(move_box(expand_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
+			if target, ok := get_draw_target(&ui.painter); ok {
+				ui.painter.target = target
+				append(&self.meshes, ui.painter.target)
+				paint_rounded_box_shadow(&ui.painter, move_box(expand_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
 			}
 		}
 		// Append draw target
-		ctx.painter.target = get_draw_target(&ctx.painter) or_return
-		append(&self.meshes, ctx.painter.target)
+		ui.painter.target = get_draw_target(&ui.painter) or_return
+		append(&self.meshes, ui.painter.target)
 		// Apply inner padding
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
 		// Hovering and stuff
@@ -489,30 +470,30 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Horizontal scrolling
 		if (self.space.x > width(self.box)) && (.No_Scroll_X not_in self.options) {
 			self.bits += {.Scroll_X}
-			self.scrollbar_time.x = min(1, self.scrollbar_time.x + ctx.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.x = min(1, self.scrollbar_time.x + ui.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.Scroll_X}
-			self.scrollbar_time.x = max(0, self.scrollbar_time.x - ctx.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.x = max(0, self.scrollbar_time.x - ui.delta_time * SCROLL_LERP_SPEED)
 		}
 		if .No_Scroll_Margin_Y not_in self.options && self.space.y <= height(self.box) {
 			self.space.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE
 		}
 		if self.scrollbar_time.x > 0 && self.scrollbar_time.x < 1 {
-			ctx.painter.next_frame = true
+			ui.painter.next_frame = true
 		}
 		// Vertical scrolling
 		if (self.space.y > height(self.box)) && (.No_Scroll_Y not_in self.options) {
 			self.bits += {.Scroll_Y}
-			self.scrollbar_time.y = min(1, self.scrollbar_time.y + ctx.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.y = min(1, self.scrollbar_time.y + ui.delta_time * SCROLL_LERP_SPEED)
 		} else {
 			self.bits -= {.Scroll_Y}
-			self.scrollbar_time.y = max(0, self.scrollbar_time.y - ctx.delta_time * SCROLL_LERP_SPEED)
+			self.scrollbar_time.y = max(0, self.scrollbar_time.y - ui.delta_time * SCROLL_LERP_SPEED)
 		}
 		if .No_Scroll_Margin_X not_in self.options && self.space.x <= width(self.box) {
 			self.space.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE
 		}
 		if self.scrollbar_time.y > 0 && self.scrollbar_time.y < 1 {
-			ctx.painter.next_frame = true
+			ui.painter.next_frame = true
 		}
 
 		self.content_box = {self.box.high, self.box.low}
@@ -562,7 +543,7 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 		// Apply scroll padding
 		layout_box.high -= self.scrollbar_time * SCROLL_BAR_SIZE
 		// Push layout
-		layout := push_layout(layout_box)
+		layout := push_layout(ui, layout_box)
 		// Extending layout
 		if side, ok := info.grow.?; ok {
 			#partial switch side {
@@ -581,14 +562,14 @@ begin_layer :: proc(info: Layer_Info, loc := #caller_location) -> (self: ^Layer,
 	return
 }
 // Called for every 'BeginLayer' that is called
-end_layer :: proc(self: ^Layer) {
+end_layer :: proc(ui: ^UI, self: ^Layer) {
 	if self != nil {
 		// Pop layout
-		layout := current_layout()
+		layout := current_layout(ui)
 		if layout.grow != nil {
 			self.space = layout.box.high - layout.original_box.low
 		}
-		pop_layout()
+		pop_layout(ui)
 		
 		// Detect clipping
 		clip_box := self.box
@@ -600,13 +581,13 @@ end_layer :: proc(self: ^Layer) {
 						linalg.clamp(clip_box.low, parent.box.low, parent.box.high),
 						linalg.clamp(clip_box.high, parent.box.low, parent.box.high),
 					}
-					ctx.painter.meshes[ctx.painter.target].clip = clip_box
+					ui.painter.meshes[ui.painter.target].clip = clip_box
 				}
 			}
 		}
-		if (clip_box != Box{{}, ctx.size} && !box_in_box(clip_box, self.content_box)) || (.Force_Clip in self.options) {
+		if (clip_box != Box{{}, ui.size} && !box_in_box(clip_box, self.content_box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
-			ctx.painter.meshes[ctx.painter.target].clip = self.clip_box
+			ui.painter.meshes[ui.painter.target].clip = self.clip_box
 		}
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {
@@ -619,13 +600,13 @@ end_layer :: proc(self: ^Layer) {
 		}
 		// Repaint if scrolling with wheel
 		if linalg.floor(self.scroll_target - self.scroll) != {} {
-			ctx.painter.next_frame = true
+			ui.painter.next_frame = true
 		}
 		// Clamp scrolling
 		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
 		self.scroll_target.y = clamp(self.scroll_target.y, 0, max_scroll.y)
 		// Interpolate scrolling
-		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * ctx.delta_time
+		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * ui.delta_time
 		// Manifest scroll bars
 		if self.scrollbar_time.x > 0 {
 			// Horizontal scrolling
@@ -633,15 +614,15 @@ end_layer :: proc(self: ^Layer) {
 			box.high.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.y -= SCROLL_BAR_PADDING
 			box.low.x += SCROLL_BAR_PADDING
-			if changed, new_value := do_scrollbar({
+			if result := do_scrollbar(ui, {
 				box = box,
 				value = self.scroll.x, 
 				low = 0, 
 				high = max_scroll.x, 
 				knob_size = max(SCROLL_BAR_SIZE * 2, width(box) * width(self.box) / self.space.x),
-			}); changed {
-				self.scroll.x = new_value
-				self.scroll_target.x = new_value
+			}); result.changed {
+				self.scroll.x = result.value
+				self.scroll_target.x = result.value
 			}
 		}
 		if self.scrollbar_time.y > 0 {
@@ -650,16 +631,16 @@ end_layer :: proc(self: ^Layer) {
 			box.high.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.x -= SCROLL_BAR_PADDING
 			box.low.y += SCROLL_BAR_PADDING
-			if change, new_value := do_scrollbar({
+			if result := do_scrollbar(ui, {
 				box = box,
 				value = self.scroll.y, 
 				low = 0, 
 				high = max_scroll.y, 
 				knob_size = max(SCROLL_BAR_SIZE * 2, height(box) * height(self.box) / self.space.y), 
 				vertical = true,
-			}); change {
-				self.scroll.y = new_value
-				self.scroll_target.y = new_value
+			}); result.changed {
+				self.scroll.y = result.value
+				self.scroll_target.y = result.value
 			}
 		}
 		// Handle content clipping
@@ -676,14 +657,14 @@ end_layer :: proc(self: ^Layer) {
 		}
 		// End id context
 		if .Did_Push_ID in self.bits {
-			pop_id()
+			pop_id(ui)
 		}
 	}
-	pop_layer(&ctx.layer_agent)
-	if ctx.layer_agent.stack.height > 0 {
-		layer := current_layer()
+	pop_layer(ui)
+	if ui.layers.stack.height > 0 {
+		layer := current_layer(ui)
 
-		ctx.painter.opacity = layer.opacity
-		ctx.painter.target = layer.meshes[len(layer.meshes) - 1]
+		ui.painter.opacity = layer.opacity
+		ui.painter.target = layer.meshes[len(layer.meshes) - 1]
 	}
 }

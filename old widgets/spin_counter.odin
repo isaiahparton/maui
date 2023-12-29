@@ -30,7 +30,7 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 		update_widget(self)
 
 		if .Should_Paint in self.bits {
-			paint_rounded_box_fill(self.box, ctx.style.rounding, ctx.style.color.substance[0])
+			paint_rounded_box_fill(self.box, ui.style.rounding, ui.style.color.substance[0])
 
 			digits_box := self.box
 			text := tmp_print(info.value)
@@ -61,11 +61,11 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 					}
 					// Paint a rune clipped to this box
 					paint_clipped_aligned_rune(
-						ctx.style.font.monospace, 
-						ctx.style.text_size.label, 
+						ui.style.font.monospace, 
+						ui.style.text_size.label, 
 						r, 
 						center(digit_box) + {0, f32(mod_offset) + f32(j - 1) * digit_size.y}, 
-						ctx.style.color.base_text[int(i < len(text) && a > 0)], 
+						ui.style.color.base_text[int(i < len(text) && a > 0)], 
 						{.Middle, .Middle},
 						digit_box,
 					)

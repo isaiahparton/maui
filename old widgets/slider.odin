@@ -61,25 +61,25 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 				r := f32(info.high - info.low)
 				for entry in info.guides.? {
 					x := bar_box.low.x + HALF_THICKNESS + range * (f32(entry - info.low) / r)
-					paint_line({x, bar_box.low.y}, {x, bar_box.low.y - 10}, 1, ctx.style.color.substance[1])
+					paint_line({x, bar_box.low.y}, {x, bar_box.low.y - 10}, 1, ui.style.color.substance[1])
 					paint_text(
 						{x, bar_box.low.y - 12}, 
-						{text = tmp_print(format, entry), font = ctx.style.font.title, size = ctx.style.text_size.title}, 
+						{text = tmp_print(format, entry), font = ui.style.font.title, size = ui.style.text_size.title}, 
 						{align = .Middle, baseline = .Bottom}, 
-						ctx.style.color.base_text[1],
+						ui.style.color.base_text[1],
 						)
 				}
 			}
 			// Paint the filled part of the body
 			switch info.orientation {
 				case .Horizontal: 
-				paint_pill_fill_h({{min(bar_box.low.x + offset, bar_box.low.y), bar_box.low.y}, {bar_box.high.x, bar_box.high.y}}, ctx.style.color.substance[0])
-				paint_pill_fill_h({bar_box.low, {max(bar_box.low.x, bar_box.low.x + offset), bar_box.high.y}}, ctx.style.color.accent[0])
+				paint_pill_fill_h({{min(bar_box.low.x + offset, bar_box.low.y), bar_box.low.y}, {bar_box.high.x, bar_box.high.y}}, ui.style.color.substance[0])
+				paint_pill_fill_h({bar_box.low, {max(bar_box.low.x, bar_box.low.x + offset), bar_box.high.y}}, ui.style.color.accent[0])
 				case .Vertical: 
-				paint_pill_fill_v({bar_box.low, {bar_box.high.x, bar_box.high.y - (offset)}}, ctx.style.color.substance[0])
-				paint_pill_fill_v({{bar_box.low.x, bar_box.high.y - (offset)}, bar_box.high}, ctx.style.color.accent[0])
+				paint_pill_fill_v({bar_box.low, {bar_box.high.x, bar_box.high.y - (offset)}}, ui.style.color.substance[0])
+				paint_pill_fill_v({{bar_box.low.x, bar_box.high.y - (offset)}, bar_box.high}, ui.style.color.accent[0])
 			}
-			paint_circle_fill_texture(knob_center, RADIUS, alpha_blend_colors(ctx.style.color.accent[1], ctx.style.color.accent_hover, hover_time * 0.1))
+			paint_circle_fill_texture(knob_center, RADIUS, alpha_blend_colors(ui.style.color.accent[1], ui.style.color.accent_hover, hover_time * 0.1))
 		}
 		// Add a tooltip if hovered
 		if hover_time > 0 {
@@ -145,9 +145,9 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 		if self.bits >= {.Should_Paint} {
 			if .Active not_in self.bits {
 				if info.low < info.high {
-					paint_box_fill({self.box.low, {self.box.low.x + box_width * (f32(info.value - info.low) / f32(info.high - info.low)), self.box.high.y}}, ctx.style.color.accent[1])
+					paint_box_fill({self.box.low, {self.box.low.x + box_width * (f32(info.value - info.low) / f32(info.high - info.low)), self.box.high.y}}, ui.style.color.accent[1])
 				} else {
-					paint_box_fill(self.box, ctx.style.color.accent[1])
+					paint_box_fill(self.box, ui.style.color.accent[1])
 				}
 			}
 		}
@@ -160,7 +160,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 			// Get the buffer
 			buffer := typing_agent_get_buffer(&ctx.typing_agent, self.id)
 			// Do interactable text
-			text_res := paint_interact_text(box_center(self.box), self, &ctx.typing_agent, {text = string(buffer[:]), font = ctx.style.font.monospace, size = ctx.style.text_size.field}, {align = .Middle, baseline = .Middle}, {}, ctx.style.color.base_text[1])
+			text_res := paint_interact_text(box_center(self.box), self, &ctx.typing_agent, {text = string(buffer[:]), font = ui.style.font.monospace, size = ui.style.text_size.field}, {align = .Middle, baseline = .Middle}, {}, ui.style.color.base_text[1])
 			// Copy text to buffer when focused
 			if .Got_Focus in self.state {
 				resize(buffer, len(text))
@@ -180,7 +180,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 			}
 		} else {
 			center := box_center(self.box)
-			paint_text(center, {font = painter.ctx.style.default_font, size = painter.ctx.style.default_font_size, text = text}, {align = .Middle, baseline = .Middle}, get_color(.Text, 0.5))
+			paint_text(center, {font = painter.ui.style.default_font, size = painter.ui.style.default_font_size, text = text}, {align = .Middle, baseline = .Middle}, get_color(.Text, 0.5))
 			if .Pressed in self.state {
 				if info.low < info.high {
 					new_value = T(f32(info.low) + clamp((input.mouse_point.x - self.box.low.x) / box_width, 0, 1) * f32(info.high - info.low))

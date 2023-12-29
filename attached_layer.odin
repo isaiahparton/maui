@@ -31,7 +31,7 @@ Attached_Layer_Result :: struct {
 }
 
 // Main attached layer functionality
-begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Layer_Result, ok: bool) {
+begin_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info) -> (result: Attached_Layer_Result, ok: bool) {
 	if widget, is_widget := info.parent.(^Widget); is_widget {
 		ok = .Menu_Open in widget.bits
 		if .Menu_Open not_in widget.bits {
@@ -72,7 +72,7 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 		}
 
 		// Begin the new layer
-		result.self, ok = begin_layer({
+		result.self, ok = begin_layer(ui, {
 			id = info.id.? or_else info.parent.(^Widget).id, 
 			placement = placement_info,
 			grow = info.grow,
@@ -85,47 +85,47 @@ begin_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Lay
 		if ok {
 			// Paint the fill color
 			if info.fill_color != nil {
-				paint_box_fill(result.self.box, info.fill_color.?)
+				paint_box_fill(&ui.painter, result.self.box, info.fill_color.?)
 			}
 		}
 	}
 	return
 }
 
-end_attached_layer :: proc(info: Attached_Layer_Info, layer: ^Layer) {
+end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 	// Check if the layer was dismissed by input
-	if widget, ok := layer.owner.?; ok {
+	if wdg, ok := layer.owner.?; ok {
 		dismiss: bool
 		switch info.mode {
 			case .Focus:
-			dismiss = (.Focused not_in widget.state | widget.last_state) && (layer.state & {.Focused} == {})
+			dismiss = (.Focused not_in (wdg.state | wdg.last_state)) && (layer.state & {.Focused} == {})
 			case .Hover:
-			dismiss = (.Hovered not_in widget.state) && (.Hovered not_in layer.state | layer.last_state)
+			dismiss = (.Hovered not_in wdg.state) && (.Hovered not_in (layer.state | layer.last_state))
 		}
 		if .Dismissed in layer.bits || dismiss || key_pressed(.Escape) {
-			widget.bits -= {.Menu_Open}
-			ctx.painter.next_frame = true
+			wdg.bits -= {.Menu_Open}
+			ui.painter.next_frame = true
 			if dismiss {
-				ctx.open_menus = false
+				ui.open_menus = false
 			}
 		}
 	}
 
 	// Paint stroke color
 	if info.stroke_color != nil {
-		paint_rounded_box_stroke(layer.box, ctx.style.rounding, 2, info.stroke_color.?)
+		paint_rounded_box_stroke(&ui.painter, layer.box, ui.style.rounding, 2, info.stroke_color.?)
 	}
 
 	// End the layer
-	end_layer(layer)
+	end_layer(ui, layer)
 }
 
 @(deferred_in_out=_do_attached_layer)
-do_attached_layer :: proc(info: Attached_Layer_Info) -> (result: Attached_Layer_Result, ok: bool) {
-	return begin_attached_layer(info)
+do_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info) -> (result: Attached_Layer_Result, ok: bool) {
+	return begin_attached_layer(ui, info)
 }
-_do_attached_layer :: proc(info: Attached_Layer_Info, result: Attached_Layer_Result, ok: bool) {
+_do_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, result: Attached_Layer_Result, ok: bool) {
 	if ok {
-		end_attached_layer(info, result.self)
+		end_attached_layer(ui, info, result.self)
 	}
 }

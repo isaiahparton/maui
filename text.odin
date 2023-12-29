@@ -675,7 +675,7 @@ paint_interact_text :: proc(origin: [2]f32, widget: ^Widget, agent: ^Typing_Agen
 		}
 	}
 	// Update selection
-	if .Got_Press in widget.state {
+	if .Pressed in (widget.state - widget.last_state) {
 		if widget.click_count == 2 {
 			// Select everything
 			agent.index = strings.last_index_byte(text_info.text[:hover_index], '\n') + 1

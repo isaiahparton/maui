@@ -65,13 +65,26 @@ Generic_Widget_Info :: struct {
 	options: Widget_Options,
 }
 Generic_Widget_Result :: struct {
-	id: Id,
-	box: Box,
-	state,
-	last_state: Widget_State,
-	press_count: Maybe(int),
-	time_held: Maybe(time.Duration),
-	time_hovered: Maybe(time.Duration),
+	self: Maybe(^Widget),
+}
+/*
+	If a widget was pressed and released without being unhovered
+*/
+was_clicked :: proc(result: Generic_Widget_Result, button: Mouse_Button = .Left, times: int = 1) -> bool {
+	widget := result.self.?
+	return .Clicked in widget.state && widget.click_button == button && widget.click_count >= times
+}
+is_hovered :: proc(result: Generic_Widget_Result) -> bool {
+	widget := result.self.?
+	return .Hovered in widget.state
+}
+was_hovered :: proc(result: Generic_Widget_Result, duration: time.Duration) -> bool {
+	widget := result.self.?
+	return time.since(widget.click_time) >= duration
+}
+was_changed :: proc(result: Generic_Widget_Result) -> bool {
+	widget := result.self.?
+	return .Changed in widget.state
 }
 /*
 	Generic widget state
@@ -83,9 +96,12 @@ Widget :: struct {
 	options: Widget_Options,
 	state,
 	last_state: Widget_State,
+	click_time,
+	hover_time,
+	press_time: time.Time,
 	click_button: Mouse_Button,
-	click_time: time.Time,
 	click_count: int,
+	timers: [3]f32,
 	// Parent layer (set each frame when widget is invoked)
 	layer: ^Layer,
 }
@@ -95,7 +111,6 @@ Widget :: struct {
 Widget_Agent :: struct {
 	list: [dynamic]^Widget,
 	stack: Stack(^Widget, 8),
-	current_widget: ^Widget,
 	// Drag anchor
 	drag_anchor: Maybe([2]f32),
 	last_hover_id, 
@@ -106,36 +121,34 @@ Widget_Agent :: struct {
 	next_focus_id,
 	focus_id,
 	last_focus_id: Id,
-	// Action timestamps
-	press_time,
-	hover_time: time.Time,
 }
 /*
 	Ensure that a widget with this id exists
+	IMPORTANT: Must always return a valid ^Widget
 */
-get_widget :: proc(id: Id) -> (wgt: ^Widget, ok: bool) {
-	layer := current_layer()
-	wgt, ok = layer.contents[id]
+get_widget :: proc(ui: ^UI, id: Id) -> (^Widget, Generic_Widget_Result) {
+	layer := current_layer(ui)
+	widget, ok := layer.contents[id]
 	if !ok {
 		// Allocate a new widget
-		wgt = new(Widget)
-		wgt^ = {
+		widget = new(Widget)
+		widget^ = {
 			id = id,
 		}
 		// Add the widget to the list
-		append(&list, wgt)
+		append(&ui.widget_agent.list, widget)
 		// Assign the widget to the layer
-		layer.contents[id] = wgt
+		layer.contents[id] = widget
 		// Paint the next frame
-		ctx.painter.next_frame = true
+		ui.painter.next_frame = true
 		// Debug info
 		when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
 			fmt.printf("+ Widget %x\n", id)
 		}
-		ok = true
 	}
-	wdt.layer = layer
-	return
+	widget.layer = layer
+
+	return widget, Generic_Widget_Result{self = widget}
 }
 /*
 	Free the memory belonging to a widget agent
@@ -149,7 +162,7 @@ destroy_widget_agent :: proc(using self: ^Widget_Agent) {
 /*
 	Update general ids of widget agent
 */
-update_widget_agent :: proc(using self: ^Widget_Agent) {
+update_widgets :: proc(ui: ^UI) {
 	last_hover_id = hover_id
 	last_press_id = press_id
 	last_focus_id = focus_id
@@ -159,7 +172,7 @@ update_widget_agent :: proc(using self: ^Widget_Agent) {
 		hover_id = press_id
 	}
 	// Keyboard navigation
-	if ctx.is_key_selecting {
+	if ui.is_key_selecting {
 		hover_id = focus_id
 		if key_pressed(.Enter) {
 			press_id = hover_id
@@ -193,7 +206,7 @@ update_widget_agent :: proc(using self: ^Widget_Agent) {
 			// Remove from list
 			ordered_remove(&list, i)
 			// Make sure we paint the next frame
-			ctx.painter.next_frame = true
+			ui.painter.next_frame = true
 		}
 	}
 }
@@ -201,8 +214,8 @@ update_widget_agent :: proc(using self: ^Widget_Agent) {
 	Try to update a widget's hover state
 */
 update_widget_hover :: proc(wdg: ^Widget, condition: bool) {
-	if !(ctx.widget_agent.dragging && wdg.id != ctx.widget_agent.hover_id) && ctx.layer_agent.hover_id == wdg.layer.id && condition {
-		ctx.widget_agent.next_hover_id = wdg.id
+	if !(ui.widget_agent.drag_anchor != nil && wdg.id != ui.widget_agent.hover_id) && ui.layer_agent.hover_id == wdg.layer.id && condition {
+		ui.widget_agent.next_hover_id = wdg.id
 	}
 }
 /*
@@ -210,7 +223,7 @@ update_widget_hover :: proc(wdg: ^Widget, condition: bool) {
 	TODO: Move this
 */
 update_widget_state :: proc(wdg: ^Widget) {
-	using ctx.widget_agent
+	using ui.widget_agent
 	// If hovered
 	if hover_id == wdg.id {
 		wdg.state += {.Hovered}
@@ -271,51 +284,45 @@ update_widget :: proc(wdg: ^Widget) {
 	// Prepare widget
 	wdg.state = {}
 	wdg.bits += {.Stay_Alive}
-	if ctx.disabled {
+	if ui.disabled {
 		wdg.bits += {.Disabled}
 	} else {
 		wdg.bits -= {.Disabled}
 	}
-	if ctx.painter.this_frame && get_clip(current_layer().box, wdg.box) != .Full {
+	if ui.painter.this_frame && get_clip(current_layer().box, wdg.box) != .Full {
 		wdg.bits += {.Should_Paint}
 	} else {
 		wdg.bits -= {.Should_Paint}
 	}
 
-	ctx.last_box = wdg.box
+	ui.last_box = wdg.box
 	// Get input
-	if !ctx.disabled {
-		widget_agent_update_state(&ctx.widget_agent, w)
+	if !ui.disabled {
+		update_widget_state(wdg)
 	}
 }
 /*
 	Context deferred helper proc pair for unique widgets
 */
-@(deferred_out=_do_widget)
-do_widget :: proc(id: Id, options: Widget_Options = {}, tooltip: Maybe(Tooltip_Info) = nil) -> (wgt: ^Widget, ok: bool) {
+@(deferred_in_out=_do_widget)
+do_widget :: proc(ui: ^UI, id: Id, options: Widget_Options = {}, tooltip: Maybe(Tooltip_Info) = nil) -> (wgt: ^Widget, ok: bool) {
 	// Check if clipped
 	wgt = get_widget(id) or_return
 	// Deploy tooltip
-	if tooltip, ok := tooltip; ok { 
-		if wgt.state >= {.Hovered} && time.since(ctx.widget_agent.hover_time) > time.Millisecond * 500 {
-			tooltip_box(wgt.id, tooltip.?.text, wgt.box, tooltip.?.box_side, 10)
+	if tooltip, ok := tooltip.?; ok { 
+		if wgt.state >= {.Hovered} && time.since(ui.widget_agent.hover_time) > time.Millisecond * 500 {
+			tooltip_box(wgt.id, tooltip.text, wgt.box, tooltip.box_side, 10)
 		}
 	}
 	wgt.options = options
 	return
 }
 @private
-_do_widget :: proc(wgt: ^Widget, ok: bool) {
+_do_widget :: proc(ui: ^UI, _: Id, _: Widget_Options, _: Maybe(Tooltip_Info), wgt: ^Widget, ok: bool) {
 	if ok {
-		// Pop widget stack
-		widget_agent_pop(&ctx.widget_agent)
 		// Update the parent layer's content box
 		wgt.layer.content_box = update_bounding_box(wgt.layer.content_box, wgt.box)
 	}
-}
-// Helper procs
-widget_clicked :: proc(using self: ^Widget, button: Mouse_Button, times: int = 1) -> bool {
-	return .Clicked in state && click_button == button && click_count >= times - 1
 }
 /*
 	Tooltips

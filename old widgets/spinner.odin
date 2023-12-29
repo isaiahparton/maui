@@ -23,7 +23,7 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	using maui
 	loc := loc
 	new_value = info.value
-	prev_rounded_corners := ctx.style.rounded_corners
+	prev_rounded_corners := ui.style.rounded_corners
 	// Sub-widget boxes
 	box := layout_next(current_layout())
 	increase_box, decrease_box: Box
@@ -32,11 +32,11 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		buttons_box := cut_box_right(&box, box_size.y)
 		increase_box = get_box_top(buttons_box, box_size.y / 2)
 		decrease_box = get_box_bottom(buttons_box, box_size.y / 2)
-		ctx.style.rounded_corners = prev_rounded_corners & {.Top_Left, .Bottom_Left}
+		ui.style.rounded_corners = prev_rounded_corners & {.Top_Left, .Bottom_Left}
 	} else {
 		increase_box = cut_box_top(&box, box_size.x / 2)
 		decrease_box = cut_box_bottom(&box, box_size.x / 2)
-		ctx.style.rounded_corners = {}
+		ui.style.rounded_corners = {}
 	}
 	increment := info.increment.? or_else T(1)
 	// Number input
@@ -51,23 +51,23 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 	// Decrease button
 	set_next_box(decrease_box)
 	if info.orientation == .Horizontal {
-		ctx.style.rounded_corners = prev_rounded_corners & {.Bottom_Right}
+		ui.style.rounded_corners = prev_rounded_corners & {.Bottom_Right}
 	} else {
-		ctx.style.rounded_corners = prev_rounded_corners & {.Bottom_Left, .Bottom_Right}
+		ui.style.rounded_corners = prev_rounded_corners & {.Bottom_Left, .Bottom_Right}
 	}
 	if do_button({
 		align = .Middle,
 	}, loc) {
 		new_value -= increment
 	}
-	paint_arrow(box_center(ctx.last_box), 5, 0, 1, ctx.style.color.substance_text[1])
+	paint_arrow(box_center(ctx.last_box), 5, 0, 1, ui.style.color.substance_text[1])
 	loc.column += 1
 	// Increase button
 	set_next_box(increase_box)
 	if info.orientation == .Horizontal {
-		ctx.style.rounded_corners = prev_rounded_corners & {.Top_Right}
+		ui.style.rounded_corners = prev_rounded_corners & {.Top_Right}
 	} else {
-		ctx.style.rounded_corners = prev_rounded_corners & {.Top_Left, .Top_Right}
+		ui.style.rounded_corners = prev_rounded_corners & {.Top_Left, .Top_Right}
 	}
 	if do_button({
 		align = .Middle,
@@ -75,8 +75,8 @@ do_spinner :: proc(info: Spinner_Info($T), loc := #caller_location) -> (new_valu
 		new_value += increment
 	}
 	// Draw up arrow
-	ctx.style.rounded_corners = prev_rounded_corners
-	paint_arrow(box_center(ctx.last_box), 5, -math.PI, 1, ctx.style.color.substance_text[1])
+	ui.style.rounded_corners = prev_rounded_corners
+	paint_arrow(box_center(ctx.last_box), 5, -math.PI, 1, ui.style.color.substance_text[1])
 	// Clamp value
 	if new_value != info.value {
 		if low, ok := info.low.?; ok {

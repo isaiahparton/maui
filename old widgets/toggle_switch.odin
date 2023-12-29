@@ -42,16 +42,16 @@ do_toggle_switch :: proc(info: Toggle_Switch_Info, loc := #caller_location) -> (
 			thumb_center: [2]f32 = self.box.low + {offset, RADIUS}
 			back_color: Color = {0, 150, 255, 100}
 			// Background
-			paint_pill_fill_h(self.box, ctx.style.color.substance[0])
+			paint_pill_fill_h(self.box, ui.style.color.substance[0])
 			// Text
 			if how_on > 0 {
-				paint_text(thumb_center + {-TEXT_OFFSET, 0}, {text = "ON", font = ctx.style.font.label, size = 18}, {align = .Middle, baseline = .Middle, clip = self.box}, blend_colors(ctx.style.color.base[0], ctx.style.color.accent[0], how_on))
+				paint_text(thumb_center + {-TEXT_OFFSET, 0}, {text = "ON", font = ui.style.font.label, size = 18}, {align = .Middle, baseline = .Middle, clip = self.box}, blend_colors(ui.style.color.base[0], ui.style.color.accent[0], how_on))
 			}
 			if how_on < 1 {
-				paint_text(thumb_center + {TEXT_OFFSET, 0}, {text = "OFF", font = ctx.style.font.label, size = 18}, {align = .Middle, baseline = .Middle, clip = self.box}, ctx.style.color.base[0])
+				paint_text(thumb_center + {TEXT_OFFSET, 0}, {text = "OFF", font = ui.style.font.label, size = 18}, {align = .Middle, baseline = .Middle, clip = self.box}, ui.style.color.base[0])
 			}
 			// Knob
-			paint_circle_fill_texture(thumb_center, RADIUS, alpha_blend_colors(ctx.style.color.substance[1], ctx.style.color.substance_hover, hover_time))
+			paint_circle_fill_texture(thumb_center, RADIUS, alpha_blend_colors(ui.style.color.substance[1], ui.style.color.substance_hover, hover_time))
 		}
 		// Invert state on click
 		if .Clicked in self.state {

@@ -101,13 +101,39 @@ Platform_Layer :: struct {
 	screen_size: [2]i32,
 	set_cursor: Maybe(Cursor_Type),
 	set_mouse_position: Maybe([2]i32),
+	get_clipboard_string: proc() -> string,
+	set_clipboard_string: proc(string),
 }
 
 Renderer_Layer :: struct {
 	screen_size: [2]i32,
+	load_texture: proc(image: Image) -> (id: u32, ok: bool),
+	unload_texture: proc(id: u32),
+	update_texture: proc(texture: Texture, data: []u8, x, y, w, h: f32),
+}
+load_texture :: proc(image: Image) -> (texture: Texture, ok: bool) {
+	assert(ui.renderer.load_texture != nil)
+	id := ui.renderer.load_texture(image) or_return
+	return Texture{
+		id = id,
+		width = image.width,
+		height = image.height,
+		channels = image.channels,
+	}, true
+}
+unload_texture :: proc(id: u32) {
+	assert(ui.renderer.unload_texture != nil)
+	ui.renderer.unload_texture(id)
+}
+update_texture :: proc(texture: Texture, image: Image, x, y, w, h: f32) {
+	assert(ui.renderer.update_texture != nil)
+	ui.renderer.update_texture(texture, image.data, x, y, w, h)
 }
 
-Context :: struct {
+UI :: struct {
+	// Layer
+	root_layer: ^Layer,
+	
 	// Time
 	current_time,
 	last_time: f64,
@@ -128,7 +154,7 @@ Context :: struct {
 	last_box: Box,
 
 	painter: Painter,
-
+	placement: Placement_Info,
 	style: Style,
 
 	// Mouse cursor type
@@ -138,19 +164,19 @@ Context :: struct {
 	id_stack: Stack(Id, ID_STACK_SIZE),
 
 	// Handles text editing
-	typing_agent: Typing_Agent,
+	typing: Typing_Agent,
 
 	// Handles widgets
-	widget_agent: Widget_Agent,
+	widgets: Widget_Agent,
 
 	// Handles panels
-	panel_agent: Panel_Agent,
+	panels: Panel_Agent,
 
 	// Handles layers
-	layer_agent: Layer_Agent,
+	layers: Layer_Agent,
 
 	// Handles layouts
-	layout_agent: Layout_Agent,
+	layouts: Layout_Agent,
 
 	// Used for dragging stuff
 	drag_anchor: [2]f32,
@@ -159,97 +185,78 @@ Context :: struct {
 	clip_box: Box,
 }
 
-// Set by platform backend
-_get_clipboard_string: proc() -> string
-_set_clipboard_string: proc(string)
-
 get_clipboard_string :: proc() -> string {
-	if _get_clipboard_string != nil {
-		return _get_clipboard_string()
-	}
-	return {}
+	assert(ui.platform.get_clipboard_string != nil)
+	return ui.platform.get_clipboard_string()
 }
 set_clipboard_string :: proc(str: string) {
-	if _set_clipboard_string != nil {
-		_set_clipboard_string(str)
-	}
+	assert(ui.platform.set_clipboard_string != nil)
+	ui.platform.set_clipboard_string(str)
 }
 
 /*
 	Animation management
 */
-animate_bool :: proc(value: ^f32, condition: bool, duration: f32, easing: ease.Ease = .Linear) -> f32 {
+animate_bool :: proc(ui: ^UI, value: ^f32, condition: bool, duration: f32, easing: ease.Ease = .Linear) -> f32 {
 	old_value := value^
 	if condition {
-		value^ = min(1, value^ + ctx.delta_time * (1 / duration))
+		value^ = min(1, value^ + ui.delta_time * (1 / duration))
 	} else {
-		value^ = max(0, value^ - ctx.delta_time * (1 / duration))
+		value^ = max(0, value^ - ui.delta_time * (1 / duration))
 	}
 	if value^ != old_value {
-		ctx.painter.next_frame = true
+		ui.painter.next_frame = true
 	}
 	return ease.ease(easing, value^)
 }
 
-/*
-	The global state
-*/
-set_screen_size :: proc(w, h: f32) {
-	ctx.size = {w, h}
-}
-
-make_context :: proc(platform: Platform_Layer, renderer: Renderer_Layer) -> (result: Context, ok: bool) {
+make_ui :: proc(platform: Platform_Layer, renderer: Renderer_Layer) -> (result: UI, ok: bool) {
 	// Assign the result
-	result, ok = Context{
+	result = UI{
 		platform = platform,
 		renderer = renderer,
 		painter = make_painter() or_return,
-		style = {
-			color = DARK_STYLE_COLORS,
-			layout = {
-				title_size = 24,
-				size = 24,
-				gap_size = 5,
-				widget_padding = 7,
-			},
-			text_size = {
-				label = 16,
-				title = 16,
-				tooltip = 16,
-				field = 18,
-			},
-			rounding = 5,
-			panel_rounding = 5,
-			tooltip_rounding = 5,
-		},
-	}, true
-	result.style.font = {
-		label = load_font(&result.painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return,
-		title = load_font(&result.painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return,
-		monospace = load_font(&result.painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return,
-		icon = load_font(&result.painter.atlas, "fonts/remixicon.ttf") or_return,
 	}
+	result.style = {
+		color = DARK_STYLE_COLORS,
+		layout = {
+			title_size = 24,
+			size = 24,
+			gap_size = 5,
+			widget_padding = 7,
+		},
+		text_size = {
+			label = 16,
+			title = 16,
+			tooltip = 16,
+			field = 18,
+		},
+		rounding = 5,
+		panel_rounding = 5,
+		tooltip_rounding = 5,
+		font = {
+			label = load_font(&ctx.painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return,
+			title = load_font(&ctx.painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return,
+			monospace = load_font(&ctx.painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return,
+			icon = load_font(&ctx.painter.atlas, "fonts/remixicon.ttf") or_return,
+		},
+	}
+	ok = true
 	return
 }
-destroy_context :: proc() {
-	if ctx != nil {
-		// Free text buffers
-		typing_agent_destroy(&ctx.typing_agent)
-		// Free layer data
-		destroy_layer_agent(&ctx.layer_agent)
-		// Free panel data
-		destroy_panel_agent(&ctx.panel_agent)
-		// Free widgets
-		widget_agent_destroy(&ctx.widget_agent)
-		//
-		destroy_painter(&ctx.painter)
-		//
-		free(ctx)
-	}
+destroy_ui :: proc(ui: ^UI) {
+	// Free text buffers
+	destroy_typing_agent(&ctx.typing_agent)
+	// Free layer data
+	destroy_layer_agent(&ctx.layer_agent)
+	// Free panel data
+	destroy_panel_agent(&ctx.panel_agent)
+	// Free widgets
+	destroy_widget_agent(&ctx.widget_agent)
+	//
+	destroy_painter(&ctx.painter)
 }
-begin :: proc() {
-	using ctx
-
+begin_ui :: proc(ui: ^UI) {
 	renderer.screen_size = platform.screen_size
 	size = linalg.array_cast(platform.screen_size, f32)
 
@@ -266,7 +273,7 @@ begin :: proc() {
 	// Reset painter
 	painter.mesh_index = 0
 	painter.opacity = 1
-	ctx.style.rounded_corners = ALL_CORNERS
+	ui.style.rounded_corners = ALL_CORNERS
 
 	// Reset placement
 	placement = {}
@@ -285,10 +292,14 @@ begin :: proc() {
 	typing_agent_step(&typing_agent)
 
 	// Update control interaction ids
-	widget_agent_update_ids(&widget_agent)
+	update_widget_agent(&widget_agent)
 
 	// Begin root layer
-	assert(begin_root_layer(&layer_agent))
+	root_layer, ok = begin_layer({
+		id = 0,
+		placement = Box{{}, ui.size}, 
+		options = {.No_ID},
+	})
 	
 	// Begin root layout
 	push_layout({{}, size})
@@ -336,18 +347,17 @@ begin :: proc() {
 	// Reset clip box
 	clip_box = {{}, ctx.size}
 }
-end :: proc() {
-	using ctx
+end_ui :: proc(ui: ^UI) {
 	// End root layout
-	pop_layout()
+	pop_layout(ui)
 	// End root layer
-	end_root_layer(&layer_agent)
+	end_layer(&ui.root_layer)
 	// Update layers
-	update_layer_agent(&layer_agent)
+	update_layer_agent(&ui.layer_agent)
 	// Update widgets
-	update_widget_agent(&widget_agent)
+	update_widget_agent(&ui.widget_agent)
 	// Update panels
-	update_panel_agent(&panel_agent)
+	update_panel_agent(&ui.panel_agent)
 	// Decide if rendering is needed next frame
 	if (input.last_mouse_point != input.mouse_point) || (input.last_key_set != input.key_set) || (input.last_mouse_bits != input.mouse_bits) || (input.mouse_scroll != {}) {
 		ctx.painter.next_frame = true
@@ -374,6 +384,3 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 	}
 	return count
 }
-
-// @private
-ctx: ^Context

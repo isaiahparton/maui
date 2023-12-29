@@ -63,20 +63,20 @@ layout_agent_pop :: proc(using self: ^Layout_Agent) {
 	current_layout = stack_top_ref(&stack)
 }
 
-push_layout :: proc(box: Box) -> (layout: ^Layout) {
-	if ctx.layout_agent.stack.height > 0 {
-		current_layout().last_placement = placement
+push_layout :: proc(ui: ^UI, box: Box) -> (layout: ^Layout) {
+	if ui.layout_agent.stack.height > 0 {
+		current_layout(ui).last_placement = placement
 	}
-	return layout_agent_push(&ctx.layout_agent, Layout({
+	return layout_agent_push(&ui.layout_agent, Layout({
 		box = box,
 		last_placement = placement,
 	}))
 }
-pop_layout :: proc() {
-	last_layout := current_layout()
-	layout_agent_pop(&ctx.layout_agent)
-	if ctx.layout_agent.stack.height > 0 {
-		layout := current_layout()
+pop_layout :: proc(ui: ^UI) {
+	last_layout := current_layout(ui)
+	layout_agent_pop(&ui.layout_agent)
+	if ui.layout_agent.stack.height > 0 {
+		layout := current_layout(ui)
 		// Update placement settings
 		placement = layout.last_placement
 	}
@@ -84,16 +84,16 @@ pop_layout :: proc() {
 /*
 	This creates a growing layout that cuts/grows the one below after use
 */
-push_growing_layout :: proc(box: Box, side: Box_Side) -> ^Layout {
-	layout := push_layout(box)
+push_growing_layout :: proc(ui: ^UI, box: Box, side: Box_Side) -> ^Layout {
+	layout := push_layout(ui, box)
 	layout.grow = side
 	return layout
 }
-pop_growing_layout :: proc() {
-	last_layout := current_layout()
-	layout_agent_pop(&ctx.layout_agent)
-	if ctx.layout_agent.stack.height > 0 {
-		layout := current_layout()
+pop_growing_layout :: proc(ui: ^UI, ) {
+	last_layout := current_layout(ui)
+	layout_agent_pop(&ui.layout_agent)
+	if ui.layout_agent.stack.height > 0 {
+		layout := current_layout(ui)
 		// Update placement settings
 		placement = layout.last_placement
 		// Apply growing layout cut
@@ -104,9 +104,9 @@ pop_growing_layout :: proc() {
 	}
 }
 // Get the current layout (asserts that there be one)
-current_layout :: proc(loc := #caller_location) -> ^Layout {
-	assert(ctx.layout_agent.current_layout != nil, "No current layout", loc)
-	return ctx.layout_agent.current_layout
+current_layout :: proc(ui: ^UI, loc := #caller_location) -> ^Layout {
+	assert(ui.layout_agent.current_layout != nil, "No current layout", loc)
+	return ui.layout_agent.current_layout
 }
 get_exact_margin :: proc(l: ^Layout, side: Box_Side) -> Exact {
 	return (placement.margin[side].(Exact) or_else Exact(f32(placement.margin[side].(Relative)) * ((l.box.high.x - l.box.low.x) if int(side) > 1 else (l.box.high.y - l.box.low.y))))
@@ -118,12 +118,12 @@ get_layout_height :: proc(l: ^Layout) -> Exact {
 	return (l.box.high.y - l.box.low.y) - get_exact_margin(l, .Top) - get_exact_margin(l, .Bottom)
 }
 // Add space
-space :: proc(amount: Unit) {
-	layout_cut_or_grow(current_layout(), placement.side, amount)
+space :: proc(ui: ^UI, amount: Unit) {
+	layout_cut_or_grow(current_layout(ui), placement.side, amount)
 }
 // Shrink the current layout (apply margin on all sides)
-shrink :: proc(amount: Exact, loc := #caller_location) {
-	layout := current_layout(loc)
+shrink :: proc(ui: ^UI, amount: Exact, loc := #caller_location) {
+	layout := current_layout(ui, loc)
 	if grow, ok := layout.grow.?; ok {
 		#partial switch grow {
 			case .Bottom, .Top: 
@@ -168,14 +168,10 @@ layout_next_of_size :: proc(lt: ^Layout, size: Unit) -> (res: Box) {
 }
 // Get the next box from a layout, according to the current placement settings
 layout_next :: proc(lt: ^Layout) -> (result: Box) {
-	assert(lt != nil)
 	result = layout_next_of_size(lt, placement.size)
-	// Set the last box
-	ctx.last_box = result
 	return
 }
 layout_next_child :: proc(using self: ^Layout, size: [2]f32) -> Box {
-	assert(self != nil)
 	return child_box(layout_next(self), size, placement.align)
 }
 layout_fit :: proc(layout: ^Layout, size: [2]f32) {
@@ -188,70 +184,64 @@ layout_fit :: proc(layout: ^Layout, size: [2]f32) {
 /*
 	Cut from the current layout and return the result
 */
-cut :: proc(side: Box_Side, amount: Unit) -> (res: Box) {
-	layout := current_layout()
+cut :: proc(ui: ^UI, side: Box_Side, amount: Unit) -> (res: Box) {
+	layout := current_layout(ui)
 	res = layout_cut_or_grow(layout, side, amount)
 	return
 }
 /*
 	Return what would be cut from the current layout
 */
-fake_cut :: proc(side: Box_Side, amount: Unit) -> Box {
-	layout := current_layout()
+fake_cut :: proc(ui: ^UI, side: Box_Side, amount: Unit) -> Box {
+	layout := current_layout(ui)
 	return get_cut_box(layout.box, side, amount)
 }
 
 /*
 	Context procedures
 */
-@(deferred_out=_do_layout)
-do_layout :: proc(side: Box_Side, size: Unit) -> (ok: bool) {
-	box := layout_cut_or_grow(current_layout(), side, size)
-	layout := push_layout(box)
-	return true
-}
-@(deferred_out=_do_layout)
-do_layout_box :: proc(box: Box) -> (ok: bool) {
-	push_layout(box)
+@(deferred_in_out=_do_layout)
+do_layout :: proc(ui: ^UI, box: Box) -> (ok: bool) {
+	push_layout(ui, box)
 	return true
 }
 @private 
-_do_layout :: proc(ok: bool) {
+_do_layout :: proc(ui: ^UI, _: Box, ok: bool) {
 	if ok {
-		pop_layout()
+		pop_layout(ui)
 	}
 }
 
-@(deferred_out=_do_growing_layout)
-do_growing_layout :: proc(side: Box_Side) -> (ok: bool) {
-	layout := current_layout()
-	push_growing_layout(layout.box, side)
+@(deferred_in_out=_do_growing_layout)
+do_growing_layout :: proc(ui: ^UI, side: Box_Side) -> (ok: bool) {
+	layout := current_layout(ui)
+	push_growing_layout(ui, layout.box, side)
 	return true
 }
 @private
-_do_growing_layout :: proc(ok: bool) {
+_do_growing_layout :: proc(ui: ^UI, _: Box_Side, ok: bool) {
 	if ok {
-		pop_growing_layout()
+		pop_growing_layout(ui)
 	}
 }
 
-@(deferred_out=_do_horizontal)
-do_horizontal :: proc(divisions: int, spacing: f32 = 0) -> (ok: bool) {
-	box := cut(placement.side, placement.size)
-	layout := push_layout(box)
+@(deferred_in_out=_do_row)
+do_row :: proc(ui: ^UI, divisions: int, spacing: f32 = 0) -> (ok: bool) {
+	box := cut(ui, placement.side, placement.size)
+	layout := push_layout(ui, box)
 	placement.side = .Left
 	placement.size = width(layout.box) / max(f32(divisions), 1) - (spacing * f32(divisions - 1))
 	return true
 }
 @private 
-_do_horizontal :: proc(ok: bool) {
+_do_row :: proc(ui: ^UI, ok: bool) {
 	if ok {
-		pop_layout()
+		pop_layout(ui)
 	}
 }
 /*
 	Generic getter of next box in the current layout based on the current placement info
 */
-next_box :: proc(loc := #caller_location) -> Box {
-	return layout_next(current_layout(loc))
+next_box :: proc(ui: ^UI, loc := #caller_location) -> Box {
+	return layout_next(current_layout(ui, loc))
 }
