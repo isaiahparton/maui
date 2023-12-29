@@ -2,11 +2,34 @@ package maui
 
 import "core:time"
 
+MAX_KEYBOARD_KEYS :: 512
 // Text input que size
 MAX_INPUT_RUNES :: 32
 // Max compound clicks
 MAX_CLICK_COUNT :: 3
+IO :: struct {
+	last_mouse_point, mouse_point, mouse_scroll: [2]f32,
+	mouse_bits, last_mouse_bits: Mouse_Bits,
+	last_mouse_button: Mouse_Button,
+	last_click_time: [Mouse_Button]time.Time,
+	this_click_time: [Mouse_Button]time.Time,
 
+	key_set, last_key_set: Key_Set,
+	last_key: Key,
+
+	runes: [MAX_INPUT_RUNES]rune,
+	rune_count: int,
+
+	key_hold_timer,
+	key_pulse_timer: f32,
+	key_pulse: bool,
+
+	screen_size: [2]i32,
+	set_cursor: Maybe(Cursor_Type),
+	set_mouse_position: Maybe([2]i32),
+	get_clipboard_string: proc() -> string,
+	set_clipboard_string: proc(string),
+}
 Mouse_Button :: enum {
 	Left,
 	Right,
@@ -23,9 +46,6 @@ Mouse_Button_State :: enum {
 	// Pressed and released over the widget
 	Clicked,
 }
-
-MAX_KEYBOARD_KEYS :: 512
-
 Key :: enum {
 	Apostrophe      = 39,             // Key: '
 	Comma           = 44,             // Key: ,
@@ -140,101 +160,58 @@ Key :: enum {
 	Android_Volume_Up       	= 24,             // Key: Android volume up button
 	Android_Volume_Down     	= 25,             // Key: Android volume down button
 }
-
 Key_Set :: [MAX_KEYBOARD_KEYS]bool
-
-Input :: struct {
-	last_mouse_point, mouse_point, mouse_scroll: [2]f32,
-	mouse_bits, last_mouse_bits: Mouse_Bits,
-	last_mouse_button: Mouse_Button,
-	last_click_time: [Mouse_Button]time.Time,
-	this_click_time: [Mouse_Button]time.Time,
-
-	key_set, last_key_set: Key_Set,
-	last_key: Key,
-
-	runes: [MAX_INPUT_RUNES]rune,
-	rune_count: int,
-
-	key_hold_timer,
-	key_pulse_timer: f32,
-	key_pulse: bool,
+update_io :: proc(io: ^IO) {
+	io.rune_count = 0
+	io.last_mouse_bits = io.mouse_bits
 }
-
-input_step :: proc(using self: ^Input) {
-	rune_count = 0
-
-	last_mouse_bits = mouse_bits
-	/*// Repeating keys when held
-	new_keys := key_bits - last_key_bits
-	old_key := last_key
-	for key in Key {
-		if key in new_keys && key != last_key {
-			last_key = key
-			break
-		}
-	}
-	if last_key != old_key {
-		key_hold_timer = 0
-	}
-
-	key_pulse = false
-	if last_key in key_bits {
-		key_hold_timer += ctx.delta_time
-	} else {
-		key_hold_timer = 0
-	}
-	if key_hold_timer >= KEY_REPEAT_DELAY {
-		if key_pulse_timer > 0 {
-			key_pulse_timer -= ctx.delta_time
-		} else {
-			key_pulse_timer = 1.0 / KEY_REPEAT_RATE
-			key_pulse = true
-		}
-	}*/
-}
-mouse_pressed :: proc(button: Mouse_Button) -> bool {
-	using input
+// Mouse buttons
+mouse_pressed :: proc(io: ^IO, button: Mouse_Button) -> bool {
 	return (button in mouse_bits) && (button not_in last_mouse_bits)
 }
-mouse_released :: proc(button: Mouse_Button) -> bool {
-	using input
+mouse_released :: proc(io: ^IO, button: Mouse_Button) -> bool {
 	return (button not_in mouse_bits) && (button in last_mouse_bits)
 }
-mouse_down :: proc(button: Mouse_Button) -> bool {
-	using input
+mouse_down :: proc(io: ^IO, button: Mouse_Button) -> bool {
 	return button in mouse_bits
 }
-key_pressed :: proc(key: Key) -> bool {
-	return input.key_set[key] && !input.last_key_set[key]
+// Keys
+key_pressed :: proc(io: ^IO, key: Key) -> bool {
+	return io.key_set[key] && !io.last_key_set[key]
 }
-key_released :: proc(key: Key) -> bool {
-	return input.last_key_set[key] && !input.key_set[key]
+key_released :: proc(io: ^IO, key: Key) -> bool {
+	return io.last_key_set[key] && !io.key_set[key]
 }
-key_down :: proc(key: Key) -> bool {
-	return input.key_set[key]
+key_down :: proc(io: ^IO, key: Key) -> bool {
+	return io.key_set[key]
 }
-
+// Clipboard
+get_clipboard_string :: proc() -> string {
+	assert(ui.platform.get_clipboard_string != nil)
+	return ui.platform.get_clipboard_string()
+}
+set_clipboard_string :: proc(str: string) {
+	assert(ui.platform.set_clipboard_string != nil)
+	ui.platform.set_clipboard_string(str)
+}
 // Backend use
 set_mouse_scroll :: proc(x, y: f32) {
-	input.mouse_scroll = {x, y}
+	io.mouse_scroll = {x, y}
 }
 set_mouse_point :: proc(x, y: f32) {
-	input.mouse_point = {x, y}
+	io.mouse_point = {x, y}
 }
 input_add_char :: proc(char: rune) {
-	input.runes[input.rune_count] = char
-	input.rune_count += 1
+	io.runes[io.rune_count] = char
+	io.rune_count += 1
 }
-set_mouse_bit :: proc(button: Mouse_Button, value: bool) {
+set_mouse_bit :: proc(io: ^IO, button: Mouse_Button, value: bool) {
 	if value {
-		input.mouse_bits += {button}
-		input.last_click_time[button] = input.this_click_time[button]
-		input.this_click_time[button] = time.now()
-		input.last_mouse_button = button
+		io.mouse_bits += {button}
+		io.last_click_time[button] = io.this_click_time[button]
+		io.this_click_time[button] = time.now()
+		io.last_mouse_button = button
 	} else {
-		input.mouse_bits -= {button}
+		io.mouse_bits -= {button}
 	}
 }
-
-input: Input

@@ -21,9 +21,9 @@ TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
 
 _main :: proc() -> bool {
 	// Create the platform
-	platform := maui_glfw.make_platform(1200, 1000, "Maui", .OpenGL) or_return
+	io := maui_glfw.init(1200, 1000, "Maui", .OpenGL) or_return
 	// Create the renderer
-	renderer := maui_opengl.make_renderer(platform.layer) or_return
+	painter := maui_opengl.init(platform.layer) or_return
 	// Set up the UI context
 	ui := maui.make_ui(platform.layer, renderer.layer) or_return
 	// Begin the cycle
@@ -36,7 +36,7 @@ _main :: proc() -> bool {
 
 		begin_ui(&ui)
 		if was_clicked(button(&ui, {text = "click me! uwu"})) {
-			
+			fmt.println("button clicked!")
 		}
 		end_ui(&ui)
 
@@ -55,8 +55,8 @@ _main :: proc() -> bool {
 	}
 
 	maui.destroy_ui(&ui)	
-	maui_opengl.destroy_renderer(&renderer)
-	maui_glfw.destroy_platform(&platform)
+	maui_opengl.destroy_painter(&painter)
+	maui_glfw.destroy_io(&io)
 
 	return true
 }

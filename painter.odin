@@ -47,23 +47,36 @@ Image ::struct {
 destroy_image :: proc(using self: ^Image) {
 	delete(data)
 }
-
 Texture :: struct {
 	width, height: int,
 	id: u32,
 	channels: int,
 }
-
 Texture_Id :: u32
-
+load_texture :: proc(painter: ^Painter, image: Image) -> (texture: Texture, ok: bool) {
+	assert(painter.load_texture != nil)
+	id := painter.load_texture(image) or_return
+	return Texture{
+		id = id,
+		width = image.width,
+		height = image.height,
+		channels = image.channels,
+	}, true
+}
+unload_texture :: proc(painter: ^Painter, id: u32) {
+	assert(painter.unload_texture != nil)
+	painter.unload_texture(id)
+}
+update_texture :: proc(painter: ^Painter, texture: Texture, image: Image, x, y, w, h: f32) {
+	assert(painter.update_texture != nil)
+	painter.update_texture(texture, image.data, x, y, w, h)
+}
 Vertex :: struct {
 	point,
 	uv: [2]f32,
 	color: [4]u8,
 }
-
 MAX_MESH_VERTICES :: 65536
-
 // A draw command
 Mesh :: struct {
 	clip: Maybe(Box),
@@ -114,6 +127,10 @@ Painter :: struct {
 	// Draw commands
 	meshes: []Mesh,
 	mesh_index: int,
+	// Renderer interface
+	load_texture: proc(image: Image) -> (id: u32, ok: bool),
+	unload_texture: proc(id: u32),
+	update_texture: proc(texture: Texture, data: []u8, x, y, w, h: f32),
 }
 
 should_render :: proc(painter: ^Painter) -> bool {

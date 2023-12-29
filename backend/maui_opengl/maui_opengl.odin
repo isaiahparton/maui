@@ -149,7 +149,7 @@ delete_pingpong_fbos :: proc(using renderer: ^Renderer) {
 		Load shaders
 		Set texture handling procedures
 */
-make_renderer :: proc(platform: maui.Platform_Layer) -> (result: Renderer, ok: bool) {
+init :: proc() -> (result: maui.Painter, ok: bool) {
 	// Set viewport
   gl.Viewport(0, 0, platform.screen_size.x, platform.screen_size.y)
   
@@ -226,7 +226,7 @@ make_renderer :: proc(platform: maui.Platform_Layer) -> (result: Renderer, ok: b
 	return
 }
 
-destroy_renderer :: proc(using self: ^Renderer) {
+destroy :: proc() {
 	// Delete opengl things
 	gl.DeleteProgram(default_program)
 	gl.DeleteBuffers(1, &vbo)
