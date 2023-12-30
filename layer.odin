@@ -229,9 +229,9 @@ update_layers :: proc(ui: ^UI) {
 	for layer, i in ui.layers.list {
 		if .Stay_Alive in layer.bits {
 			layer.bits -= {.Stay_Alive}
-			if point_in_box(input.mouse_point, layer.box) {
+			if point_in_box(ui.io.mouse_point, layer.box) {
 				ui.layers.hover_id = layer.id
-				if mouse_pressed(.Left) {
+				if mouse_pressed(ui.io, .Left) {
 					ui.layers.focus_id = layer.id
 					if .No_Sorting not_in layer.options {
 						sorted_layer = layer
@@ -337,12 +337,12 @@ get_layer :: proc(ui: ^UI, id: Id, options: Layer_Options) -> (layer: ^Layer, ok
 
 push_layer :: proc(ui: ^UI, layer: ^Layer) {
 	stack_push(&ui.layers.stack, layer)
-	ui.layers.current = stack_top(&ui.layers.stack)
+	ui.layers.current = ui.layers.stack.items[ui.layers.stack.height - 1] if ui.layers.stack.height > 0 else nil
 }
 
 pop_layer :: proc(ui: ^UI) {
 	stack_pop(&ui.layers.stack)
-	ui.layers.current = stack_top(&ui.layers.stack)
+	ui.layers.current = ui.layers.stack.items[ui.layers.stack.height - 1] if ui.layers.stack.height > 0 else nil
 }
 
 destroy_layer :: proc(self: ^Layer) {
@@ -378,15 +378,11 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 	if self, ok = get_layer(ui, info.id.? or_else panic("Must define a layer id", loc), info.options); ok {
 		// Push layer stack
 		push_layer(ui, self)
-
 		// Set sort order
 		self.order = info.order.? or_else self.order
-
 		// Update user options
 		self.options = info.options
-
 		self.owner = info.owner
-
 		// Begin id context for layer contents
 		if .No_ID not_in self.options {
 			push_id(ui, self.id)
@@ -394,7 +390,6 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		} else {
 			self.bits -= {.Did_Push_ID}
 		}
-
 		// Get box
 		switch placement in info.placement {
 			case Box: 
@@ -443,14 +438,14 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		clear(&self.meshes)
 		// Paint shadow if needed
 		if shadow, ok := info.shadow.?; ok {
-			if target, ok := get_draw_target(&ui.painter); ok {
+			if target, ok := get_draw_target(ui.painter); ok {
 				ui.painter.target = target
 				append(&self.meshes, ui.painter.target)
-				paint_rounded_box_shadow(&ui.painter, move_box(expand_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
+				paint_rounded_box_shadow(ui.painter, move_box(expand_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
 			}
 		}
 		// Append draw target
-		ui.painter.target = get_draw_target(&ui.painter) or_return
+		ui.painter.target = get_draw_target(ui.painter) or_return
 		append(&self.meshes, ui.painter.target)
 		// Apply inner padding
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
@@ -495,9 +490,7 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		if self.scrollbar_time.y > 0 && self.scrollbar_time.y < 1 {
 			ui.painter.next_frame = true
 		}
-
 		self.content_box = {self.box.high, self.box.low}
-
 		// Clip box
 		self.clip_box = self.box
 		// Clip to parent's clip box
@@ -509,14 +502,12 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 				}
 			}
 		}
-
 		// Save last space for layout alignment
 		self.last_space = self.space
 		// Get layout size
 		self.space = info.space.? or_else 0
 		// Get space
 		self.space = linalg.max(self.space, self.box.high - self.box.low)
-
 		// Copy box
 		layout_box := Box{self.box.low, {}}
 		// Layout alignment
@@ -596,7 +587,7 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 		}
 		// Mouse wheel input
 		if .Hovered in self.state {
-			self.scroll_target -= input.mouse_scroll * SCROLL_STEP
+			self.scroll_target -= ui.io.mouse_scroll * SCROLL_STEP
 		}
 		// Repaint if scrolling with wheel
 		if linalg.floor(self.scroll_target - self.scroll) != {} {

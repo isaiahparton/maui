@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:math"
 import "core:math/ease"
 import "core:math/linalg"
+import "core:runtime"
 
 Panel_Bit :: enum {
 	Stay_Alive,
@@ -79,52 +80,49 @@ Panel_Agent :: struct {
 	attach_display_box: Maybe(Box),
 }
 current_panel :: proc(ui: ^UI, loc := #caller_location) -> ^Panel {
-	handle, ok := ui.panel_agent.current.?
+	handle, ok := ui.panels.current.?
 	assert(ok, "No current panel to speak of", loc)
 	panel, k := &handle.?
 	assert(k, "The current panel is invalid", loc)
 	return panel
 }
-assert_panel :: proc(using agent: ^Panel_Agent, id: Id) -> (handle: Panel_Handle, ok: bool) {
-	handle = pool[id] or_else create_panel(agent, id) or_return
+get_panel :: proc(ui: ^UI, id: Id) -> (handle: Panel_Handle, ok: bool) {
+	handle = ui.panels.pool[id] or_else create_panel(ui, id) or_return
 	ok = true
 	return
 }
-create_panel :: proc(using self: ^Panel_Agent, id: Id) -> (handle: Panel_Handle, ok: bool) {
-	handle = arena_allocate(&arena) or_return
+create_panel :: proc(ui: ^UI, id: Id) -> (handle: Panel_Handle, ok: bool) {
+	handle = arena_allocate(&ui.panels.arena) or_return
 	if panel, ok := &handle.?; ok {
 		panel.id = id
 	}
-	pool[id] = handle
+	ui.panels.pool[id] = handle
 	ok = true
 	return
 }
-push_panel :: proc(using self: ^Panel_Agent, handle: Panel_Handle) {
-	stack_push(&stack, handle)
-	current = handle
+push_panel :: proc(ui: ^UI, handle: Panel_Handle) {
+	stack_push(&ui.panels.stack, handle)
+	ui.panels.current = handle
 }
-pop_panel :: proc(using self: ^Panel_Agent) {
-	stack_pop(&stack)
-	if stack.height > 0 {
-		current = stack.items[stack.height - 1]
-	} else {
-		current = nil
-	}
+pop_panel :: proc(ui: ^UI) {
+	stack_pop(&ui.panels.stack)
+	ui.panels.current = ui.panels.stack.items[ui.panels.stack.height - 1] if ui.panels.stack.height > 0 else nil
 }
-update_panel_agent :: proc(using agent: ^Panel_Agent) {
-	for id, handle in pool {
+update_panels :: proc(ui: ^UI) {
+	for id, handle in ui.panels.pool {
 		if panel, ok := handle.?; ok {
 			if .Stay_Alive in panel.bits {
 				panel.bits -= {.Stay_Alive}
 			} else {
 				handle^ = nil
-				delete_key(&pool, panel.id)
+				delete_key(&ui.panels.pool, panel.id)
 			}
 		}
 	}
 }
-destroy_panel_agent :: proc(using agent: ^Panel_Agent) {
+destroy_panel_agent :: proc(using self: ^Panel_Agent) {
 	delete(pool)
+	self^ = {}
 }
 
 Panel_Placement_Info :: struct {
@@ -154,8 +152,8 @@ Panel_Info :: struct {
 @(deferred_in_out=_do_panel)
 do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 	id := info.id.? or_else hash(ui, loc)
-	handle := assert_panel(&ui.panel_agent, id) or_return
-	push_panel(&ui.panel_agent, handle)
+	handle := get_panel(ui, id) or_return
+	push_panel(ui, handle)
 	self := &handle.?
 	ok = true
 	self.bits += {.Stay_Alive}
@@ -211,9 +209,9 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 	self.box.high = linalg.max(self.box.high, inner_box.high)
 
 	// Decoration
-	if self.root_layer, ok = begin_layer({
+	if self.root_layer, ok = begin_layer(ui, {
 		placement = root_layer_box,
-		id = hash(rawptr(&self.id), size_of(Id)),
+		id = hash(ui, rawptr(&self.id), size_of(Id)),
 		order = .Floating,
 		options = {.No_Scroll_Y},
 		shadow = Layer_Shadow_Info{
@@ -243,42 +241,44 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 				// Set previous paint target
 				painter.target = prev_target
 				// Paint overlay
-				paint_rounded_box_fill(box, ui.style.panel_rounding, fade(ui.style.color.base[1], 0.2))
+				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, fade(ui.style.color.base[1], 0.2))
 			} else {
-				paint_rounded_box_fill(box, ui.style.panel_rounding, fade(ui.style.color.base[0], 0.9))
+				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, fade(ui.style.color.base[0], 0.9))
 				//paint_rounded_box_stroke(box, ui.style.panel_rounding, 2, ui.style.color.base[1])
 			}
 		}
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			// Draw title
-			paint_rounded_box_fill(title_box, ui.style.panel_rounding, ui.style.color.substance[1])
+			paint_rounded_box_fill(ui.painter, title_box, ui.style.panel_rounding, ui.style.color.substance[1])
 			// Close button
+			/*
 			if .Closable in self.options {
-				if w, _ok := do_widget(hash(&self.id, size_of(Id))); _ok {
+				if w, _ok := do_widget(ui, hash(ui, &self.id, size_of(Id))); _ok {
 					w.box = cut_box_right(&title_box, height(title_box))
 					update_widget(w)
-					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_rounded_box_corners_fill(w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent[1], hover_time * 0.1))
-					paint_cross(box_center(w.box), 5, math.PI * 0.25, 2, blend_colors(ui.style.color.substance_text[0], ui.style.color.substance_text[1], hover_time))
-					update_widget_hover(w, point_in_box(input.mouse_point, w.box))
+					hover_time := animate_bool(ui, &w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
+					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent[1], hover_time * 0.1))
+					paint_cross(ui.painter, box_center(w.box), 5, math.PI * 0.25, 2, blend_colors(ui.style.color.substance_text[0], ui.style.color.substance_text[1], hover_time))
+					update_widget_hover(w, point_in_box(ui.io.mouse_point, w.box))
 				}
 			}
 			if .Collapsable in self.options {
-				push_id(int(1))
-				if w, _ok := do_widget(hash(&self.id, size_of(Id))); _ok {
+				push_id(ui, int(1))
+				if w, _ok := do_widget(ui, hash(ui, &self.id, size_of(Id))); _ok {
 					w.box = cut_box_right(&title_box, height(title_box))
 					update_widget(w)
-					hover_time := animate_bool(&w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_rounded_box_corners_fill(w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent[1], hover_time * 0.1))
-					paint_arrow_flip(box_center(w.box), 5, 0, 1, self.how_collapsed, blend_colors(ui.style.color.substance_text[0], ui.style.color.substance_text[1], hover_time))
+					hover_time := animate_bool(ui.painter, &w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
+					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent[1], hover_time * 0.1))
+					paint_arrow_flip(ui.painter, box_center(w.box), 5, 0, 1, self.how_collapsed, blend_colors(ui.style.color.substance_text[0], ui.style.color.substance_text[1], hover_time))
 					if widget_clicked(w, .Left) {
 						self.bits ~= {.Should_Collapse}
 					}
-					update_widget_hover(w, point_in_box(input.mouse_point, w.box))
+					update_widget_hover(w, point_in_box(ui.io.mouse_point, w.box))
 				}
-				pop_id()
+				pop_id(ui)
 			}
+			*/
 			// Title bar positional decoration
 			baseline := center_y(title_box)
 			text_offset := height(title_box) * 0.25
@@ -286,18 +286,19 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 			// Draw title
 			//TODO: Make sure the text doesn't overflow
 			paint_text(
+				ui.painter,
 				{title_box.low.x + text_offset, baseline}, 
 				{text = info.title, font = ui.style.font.title, size = ui.style.text_size.label}, 
 				{align = .Left, baseline = .Middle}, 
 				color = blend_colors(ui.style.color.substance_text[1], ui.style.color.substance_text[0], self.how_collapsed),
 			)
 			// Moving 
-			if (.Hovered in self.root_layer.?.state) && point_in_box(input.mouse_point, title_box) {
-				if (.Static not_in self.options) && (ui.widget_agent.hover_id == 0) && mouse_pressed(.Left) {
+			if (.Hovered in self.root_layer.?.state) && point_in_box(ui.io.mouse_point, title_box) {
+				if (.Static not_in self.options) && (ui.widgets.hover_id == 0) && mouse_pressed(ui.io, .Left) {
 					self.bits += {.Moving}
-					ui.drag_anchor = self.root_layer.?.box.low - input.mouse_point
+					ui.drag_anchor = self.root_layer.?.box.low - ui.io.mouse_point
 				}
-				if can_collapse && mouse_pressed(.Right) {
+				if can_collapse && mouse_pressed(ui.io, .Right) {
 					self.bits ~= {.Should_Collapse}
 				}
 			}
@@ -321,7 +322,7 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 	if .Collapsed in self.bits {
 		ok = false
 	} else {
-		self.content_layer, ok = begin_layer({
+		self.content_layer, ok = begin_layer(ui, {
 			placement = inner_box,
 			id = id, 
 			options = layer_options,
@@ -332,25 +333,25 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 	return
 }
 @private
-_do_panel :: proc(ui: ^UI, _: Panel_Info, ok: bool) {
+_do_panel :: proc(ui: ^UI, _: Panel_Info, _: runtime.Source_Code_Location, ok: bool) {
 	self := current_panel(ui)
-	pop_panel(&ui.panel_agent)
+	pop_panel(ui)
 	// End main layer
 	if .Collapsed not_in self.bits {
 		box := self.content_layer.?.box
 		// Resize handle
 		if .Resizable in self.options {
-			if w, ok := do_widget(ui, hash(ui, &self.id, size_of(Id)), {.Draggable}); ok {
+			/*if w, ok := do_widget(ui, hash(ui, &self.id, size_of(Id)), {.Draggable}); ok {
 				w.box = {box.high - 20, box.high}
 				update_widget(w)
 				hover_time := animate_bool(ui, &w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-				paint_triangle_fill(&ui.painter, {w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, fade(ui.style.color.substance[1], 0.1 + 0.1 * hover_time))
-				paint_triangle_stroke(&ui.painter, {w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, 1, fade(ui.style.color.substance[1], 0.5 + 0.5 * hover_time))
+				paint_triangle_fill(ui.painter, {w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, fade(ui.style.color.substance[1], 0.1 + 0.1 * hover_time))
+				paint_triangle_stroke(ui.painter, {w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, 1, fade(ui.style.color.substance[1], 0.5 + 0.5 * hover_time))
 				if .Pressed in (w.state - w.last_state) {
 					self.bits += {.Resizing}
 				}
-				update_widget_hover(w, point_in_box(input.mouse_point, w.box))
-			}
+				update_widget_hover(ui, w, point_in_box(ui.io.mouse_point, w.box))
+			}*/
 		}
 		// Done with main layer
 		end_layer(ui, self.content_layer.?)
@@ -361,25 +362,25 @@ _do_panel :: proc(ui: ^UI, _: Panel_Info, ok: bool) {
 	if .Moving in self.bits {
 		ui.cursor = .Resize
 
-		origin := input.mouse_point + ui.drag_anchor
+		origin := ui.io.mouse_point + ui.drag_anchor.?
 
 		real_size := self.real_box.high - self.real_box.low
 		size := self.box.high - self.box.low
 
 		self.real_box.low = linalg.clamp(origin, 0, ui.size - size)
 		self.real_box.high = self.real_box.low + real_size
-		if mouse_released(.Left) {
+		if mouse_released(ui.io, .Left) {
 			self.bits -= {.Moving}
 		}
 	}
 	// Handle Resizing
 	WINDOW_SNAP_DISTANCE :: 10
 	if .Resizing in self.bits {
-		ui.widget_agent.hover_id = 0
+		ui.widgets.hover_id = 0
 		min_size: [2]f32 = self.min_layout_size if .Fit_To_Layout in self.options else {180, 240}
 		ui.cursor = .Resize_NWSE
-		self.real_box.high = linalg.max(input.mouse_point, self.real_box.low + {240, 120})
-		if mouse_released(.Left) {
+		self.real_box.high = linalg.max(ui.io.mouse_point, self.real_box.low + {240, 120})
+		if mouse_released(ui.io, .Left) {
 			self.bits -= {.Resizing}
 		}
 	}

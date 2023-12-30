@@ -43,21 +43,6 @@ ALL_CORNERS: Box_Corners = {.Top_Left, .Top_Right, .Bottom_Left, .Bottom_Right}
 
 DOUBLE_CLICK_TIME :: time.Millisecond * 450
 
-Animation :: struct {
-	keep_alive: bool,
-	value,
-	last_value: f32,
-}
-
-Scribe :: struct {
-	index, length, anchor: int,
-	last_index, last_length: int,
-}
-
-Group :: struct {
-	state: Widget_State,
-}
-
 Arena :: struct($T: typeid, $N: int) {
 	items: [N]Maybe(T),
 }
@@ -82,6 +67,7 @@ stack_push :: proc(stack: ^Stack($T, $N), item: T) {
 stack_pop :: proc(stack: ^Stack($T, $N)) {
 	stack.height -= 1
 }
+
 UI :: struct {
 	// Layer
 	root_layer: ^Layer,
@@ -110,7 +96,7 @@ UI :: struct {
 	// Hash stack
 	id_stack: Stack(Id, ID_STACK_SIZE),
 	// Handles text editing
-	typing: Typing_Agent,
+	scribe: Scribe,
 	// Handles widgets
 	widgets: Widget_Agent,
 	// Handles panels
@@ -120,7 +106,7 @@ UI :: struct {
 	// Handles layouts
 	layouts: Layout_Agent,
 	// Used for dragging stuff
-	drag_anchor: [2]f32,
+	drag_anchor: Maybe([2]f32),
 	// Current clip box
 	clip_box: Box,
 }
@@ -165,10 +151,10 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 			panel_rounding = 5,
 			tooltip_rounding = 5,
 			font = {
-				label = load_font(&painter.atlas, "fonts/Ubuntu-Regular.ttf") or_return,
-				title = load_font(&painter.atlas, "fonts/RobotoSlab-Regular.ttf") or_return,
-				monospace = load_font(&painter.atlas, "fonts/AzeretMono-Regular.ttf") or_return,
-				icon = load_font(&painter.atlas, "fonts/remixicon.ttf") or_return,
+				label 		= load_font(painter, "fonts/Ubuntu-Regular.ttf") or_return,
+				title 		= load_font(painter, "fonts/RobotoSlab-Regular.ttf") or_return,
+				monospace = load_font(painter, "fonts/AzeretMono-Regular.ttf") or_return,
+				icon 			= load_font(painter, "fonts/remixicon.ttf") or_return,
 			},
 		},
 	}, true
@@ -176,25 +162,25 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 }
 destroy_ui :: proc(ui: ^UI) {
 	// Free text buffers
-	destroy_typing_agent(&ui.typing_agent)
+	destroy_scribe(&ui.scribe)
 	// Free layer data
-	destroy_layer_agent(&ui.layer_agent)
+	destroy_layer_agent(&ui.layers)
 	// Free panel data
-	destroy_panel_agent(&ui.panel_agent)
+	destroy_panel_agent(&ui.panels)
 	// Free widgets
-	destroy_widget_agent(&ui.widget_agent)
+	destroy_widget_agent(&ui.widgets)
 	//
-	destroy_painter(&ui.painter)
+	destroy_painter(ui.painter)
 }
 begin_ui :: proc(ui: ^UI) {
 	// Update screen size
-	ui.painter.canvas_size = ui.io.screen_size
-	ui.size = linalg.array_cast(ui.io.screen_size, f32)
+	// ui.painter.size = ui.io.screen_size
+	ui.size = linalg.array_cast(ui.io.size, f32)
 	// Try tell the user what went wrong if
 	// a stack overflow occours
-	assert(layouts.stack.height == 0, "You forgot to pop_layout()")
-	assert(layers.stack.height == 0, "You forgot to pop_layer()")
-	assert(id_stack.height == 0, "You forgot to pop_id()")
+	assert(ui.layouts.stack.height == 0, "You forgot to pop_layout()")
+	assert(ui.layers.stack.height == 0, "You forgot to pop_layer()")
+	assert(ui.id_stack.height == 0, "You forgot to pop_id()")
 	// Begin frame
 	ui.delta_time = f32(ui.current_time - ui.last_time)	
 	ui.frame_start_time = time.now()
@@ -210,24 +196,22 @@ begin_ui :: proc(ui: ^UI) {
 		ui.painter.this_frame = true
 		ui.painter.next_frame = false
 	}
-	// Reset cursor to default state
-	ui.platform.cursor = .Default
 	// Free and delete unused text buffers
-	update_typing(&typing_agent)
+	update_scribe(&ui.scribe)
 	// Update control interaction ids
-	update_widgets(&widget_agent)
+	update_widgets(ui)
 	// Begin root layer
-	root_layer, ok = begin_layer({
+	ui.root_layer = begin_layer(ui, {
 		id = 0,
 		placement = Box{{}, ui.size}, 
 		options = {.No_ID},
-	})
+	}) or_else panic("bruh")
 	// Begin root layout
-	push_layout(ui, {{}, size})
+	push_layout(ui, {{}, ui.size})
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
 	//FIXME(isaiah): Text inputs selected with 'tab' do not behave correctly
-	if key_pressed(.Tab) && ui.widget_agent.focus_id != 0 {
+	if key_pressed(ui.io, .Tab) && ui.widgets.focus_id != 0 {
 		array: [dynamic]^Widget
 		defer delete(array)
 		anchor: int
@@ -248,17 +232,17 @@ begin_ui :: proc(ui: ^UI) {
 				return false
 			})
 			for entry, i in array {
-				if entry.id == ui.widget_agent.focus_id {
+				if entry.id == ui.widgets.focus_id {
 					anchor = i
 				}
 			}
-			ui.widget_agent.focus_id = array[(anchor + 1) % len(array)].id
+			ui.widgets.focus_id = array[(anchor + 1) % len(array)].id
 			ui.is_key_selecting = true
 		}
 	}
 	// If the mouse moves, stop key selecting
 	if ui.io.mouse_point - ui.io.last_mouse_point != {} {
-		is_key_selecting = false
+		ui.is_key_selecting = false
 	}
 	// Reset clip box
 	ui.clip_box = {{}, ui.size}
@@ -267,30 +251,39 @@ end_ui :: proc(ui: ^UI) {
 	// End root layout
 	pop_layout(ui)
 	// End root layer
-	end_layer(&ui.root_layer)
+	end_layer(ui, ui.root_layer)
 	// Update layers
-	update_layer_agent(&ui.layer_agent)
+	update_layers(ui)
 	// Update widgets
-	update_widget_agent(&ui.widget_agent)
+	update_widgets(ui)
 	// Update panels
-	update_panel_agent(&ui.panel_agent)
+	update_panels(ui)
 	// Decide if rendering is needed next frame
-	if (io.last_mouse_point != io.mouse_point) || (io.last_key_set != io.key_set) || (io.last_mouse_bits != io.mouse_bits) || (io.mouse_scroll != {}) {
+	if (ui.io.last_mouse_point != ui.io.mouse_point) || (ui.io.last_key_set != ui.io.key_set) || (ui.io.last_mouse_bits != ui.io.mouse_bits) || (ui.io.mouse_scroll != {}) {
 		ui.painter.next_frame = true
 	}
-	if size != last_size {
+	if ui.size != ui.last_size {
 		ui.painter.next_frame = true
-		last_size = size
+		ui.last_size = ui.size
 	}
 	// Reset input bits
-	io.rune_count = 0
-	io.last_key_set = io.key_set
-	io.last_mouse_bits = io.mouse_bits
-	io.last_mouse_point = io.mouse_point
-	io.mouse_scroll = {}
+	ui.io.rune_count = 0
+	ui.io.last_key_set = ui.io.key_set
+	ui.io.last_mouse_bits = ui.io.mouse_bits
+	ui.io.last_mouse_point = ui.io.mouse_point
+	ui.io.mouse_scroll = {}
 	// Update timings
-	frame_duration = time.since(frame_start_time)
-	last_time = current_time
+	ui.frame_duration = time.since(ui.frame_start_time)
+	ui.last_time = ui.current_time
+	// Update texture
+	if !ui.painter.ready {
+		reset_atlas(ui.painter)
+		ui.painter.ready = true
+	}
+	if ui.painter.should_update {
+		ui.painter.should_update = false
+		update_texture(ui.painter, ui.painter.texture, ui.painter.image, 0, 0, f32(ui.painter.image.width), f32(ui.painter.image.height))
+	}
 }
 @private
 _count_layer_children :: proc(layer: ^Layer) -> int {

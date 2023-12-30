@@ -55,27 +55,27 @@ layout_agent_push :: proc(using self: ^Layout_Agent, layout: Layout) -> ^Layout 
 	layout := layout
 	layout.original_box = layout.box
 	stack_push(&stack, layout)
-	current_layout = stack_top_ref(&stack)
+	current_layout = &stack.items[stack.height - 1] if stack.height > 0 else nil
 	return current_layout
 }
 layout_agent_pop :: proc(using self: ^Layout_Agent) {
 	stack_pop(&stack)
-	current_layout = stack_top_ref(&stack)
+	current_layout = &stack.items[stack.height - 1] if stack.height > 0 else nil
 }
 
 push_layout :: proc(ui: ^UI, box: Box) -> (layout: ^Layout) {
-	if ui.layout_agent.stack.height > 0 {
+	if ui.layouts.stack.height > 0 {
 		current_layout(ui).last_placement = placement
 	}
-	return layout_agent_push(&ui.layout_agent, Layout({
+	return layout_agent_push(&ui.layouts, Layout({
 		box = box,
 		last_placement = placement,
 	}))
 }
 pop_layout :: proc(ui: ^UI) {
 	last_layout := current_layout(ui)
-	layout_agent_pop(&ui.layout_agent)
-	if ui.layout_agent.stack.height > 0 {
+	layout_agent_pop(&ui.layouts)
+	if ui.layouts.stack.height > 0 {
 		layout := current_layout(ui)
 		// Update placement settings
 		placement = layout.last_placement
@@ -91,8 +91,8 @@ push_growing_layout :: proc(ui: ^UI, box: Box, side: Box_Side) -> ^Layout {
 }
 pop_growing_layout :: proc(ui: ^UI, ) {
 	last_layout := current_layout(ui)
-	layout_agent_pop(&ui.layout_agent)
-	if ui.layout_agent.stack.height > 0 {
+	layout_agent_pop(&ui.layouts)
+	if ui.layouts.stack.height > 0 {
 		layout := current_layout(ui)
 		// Update placement settings
 		placement = layout.last_placement
@@ -105,8 +105,8 @@ pop_growing_layout :: proc(ui: ^UI, ) {
 }
 // Get the current layout (asserts that there be one)
 current_layout :: proc(ui: ^UI, loc := #caller_location) -> ^Layout {
-	assert(ui.layout_agent.current_layout != nil, "No current layout", loc)
-	return ui.layout_agent.current_layout
+	assert(ui.layouts.current_layout != nil, "No current layout", loc)
+	return ui.layouts.current_layout
 }
 get_exact_margin :: proc(l: ^Layout, side: Box_Side) -> Exact {
 	return (placement.margin[side].(Exact) or_else Exact(f32(placement.margin[side].(Relative)) * ((l.box.high.x - l.box.low.x) if int(side) > 1 else (l.box.high.y - l.box.low.y))))
@@ -234,7 +234,7 @@ do_row :: proc(ui: ^UI, divisions: int, spacing: f32 = 0) -> (ok: bool) {
 	return true
 }
 @private 
-_do_row :: proc(ui: ^UI, ok: bool) {
+_do_row :: proc(ui: ^UI, _: int, _: f32, ok: bool) {
 	if ok {
 		pop_layout(ui)
 	}

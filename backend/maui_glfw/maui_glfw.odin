@@ -12,8 +12,7 @@ import "vendor:glfw"
 import gl "vendor:OpenGL"
 
 Platform :: struct {
-	// Interface layer
-	layer: maui.Platform_Layer,
+	io: ^maui.IO,
 	//
 	window: glfw.WindowHandle,
 	cursors: [maui.Cursor_Type]glfw.CursorHandle,
@@ -22,9 +21,10 @@ Platform :: struct {
 	frame_time: f64,
 }
 
-_platform: ^Platform
+@private
+platform: Platform
 
-make_platform :: proc(width, height: int, title: string, api: backend.Render_API) -> (result: Platform, ok: bool) {
+init :: proc(width, height: int, title: string, api: backend.Render_API, io: ^maui.IO) -> (ok: bool) {
 	glfw.Init()
 	if api == .OpenGL {
 		glfw.WindowHint(glfw.SAMPLES, 4)
@@ -41,12 +41,9 @@ make_platform :: proc(width, height: int, title: string, api: backend.Render_API
 	defer delete(title_cstr)
 
 	// Create window
-	result.window = glfw.CreateWindow(i32(width), i32(height), title_cstr, nil, nil)
+	platform.window = glfw.CreateWindow(i32(width), i32(height), title_cstr, nil, nil)
 
-	width, height := glfw.GetFramebufferSize(result.window)
-	result.layer = {
-		screen_size = {width, height},
-	}
+	width, height := glfw.GetFramebufferSize(platform.window)
 	// Create and assign error callback
 	err_callback :: proc(err: i32, desc: cstring) {
 		fmt.println(err, desc)
@@ -54,113 +51,115 @@ make_platform :: proc(width, height: int, title: string, api: backend.Render_API
 	glfw.SetErrorCallback(glfw.ErrorProc(err_callback))
 
 	// Load cursors
-	result.cursors[.Default] = glfw.CreateStandardCursor(glfw.ARROW_CURSOR)
-	result.cursors[.Beam] = glfw.CreateStandardCursor(glfw.IBEAM_CURSOR)
-	result.cursors[.Hand] = glfw.CreateStandardCursor(glfw.HAND_CURSOR)
-	result.cursors[.Crosshair] = glfw.CreateStandardCursor(glfw.CROSSHAIR_CURSOR)
-	result.cursors[.Resize_EW] = glfw.CreateStandardCursor(glfw.HRESIZE_CURSOR)
-	result.cursors[.Resize_NS] = glfw.CreateStandardCursor(glfw.VRESIZE_CURSOR)
-	result.cursors[.Resize_NESW] = glfw.CreateStandardCursor(glfw.RESIZE_NESW_CURSOR)
-	result.cursors[.Resize_NWSE] = glfw.CreateStandardCursor(glfw.RESIZE_NWSE_CURSOR)
-	result.cursors[.Resize] = glfw.CreateStandardCursor(glfw.CENTER_CURSOR)
+	platform.cursors[.Default] = glfw.CreateStandardCursor(glfw.ARROW_CURSOR)
+	platform.cursors[.Beam] = glfw.CreateStandardCursor(glfw.IBEAM_CURSOR)
+	platform.cursors[.Hand] = glfw.CreateStandardCursor(glfw.HAND_CURSOR)
+	platform.cursors[.Crosshair] = glfw.CreateStandardCursor(glfw.CROSSHAIR_CURSOR)
+	platform.cursors[.Resize_EW] = glfw.CreateStandardCursor(glfw.HRESIZE_CURSOR)
+	platform.cursors[.Resize_NS] = glfw.CreateStandardCursor(glfw.VRESIZE_CURSOR)
+	platform.cursors[.Resize_NESW] = glfw.CreateStandardCursor(glfw.RESIZE_NESW_CURSOR)
+	platform.cursors[.Resize_NWSE] = glfw.CreateStandardCursor(glfw.RESIZE_NWSE_CURSOR)
+	platform.cursors[.Resize] = glfw.CreateStandardCursor(glfw.CENTER_CURSOR)
 
-	resize_callback :: proc(window: glfw.WindowHandle, width, height: i32) {
-		maui.ctx.size = {f32(width), f32(height)}
+	// Set IO interfaces
+	platform.io = io
+	io.get_clipboard_string = proc() -> string {
+		return glfw.GetClipboardString(platform.window)
 	}
-	glfw.SetFramebufferSizeCallback(result.window, glfw.FramebufferSizeProc(resize_callback))
-
+	io.set_clipboard_string = proc(str: string) {
+		cstr := strings.clone_to_cstring(str)
+		defer delete(cstr)
+		glfw.SetClipboardString(platform.window, cstr)
+	}
+	io.set_cursor_type = proc(type: maui.Cursor_Type) {
+		if type == .None {
+			glfw.SetInputMode(platform.window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+		} else {
+			glfw.SetInputMode(platform.window, glfw.CURSOR, glfw.CURSOR_NORMAL)
+			glfw.SetCursor(platform.window, platform.cursors[type])
+		}
+	}
+	io.set_cursor_position = proc(x, y: f32) {
+		glfw.SetCursorPos(platform.window, f64(x), f64(y))
+	}
+	// Define callbacks
+	resize_proc :: proc(window: glfw.WindowHandle, width, height: i32) {
+		platform.io.size = {width, height}
+	}
 	scroll_proc :: proc(window: glfw.WindowHandle, x, y: f64) {
-		maui.input.mouse_scroll = {f32(x), f32(y)}
+		platform.io.mouse_scroll = {f32(x), f32(y)}
 	}
-	glfw.SetScrollCallback(result.window, glfw.ScrollProc(scroll_proc))
-
-	key_callback :: proc(window: glfw.WindowHandle, key, scancode, action, mods: i32) {
+	key_proc :: proc(window: glfw.WindowHandle, key, scancode, action, mods: i32) {
 		if key >= 0 {
 			switch action {
 				case glfw.PRESS: 
-				maui.input.key_set[key] = true
+				platform.io.key_set[key] = true
 
 				case glfw.REPEAT: 
-				maui.input.key_set[key] = true 
-				maui.input.last_key_set[key] = false
+				platform.io.key_set[key] = true 
+				platform.io.last_key_set[key] = false
 				
 				case glfw.RELEASE: 
-				maui.input.key_set[key] = false
+				platform.io.key_set[key] = false
 			}
 		}
 	}
-	glfw.SetKeyCallback(result.window, glfw.KeyProc(key_callback))
-
-	char_callback :: proc(window: glfw.WindowHandle, char: i32) {
-		maui.input.runes[maui.input.rune_count] = rune(char)
-		maui.input.rune_count += 1
+	char_proc :: proc(window: glfw.WindowHandle, char: i32) {
+		platform.io.runes[platform.io.rune_count] = rune(char)
+		platform.io.rune_count += 1
 	}
-	glfw.SetCharCallback(result.window, glfw.CharProc(char_callback))
-
 	cursor_proc :: proc(window: glfw.WindowHandle, x, y: i32) {
 		x, y := glfw.GetCursorPos(window)
-		maui.input.mouse_point = {f32(x), f32(y)}
+		platform.io.mouse_point = {f32(x), f32(y)}
 	}
-	glfw.SetCursorPosCallback(result.window, glfw.CursorPosProc(cursor_proc))
-
 	mouse_proc :: proc(window: glfw.WindowHandle, button, action, mods: i32) {
 		switch action {
-			case glfw.PRESS: maui.input.mouse_bits += {maui.Mouse_Button(button)}
-			case glfw.RELEASE: maui.input.mouse_bits -= {maui.Mouse_Button(button)}
+			case glfw.PRESS: platform.io.mouse_bits += {maui.Mouse_Button(button)}
+			case glfw.RELEASE: platform.io.mouse_bits -= {maui.Mouse_Button(button)}
 		}
 	}
-	glfw.SetMouseButtonCallback(result.window, glfw.MouseButtonProc(mouse_proc))
-
+	// Set callbacks
+	glfw.SetFramebufferSizeCallback(platform.window, glfw.FramebufferSizeProc(resize_proc))
+	glfw.SetScrollCallback(platform.window, glfw.ScrollProc(scroll_proc))
+	glfw.SetKeyCallback(platform.window, glfw.KeyProc(key_proc))
+	glfw.SetCharCallback(platform.window, glfw.CharProc(char_proc))
+	glfw.SetCursorPosCallback(platform.window, glfw.CursorPosProc(cursor_proc))
+	glfw.SetMouseButtonCallback(platform.window, glfw.MouseButtonProc(mouse_proc))
 	// Set up opengl
-	glfw.MakeContextCurrent(result.window)
-
+	glfw.MakeContextCurrent(platform.window)
+	// Load gl procs
 	if api == .OpenGL {
 		gl.load_up_to(3, 3, glfw.gl_set_proc_address)
+		ok = true
 	}
-	ok = true
-
 	return
 }
 
-begin :: proc(using platform: ^Platform, ui: ^maui.UI) {
-	width, height := glfw.GetFramebufferSize(window)
-	layer.screen_size = {width, height}
-	ui.size = {f32(width), f32(height)}
-
-	ui.current_time = glfw.GetTime()
-	if ui.cursor == .None {
-		glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
-	} else {
-		glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_NORMAL)
-		glfw.SetCursor(window, cursors[ui.cursor])
-	}
+begin :: proc() {
+	platform.io.current_time = glfw.GetTime()
 	glfw.PollEvents()
-	/*if point, ok := maui.ctx.set_cursor.?; ok {
-		glfw.SetCursorPos(platform.window, f64(point.x), f64(point.y))
-		maui.ctx.set_cursor = nil
-	}*/
 }
 
-end :: proc(using platform: ^Platform) {
-	glfw.SwapBuffers(window)
+end :: proc() {
+	glfw.SwapBuffers(platform.window)
 }
 
-cycle :: proc(using platform: ^Platform, target_frame_time: f64) -> bool {
+cycle :: proc(target_frame_time: f32) -> bool {
 	now := glfw.GetTime()
-	frame_time = now - last_time
-	if frame_time < target_frame_time {
-		time.sleep(time.Second * time.Duration(target_frame_time - frame_time))
+	platform.io.frame_time = f32(now - platform.io.last_time)
+	if platform.io.frame_time < target_frame_time {
+		time.sleep(time.Second * time.Duration(target_frame_time - platform.io.frame_time))
 	}
-	last_time = current_time
-	current_time = glfw.GetTime()
-	return !should_close(platform)
+	platform.io.last_time = platform.io.current_time
+	platform.io.current_time = now
+	return !should_close()
 }
 
-should_close :: proc(using platform: ^Platform) -> bool {
-	return bool(glfw.WindowShouldClose(window))
+should_close :: proc() -> bool {
+	return bool(glfw.WindowShouldClose(platform.window))
 }
 
-destroy_platform :: proc(using self: ^Platform) {
-	glfw.DestroyWindow(window)
-	self^ = {}
+destroy :: proc() {
+	glfw.DestroyWindow(platform.window)
+	platform = {}
 }

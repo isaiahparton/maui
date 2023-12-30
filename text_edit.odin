@@ -1,5 +1,6 @@
 package maui
 
+import "core:io"
 import "core:fmt"
 import "core:strings"
 import "core:unicode"
@@ -10,12 +11,11 @@ Text_Location :: struct {
 	line, 
 	column: int,
 }
-
 Text_Buffer :: struct {
 	keep_alive: bool,
 	buffer: [dynamic]u8,
 }
-Typing_Agent :: struct {
+Scribe :: struct {
 	//TODO: Introduce new approach!
 	// loc,
 	// last_loc: Text_Location,
@@ -29,37 +29,38 @@ Typing_Agent :: struct {
 
 	buffers: map[Id]Text_Buffer,
 }
-
-destroy_typing_agent :: proc(using self: ^Typing_Agent) {
+destroy_scribe :: proc(using self: ^Scribe) {
 	for _, value in buffers {
 		delete(value.buffer)
 	}
 	delete(buffers)
 }
-typing_agent_get_buffer :: proc(using self: ^Typing_Agent, id: Id) -> (buffer: ^[dynamic]u8) {
-	value, ok := &buffers[id]
+
+get_scribe_buffer :: proc(scribe: ^Scribe, id: Id) -> (buffer: ^[dynamic]u8) {
+	value, ok := &scribe.buffers[id]
 	if !ok {
-		value = map_insert(&buffers, id, Text_Buffer({}))
+		value = map_insert(&scribe.buffers, id, Text_Buffer({}))
 		ok = true
 	}
 	value.keep_alive = true
 	return &value.buffer
 }
-typing_agent_step :: proc(using self: ^Typing_Agent) {
-	last_index = index
-	last_length = length
-	for key, value in &buffers {
+
+update_scribe :: proc(scribe: ^Scribe) {
+	scribe.last_index = scribe.index
+	scribe.last_length = scribe.length
+	for key, value in &scribe.buffers {
 		if value.keep_alive {
 			value.keep_alive = false
 		} else {
 			delete(value.buffer)
-			delete_key(&buffers, key)
+			delete_key(&scribe.buffers, key)
 		}
 	}
 }
 
 // Text edit helpers
-typing_agent_insert_string :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, max_len: int, str: string) {
+scribe_insert_string :: proc(using self: ^Scribe, buf: ^[dynamic]u8, max_len: int, str: string) {
 	if length > 0 {
 		remove_range(buf, index, index + length)
 		length = 0
@@ -71,27 +72,13 @@ typing_agent_insert_string :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8,
 	inject_at_elem_string(buf, index, str[:n])
 	index += n
 }
-typing_agent_insert_runes :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8, max_len: int, runes: []rune) {
+insert_runes :: proc(using self: ^Scribe, buf: ^[dynamic]u8, max_len: int, runes: []rune) {
 	str := utf8.runes_to_string(runes)
-	typing_agent_insert_string(self, buf, max_len, str)
+	scribe_insert_string(self, buf, max_len, str)
 	delete(str)
 }
-typing_agent_backspace :: proc(using self: ^Typing_Agent, buf: ^[dynamic]u8){
-	if length == 0 {
-		if index > 0 {
-			end := index
-			if key_down(.Left_Control) || key_down(.Right_Control) {
-				index = find_last_seperator(buf[:index])
-			} else {
-				_, size := utf8.decode_last_rune_in_bytes(buf[:index])
-				index -= size
-			}
-			remove_range(buf, index, end)
-		}
-	} else {
-		remove_range(buf, index, index + length)
-		length = 0
-	}
+scribe_backspace :: proc(using self: ^Scribe, buf: ^[dynamic]u8){
+	
 }
 get_last_line :: proc(data: []u8, index: int) -> (int, bool) {
 	f: bool
@@ -149,154 +136,166 @@ Text_Edit_Info :: struct {
 	capacity: int,
 }
 
-typing_agent_edit :: proc(using self: ^Typing_Agent, info: Text_Edit_Info) -> (change: bool) {
+escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change: bool) {
 	// Control commands
-	if key_down(.Left_Control) {
+	if key_down(io, .Left_Control) {
 		// Select all
-		if key_pressed(.A) {
-			index = 0
-			anchor = 0
-			length = len(info.array)
+		if key_pressed(io, .A) {
+			scribe.index = 0
+			scribe.anchor = 0
+			scribe.length = len(info.array)
 		}
 		// Clipboard paste
-		if key_pressed(.V) {
+		if key_pressed(io, .V) {
 			valid := true
-			content := get_clipboard_string()
+			content := get_clipboard_string(io)
 			if .Multiline not_in info.bits {
 				if strings.contains_rune(content, '\n') {
 					valid = false
 				}
 			}
 			if valid {
-				typing_agent_insert_string(self, info.array, info.capacity, content)
+				scribe_insert_string(scribe, info.array, info.capacity, content)
 				change = true
-				anchor = index
+				scribe.anchor = scribe.index
 			}
 		}
 	}
 	// Normal character input
-	if input.rune_count > 0 {
+	if io.rune_count > 0 {
 		if .Numeric in info.bits {
-			for i in 0 ..< input.rune_count {
-				glyph := int(input.runes[i])
+			for i in 0 ..< io.rune_count {
+				glyph := int(io.runes[i])
 				if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .Integer not_in info.bits) {
-					typing_agent_insert_runes(self, info.array, info.capacity, input.runes[i:i + 1])
+					insert_runes(scribe, info.array, info.capacity, io.runes[i:i + 1])
 					change = true
 				}
 			}
 		} else {
-			typing_agent_insert_runes(self, info.array, info.capacity, input.runes[:input.rune_count])
+			insert_runes(scribe, info.array, info.capacity, io.runes[:io.rune_count])
 			change = true
 		}
-		anchor = index
+		scribe.anchor = scribe.index
 	}
 	// Enter
-	if .Multiline in info.bits && key_pressed(.Enter) {
-		typing_agent_insert_runes(self, info.array, info.capacity, {'\n'})
+	if .Multiline in info.bits && key_pressed(io, .Enter) {
+		insert_runes(scribe, info.array, info.capacity, {'\n'})
 		change = true
 	}
 	// Backspacing
-	if key_pressed(.Backspace) {
+	if key_pressed(io, .Backspace) {
 		if len(info.array) > 0 {
-			typing_agent_backspace(self, info.array)
+			if scribe.length == 0 {
+				if scribe.index > 0 {
+					end := scribe.index
+					if key_down(io, .Left_Control) || key_down(io, .Right_Control) {
+						scribe.index = find_last_seperator(info.array[:scribe.index])
+					} else {
+						_, size := utf8.decode_last_rune_in_bytes(info.array[:scribe.index])
+						scribe.index -= size
+					}
+					remove_range(info.array, scribe.index, end)
+				}
+			} else {
+				remove_range(info.array, scribe.index, scribe.index + scribe.length)
+				scribe.length = 0
+			}
 			change = true
-			anchor = index
+			scribe.anchor = scribe.index
 		}
 	}
 	// Arrowkey navigation
-	if key_pressed(.Up) {
-		i := strings.last_index_byte(string(info.array[:vertical_anchor]), '\n')
-		offset := vertical_anchor - i
+	if key_pressed(io, .Up) {
+		i := strings.last_index_byte(string(info.array[:scribe.vertical_anchor]), '\n')
+		offset := scribe.vertical_anchor - i
 		if i >= 0 {
-			index = strings.last_index_byte(string(info.array[:i]), '\n') + offset
+			scribe.index = strings.last_index_byte(string(info.array[:i]), '\n') + offset
 		}
 	}
-	if key_pressed(.Down) {
-		i := max(strings.last_index_byte(string(info.array[:vertical_anchor]), '\n'), 0)
-		offset := vertical_anchor - i
-		i = strings.index_byte(string(info.array[vertical_anchor:]), '\n')
+	if key_pressed(io, .Down) {
+		i := max(strings.last_index_byte(string(info.array[:scribe.vertical_anchor]), '\n'), 0)
+		offset := scribe.vertical_anchor - i
+		i = strings.index_byte(string(info.array[scribe.vertical_anchor:]), '\n')
 		if i >= 0 {
-			index = min(index + i + offset + 1, len(info.array))
+			scribe.index = min(scribe.index + i + offset + 1, len(info.array))
 		}
 	}
-	if key_pressed(.Left) {
+	if key_pressed(io, .Left) {
 		delta := 0
 		// How far should the cursor move?
-		if key_down(.Left_Control) || key_down(.Right_Control) {
-			delta = find_last_seperator(info.array[:index]) - index
+		if key_down(io, .Left_Control) || key_down(io, .Right_Control) {
+			delta = find_last_seperator(info.array[:scribe.index]) - scribe.index
 		} else{
-			_, delta = utf8.decode_last_rune_in_bytes(info.array[:index + length])
+			_, delta = utf8.decode_last_rune_in_bytes(info.array[:scribe.index + scribe.length])
 			delta = -delta
 		}
 		// Highlight or not
-		if key_down(.Left_Shift) || key_down(.Right_Shift) {
-			if index < anchor {
-				new_index := index + delta
-				index = max(0, new_index)
-				length = anchor - index
+		if key_down(io, .Left_Shift) || key_down(io, .Right_Shift) {
+			if scribe.index < scribe.anchor {
+				new_index := scribe.index + delta
+				scribe.index = max(0, new_index)
+				scribe.length = scribe.anchor - scribe.index
 			} else {
-				new_index := index + length + delta
-				index = min(anchor, new_index)
-				length = max(anchor, new_index) - index
+				new_index := scribe.index + scribe.length + delta
+				scribe.index = min(scribe.anchor, new_index)
+				scribe.length = max(scribe.anchor, new_index) - scribe.index
 			}
 		} else {
-			if length == 0 {
-				index += delta
+			if scribe.length == 0 {
+				scribe.index += delta
 			}
-			length = 0
-			anchor = index
+			scribe.length = 0
+			scribe.anchor = scribe.index
 		}
-		ctx.painter.next_frame = true
 		// Clamp cursor
-		index = max(0, index)
-		length = max(0, length)
-		vertical_anchor = index
+		scribe.index = max(0, scribe.index)
+		scribe.length = max(0, scribe.length)
+		scribe.vertical_anchor = scribe.index
 	}
-	if key_pressed(.Right) {
+	if key_pressed(io, .Right) {
 		delta := 0
 		// How far should the cursor move
-		if key_down(.Left_Control) || key_down(.Right_Control) {
-			delta = find_next_seperator(info.array[index + length:])
+		if key_down(io, .Left_Control) || key_down(io, .Right_Control) {
+			delta = find_next_seperator(info.array[scribe.index + scribe.length:])
 		} else {
-			_, delta = utf8.decode_rune_in_bytes(info.array[index + length:])
+			_, delta = utf8.decode_rune_in_bytes(info.array[scribe.index + scribe.length:])
 		}
 		// Highlight or not?
-		if key_down(.Left_Shift) || key_down(.Right_Shift) {
-			if index < anchor {
-				new_index := index + delta
-				index = new_index
-				length = anchor - new_index
+		if key_down(io, .Left_Shift) || key_down(io, .Right_Shift) {
+			if scribe.index < scribe.anchor {
+				new_index := scribe.index + delta
+				scribe.index = new_index
+				scribe.length = scribe.anchor - new_index
 			} else {
-				new_index := index + length + delta
-				index = anchor
-				length = new_index - index
+				new_index := scribe.index + scribe.length + delta
+				scribe.index = scribe.anchor
+				scribe.length = new_index - scribe.index
 			}
 		} else {
-			if length > 0 {
-				index += length
+			if scribe.length > 0 {
+				scribe.index += scribe.length
 			} else {
-				index += delta
+				scribe.index += delta
 			}
-			length = 0
-			anchor = index
+			scribe.length = 0
+			scribe.anchor = scribe.index
 		}
 		// Clamp cursor
-		if length == 0 {
-			if index > len(info.array) {
-				index = len(info.array)
+		if scribe.length == 0 {
+			if scribe.index > len(info.array) {
+				scribe.index = len(info.array)
 			}
 		} else {
-			if index + length > len(info.array) {
-				length = len(info.array) - index
+			if scribe.index + scribe.length > len(info.array) {
+				scribe.length = len(info.array) - scribe.index
 			}
 		}
-		ctx.painter.next_frame = true
-		index = max(0, index)
-		length = max(0, length)
-		vertical_anchor = index
+		scribe.index = max(0, scribe.index)
+		scribe.length = max(0, scribe.length)
+		scribe.vertical_anchor = scribe.index
 	}
 	if change {
-		length = min(length, len(info.array) - index)
+		scribe.length = min(scribe.length, len(info.array) - scribe.index)
 	}
 	return
 }

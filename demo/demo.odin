@@ -20,43 +20,47 @@ TARGET_FRAME_RATE :: 75
 TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
 
 _main :: proc() -> bool {
-	// Create the platform
-	io := maui_glfw.init(1200, 1000, "Maui", .OpenGL) or_return
-	// Create the renderer
-	painter := maui_opengl.init(platform.layer) or_return
-	// Set up the UI context
-	ui := maui.make_ui(platform.layer, renderer.layer) or_return
+
+	// Shared structures
+	io: maui.IO
+	painter := maui.make_painter() or_return
+
+	// Initialize the platform and renderer
+	maui_glfw.init(1200, 1000, "Maui", .OpenGL, &io) or_return
+	maui_opengl.init(&painter) or_return
+
+	// Only create the ui structure once the `painter` and `io` are initiated
+	ui := maui.make_ui(&io, &painter) or_return
+
 	// Begin the cycle
-	for maui_glfw.cycle(&platform, TARGET_FRAME_TIME) {
+	for maui_glfw.cycle(TARGET_FRAME_TIME) {
 		using maui 
 		using maui_widgets
 
 		// Beginning of ui calls
-		maui_glfw.begin(&platform, &ui)
+		maui_glfw.begin()
 
 		begin_ui(&ui)
-		if was_clicked(button(&ui, {text = "click me! uwu"})) {
+		if was_clicked(button(&ui, {
+			text = "click me! uwu",
+			box = Box{{100, 100}, {300, 150}},
+		})) {
 			fmt.println("button clicked!")
 		}
 		end_ui(&ui)
 
-		// Update texture if necessary
-		if ui.painter.atlas.should_update {
-			ui.painter.atlas.should_update = false
-			update_texture(ui.painter.atlas.texture, ui.painter.atlas.image, 0, 0, f32(ui.painter.atlas.image.width), f32(ui.painter.atlas.image.height))
-		}
-
 		// Render if needed
-		if maui.should_render(&ui.painter) {
+		if should_render(&painter) {
 			maui_opengl.clear(ui.style.color.base[0])
-			maui_opengl.render(&renderer, &ui)
-			maui_glfw.end(&platform)
+			maui_opengl.render(&ui)
+			maui_glfw.end()
 		}
 	}
 
-	maui.destroy_ui(&ui)	
-	maui_opengl.destroy_painter(&painter)
-	maui_glfw.destroy_io(&io)
+	maui.destroy_ui(&ui)
+
+	maui_opengl.destroy()
+	maui_glfw.destroy()
 
 	return true
 }

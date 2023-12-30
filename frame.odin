@@ -20,7 +20,7 @@ do_frame :: proc(ui: ^UI, info: Frame_Info, loc := #caller_location) -> (ok: boo
 		options = info.layer_options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
 	if ok {
-		paint_box_fill(&ui.painter, layer.box, info.fill_color.? or_else ui.style.color.base[1])
+		paint_box_fill(ui.painter, layer.box, info.fill_color.? or_else ui.style.color.base[1])
 	}
 	return
 }
@@ -29,7 +29,7 @@ do_frame :: proc(ui: ^UI, info: Frame_Info, loc := #caller_location) -> (ok: boo
 _do_frame :: proc(ui: ^UI, _: Frame_Info, _: runtime.Source_Code_Location, ok: bool) {
 	if ok {
 		assert(ui.layers.current != nil)
-		paint_box_stroke(&ui.painter, ui.layers.current.box, 1, ui.style.color.substance[1])
+		paint_box_stroke(ui.painter, ui.layers.current.box, 1, ui.style.color.substance[1])
 		end_layer(ui, ui.layers.current)
 	}
 }

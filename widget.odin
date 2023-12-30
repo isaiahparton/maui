@@ -136,7 +136,7 @@ get_widget :: proc(ui: ^UI, id: Id) -> (^Widget, Generic_Widget_Result) {
 			id = id,
 		}
 		// Add the widget to the list
-		append(&ui.widget_agent.list, widget)
+		append(&ui.widgets.list, widget)
 		// Assign the widget to the layer
 		layer.contents[id] = widget
 		// Paint the next frame
@@ -163,32 +163,32 @@ destroy_widget_agent :: proc(using self: ^Widget_Agent) {
 	Update general ids of widget agent
 */
 update_widgets :: proc(ui: ^UI) {
-	last_hover_id = hover_id
-	last_press_id = press_id
-	last_focus_id = focus_id
-	hover_id = next_hover_id
+	ui.widgets.last_hover_id = ui.widgets.hover_id
+	ui.widgets.last_press_id = ui.widgets.press_id
+	ui.widgets.last_focus_id = ui.widgets.focus_id
+	ui.widgets.hover_id = ui.widgets.next_hover_id
 	// Make sure dragged idgets are hovered
-	if drag_anchor != nil && press_id != 0 {
-		hover_id = press_id
+	if ui.drag_anchor != nil && ui.widgets.press_id != 0 {
+		ui.widgets.hover_id = ui.widgets.press_id
 	}
 	// Keyboard navigation
 	if ui.is_key_selecting {
-		hover_id = focus_id
-		if key_pressed(.Enter) {
-			press_id = hover_id
+		ui.widgets.hover_id = ui.widgets.focus_id
+		if key_pressed(ui.io, .Enter) {
+			ui.widgets.press_id = ui.widgets.hover_id
 		}
 	}
 	// Reset next hover id so if nothing is hovered nothing will be hovered
-	next_hover_id = 0
+	ui.widgets.next_hover_id = 0
 	// Press whatever is hovered and focus what is pressed
-	if mouse_pressed(.Left) {
-		press_id = hover_id
-		focus_id = press_id
+	if mouse_pressed(ui.io, .Left) {
+		ui.widgets.press_id = ui.widgets.hover_id
+		ui.widgets.focus_id = ui.widgets.press_id
 	}
 	// Reset drag status
-	drag_anchor = nil
+	ui.drag_anchor = nil
 	// Free unused widgets
-	for widget, i in &list {
+	for widget, i in &ui.widgets.list {
 		if .Stay_Alive in widget.bits {
 			widget.bits -= {.Stay_Alive}
 		} else {
@@ -204,7 +204,7 @@ update_widgets :: proc(ui: ^UI) {
 			// Free memory
 			free(widget)
 			// Remove from list
-			ordered_remove(&list, i)
+			ordered_remove(&ui.widgets.list, i)
 			// Make sure we paint the next frame
 			ui.painter.next_frame = true
 		}
@@ -213,34 +213,34 @@ update_widgets :: proc(ui: ^UI) {
 /*
 	Try to update a widget's hover state
 */
-update_widget_hover :: proc(wdg: ^Widget, condition: bool) {
-	if !(ui.widget_agent.drag_anchor != nil && wdg.id != ui.widget_agent.hover_id) && ui.layer_agent.hover_id == wdg.layer.id && condition {
-		ui.widget_agent.next_hover_id = wdg.id
+update_widget_hover :: proc(ui: ^UI, wdg: ^Widget, condition: bool) {
+	if !(ui.widgets.drag_anchor != nil && wdg.id != ui.widgets.hover_id) && ui.layers.hover_id == wdg.layer.id && condition {
+		ui.widgets.next_hover_id = wdg.id
 	}
 }
 /*
 	Update the interaction state of a widget
 	TODO: Move this
 */
-update_widget_state :: proc(wdg: ^Widget) {
-	using ui.widget_agent
+update_widget_state :: proc(ui: ^UI, wdg: ^Widget) {
+	using ui.widgets
 	// If hovered
 	if hover_id == wdg.id {
 		wdg.state += {.Hovered}
 		if last_hover_id != wdg.id {
-			hover_time = time.now()
+			wdg.hover_time = time.now()
 		}
-		pressed_buttons := input.mouse_bits - input.last_mouse_bits
+		pressed_buttons := ui.io.mouse_bits - ui.io.last_mouse_bits
 		if pressed_buttons != {} {
 			if wdg.click_count == 0 {
-				wdg.click_button = input.last_mouse_button
+				wdg.click_button = ui.io.last_mouse_button
 			}
-			if wdg.click_button == input.last_mouse_button && time.since(wdg.click_time) <= DOUBLE_CLICK_TIME {
+			if wdg.click_button == ui.io.last_mouse_button && time.since(wdg.click_time) <= DOUBLE_CLICK_TIME {
 				wdg.click_count = (wdg.click_count + 1) % MAX_CLICK_COUNT
 			} else {
 				wdg.click_count = 0
 			}
-			wdg.click_button = input.last_mouse_button
+			wdg.click_button = ui.io.last_mouse_button
 			wdg.click_time = time.now()
 			press_id = wdg.id
 		}
@@ -258,7 +258,7 @@ update_widget_state :: proc(wdg: ^Widget) {
 	if press_id == wdg.id {
 		wdg.state += {.Pressed}
 		// Just released buttons
-		released_buttons := input.last_mouse_bits - input.mouse_bits
+		released_buttons := ui.io.last_mouse_bits - ui.io.mouse_bits
 		if released_buttons != {} {
 			for button in Mouse_Button {
 				if button == wdg.click_button {
@@ -269,7 +269,7 @@ update_widget_state :: proc(wdg: ^Widget) {
 			press_id = 0
 		}
 		if .Draggable in wdg.options && .Pressed not_in wdg.last_state {
-			drag_anchor = input.mouse_point
+			drag_anchor = ui.io.mouse_point
 		}
 	}
 	// Focus
@@ -280,37 +280,31 @@ update_widget_state :: proc(wdg: ^Widget) {
 /*
 	Simply update the state of the widget for this frame
 */
-update_widget :: proc(wdg: ^Widget) {
+update_widget :: proc(ui: ^UI, wdg: ^Widget) {
 	// Prepare widget
 	wdg.state = {}
 	wdg.bits += {.Stay_Alive}
-	if ui.disabled {
-		wdg.bits += {.Disabled}
-	} else {
-		wdg.bits -= {.Disabled}
-	}
-	if ui.painter.this_frame && get_clip(current_layer().box, wdg.box) != .Full {
+	if ui.painter.this_frame && get_clip(current_layer(ui).box, wdg.box) != .Full {
 		wdg.bits += {.Should_Paint}
 	} else {
 		wdg.bits -= {.Should_Paint}
 	}
-
 	ui.last_box = wdg.box
 	// Get input
-	if !ui.disabled {
-		update_widget_state(wdg)
+	if .Disabled not_in wdg.bits {
+		update_widget_state(ui, wdg)
 	}
 }
 /*
 	Context deferred helper proc pair for unique widgets
 */
-@(deferred_in_out=_do_widget)
+/*@(deferred_in_out=_do_widget)
 do_widget :: proc(ui: ^UI, id: Id, options: Widget_Options = {}, tooltip: Maybe(Tooltip_Info) = nil) -> (wgt: ^Widget, ok: bool) {
 	// Check if clipped
-	wgt = get_widget(id) or_return
+	wgt = get_widget(ui, id) or_return
 	// Deploy tooltip
 	if tooltip, ok := tooltip.?; ok { 
-		if wgt.state >= {.Hovered} && time.since(ui.widget_agent.hover_time) > time.Millisecond * 500 {
+		if wgt.state >= {.Hovered} && time.since(ui.widgets.hover_time) > time.Millisecond * 500 {
 			tooltip_box(wgt.id, tooltip.text, wgt.box, tooltip.box_side, 10)
 		}
 	}
@@ -323,7 +317,7 @@ _do_widget :: proc(ui: ^UI, _: Id, _: Widget_Options, _: Maybe(Tooltip_Info), wg
 		// Update the parent layer's content box
 		wgt.layer.content_box = update_bounding_box(wgt.layer.content_box, wgt.box)
 	}
-}
+}*/
 /*
 	Tooltips
 */
@@ -334,11 +328,11 @@ Tooltip_Info :: struct {
 /*
 	Deploy a tooltip layer aligned to a given side of the origin
 */
-tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment, side: Maybe(Box_Side) = nil) {
-	text_size := measure_text({
+tooltip :: proc(ui: ^UI, id: Id, text: string, origin: [2]f32, align: [2]Alignment, side: Maybe(Box_Side) = nil) {
+	text_size := measure_text(ui.painter, {
 		text = text,
-		font = style.font.title,
-		size = style.text_size.title,
+		font = ui.style.font.title,
+		size = ui.style.text_size.title,
 	})
 	PADDING :: 3
 	size := text_size + PADDING * 2
@@ -354,44 +348,45 @@ tooltip :: proc(id: Id, text: string, origin: [2]f32, align: [2]Alignment, side:
 		case .Middle: box.low.y = origin.y - size.y / 2
 	}
 	box.high = box.low + size
-	if layer, ok := begin_layer({
+	if layer, ok := begin_layer(ui, {
 		placement = box, 
 		id = id,
 		options = {.No_Scroll_X, .No_Scroll_Y},
 	}); ok {
 		layer.order = .Tooltip
 		BLACK :: Color{0, 0, 0, 255}
-		paint_rounded_box_fill(layer.box, style.tooltip_rounding, {0, 0, 0, 255})
+		paint_rounded_box_fill(ui.painter, layer.box, ui.style.tooltip_rounding, {0, 0, 0, 255})
 		if side, ok := side.?; ok {
 			SIZE :: 5
 			#partial switch side {
 				case .Bottom: 
 				c := (layer.box.high.x + layer.box.low.x) / 2
-				paint_triangle_fill({c - SIZE, layer.box.low.y}, {c + SIZE, layer.box.low.y}, {c, layer.box.low.y - SIZE}, BLACK)
+				paint_triangle_fill(ui.painter, {c - SIZE, layer.box.low.y}, {c + SIZE, layer.box.low.y}, {c, layer.box.low.y - SIZE}, BLACK)
 				case .Top:
 				c := (layer.box.high.x + layer.box.low.x) / 2
-				paint_triangle_fill({c - SIZE, layer.box.high.y}, {c, layer.box.high.y + SIZE}, {c + SIZE, layer.box.high.y}, BLACK)
+				paint_triangle_fill(ui.painter, {c - SIZE, layer.box.high.y}, {c, layer.box.high.y + SIZE}, {c + SIZE, layer.box.high.y}, BLACK)
 				case .Right:
 				c := (layer.box.low.y + layer.box.high.y) / 2
-				paint_triangle_fill({layer.box.low.x, c - SIZE}, {layer.box.low.x, c + SIZE}, {layer.box.low.x - SIZE, c}, BLACK)
+				paint_triangle_fill(ui.painter, {layer.box.low.x, c - SIZE}, {layer.box.low.x, c + SIZE}, {layer.box.low.x - SIZE, c}, BLACK)
 				case .Left:
 				c := (layer.box.low.y + layer.box.high.y) / 2
-				paint_triangle_fill({layer.box.high.x, c - SIZE}, {layer.box.high.x + SIZE, c}, {layer.box.high.x, c + SIZE}, BLACK)
+				paint_triangle_fill(ui.painter, {layer.box.high.x, c - SIZE}, {layer.box.high.x + SIZE, c}, {layer.box.high.x, c + SIZE}, BLACK)
 			}
 		}
 		paint_text(
+			ui.painter,
 			layer.box.low + PADDING, 
-			{font = style.font.title, size = style.text_size.title, text = text}, 
+			{font = ui.style.font.title, size = ui.style.text_size.title, text = text}, 
 			{}, 
 			255,
 			)
-		end_layer(layer)
+		end_layer(ui, layer)
 	}
 }
 /*
 	Helper proc for displaying a tooltip attached to a box
 */
-tooltip_box ::proc(id: Id, text: string, anchor: Box, side: Box_Side, offset: f32) {
+tooltip_box ::proc(ui: ^UI, id: Id, text: string, anchor: Box, side: Box_Side, offset: f32) {
 	origin: [2]f32
 	align: [2]Alignment
 	switch side {
@@ -416,5 +411,5 @@ tooltip_box ::proc(id: Id, text: string, anchor: Box, side: Box_Side, offset: f3
 		align.x = .Middle
 		align.y = .Far
 	}
-	tooltip(id, text, origin, align, side)
+	tooltip(ui, id, text, origin, align, side)
 }

@@ -20,13 +20,15 @@ IO :: struct {
 	runes: [MAX_INPUT_RUNES]rune,
 	rune_count: int,
 
-	key_hold_timer,
-	key_pulse_timer: f32,
-	key_pulse: bool,
+	current_time,
+	last_time: f64,
+	delta_time,
+	frame_time: f32,
 
-	screen_size: [2]i32,
-	set_cursor: Maybe(Cursor_Type),
-	set_mouse_position: Maybe([2]i32),
+	size: [2]i32,
+
+	set_cursor_type: proc(Cursor_Type),
+	set_cursor_position: proc(x, y: f32),
 	get_clipboard_string: proc() -> string,
 	set_clipboard_string: proc(string),
 }
@@ -167,13 +169,13 @@ update_io :: proc(io: ^IO) {
 }
 // Mouse buttons
 mouse_pressed :: proc(io: ^IO, button: Mouse_Button) -> bool {
-	return (button in mouse_bits) && (button not_in last_mouse_bits)
+	return (button in io.mouse_bits) && (button not_in io.last_mouse_bits)
 }
 mouse_released :: proc(io: ^IO, button: Mouse_Button) -> bool {
-	return (button not_in mouse_bits) && (button in last_mouse_bits)
+	return (button not_in io.mouse_bits) && (button in io.last_mouse_bits)
 }
 mouse_down :: proc(io: ^IO, button: Mouse_Button) -> bool {
-	return button in mouse_bits
+	return button in io.mouse_bits
 }
 // Keys
 key_pressed :: proc(io: ^IO, key: Key) -> bool {
@@ -186,25 +188,15 @@ key_down :: proc(io: ^IO, key: Key) -> bool {
 	return io.key_set[key]
 }
 // Clipboard
-get_clipboard_string :: proc() -> string {
-	assert(ui.platform.get_clipboard_string != nil)
-	return ui.platform.get_clipboard_string()
+get_clipboard_string :: proc(io: ^IO) -> string {
+	assert(io.get_clipboard_string != nil)
+	return io.get_clipboard_string()
 }
-set_clipboard_string :: proc(str: string) {
-	assert(ui.platform.set_clipboard_string != nil)
-	ui.platform.set_clipboard_string(str)
+set_clipboard_string :: proc(io: ^IO, str: string) {
+	assert(io.set_clipboard_string != nil)
+	io.set_clipboard_string(str)
 }
 // Backend use
-set_mouse_scroll :: proc(x, y: f32) {
-	io.mouse_scroll = {x, y}
-}
-set_mouse_point :: proc(x, y: f32) {
-	io.mouse_point = {x, y}
-}
-input_add_char :: proc(char: rune) {
-	io.runes[io.rune_count] = char
-	io.rune_count += 1
-}
 set_mouse_bit :: proc(io: ^IO, button: Mouse_Button, value: bool) {
 	if value {
 		io.mouse_bits += {button}

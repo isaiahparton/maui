@@ -23,7 +23,7 @@ do_scrollbar :: proc(ui: ^UI, info: Scrollbar_Info, loc := #caller_location) -> 
 	// Colocate
 	self.box = info.box.? or_else layout_next(current_layout(ui))
 	// Update
-	update_widget(self)
+	update_widget(ui, self)
 	// Animate
 	hover_time := animate_bool(ui, &self.timers[0], .Hovered in self.state, 0.1)
 	press_time := animate_bool(ui, &self.timers[1], .Pressed in self.state, 0.1)
@@ -41,24 +41,24 @@ do_scrollbar :: proc(ui: ^UI, info: Scrollbar_Info, loc := #caller_location) -> 
 	knob_box.high[i] = knob_box.low[i] + knob_size
 	// Painting
 	if .Should_Paint in self.bits {
-		paint_box_fill(&ui.painter, self.box, fade(ui.style.color.substance[0], 0.1))
-		paint_box_stroke(&ui.painter, self.box, 1, ui.style.color.substance[0])
-		paint_box_fill(&ui.painter, knob_box, fade(ui.style.color.substance[1], 0.1 + hover_time * 0.1 + press_time * 0.8))
-		paint_box_stroke(&ui.painter, knob_box, 1, ui.style.color.substance[1])
+		paint_box_fill(ui.painter, self.box, fade(ui.style.color.substance[0], 0.1))
+		paint_box_stroke(ui.painter, self.box, 1, ui.style.color.substance[0])
+		paint_box_fill(ui.painter, knob_box, fade(ui.style.color.substance[1], 0.1 + hover_time * 0.1 + press_time * 0.8))
+		paint_box_stroke(ui.painter, knob_box, 1, ui.style.color.substance[1])
 	}
 	// Dragging
 	if .Pressed in (self.state - self.last_state) {
-		if point_in_box(input.mouse_point, transmute(Box)knob_box) {
-			ui.drag_anchor = input.mouse_point - knob_box.low
+		if point_in_box(ui.io.mouse_point, transmute(Box)knob_box) {
+			ui.drag_anchor = ui.io.mouse_point - knob_box.low
 			self.bits += {.Active}
 		} else {
-			normal := clamp((input.mouse_point[i] - self.box.low[i]) / range, 0, 1)
+			normal := clamp((ui.io.mouse_point[i] - self.box.low[i]) / range, 0, 1)
 			result.value = info.low + (info.high - info.low) * normal
 			result.changed = true
 		}
 	}
 	if self.bits >= {.Active} {
-		normal := clamp(((input.mouse_point[i] - ui.drag_anchor[i]) - self.box.low[i]) / range, 0, 1)
+		normal := clamp(((ui.io.mouse_point[i] - ui.drag_anchor.?[i]) - self.box.low[i]) / range, 0, 1)
 		result.value = info.low + (info.high - info.low) * normal
 		result.changed = true
 	}
@@ -66,6 +66,6 @@ do_scrollbar :: proc(ui: ^UI, info: Scrollbar_Info, loc := #caller_location) -> 
 		self.bits -= {.Active}
 	}
 	// Hover
-	update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	return result
 }

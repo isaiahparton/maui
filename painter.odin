@@ -55,17 +55,11 @@ Texture :: struct {
 Texture_Id :: u32
 load_texture :: proc(painter: ^Painter, image: Image) -> (texture: Texture, ok: bool) {
 	assert(painter.load_texture != nil)
-	id := painter.load_texture(image) or_return
-	return Texture{
-		id = id,
-		width = image.width,
-		height = image.height,
-		channels = image.channels,
-	}, true
+	return painter.load_texture(image)
 }
-unload_texture :: proc(painter: ^Painter, id: u32) {
+unload_texture :: proc(painter: ^Painter, texture: Texture) {
 	assert(painter.unload_texture != nil)
-	painter.unload_texture(id)
+	painter.unload_texture(texture)
 }
 update_texture :: proc(painter: ^Painter, texture: Texture, image: Image, x, y, w, h: f32) {
 	assert(painter.update_texture != nil)
@@ -105,7 +99,7 @@ paint_indices :: proc(mesh: ^Mesh, indices: ..u16) {
 	mesh.indices_offset += u16(copy(mesh.indices[mesh.indices_offset:], indices))
 }
 
-MAX_FONTS :: 32
+MAX_FONTS :: 128
 MAX_MESHES :: 512
 
 Paint_Mode :: enum {
@@ -119,7 +113,18 @@ Painter :: struct {
 	this_frame,
 	next_frame: bool,
 	// Main texture atlas
-	atlas: Atlas,
+	ready: bool,
+	texture: Texture,
+	image: Image,
+	cursor: [2]f32,
+	row_height: f32,
+	// If resetting the atlas would free space
+	should_update,
+	should_reset: bool,
+	// Font data
+	fonts: [MAX_FONTS]Maybe(Font),
+	// Pre-rasterized ring locations
+	rings: [MAX_RING_RADIUS][MAX_RING_RADIUS]Maybe(Box),
 	// Draw options
 	opacity: f32,
 	// Target index
@@ -128,9 +133,9 @@ Painter :: struct {
 	meshes: []Mesh,
 	mesh_index: int,
 	// Renderer interface
-	load_texture: proc(image: Image) -> (id: u32, ok: bool),
-	unload_texture: proc(id: u32),
-	update_texture: proc(texture: Texture, data: []u8, x, y, w, h: f32),
+	load_texture: proc(Image) -> (Texture, bool),
+	unload_texture: proc(Texture),
+	update_texture: proc(Texture, []u8, f32, f32, f32, f32),
 }
 
 should_render :: proc(painter: ^Painter) -> bool {
@@ -141,13 +146,23 @@ make_painter :: proc() -> (result: Painter, ok: bool) {
 	result, ok = Painter{
 		meshes = make([]Mesh, MAX_MESHES),
 	}, true
-	// Reset the atlas
-	reset_atlas(&result.atlas)
 	return
 }
 destroy_painter :: proc(using self: ^Painter) {
-	// Destroy the main atlas
-	destroy_atlas(&atlas)
+	for i in 0..<MAX_FONTS {
+		if font, ok := self.fonts[i].?; ok {
+			for _, size in font.sizes {
+				for _, glyph in size.glyphs {
+					//delete(glyph.image.data)
+				}
+				delete(size.glyphs)
+			}
+			delete(font.sizes)
+		}
+	}
+	delete(meshes)
+	unload_texture(self.texture)
+	delete(self.image.data)
 	self^ = {}
 }
 /*
@@ -173,18 +188,18 @@ get_draw_target :: proc(painter: ^Painter) -> (index: int, ok: bool) {
 		Most of these eventually call `paint_triangle_fill()`
 */
 paint_quad_fill :: proc(painter: ^Painter, a, b, c, d: [2]f32, color: Color) {
-	draw := &painter.meshes[painter.target]
+	mesh := &painter.meshes[painter.target]
 	color := color
 	color.a = u8(f32(color.a) * painter.opacity)
-	paint_indices(draw, 
-		draw.vertices_offset,
-		draw.vertices_offset + 1,
-		draw.vertices_offset + 2,
-		draw.vertices_offset,
-		draw.vertices_offset + 2,
-		draw.vertices_offset + 3,
+	paint_indices(mesh, 
+		mesh.vertices_offset,
+		mesh.vertices_offset + 1,
+		mesh.vertices_offset + 2,
+		mesh.vertices_offset,
+		mesh.vertices_offset + 2,
+		mesh.vertices_offset + 3,
 	)
-	paint_vertices(draw, 
+	paint_vertices(mesh, 
 		{point = a, color = color},
 		{point = b, color = color},
 		{point = c, color = color},

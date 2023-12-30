@@ -85,7 +85,7 @@ begin_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info) -> (result: Att
 		if ok {
 			// Paint the fill color
 			if info.fill_color != nil {
-				paint_box_fill(&ui.painter, result.self.box, info.fill_color.?)
+				paint_box_fill(ui.painter, result.self.box, info.fill_color.?)
 			}
 		}
 	}
@@ -102,7 +102,7 @@ end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 			case .Hover:
 			dismiss = (.Hovered not_in wdg.state) && (.Hovered not_in (layer.state | layer.last_state))
 		}
-		if .Dismissed in layer.bits || dismiss || key_pressed(.Escape) {
+		if .Dismissed in layer.bits || dismiss || key_pressed(ui.io, .Escape) {
 			wdg.bits -= {.Menu_Open}
 			ui.painter.next_frame = true
 			if dismiss {
@@ -113,7 +113,7 @@ end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 
 	// Paint stroke color
 	if info.stroke_color != nil {
-		paint_rounded_box_stroke(&ui.painter, layer.box, ui.style.rounding, 2, info.stroke_color.?)
+		paint_rounded_box_stroke(ui.painter, layer.box, ui.style.rounding, 2, info.stroke_color.?)
 	}
 
 	// End the layer
