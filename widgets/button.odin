@@ -5,6 +5,7 @@ import "core:fmt"
 Button_Info :: struct {
 	using generic: maui.Generic_Widget_Info,
 	text: string,
+	corners: Maybe(maui.Corners),
 }
 button :: proc(ui: ^maui.UI, info: Button_Info, loc := #caller_location) -> maui.Generic_Widget_Result {
 	using maui
@@ -18,8 +19,17 @@ button :: proc(ui: ^maui.UI, info: Button_Info, loc := #caller_location) -> maui
 	// Check if painting is needed
 	if .Should_Paint in self.bits {
 		// Paint
-		paint_box_fill(ui.painter, self.box, ui.style.color.substance[0])
-		paint_rounded_box_fill(ui.painter, self.box, ui.style.rounding, ui.style.color.substance[0])
+		paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners.? or_else ALL_CORNERS, alpha_blend_colors(ui.style.color.substance[0], ui.style.color.substance_hover, hover_time))
+		paint_text(ui.painter, center(self.box), {
+			text = info.text, 
+			font = ui.style.font.label, 
+			size = ui.style.text_size.label, 
+			align = .Middle, 
+			baseline = .Middle,
+		}, ui.style.color.substance_text[1])
 	}
+	// Whosoever hovereth with the mouse
+	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
+	// We're done here
 	return result
 }

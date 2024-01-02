@@ -16,7 +16,7 @@ do_frame :: proc(ui: ^UI, info: Frame_Info, loc := #caller_location) -> (ok: boo
 		placement = info.box.? or_else layout_next(current_layout(ui)),
 		scrollbar_padding = 0,//info.scrollbar_padding.? or_else 0,
 		id = hash(ui, loc),
-		grow = .Bottom,
+		grow = .Down,
 		options = info.layer_options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
 	if ok {

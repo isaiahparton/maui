@@ -21,6 +21,8 @@ TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
 
 _main :: proc() -> bool {
 
+	counter: int
+	value: bool
 	// Shared structures
 	io: maui.IO
 	painter := maui.make_painter() or_return
@@ -41,12 +43,43 @@ _main :: proc() -> bool {
 		maui_glfw.begin()
 
 		begin_ui(&ui)
-		if was_clicked(button(&ui, {
-			text = "click me! uwu",
-			box = Box{{100, 100}, {300, 150}},
-		})) {
-			fmt.println("button clicked!")
-		}
+			if layout, ok := do_layout(&ui, {{100, 100}, {400, 500}}); ok {
+				layout.direction = .Down
+				layout.size = 30
+				// Execute a button widget and check it's clicked status
+				button(&ui, {
+					text = "click me!",
+					corners = Corners{.Top_Left, .Top_Right},
+				})
+				space(&ui, 2)
+				if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+					layout.direction = .Right
+					layout.size = 100
+					button(&ui, {
+						text = "or me",
+						corners = Corners{.Bottom_Left},
+					})
+					space(&ui, 2)
+					layout.size = width(layout.box)
+					button(&ui, {
+						text = "or maybe me?",
+						corners = Corners{.Bottom_Right},
+					})
+				}
+				space(&ui, 2)
+				if was_clicked(checkbox(&ui, {value = value, text = "hi"})) {
+					value = !value
+				}
+				space(&ui, 2)
+				if was_clicked(checkbox(&ui, {value = value, text = "with text"})) {
+					value = !value
+				}
+				/*
+				space(&ui, 2)
+				if was_clicked(checkbox(&ui, {value = value, text = "flipped", text_side = .Left})) {
+					value = !value
+				}*/
+			}
 		end_ui(&ui)
 
 		// Render if needed

@@ -3,6 +3,33 @@ package maui
 /*
 	Default style values
 */
+LIGHT_STYLE_COLORS :: Style_Colors{
+	accent_hover = {0, 0, 0, 255},
+	accent = {
+		{32, 100, 221, 255},
+		{47, 126, 247, 255},
+	},
+	base_hover = {205, 180, 255, 25},
+	base_click = {0, 180, 255, 25},
+	base = {
+		{235, 245, 245, 255},
+		{205, 215, 216, 255},
+	},
+	base_text = {
+		{112, 112, 112, 255},
+		{225, 225, 225, 255},
+	},
+	substance_hover = {0, 0, 0, 25},
+	substance_click = {0, 180, 255, 25},
+	substance = {
+		{145, 155, 159, 255},
+		{95, 95, 97, 255},
+	},
+	substance_text = {
+		{35, 156, 126, 255},
+		{4, 52, 22, 255},
+	},
+}
 DARK_STYLE_COLORS :: Style_Colors{
 	accent_hover = {0, 0, 0, 255},
 	accent = {
@@ -29,7 +56,6 @@ DARK_STYLE_COLORS :: Style_Colors{
 		{35, 36, 36, 255},
 		{4, 5, 5, 255},
 	},
-	glass = {210, 225, 230, 255},
 }
 /*
 	Fonts used in different parts of the ui
@@ -88,5 +114,5 @@ Style :: struct {
 	tooltip_rounding,
 	panel_rounding,
 	rounding: f32,
-	rounded_corners: Box_Corners,
+	rounded_corners: Corners,
 }

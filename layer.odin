@@ -104,7 +104,7 @@ Layer_Info :: struct {
 	// Scrollbar padding
 	scrollbar_padding: Maybe([2]f32),
 	// Growing layout?
-	grow: Maybe(Box_Side),
+	grow: Maybe(Direction),
 	// Defined space or the layer size whichever is larger
 	scale,
 	space: Maybe([2]f32),
@@ -165,8 +165,6 @@ Layer :: struct {
 	// Draw command
 	meshes: [dynamic]int,
 }
-
-
 Layer_Agent :: struct {
 	// Fixed memory arena
 	arena: Arena(Layer, MAX_LAYERS),
@@ -330,8 +328,6 @@ get_layer :: proc(ui: ^UI, id: Id, options: Layer_Options) -> (layer: ^Layer, ok
 	if !ok {
 		layer, ok = create_layer(ui, id, options)
 	}
-	assert(ok)
-	assert(layer != nil)
 	return
 }
 
@@ -536,18 +532,18 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		// Push layout
 		layout := push_layout(ui, layout_box)
 		// Extending layout
-		if side, ok := info.grow.?; ok {
-			#partial switch side {
-				case .Bottom:
+		if direction, ok := info.grow.?; ok {
+			#partial switch direction {
+				case .Down:
 				layout.box.low.y = layout.box.high.y
-				case .Top:
+				case .Up:
 				layout.box.high.y = layout.box.low.y
 				case .Left:
 				layout.box.high.x = layout.box.low.x
 				case .Right:
 				layout.box.low.x = layout.box.high.x
 			}
-			layout.grow = side
+			layout.grow = direction
 		}
 	}
 	return

@@ -17,14 +17,14 @@ Box_Side :: enum {
 
 Box_Sides :: bit_set[Box_Side;u8]
 
-Box_Corner :: enum {
+Corner :: enum {
 	Top_Left,
 	Top_Right,
 	Bottom_Right,
 	Bottom_Left,
 }
 
-Box_Corners :: bit_set[Box_Corner;u8]
+Corners :: bit_set[Corner;u8]
 
 Clip :: enum {
 	None,				// completely visible
@@ -179,35 +179,27 @@ move_box :: proc(a: Box, delta: [2]f32) -> Box {
 }
 
 // cut a box and return the cut piece
-cut_box_left :: proc(box: ^Box, amount: Unit) -> (res: Box) {
-	w := box.high.x - box.low.x
-	a := min(w, amount.(Exact) or_else Exact(f32(amount.(Relative)) * w))
+cut_box_left :: proc(box: ^Box, a: f32) -> (res: Box) {
 	res = {box.low, {box.low.x + a, box.high.y}}
 	box.low.x += a
 	return
 }
-cut_box_top :: proc(box: ^Box, amount: Unit) -> (res: Box) {
-	h := box.high.y - box.low.y
-	a := min(h, amount.(Exact) or_else Exact(f32(amount.(Relative)) * h))
+cut_box_top :: proc(box: ^Box, a: f32) -> (res: Box) {
 	res = {box.low, {box.high.x, box.low.y + a}}
 	box.low.y += a
 	return
 }
-cut_box_right :: proc(box: ^Box, amount: Unit) -> (res: Box) {
-	w := box.high.x - box.low.x
-	a := min(w, amount.(Exact) or_else Exact(f32(amount.(Relative)) * w))
+cut_box_right :: proc(box: ^Box, a: f32) -> (res: Box) {
 	res = {{box.high.x - a, box.low.y}, box.high}
 	box.high.x -= a
 	return
 }
-cut_box_bottom :: proc(box: ^Box, amount: Unit) -> (res: Box) {
-	h := box.high.y - box.low.y
-	a := min(h, amount.(Exact) or_else Exact(f32(amount.(Relative)) * h))
+cut_box_bottom :: proc(box: ^Box, a: f32) -> (res: Box) {
 	res = {{box.low.x, box.high.y - a}, box.high}
 	box.high.y -= a
 	return
 }
-cut_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
+cut_box :: proc(box: ^Box, side: Box_Side, amount: f32) -> Box {
 	switch side {
 		case .Bottom: 	return cut_box_bottom(box, amount)
 		case .Top: 			return cut_box_top(box, amount)
@@ -218,31 +210,27 @@ cut_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
 }
 
 // extend a box and return the attached piece
-grow_box_left :: proc(box: ^Box, amount: Unit) -> (res: Box) {
-	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.x - box.low.x))
+grow_box_left :: proc(box: ^Box, a: f32) -> (res: Box) {
 	box.low.x -= a
 	res = {box.low, {box.low.x + a, box.high.y}}
 	return
 }
-grow_box_top :: proc(box: ^Box, amount: Unit) -> (res: Box) {
-	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.y - box.low.y))
+grow_box_top :: proc(box: ^Box, a: f32) -> (res: Box) {
 	box.low.y -= a
 	res = {box.low, {box.high.x, box.low.y + a}}
 	return
 }
-grow_box_right :: proc(box: ^Box, amount: Unit) -> (res: Box) {
-	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.x - box.low.x))
+grow_box_right :: proc(box: ^Box, a: f32) -> (res: Box) {
 	box.high.x -= a 
 	res = {{box.high.x - a, box.low.y}, box.high}
 	return
 }
-grow_box_bottom :: proc(box: ^Box, amount: Unit) -> (res: Box) {
-	a := amount.(Exact) or_else Exact(f32(amount.(Relative)) * (box.high.y - box.low.y))
+grow_box_bottom :: proc(box: ^Box, a: f32) -> (res: Box) {
 	res = {{box.low.x, box.high.y}, {box.high.x, box.high.y + a}}
 	box.high.y += a 
 	return
 }
-grow_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
+grow_box :: proc(box: ^Box, side: Box_Side, amount: f32) -> Box {
 	switch side {
 		case .Bottom: 	return grow_box_top(box, amount)
 		case .Top: 			return grow_box_bottom(box, amount)
@@ -253,19 +241,19 @@ grow_box :: proc(box: ^Box, side: Box_Side, amount: Unit) -> Box {
 }
 
 // get a cut piece of a box
-get_box_left :: proc(b: Box, a: Unit) -> Box {
-	return {b.low, {b.low.x + (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x))), b.high.y}}
+get_box_left :: proc(b: Box, a: f32) -> Box {
+	return {b.low, {b.low.x + a, b.high.y}}
 }
-get_box_top :: proc(b: Box, a: Unit) -> Box {
-	return {b.low, {b.high.x, b.low.y + (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x)))}}
+get_box_top :: proc(b: Box, a: f32) -> Box {
+	return {b.low, {b.high.x, b.low.y + a}}
 }
-get_box_right :: proc(b: Box, a: Unit) -> Box {
-	return {{b.high.x - (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.x - b.low.x))), b.low.y}, b.high}
+get_box_right :: proc(b: Box, a: f32) -> Box {
+	return {{b.high.x - a, b.low.y}, b.high}
 }
-get_box_bottom :: proc(b: Box, a: Unit) -> Box {
-	return {{b.low.x, b.high.y - (a.(Exact) or_else Exact(f32(a.(Relative)) * (b.high.y - b.low.y)))}, b.high}
+get_box_bottom :: proc(b: Box, a: f32) -> Box {
+	return {{b.low.x, b.high.y - a}, b.high}
 }
-get_cut_box :: proc(box: Box, side: Box_Side, amount: Unit) -> Box {
+get_cut_box :: proc(box: Box, side: Box_Side, amount: f32) -> Box {
 	switch side {
 		case .Bottom: return get_box_bottom(box, amount)
 		case .Top: 		return get_box_top(box, amount)
@@ -299,7 +287,7 @@ attach_box :: proc(box: Box, side: Box_Side, size: f32) -> Box {
 }
 
 // Get the valid corners for the given sides or whatever
-side_corners :: proc(side: Box_Side) -> Box_Corners {
+side_corners :: proc(side: Box_Side) -> Corners {
 	switch side {
 		case .Bottom:  	return {.Top_Left, .Top_Right}
 		case .Top:  		return {.Bottom_Left, .Bottom_Right}

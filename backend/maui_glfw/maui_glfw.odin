@@ -63,6 +63,7 @@ init :: proc(width, height: int, title: string, api: backend.Render_API, io: ^ma
 
 	// Set IO interfaces
 	platform.io = io
+	platform.io.size = {width, height}
 	io.get_clipboard_string = proc() -> string {
 		return glfw.GetClipboardString(platform.window)
 	}
@@ -136,7 +137,6 @@ init :: proc(width, height: int, title: string, api: backend.Render_API, io: ^ma
 }
 
 begin :: proc() {
-	platform.io.current_time = glfw.GetTime()
 	glfw.PollEvents()
 }
 
@@ -144,14 +144,14 @@ end :: proc() {
 	glfw.SwapBuffers(platform.window)
 }
 
-cycle :: proc(target_frame_time: f32) -> bool {
+cycle :: proc(target_frame_time: f64) -> bool {
 	now := glfw.GetTime()
-	platform.io.frame_time = f32(now - platform.io.last_time)
-	if platform.io.frame_time < target_frame_time {
-		time.sleep(time.Second * time.Duration(target_frame_time - platform.io.frame_time))
+	platform.frame_time = f64(now - platform.last_time)
+	if platform.frame_time < target_frame_time {
+		time.sleep(time.Second * time.Duration(target_frame_time - platform.frame_time))
 	}
-	platform.io.last_time = platform.io.current_time
-	platform.io.current_time = now
+	platform.last_time = platform.current_time
+	platform.current_time = now
 	return !should_close()
 }
 

@@ -7,6 +7,7 @@ package maui
 import "core:runtime"
 import "core:os"
 
+import "core:c/libc"
 import "core:math"
 import "core:math/bits"
 import "core:math/linalg"
@@ -164,6 +165,10 @@ Text_Info :: struct {
 	wrap: Text_Wrap,
 	// Hidden?
 	hidden: bool,
+	//
+	align: Text_Align,
+	baseline: Text_Baseline,
+	clip: Maybe(Box),
 }
 
 Text_Iterator :: struct {
@@ -198,9 +203,9 @@ make_text_iterator :: proc(painter: ^Painter, info: Text_Info) -> (it: Text_Iter
 	it.line_limit = info.limit.x
 	return
 }
-update_text_iterator_offset :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info, paint_info: Text_Paint_Info) {
+update_text_iterator_offset :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) {
 	it.offset.x = 0
-	#partial switch paint_info.align {
+	#partial switch info.align {
 		case .Middle: it.offset.x -= measure_next_line(painter, info, it^) / 2
 		case .Right: it.offset.x -= measure_next_line(painter, info, it^)
 	}
@@ -336,7 +341,7 @@ measure_text :: proc(painter: ^Painter, info: Text_Info) -> [2]f32 {
 load_font :: proc(painter: ^Painter, file: string) -> (handle: Font_Handle, success: bool) {
 	font: Font
 	if file_data, ok := os.read_entire_file(file); ok {
-		if ttf.InitFont(&font.data, transmute([^]u8)(transmute(runtime.Raw_Slice)file_data).data, 0) {
+		if ttf.InitFont(&font.data, raw_data(file_data), 0) {
 			for i in 0..<MAX_FONTS {
 				if painter.fonts[i] == nil {
 					painter.fonts[i] = font
@@ -345,9 +350,11 @@ load_font :: proc(painter: ^Painter, file: string) -> (handle: Font_Handle, succ
 					break
 				}
 			}
+		} else {
+			fmt.printf("Failed to initialize font '%s'\n", file)
 		}
 	} else {
-		fmt.printf("Failed to load font from %s\n", file)
+		fmt.printf("Failed to load font '%s'\n", file)
 	}
 	return
 }
@@ -388,7 +395,7 @@ get_font_glyph :: proc(painter: ^Painter, font: ^Font, size: ^Font_Size, codepoi
 		advance, left_side_bearing: i32
 		ttf.GetGlyphHMetrics(&font.data, index, &advance, &left_side_bearing)
 		// Generate bitmap
-		image_width, image_height, glyph_offset_x, glyph_offset_y: i32
+		image_width, image_height, glyph_offset_x, glyph_offset_y: libc.int
 		image_data := ttf.GetGlyphBitmap(
 			&font.data, 
 			size.scale, 
@@ -422,36 +429,29 @@ get_font_glyph :: proc(painter: ^Painter, font: ^Font, size: ^Font_Size, codepoi
 	return
 }
 
-/*
-	Section [TEXT PAINTING]
-*/
-Text_Paint_Info :: struct {
-	align: Text_Align,
-	baseline: Text_Baseline,
-	clip: Maybe(Box),
-}
-paint_text :: proc(painter: ^Painter, origin: [2]f32, info: Text_Info, paint_info: Text_Paint_Info, color: Color) -> [2]f32 {
+paint_text :: proc(painter: ^Painter, origin: [2]f32, info: Text_Info, color: Color) -> [2]f32 {
 	size: [2]f32 
 	origin := origin
-	if paint_info.baseline != .Top {
+	if info.baseline != .Top {
 		size = measure_text(painter, info)
-		#partial switch paint_info.baseline {
+		#partial switch info.baseline {
 			case .Middle: origin.y -= size.y / 2 
 			case .Bottom: origin.y -= size.y
 		}
 	}
+	//origin = linalg.floor(origin)
 	if it, ok := make_text_iterator(painter, info); ok {
-		update_text_iterator_offset(painter, &it, info, paint_info)
+		update_text_iterator_offset(painter, &it, info)
 		for iterate_text(painter, &it, info) {
 			// Reset offset if new line
 			if it.new_line {
-				update_text_iterator_offset(painter, &it, info, paint_info)
+				update_text_iterator_offset(painter, &it, info)
 			}
 			// Paint the glyph
 			if it.codepoint != '\n' && it.codepoint != ' ' && it.glyph != nil {
 				dst: Box = {low = origin + it.offset + it.glyph.offset}
 				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
-				if clip, ok := paint_info.clip.?; ok {
+				if clip, ok := info.clip.?; ok {
 					paint_clipped_textured_box(painter, painter.texture, it.glyph.src, dst, clip, color)
 				} else {
 					paint_textured_box(painter, painter.texture, it.glyph.src, dst, color)
@@ -549,13 +549,13 @@ Text_Interact_Result :: struct {
 	line_below: int,
 }
 
-paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info: Text_Info, text_paint_info: Text_Paint_Info, interact_info: Text_Interact_Info, color: Color) -> (res: Text_Interact_Result) {
+paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info: Text_Info, interact_info: Text_Interact_Info, color: Color) -> (res: Text_Interact_Result) {
 	size := measure_text(ui.painter, text_info)
 	origin := origin
 	res.selection_bounds.low = size
 
 	// Apply baseline if needed
-	#partial switch text_paint_info.baseline {
+	#partial switch text_info.baseline {
 		case .Middle: origin.y -= size.y / 2 
 		case .Bottom: origin.y -= size.y
 	}
@@ -570,7 +570,7 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 		min_dist: f32 = math.F32_MAX
 		line: int
 		// Get line offset
-		update_text_iterator_offset(ui.painter, &it, text_info, text_paint_info)
+		update_text_iterator_offset(ui.painter, &it, text_info)
 		res.bounds.low = origin + it.offset
 		res.bounds.high = res.bounds.low
 		last_line := it.offset
@@ -597,7 +597,7 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 				}
 				if !at_end || it.new_line {
 					line += 1
-					update_text_iterator_offset(ui.painter, &it, text_info, text_paint_info)
+					update_text_iterator_offset(ui.painter, &it, text_info)
 					last_line = it.offset
 				}
 			}
@@ -628,7 +628,7 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 						box: Box = {{point.x - 1, point.y}, {point.x + 1, point.y + it.size.ascent - it.size.descent}}
 						res.selection_bounds.low = linalg.min(res.selection_bounds.low, box.low)
 						res.selection_bounds.high = linalg.max(res.selection_bounds.high, box.high)
-						if clip, ok := text_paint_info.clip.?; ok {
+						if clip, ok := text_info.clip.?; ok {
 							box = clamp_box(box, clip)
 						}
 						paint_box_fill(ui.painter, box, ui.style.color.accent[1])
@@ -641,7 +641,7 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 					if line < line_count {
 						box.high.y += it.size.line_gap
 					}
-					if clip, ok := text_paint_info.clip.?; ok {
+					if clip, ok := text_info.clip.?; ok {
 						box = clamp_box(box, clip)
 					}
 					paint_box_fill(ui.painter, box, fade(ui.style.color.accent[1], 0.5))
@@ -653,7 +653,7 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 				dst: Box = {low = point + it.glyph.offset}
 				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
 				res.bounds.high = linalg.max(res.bounds.high, dst.high)
-				if clip, ok := text_paint_info.clip.?; ok {
+				if clip, ok := text_info.clip.?; ok {
 					paint_clipped_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, clip, color)
 				} else {
 					paint_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, color)

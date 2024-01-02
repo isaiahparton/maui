@@ -1,5 +1,4 @@
 package maui
-
 import "core:fmt"
 import "core:math"
 import "core:mem"
@@ -11,7 +10,7 @@ import "core:strconv"
 import "core:strings"
 import "core:slice"
 import "core:time"
-
+//
 MAX_WIDGET_TIMERS :: 3
 DEFAULT_WIDGET_HOVER_TIME :: 0.15
 DEFAULT_WIDGET_PRESS_TIME :: 0.1
@@ -70,7 +69,7 @@ Generic_Widget_Result :: struct {
 /*
 	If a widget was pressed and released without being unhovered
 */
-was_clicked :: proc(result: Generic_Widget_Result, button: Mouse_Button = .Left, times: int = 1) -> bool {
+was_clicked :: proc(result: Generic_Widget_Result, button: Mouse_Button = .Left, times: int = 0) -> bool {
 	widget := result.self.?
 	return .Clicked in widget.state && widget.click_button == button && widget.click_count >= times
 }
@@ -146,6 +145,7 @@ get_widget :: proc(ui: ^UI, id: Id) -> (^Widget, Generic_Widget_Result) {
 			fmt.printf("+ Widget %x\n", id)
 		}
 	}
+	widget.bits += {.Stay_Alive}
 	widget.layer = layer
 
 	return widget, Generic_Widget_Result{self = widget}
@@ -213,86 +213,89 @@ update_widgets :: proc(ui: ^UI) {
 /*
 	Try to update a widget's hover state
 */
-update_widget_hover :: proc(ui: ^UI, wdg: ^Widget, condition: bool) {
-	if !(ui.widgets.drag_anchor != nil && wdg.id != ui.widgets.hover_id) && ui.layers.hover_id == wdg.layer.id && condition {
-		ui.widgets.next_hover_id = wdg.id
+update_widget_hover :: proc(ui: ^UI, widget: ^Widget, condition: bool) {
+	if !(ui.widgets.drag_anchor != nil && widget.id != ui.widgets.hover_id) && ui.layers.hover_id == widget.layer.id && condition {
+		ui.widgets.next_hover_id = widget.id
 	}
 }
 /*
 	Update the interaction state of a widget
 	TODO: Move this
 */
-update_widget_state :: proc(ui: ^UI, wdg: ^Widget) {
-	using ui.widgets
+update_widget_state :: proc(ui: ^UI, widget: ^Widget) {
 	// If hovered
-	if hover_id == wdg.id {
-		wdg.state += {.Hovered}
-		if last_hover_id != wdg.id {
-			wdg.hover_time = time.now()
+	widget.last_state = widget.state
+	widget.state = {}
+	// Mouse hover
+	if ui.widgets.hover_id == widget.id {
+		// Add hovered state
+		widget.state += {.Hovered}
+		// Set time of hover
+		if ui.widgets.last_hover_id != widget.id {
+			widget.hover_time = time.now()
 		}
+		// Clicking
 		pressed_buttons := ui.io.mouse_bits - ui.io.last_mouse_bits
 		if pressed_buttons != {} {
-			if wdg.click_count == 0 {
-				wdg.click_button = ui.io.last_mouse_button
+			if widget.click_count == 0 {
+				widget.click_button = ui.io.last_mouse_button
 			}
-			if wdg.click_button == ui.io.last_mouse_button && time.since(wdg.click_time) <= DOUBLE_CLICK_TIME {
-				wdg.click_count = (wdg.click_count + 1) % MAX_CLICK_COUNT
+			if widget.click_button == ui.io.last_mouse_button && time.since(widget.click_time) <= DOUBLE_CLICK_TIME {
+				widget.click_count = (widget.click_count + 1) % MAX_CLICK_COUNT
 			} else {
-				wdg.click_count = 0
+				widget.click_count = 0
 			}
-			wdg.click_button = ui.io.last_mouse_button
-			wdg.click_time = time.now()
-			press_id = wdg.id
+			widget.click_button = ui.io.last_mouse_button
+			widget.click_time = time.now()
+			ui.widgets.press_id = widget.id
 		}
 	} else {
-		if press_id == wdg.id {
-			if .Draggable not_in wdg.options {
-				press_id = 0
+		if ui.widgets.press_id == widget.id {
+			if .Draggable not_in widget.options {
+				ui.widgets.press_id = 0
 			}
 		}
-		if .Draggable not_in wdg.options {
-			wdg.click_count = 0
+		if .Draggable not_in widget.options {
+			widget.click_count = 0
 		}
 	}
 	// Press
-	if press_id == wdg.id {
-		wdg.state += {.Pressed}
+	if ui.widgets.press_id == widget.id {
+		widget.state += {.Pressed}
 		// Just released buttons
 		released_buttons := ui.io.last_mouse_bits - ui.io.mouse_bits
 		if released_buttons != {} {
 			for button in Mouse_Button {
-				if button == wdg.click_button {
-					wdg.state += {.Clicked}
+				if button == widget.click_button {
+					widget.state += {.Clicked}
 					break
 				}
 			}
-			press_id = 0
+			ui.widgets.press_id = 0
 		}
-		if .Draggable in wdg.options && .Pressed not_in wdg.last_state {
-			drag_anchor = ui.io.mouse_point
+		if .Draggable in widget.options && .Pressed not_in widget.last_state {
+			ui.drag_anchor = ui.io.mouse_point
 		}
 	}
 	// Focus
-	if focus_id == wdg.id {
-		wdg.state += {.Focused}
+	if ui.widgets.focus_id == widget.id {
+		widget.state += {.Focused}
 	}
 }
 /*
 	Simply update the state of the widget for this frame
 */
-update_widget :: proc(ui: ^UI, wdg: ^Widget) {
+update_widget :: proc(ui: ^UI, widget: ^Widget) {
 	// Prepare widget
-	wdg.state = {}
-	wdg.bits += {.Stay_Alive}
-	if ui.painter.this_frame && get_clip(current_layer(ui).box, wdg.box) != .Full {
-		wdg.bits += {.Should_Paint}
+	if ui.painter.this_frame && get_clip(current_layer(ui).box, widget.box) != .Full {
+		widget.bits += {.Should_Paint}
 	} else {
-		wdg.bits -= {.Should_Paint}
+		widget.bits -= {.Should_Paint}
 	}
-	ui.last_box = wdg.box
+	ui.last_box = widget.box
 	// Get input
-	if .Disabled not_in wdg.bits {
-		update_widget_state(ui, wdg)
+	if .Disabled not_in widget.bits {
+		update_widget_state(ui, widget)
 	}
 }
 /*
@@ -376,8 +379,7 @@ tooltip :: proc(ui: ^UI, id: Id, text: string, origin: [2]f32, align: [2]Alignme
 		paint_text(
 			ui.painter,
 			layer.box.low + PADDING, 
-			{font = ui.style.font.title, size = ui.style.text_size.title, text = text}, 
-			{}, 
+			{font = ui.style.font.title, size = ui.style.text_size.title, text = text},
 			255,
 			)
 		end_layer(ui, layer)

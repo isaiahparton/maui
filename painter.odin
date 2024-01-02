@@ -240,7 +240,7 @@ paint_triangle_fill :: proc(painter: ^Painter, a, b, c: [2]f32, color: Color) {
 	)
 }
 paint_triangle_stroke :: proc(painter: ^Painter, a, b, c: [2]f32, thickness: f32, color: Color) {
-	paint_path_stroke(painter, {a, b, c}, true, thickness, color)
+	paint_path_stroke(painter, {a, b, c}, true, 0, thickness, color)
 }
 /*
 	Triangle strip

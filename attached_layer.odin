@@ -15,7 +15,7 @@ Attached_Layer_Info :: struct {
 	mode: Attached_Layer_Mode,
 	parent: Attached_Layer_Parent,
 	size: [2]f32,
-	grow: Maybe(Box_Side),
+	grow: Maybe(Direction),
 	side: Maybe(Box_Side),
 	align: Maybe(Alignment),
 	fill_color: Maybe(Color),

@@ -30,7 +30,7 @@ Cursor_Type :: enum {
 	Disabled,
 }
 
-PRINT_DEBUG_EVENTS :: false
+PRINT_DEBUG_EVENTS :: true
 GROUP_STACK_SIZE 		:: 32
 MAX_CLIP_RECTS 			:: #config(MAUI_MAX_CLIP_RECTS, 32)
 MAX_CONTROLS 				:: #config(MAUI_MAX_CONTROLS, 1024)
@@ -39,7 +39,7 @@ WINDOW_STACK_SIZE 	:: #config(MAUI_WINDOW_STACK_SIZE, 32)
 // Size of id stack (times you can call push_id())
 ID_STACK_SIZE 			:: 32
 // Repeating key press
-ALL_CORNERS: Box_Corners = {.Top_Left, .Top_Right, .Bottom_Left, .Bottom_Right}
+ALL_CORNERS: Corners = {.Top_Left, .Top_Right, .Bottom_Left, .Bottom_Right}
 
 DOUBLE_CLICK_TIME :: time.Millisecond * 450
 
@@ -72,10 +72,9 @@ UI :: struct {
 	// Layer
 	root_layer: ^Layer,
 	// Time
-	current_time,
-	last_time: f64,
+	now,
+	then: time.Time,
 	delta_time: f32,
-	frame_start_time: time.Time,
 	frame_duration: time.Duration,
 	// If menus are being selected
 	open_menus,
@@ -134,7 +133,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 		io = io,
 		painter = painter,
 		style = {
-			color = DARK_STYLE_COLORS,
+			color = LIGHT_STYLE_COLORS,
 			layout = {
 				title_size = 24,
 				size = 24,
@@ -182,8 +181,9 @@ begin_ui :: proc(ui: ^UI) {
 	assert(ui.layers.stack.height == 0, "You forgot to pop_layer()")
 	assert(ui.id_stack.height == 0, "You forgot to pop_id()")
 	// Begin frame
-	ui.delta_time = f32(ui.current_time - ui.last_time)	
-	ui.frame_start_time = time.now()
+	ui.now = time.now()
+	ui.delta_time = f32(time.duration_seconds(time.Duration(ui.now._nsec - ui.then._nsec)))
+	ui.then = ui.now
 	// Reset painter
 	ui.painter.mesh_index = 0
 	ui.painter.opacity = 1
@@ -198,14 +198,12 @@ begin_ui :: proc(ui: ^UI) {
 	}
 	// Free and delete unused text buffers
 	update_scribe(&ui.scribe)
-	// Update control interaction ids
-	update_widgets(ui)
 	// Begin root layer
 	ui.root_layer = begin_layer(ui, {
 		id = 0,
 		placement = Box{{}, ui.size}, 
 		options = {.No_ID},
-	}) or_else panic("bruh")
+	}) or_else panic("Could not create root layer")
 	// Begin root layout
 	push_layout(ui, {{}, ui.size})
 	// Tab through input fields
@@ -273,8 +271,7 @@ end_ui :: proc(ui: ^UI) {
 	ui.io.last_mouse_point = ui.io.mouse_point
 	ui.io.mouse_scroll = {}
 	// Update timings
-	ui.frame_duration = time.since(ui.frame_start_time)
-	ui.last_time = ui.current_time
+	ui.frame_duration = time.since(ui.then)
 	// Update texture
 	if !ui.painter.ready {
 		reset_atlas(ui.painter)

@@ -4,63 +4,91 @@ import "core:math"
 import "core:math/linalg"
 
 /*
-	Paint a stroked path
+	Paints a filled convex path
 */
-paint_path_stroke :: proc(painter: ^Painter, pts: [][2]f32, closed: bool, thickness: f32, color: Color) {
-	draw := &painter.meshes[painter.target]
-	base_index := draw.vertices_offset
-	if len(pts) < 2 {
+paint_path_fill :: proc(painter: ^Painter, points: [][2]f32, color: Color) {
+	if len(points) < 3 {
 		return
 	}
-	for i in 0..<len(pts) {
-		a := max(0, i - 1)
+	for i in 0..<len(points) - 1 {
+		paint_triangle_fill(painter, points[0], points[i], points[i + 1], color)
+	}
+}
+// *Paints a stroked path.*
+//
+// `left` and `right` are relative to any line from `points[n]` to `points[n + 1]`
+paint_path_stroke :: proc(painter: ^Painter, points: [][2]f32, closed: bool, left, right: f32, color: Color) {
+	draw := &painter.meshes[painter.target]
+	base_index := draw.vertices_offset
+	if len(points) < 2 {
+		return
+	}
+	for i in 0..<len(points) {
+		a := i - 1
 		b := i 
-		c := min(len(pts) - 1, i + 1)
-		d := min(len(pts) - 1, i + 2)
-		p0 := pts[a]
-		p1 := pts[b]
-		p2 := pts[c]
-		p3 := pts[d]
-
+		c := i + 1
+		d := i + 2
+		if a < 0 {
+			if closed {
+				a = len(points) - 1
+			} else {
+				a = 0
+			}
+		}
+		if closed {
+			c = c % len(points)
+			d = d % len(points)
+		} else {
+			c = min(len(points) - 1, c)
+			d = min(len(points) - 1, d)
+		}
+		p0 := points[a]
+		p1 := points[b]
+		p2 := points[c]
+		p3 := points[d]
 		if p1 == p2 {
 			continue
 		}
-
 		line := linalg.normalize(p2 - p1)
 		normal := linalg.normalize([2]f32{-line.y, line.x})
 		tangent1 := line if p0 == p1 else linalg.normalize(linalg.normalize(p1 - p0) + line)
 		tangent2 := line if p2 == p3 else linalg.normalize(linalg.normalize(p3 - p2) + line)
-		miter1: [2]f32 = {-tangent1.y, tangent1.x}
 		miter2: [2]f32 = {-tangent2.y, tangent2.x}
-		length1 := thickness / linalg.dot(normal, miter1)
-		length2 := thickness / linalg.dot(normal, miter2)
-
-		if closed && i == len(pts) - 1 {
-			paint_indices(draw, base_index + u16(i * 2))
-			paint_indices(draw, base_index + u16(i * 2 + 1))
-			paint_indices(draw, base_index)
-			paint_indices(draw, base_index + u16(i * 2 + 3))
-			paint_indices(draw, base_index)
-			paint_indices(draw, base_index + 1)
-		} else {
-			paint_indices(draw, base_index + u16(i * 2))
-			paint_indices(draw, base_index + u16(i * 2 + 1))
-			paint_indices(draw, base_index + u16(i * 2 + 2))
-			paint_indices(draw, base_index + u16(i * 2 + 3))
-			paint_indices(draw, base_index + u16(i * 2 + 1))
-			paint_indices(draw, base_index + u16(i * 2 + 2))
-		}
-
-		if i == 0 && !closed {
+		dot2 := linalg.dot(normal, miter2)
+		// Start of segment
+		if i == 0 && !closed { 
+			miter1: [2]f32 = {-tangent1.y, tangent1.x}
+			dot1 := linalg.dot(normal, miter1)
 			paint_vertices(draw, 
-				{point = p1 - length1 * miter1, color = color},
-				{point = p1 + length1 * miter1, color = color},
+				{point = p1 - (left / dot1) * miter1, color = color},
+				{point = p1 + (right / dot1) * miter1, color = color},
 			)
 		}
+		// End of segment
 		paint_vertices(draw, 
-			{point = p2 - length2 * miter2, color = color},
-			{point = p2 + length2 * miter2, color = color},
+			{point = p2 - (left / dot2) * miter2, color = color},
+			{point = p2 + (right / dot2) * miter2, color = color},
 		)
+		// Join vertices
+		if (closed) && (i == len(points) - 1) {
+			// Join to first endpoint
+			paint_indices(draw, 
+				base_index + u16(i * 2), 
+				base_index + u16(i * 2 + 1), 
+				base_index,
+				base_index + u16(i * 2) + 1,
+				base_index,
+				base_index + 1)
+		} else {
+			// Join to next endpoint
+			paint_indices(draw, 
+				base_index + u16(i * 2),
+				base_index + u16(i * 2 + 1),
+				base_index + u16(i * 2 + 2),
+				base_index + u16(i * 2 + 3),
+				base_index + u16(i * 2 + 1),
+				base_index + u16(i * 2 + 2))
+		}
 	}
 }
 /*
@@ -158,14 +186,14 @@ paint_arrow :: proc(painter: ^Painter, center: [2]f32, scale, angle, thickness: 
 	p0: [2]f32 = center + rotate_point({-1, -0.5}, angle) * scale
 	p1: [2]f32 = center + rotate_point({0, 0.5}, angle) * scale
 	p2: [2]f32 = center + rotate_point({1, -0.5}, angle) * scale
-	paint_path_stroke(painter, {p0, p1, p2}, false, thickness, color)
+	paint_path_stroke(painter, {p0, p1, p2}, false, 0, thickness, color)
 }
 paint_arrow_flip :: proc(painter: ^Painter, center: [2]f32, scale, angle, thickness, time: f32, color: Color) {
 	t := (1 - time * 2)
 	p0: [2]f32 = center + rotate_point({-1, -0.5 * t}, angle) * scale
 	p1: [2]f32 = center + rotate_point({0, 0.5 * t}, angle) * scale
 	p2: [2]f32 = center + rotate_point({1, -0.5 * t}, angle) * scale
-	paint_path_stroke(painter, {p0, p1, p2}, false, thickness, color)
+	paint_path_stroke(painter, {p0, p1, p2}, false, 0, thickness, color)
 }
 paint_loader :: proc(painter: ^Painter, center: [2]f32, radius, time: f32, color: Color) {
 	start := time * math.TAU
@@ -174,7 +202,7 @@ paint_loader :: proc(painter: ^Painter, center: [2]f32, radius, time: f32, color
 }
 paint_check :: proc(painter: ^Painter, center: [2]f32, scale: f32, color: Color) {
 	a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-	paint_path_stroke(painter, {center + a, center + b, center + c}, false, 1, color)
+	paint_path_stroke(painter, {center + a, center + b, center + c}, false, 0, 1, color)
 }
 /*
 	Basic gradients
@@ -270,7 +298,7 @@ paint_rounded_box_stroke :: proc(painter: ^Painter, box: Box, radius, thickness:
 /*
 	Draw a rounded box stroke but choose which corners are rounded
 */
-paint_rounded_box_corners_stroke :: proc(painter: ^Painter, box: Box, radius, thickness: f32, corners: Box_Corners, color: Color) {
+paint_rounded_box_corners_stroke :: proc(painter: ^Painter, box: Box, radius, thickness: f32, corners: Corners, color: Color) {
 	if radius == 0 || corners == {} {
 		paint_box_stroke(painter, box, thickness, color)
 		return
@@ -320,7 +348,7 @@ paint_rounded_box_corners_stroke :: proc(painter: ^Painter, box: Box, radius, th
 /*
 	Paint a filled rounded box specifying which corners will be rounded
 */
-paint_rounded_box_corners_fill :: proc(painter: ^Painter, box: Box, radius: f32, corners: Box_Corners, color: Color) {
+paint_rounded_box_corners_fill :: proc(painter: ^Painter, box: Box, radius: f32, corners: Corners, color: Color) {
 	if box.high.x <= box.low.x || box.high.y <= box.low.y {
 		return
 	}

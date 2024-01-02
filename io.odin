@@ -20,11 +20,6 @@ IO :: struct {
 	runes: [MAX_INPUT_RUNES]rune,
 	rune_count: int,
 
-	current_time,
-	last_time: f64,
-	delta_time,
-	frame_time: f32,
-
 	size: [2]i32,
 
 	set_cursor_type: proc(Cursor_Type),

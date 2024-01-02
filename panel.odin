@@ -198,7 +198,7 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 	title_box: Box 
 	root_layer_box := inner_box
 	if .Title in self.options {
-		title_box = cut_box_top(&inner_box, Exact(ui.style.layout.title_size))
+		title_box = cut_box_top(&inner_box, ui.style.layout.title_size)
 		self.box.low = linalg.min(self.box.low, title_box.low)
 		self.box.high = linalg.max(self.box.high, title_box.high)
 	}
@@ -288,8 +288,7 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 			paint_text(
 				ui.painter,
 				{title_box.low.x + text_offset, baseline}, 
-				{text = info.title, font = ui.style.font.title, size = ui.style.text_size.label}, 
-				{align = .Left, baseline = .Middle}, 
+				{text = info.title, font = ui.style.font.title, size = ui.style.text_size.label, align = .Left, baseline = .Middle}, 
 				color = blend_colors(ui.style.color.substance_text[1], ui.style.color.substance_text[0], self.how_collapsed),
 			)
 			// Moving 
