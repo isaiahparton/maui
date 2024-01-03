@@ -3,6 +3,29 @@ package maui
 import "core:math"
 import "core:math/linalg"
 
+get_path_of_box_with_cut_corners :: proc(box: Box, amount: f32, corners: Corners) -> (points: [8][2]f32, count: int) {
+	points[count] = box.low; count += 1
+	if .Top_Left in corners {
+		points[count - 1].x += amount
+		points[count] = {box.low.x, box.low.y + amount}; count += 1
+	}
+	points[count] = {box.low.x, box.high.y}; count += 1
+	if .Bottom_Left in corners {
+		points[count - 1].y -= amount
+		points[count] = {box.low.x + amount, box.high.y}; count += 1
+	}
+	points[count] = box.high; count += 1
+	if .Bottom_Right in corners {
+		points[count - 1].x -= amount
+		points[count] = {box.high.x, box.high.y - amount}; count += 1
+	}
+	points[count] = {box.high.x, box.low.y}; count += 1
+	if .Top_Right in corners {
+		points[count - 1].y += amount
+		points[count] = {box.high.x - amount, box.low.y}; count += 1
+	}
+	return
+}
 /*
 	Paints a filled convex path
 */

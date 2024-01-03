@@ -443,7 +443,7 @@ paint_text :: proc(painter: ^Painter, origin: [2]f32, info: Text_Info, color: Co
 			case .Bottom: origin.y -= size.y
 		}
 	}
-	//origin = linalg.floor(origin)
+	origin = linalg.floor(origin)
 	if it, ok := make_text_iterator(painter, info); ok {
 		update_text_iterator_offset(painter, &it, info)
 		for iterate_text(painter, &it, info) {

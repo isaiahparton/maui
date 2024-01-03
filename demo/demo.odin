@@ -23,6 +23,7 @@ _main :: proc() -> bool {
 
 	counter: int
 	value: bool
+	slider_value: f32
 	// Shared structures
 	io: maui.IO
 	painter := maui.make_painter() or_return
@@ -49,7 +50,7 @@ _main :: proc() -> bool {
 				// Execute a button widget and check it's clicked status
 				button(&ui, {
 					text = "click me!",
-					corners = Corners{.Top_Left, .Top_Right},
+					shape = Button_Shape(Cut_Button_Shape({.Top_Left, .Top_Right})),
 				})
 				space(&ui, 2)
 				if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
@@ -57,13 +58,13 @@ _main :: proc() -> bool {
 					layout.size = 100
 					button(&ui, {
 						text = "or me",
-						corners = Corners{.Bottom_Left},
+						shape = Button_Shape(Cut_Button_Shape({.Bottom_Left})),
 					})
 					space(&ui, 2)
 					layout.size = width(layout.box)
 					button(&ui, {
 						text = "or maybe me?",
-						corners = Corners{.Bottom_Right},
+						shape = Button_Shape(Cut_Button_Shape({.Bottom_Right})),
 					})
 				}
 				space(&ui, 2)
@@ -73,6 +74,11 @@ _main :: proc() -> bool {
 				space(&ui, 2)
 				if was_clicked(checkbox(&ui, {value = value, text = "flipped", text_side = .Right})) {
 					value = !value
+				}
+				space(&ui, 2)
+				layout.placement.size = 20
+				if result := slider(&ui, {value = slider_value, low = 0, high = 100}); result.changed {
+					slider_value = result.value
 				}
 			}
 		end_ui(&ui)

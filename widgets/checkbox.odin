@@ -1,6 +1,7 @@
 package maui_widgets
 import "../"
 import "core:fmt"
+import "core:math/linalg"
 import "core:math/ease"
 
 Check_Box_Info :: struct {
@@ -45,7 +46,6 @@ checkbox :: proc(ui: ^maui.UI, info: Check_Box_Info, loc := #caller_location) ->
 	update_widget(ui, self)
 	// Animate
 	hover_time := animate_bool(ui, &self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
-	state_time := animate_bool(ui, &self.timers[1], info.value, 0.3)
 	// Painting
 	if .Should_Paint in self.bits {
 		icon_box: Box
@@ -60,19 +60,20 @@ checkbox :: proc(ui: ^maui.UI, info: Check_Box_Info, loc := #caller_location) ->
 				case .Bottom: 	
 				icon_box = {{center_x(self.box) - HALF_SIZE, self.box.low.y}, SIZE}
 			}
+			icon_box.low = linalg.floor(icon_box.low)
 			icon_box.high += icon_box.low
 		} else {
 			icon_box = self.box
 		}
 		// Paint box
-		//paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, ui.style.color.substance[0])
-		paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 2, fade(ui.style.color.substance[1], 0.5 + 0.5 * hover_time))
+		paint_box_fill(ui.painter, icon_box, ui.style.color.substance[0] if info.value else fade(ui.style.color.substance[1], 0.2 + 0.2 * hover_time))
+		paint_box_stroke(ui.painter, icon_box, 1, fade(ui.style.color.substance[0], 0.5 + 0.5 * hover_time))
 		center := box_center(icon_box)
 		// Paint icon
-		if info.value || state_time == 1 {
-			scale := ease.back_out(state_time) * HALF_SIZE * 0.5
+		if info.value {
+			scale: f32 = HALF_SIZE * 0.5
 			a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1, 1, ui.style.color.substance[1])
+			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1, 1, ui.style.color.base[0])
 		}
 		// Paint text
 		if has_text {

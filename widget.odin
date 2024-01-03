@@ -111,7 +111,8 @@ Widget_Agent :: struct {
 	list: [dynamic]^Widget,
 	stack: Stack(^Widget, 8),
 	// Drag anchor
-	drag_anchor: Maybe([2]f32),
+	dragging: bool,
+	drag_offset: [2]f32,
 	last_hover_id, 
 	next_hover_id, 
 	hover_id, 
@@ -214,7 +215,7 @@ update_widgets :: proc(ui: ^UI) {
 	Try to update a widget's hover state
 */
 update_widget_hover :: proc(ui: ^UI, widget: ^Widget, condition: bool) {
-	if !(ui.widgets.drag_anchor != nil && widget.id != ui.widgets.hover_id) && ui.layers.hover_id == widget.layer.id && condition {
+	if !(ui.widgets.dragging && widget.id != ui.widgets.hover_id) && ui.layers.hover_id == widget.layer.id && condition {
 		ui.widgets.next_hover_id = widget.id
 	}
 }
@@ -272,9 +273,6 @@ update_widget_state :: proc(ui: ^UI, widget: ^Widget) {
 				}
 			}
 			ui.widgets.press_id = 0
-		}
-		if .Draggable in widget.options && .Pressed not_in widget.last_state {
-			ui.drag_anchor = ui.io.mouse_point
 		}
 	}
 	// Focus
