@@ -67,18 +67,13 @@ _main :: proc() -> bool {
 					})
 				}
 				space(&ui, 2)
-				if was_clicked(checkbox(&ui, {value = value, text = "hi"})) {
-					value = !value
-				}
-				space(&ui, 2)
 				if was_clicked(checkbox(&ui, {value = value, text = "with text"})) {
 					value = !value
 				}
-				/*
 				space(&ui, 2)
-				if was_clicked(checkbox(&ui, {value = value, text = "flipped", text_side = .Left})) {
+				if was_clicked(checkbox(&ui, {value = value, text = "flipped", text_side = .Right})) {
 					value = !value
-				}*/
+				}
 			}
 		end_ui(&ui)
 

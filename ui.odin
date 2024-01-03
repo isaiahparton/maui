@@ -150,7 +150,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 			panel_rounding = 5,
 			tooltip_rounding = 5,
 			font = {
-				label 		= load_font(painter, "fonts/Ubuntu-Regular.ttf") or_return,
+				label 		= load_font(painter, "fonts/Roboto-Regular.ttf") or_return,
 				title 		= load_font(painter, "fonts/RobotoSlab-Regular.ttf") or_return,
 				monospace = load_font(painter, "fonts/AzeretMono-Regular.ttf") or_return,
 				icon 			= load_font(painter, "fonts/remixicon.ttf") or_return,
@@ -244,6 +244,11 @@ begin_ui :: proc(ui: ^UI) {
 	}
 	// Reset clip box
 	ui.clip_box = {{}, ui.size}
+	// Bruh initialize painter
+	if !ui.painter.ready {
+		ui.painter.ready = true
+		reset_atlas(ui.painter)
+	}
 }
 end_ui :: proc(ui: ^UI) {
 	// End root layout
@@ -273,10 +278,6 @@ end_ui :: proc(ui: ^UI) {
 	// Update timings
 	ui.frame_duration = time.since(ui.then)
 	// Update texture
-	if !ui.painter.ready {
-		reset_atlas(ui.painter)
-		ui.painter.ready = true
-	}
 	if ui.painter.should_update {
 		ui.painter.should_update = false
 		update_texture(ui.painter, ui.painter.texture, ui.painter.image, 0, 0, f32(ui.painter.image.width), f32(ui.painter.image.height))

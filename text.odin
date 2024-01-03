@@ -336,11 +336,12 @@ measure_text :: proc(painter: ^Painter, info: Text_Info) -> [2]f32 {
 	}
 	return size
 }
-
-// Load a font to the atlas
-load_font :: proc(painter: ^Painter, file: string) -> (handle: Font_Handle, success: bool) {
+/*
+	Load a font from a given file path
+*/
+load_font :: proc(painter: ^Painter, file_path: string) -> (handle: Font_Handle, success: bool) {
 	font: Font
-	if file_data, ok := os.read_entire_file(file); ok {
+	if file_data, ok := os.read_entire_file(file_path); ok {
 		if ttf.InitFont(&font.data, raw_data(file_data), 0) {
 			for i in 0..<MAX_FONTS {
 				if painter.fonts[i] == nil {
@@ -351,13 +352,16 @@ load_font :: proc(painter: ^Painter, file: string) -> (handle: Font_Handle, succ
 				}
 			}
 		} else {
-			fmt.printf("Failed to initialize font '%s'\n", file)
+			fmt.printf("Failed to initialize font '%s'\n", file_path)
 		}
 	} else {
-		fmt.printf("Failed to load font '%s'\n", file)
+		fmt.printf("Failed to load font '%s'\n", file_path)
 	}
 	return
 }
+/*
+	Destroy a font and free it's handle
+*/
 unload_font :: proc(painter: ^Painter, handle: Font_Handle) {
 	if font, ok := &painter.fonts[handle].?; ok {
 		destroy_font(font)

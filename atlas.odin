@@ -25,7 +25,8 @@ get_atlas_ring :: proc(painter: ^Painter, inner, outer: f32) -> (src: Box, ok: b
 		update the texture
 */
 reset_atlas :: proc(painter: ^Painter) -> bool {
-	delete(painter.image.data)
+	destroy_image(&painter.image)
+
 	WIDTH :: 4096
 	HEIGHT :: 4096
 	SIZE :: WIDTH * HEIGHT * 4

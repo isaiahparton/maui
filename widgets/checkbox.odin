@@ -65,8 +65,8 @@ checkbox :: proc(ui: ^maui.UI, info: Check_Box_Info, loc := #caller_location) ->
 			icon_box = self.box
 		}
 		// Paint box
-		paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fade(ui.style.color.substance[1], 0.1 + 0.1 * hover_time))
-		paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 2, fade(ui.style.color.substance[0], 0.5 + 0.5 * hover_time))
+		//paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, ui.style.color.substance[0])
+		paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 2, fade(ui.style.color.substance[1], 0.5 + 0.5 * hover_time))
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value || state_time == 1 {
@@ -78,13 +78,13 @@ checkbox :: proc(ui: ^maui.UI, info: Check_Box_Info, loc := #caller_location) ->
 		if has_text {
 			switch text_side {
 				case .Left: 	
-				paint_text(ui.painter, {icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = ui.style.font.label, size = ui.style.text_size.label}, ui.style.color.base_text[1])
+				paint_text(ui.painter, {icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = ui.style.font.label, size = ui.style.text_size.label}, ui.style.color.base_text[0])
 				case .Right: 	
-				paint_text(ui.painter, {icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = ui.style.font.label, size = ui.style.text_size.label}, ui.style.color.base_text[1])
+				paint_text(ui.painter, {icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text.?, font = ui.style.font.label, size = ui.style.text_size.label, align = .Right}, ui.style.color.base_text[0])
 				case .Top: 		
-				paint_text(ui.painter, self.box.low, {text = info.text.?, font = ui.style.font.label, size = ui.style.text_size.label}, ui.style.color.base_text[1])
+				paint_text(ui.painter, self.box.low, {text = info.text.?, font = ui.style.font.label, size = ui.style.text_size.label}, ui.style.color.base_text[0])
 				case .Bottom: 	
-				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text.?, font = ui.style.font.label, size = ui.style.text_size.label}, ui.style.color.base_text[1])
+				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text.?, font = ui.style.font.label, size = ui.style.text_size.label}, ui.style.color.base_text[0])
 			}
 		}
 	}

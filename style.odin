@@ -16,8 +16,8 @@ LIGHT_STYLE_COLORS :: Style_Colors{
 		{205, 215, 216, 255},
 	},
 	base_text = {
-		{112, 112, 112, 255},
-		{225, 225, 225, 255},
+		{22, 24, 25, 255},
+		{85, 85, 85, 255},
 	},
 	substance_hover = {0, 0, 0, 25},
 	substance_click = {0, 180, 255, 25},
