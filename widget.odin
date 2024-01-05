@@ -100,9 +100,12 @@ Widget :: struct {
 	press_time: time.Time,
 	click_button: Mouse_Button,
 	click_count: int,
+	// Used for animations
 	timers: [3]f32,
 	// Parent layer (set each frame when widget is invoked)
 	layer: ^Layer,
+	// user data
+	data: rawptr,
 }
 /*
 	Store widgets and manage their interaction state
@@ -121,6 +124,17 @@ Widget_Agent :: struct {
 	next_focus_id,
 	focus_id,
 	last_focus_id: Id,
+}
+require_data :: proc(widget: ^Widget, type: typeid) -> rawptr {
+	if widget.data == nil {
+		widget.data, _ = mem.alloc(size_of(type))
+	}
+	return widget.data
+}
+destroy_widget :: proc(widget: ^Widget) {
+	if widget.data != nil {
+		mem.free(widget.data)
+	}
 }
 /*
 	Ensure that a widget with this id exists

@@ -7,20 +7,17 @@ import "core:math/linalg"
 /*
 	Layers are the root of all gui
 */
-
 MAX_LAYERS :: 128
 SCROLL_SPEED :: 16
 SCROLL_STEP :: 20
 SCROLL_BAR_SIZE :: 12
 SCROLL_BAR_PADDING :: 0
-
 // Layer interaction state
 Layer_Status :: enum {
 	Hovered,
 	Focused,
 }
 Layer_State :: bit_set[Layer_Status;u8]
-
 // General purpose booleans
 Layer_Bit :: enum {
 	// If the layer should stay alive
@@ -36,7 +33,6 @@ Layer_Bit :: enum {
 	Did_Push_ID,
 }
 Layer_Bits :: bit_set[Layer_Bit;u8]
-
 // Options
 Layer_Option :: enum {
 	// If the layer is attached (fixed) to it's parent
@@ -65,7 +61,6 @@ Layer_Option :: enum {
 	No_Layout,
 }
 Layer_Options :: bit_set[Layer_Option]
-
 /*
 	Layers for layers
 */
@@ -79,23 +74,19 @@ Layer_Order :: enum {
 	// Special layer for debug drawing
 	Debug,
 }
-
 Layer_Shadow_Info :: struct {
 	offset,
 	roundness: f32,
 }
-
 Layer_Placement_Info :: struct {
 	origin: [2]f32,
 	size: [2]Maybe(f32), 
 	align: [2]Alignment,
 }
-
 Layer_Placement :: union {
 	Box,
 	Layer_Placement_Info,
 }
-
 Layer_Info :: struct {
 	// Explicit id assignment
 	id: Maybe(Id),
@@ -121,7 +112,6 @@ Layer_Info :: struct {
 	// Opacity
 	opacity: Maybe(f32),
 }
-
 // A layer's own data
 Layer :: struct {
 	// Owner widget
@@ -535,20 +525,20 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		if direction, ok := info.grow.?; ok {
 			#partial switch direction {
 				case .Down:
-				layout.box.low.y = layout.box.high.y
-				case .Up:
 				layout.box.high.y = layout.box.low.y
+				case .Up:
+				layout.box.low.y = layout.box.high.y
 				case .Left:
-				layout.box.high.x = layout.box.low.x
-				case .Right:
 				layout.box.low.x = layout.box.high.x
+				case .Right:
+				layout.box.high.x = layout.box.low.x
 			}
 			layout.grow = direction
 		}
 	}
 	return
 }
-// Called for every 'BeginLayer' that is called
+// Called for every 'begin_layer' that is called
 end_layer :: proc(ui: ^UI, self: ^Layer) {
 	if self != nil {
 		// Pop layout
@@ -557,7 +547,6 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 			self.space = layout.box.high - layout.original_box.low
 		}
 		pop_layout(ui)
-		
 		// Detect clipping
 		clip_box := self.box
 		if .Clip_To_Parent in self.options {

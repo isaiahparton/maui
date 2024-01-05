@@ -133,7 +133,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 		io = io,
 		painter = painter,
 		style = {
-			color = LIGHT_STYLE_COLORS,
+			color = DARK_STYLE_COLORS,
 			layout = {
 				title_size = 24,
 				size = 24,
@@ -141,16 +141,16 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 				widget_padding = 7,
 			},
 			text_size = {
-				label = 20,
+				label = 21,
 				title = 16,
 				tooltip = 16,
-				field = 18,
+				field = 21,
 			},
 			rounding = 7,
 			panel_rounding = 5,
 			tooltip_rounding = 5,
 			font = {
-				label 		= load_font(painter, "fonts/Rajdhani-Medium.ttf") or_return,
+				label 		= load_font(painter, "fonts/Rajdhani-Bold.ttf") or_return,
 				title 		= load_font(painter, "fonts/Orbitron-Medium.ttf") or_return,
 				monospace = load_font(painter, "fonts/AzeretMono-Regular.ttf") or_return,
 				icon 			= load_font(painter, "fonts/remixicon.ttf") or_return,
@@ -282,6 +282,9 @@ end_ui :: proc(ui: ^UI) {
 		ui.painter.should_update = false
 		update_texture(ui.painter, ui.painter.texture, ui.painter.image, 0, 0, f32(ui.painter.image.width), f32(ui.painter.image.height))
 	}
+
+	ui.io.set_cursor_type(ui.cursor)
+	ui.cursor = .Default
 }
 @private
 _count_layer_children :: proc(layer: ^Layer) -> int {

@@ -21,8 +21,9 @@ TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
 
 _main :: proc() -> bool {
 
+	text: [dynamic]u8
 	counter: int
-	value: bool
+	value, toggle_button_value: bool
 	slider_value: f32
 	// Shared structures
 	io: maui.IO
@@ -58,6 +59,7 @@ _main :: proc() -> bool {
 					layout.size = 100
 					button(&ui, {
 						text = "or me",
+						type = .Normal,
 						shape = Button_Shape(Cut_Button_Shape({.Bottom_Left})),
 					})
 					space(&ui, 2)
@@ -68,19 +70,46 @@ _main :: proc() -> bool {
 					})
 				}
 				space(&ui, 2)
-				if was_clicked(checkbox(&ui, {value = value, text = "with text"})) {
-					value = !value
-				}
-				space(&ui, 2)
-				if was_clicked(checkbox(&ui, {value = value, text = "flipped", text_side = .Right})) {
-					value = !value
-				}
-				space(&ui, 2)
 				layout.placement.size = 20
 				if result := slider(&ui, {value = slider_value, low = 0, high = 100}); result.changed {
 					slider_value = result.value
 				}
+				space(&ui, 2)
+				layout.placement.size = 30
+				if n := tree_node(&ui, {text = "Tree"}); n.expanded {
+					if n2 := tree_node(&ui, {text = "Treen't"}); n2.expanded {
+						if was_clicked(toggle_button(&ui, {on = toggle_button_value, text = "toggle button"})) {
+							toggle_button_value = !toggle_button_value
+						}
+					}
+					if n3 := tree_node(&ui, {text = "Treed"}); n3.expanded {
+						button(&ui, {text = "leaf"})
+					}
+				}
+				space(&ui, 2)
+				layout.placement.size = 34
+				text_input(&ui, {
+					data = &text,
+				})
+				layout.placement.size = 80
+				if do_row(&ui, 4) {
+					layout.placement.align = {.Middle, .Middle}
+					if was_clicked(checkbox(&ui, {value = value, text = "left"})) {
+						value = !value
+					}
+					if was_clicked(checkbox(&ui, {value = value, text = "right", text_side = .Right})) {
+						value = !value
+					}
+					if was_clicked(checkbox(&ui, {value = value, text = "top", text_side = .Top})) {
+						value = !value
+					}
+					if was_clicked(checkbox(&ui, {value = value, text = "bottom", text_side = .Bottom})) {
+						value = !value
+					}
+				}
 			}
+
+			paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)
 		end_ui(&ui)
 
 		// Render if needed

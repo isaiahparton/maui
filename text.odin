@@ -629,7 +629,7 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 				if ui.scribe.length == 0 && !interact_info.read_only {
 					if ui.scribe.index == it.index {
 						// Bar cursor
-						box: Box = {{point.x - 1, point.y}, {point.x + 1, point.y + it.size.ascent - it.size.descent}}
+						box: Box = {{point.x, point.y}, {point.x + 1, point.y + it.size.ascent - it.size.descent}}
 						res.selection_bounds.low = linalg.min(res.selection_bounds.low, box.low)
 						res.selection_bounds.high = linalg.max(res.selection_bounds.high, box.high)
 						if clip, ok := text_info.clip.?; ok {
