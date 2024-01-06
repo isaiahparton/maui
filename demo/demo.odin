@@ -23,8 +23,9 @@ _main :: proc() -> bool {
 
 	text: [dynamic]u8
 	counter: int
-	value, toggle_button_value: bool
+	toggle_button_value: bool
 	slider_value: f32
+	checkbox_values: [4]bool
 	// Shared structures
 	io: maui.IO
 	painter := maui.make_painter() or_return
@@ -77,34 +78,40 @@ _main :: proc() -> bool {
 				space(&ui, 2)
 				layout.placement.size = 30
 				if n := tree_node(&ui, {text = "Tree"}); n.expanded {
-					if n2 := tree_node(&ui, {text = "Treen't"}); n2.expanded {
+					if n2 := tree_node(&ui, {text = "Node"}); n2.expanded {
 						if was_clicked(toggle_button(&ui, {on = toggle_button_value, text = "toggle button"})) {
 							toggle_button_value = !toggle_button_value
 						}
 					}
-					if n3 := tree_node(&ui, {text = "Treed"}); n3.expanded {
+					if n3 := tree_node(&ui, {text = "Node"}); n3.expanded {
 						button(&ui, {text = "leaf"})
 					}
 				}
 				space(&ui, 2)
 				layout.placement.size = 34
-				text_input(&ui, {
+				if layer, ok := attached_layer(&ui, text_input(&ui, {
 					data = &text,
-				})
+					placeholder = "Type something here",
+				}), {
+					size = {0, 150},
+					side = .Bottom,
+				}); ok {
+
+				}
 				layout.placement.size = 80
 				if do_row(&ui, 4) {
-					layout.placement.align = {.Middle, .Middle}
-					if was_clicked(checkbox(&ui, {value = value, text = "left"})) {
-						value = !value
+					current_layout(&ui).placement.align = {.Middle, .Middle}
+					if was_clicked(checkbox(&ui, {value = checkbox_values[0], text = "left"})) {
+						checkbox_values[0] = !checkbox_values[0]
 					}
-					if was_clicked(checkbox(&ui, {value = value, text = "right", text_side = .Right})) {
-						value = !value
+					if was_clicked(checkbox(&ui, {value = checkbox_values[1], text = "right", text_side = .Right})) {
+						checkbox_values[1] = !checkbox_values[1]
 					}
-					if was_clicked(checkbox(&ui, {value = value, text = "top", text_side = .Top})) {
-						value = !value
+					if was_clicked(checkbox(&ui, {value = checkbox_values[2], text = "top", text_side = .Top})) {
+						checkbox_values[2] = !checkbox_values[2]
 					}
-					if was_clicked(checkbox(&ui, {value = value, text = "bottom", text_side = .Bottom})) {
-						value = !value
+					if was_clicked(checkbox(&ui, {value = checkbox_values[3], text = "bottom", text_side = .Bottom})) {
+						checkbox_values[3] = !checkbox_values[3]
 					}
 				}
 			}

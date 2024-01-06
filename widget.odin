@@ -170,6 +170,7 @@ get_widget :: proc(ui: ^UI, id: Id) -> (^Widget, Generic_Widget_Result) {
 */
 destroy_widget_agent :: proc(using self: ^Widget_Agent) {
 	for entry in list {
+		destroy_widget(entry)
 		free(entry)
 	}
 	delete(list)
@@ -203,7 +204,7 @@ update_widgets :: proc(ui: ^UI) {
 	// Reset drag status
 	ui.drag_anchor = nil
 	// Free unused widgets
-	for widget, i in &ui.widgets.list {
+	for &widget, i in ui.widgets.list {
 		if .Stay_Alive in widget.bits {
 			widget.bits -= {.Stay_Alive}
 		} else {
@@ -217,6 +218,7 @@ update_widgets :: proc(ui: ^UI) {
 				}
 			}
 			// Free memory
+			destroy_widget(widget)
 			free(widget)
 			// Remove from list
 			ordered_remove(&ui.widgets.list, i)

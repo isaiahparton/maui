@@ -42,7 +42,7 @@ toggle_button :: proc(ui: ^maui.UI, info: Toggle_Button_Info, loc := #caller_loc
 			size = ui.style.text_size.label, 
 			align = .Middle, 
 			baseline = .Middle,
-		}, ui.style.color.substance_text[0])
+		}, ui.style.color.substance[0])
 	}
 
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

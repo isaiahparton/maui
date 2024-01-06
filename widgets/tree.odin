@@ -31,10 +31,9 @@ tree_node :: proc(ui: ^maui.UI, info: Tree_Node_Info, loc := #caller_location) -
 
 	my_height := height(self.box)
 	if .Should_Paint in self.bits {
-		fill_color, stroke_color, _ := get_button_fill_and_stroke(&ui.style, hover_time, .Normal)
+		fill_color := alpha_blend_colors(ui.style.color.substance[0], ui.style.color.substance_hover, hover_time)
 		paint_box_fill(ui.painter, self.box, fill_color)
-		paint_box_stroke(ui.painter, self.box, 1, stroke_color)
-		paint_arrow(ui.painter, self.box.low + my_height / 2, my_height * 0.2, -math.PI * 0.5 * (1 - open_time), 1, ui.style.color.substance_text[0])
+		paint_arrow(ui.painter, self.box.low + my_height / 2, my_height * 0.15, -math.PI * 0.5 * (1 - open_time), 2, ui.style.color.substance_text[1])
 		paint_text(ui.painter, {self.box.low.x + my_height, self.box.low.y + my_height / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, baseline = .Middle}, ui.style.color.substance_text[0])
 	}
 

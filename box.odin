@@ -135,8 +135,8 @@ child_box :: proc(b: Box, size: [2]f32, align: [2]Alignment) -> Box {
 		a.high.x = b.high.x
 		a.low.x = b.high.x - size.x 
 		case .Middle: 
-		c := (b.low.x + b.high.x) * 0.5
-		d := size.x * 0.5
+		c := (b.low.x + b.high.x) / 2
+		d := size.x / 2
 		a.low.x = c - d
 		a.high.x = c + d
 		case .Near: 
@@ -148,8 +148,8 @@ child_box :: proc(b: Box, size: [2]f32, align: [2]Alignment) -> Box {
 		a.high.y = b.high.y
 		a.low.y = b.high.y - size.y 
 		case .Middle: 
-		c := (b.low.y + b.high.y) * 0.5
-		d := size.y * 0.5
+		c := (b.low.y + b.high.y) / 2
+		d := size.y / 2
 		a.low.y = c - d
 		a.high.y = c + d
 		case .Near: 

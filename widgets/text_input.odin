@@ -60,6 +60,29 @@ text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location)
 			copy(buffer[:], text[:])
 		}
 	}
+	// Get data source
+	text: string
+	switch type in info.data {
+		case ^string:
+		text = type^
+		case ^[dynamic]u8:
+		text = string(type[:])
+	}
+	text_info: Text_Info = {
+		text = text, 
+		font = ui.style.font.label,
+		size = ui.style.text_size.field,
+		clip = self.box,
+	}
+	// Do text interaction
+	inner_box: Box = {{self.box.low.x + ui.style.layout.widget_padding, self.box.low.y}, {self.box.high.x - ui.style.layout.widget_padding, self.box.high.y}}
+	text_origin: [2]f32 = inner_box.low
+	if !info.multiline {
+		text_origin.y += height(inner_box) / 2
+		text_info.baseline = .Middle
+	} else {
+		text_origin.y += ui.style.layout.widget_padding
+	}
 	// Paint!
 	if (.Should_Paint in self.bits) {
 		fill_color := fade(ui.style.color.substance[1], 0.2 * hover_time)
@@ -70,14 +93,16 @@ text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location)
 		center := center_x(self.box)
 		paint_box_fill(ui.painter, {{center - scale, self.box.high.y - 2}, {center + scale, self.box.high.y}}, stroke_color)
 		paint_path_stroke(ui.painter, points[:point_count], true, 1, 0, stroke_color)
-	}
-	// Get data source
-	text: string
-	switch type in info.data {
-		case ^string:
-		text = type^
-		case ^[dynamic]u8:
-		text = string(type[:])
+		if info.placeholder != nil {
+			if len(text) == 0 {
+				paint_text(
+					ui.painter,
+					text_origin, 
+					{font = ui.style.font.label, size = ui.style.text_size.field, text = info.placeholder.?, baseline = .Middle}, 
+					ui.style.color.base_text[1],
+				)
+			}
+		}
 	}
 	// Do text scrolling or whatever
 	// Focused state
@@ -93,21 +118,6 @@ text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location)
 			array = buffer,
 			bits = Text_Edit_Bits{.Multiline} if info.multiline else {},
 		})
-	}
-	// Do text interaction
-	inner_box: Box = {{self.box.low.x + ui.style.layout.widget_padding, self.box.low.y}, {self.box.high.x - ui.style.layout.widget_padding, self.box.high.y}}
-	text_origin: [2]f32 = inner_box.low
-	text_info: Text_Info = {
-		text = text, 
-		font = ui.style.font.label,
-		size = ui.style.text_size.field,
-		clip = self.box,
-	}
-	if !info.multiline {
-		text_origin.y += height(inner_box) / 2
-		text_info.baseline = .Middle
-	} else {
-		text_origin.y += ui.style.layout.widget_padding
 	}
 	text_result := paint_interact_text(ui, self, text_origin - state.offset, text_info, {}, ui.style.color.base_text[0])
 	if .Focused in self.state {
@@ -142,20 +152,6 @@ text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location)
 			if value, ok := info.data.(^string); ok {
 				delete(value^)
 				value^ = strings.clone_from_bytes(buffer[:])
-			}
-		}
-	}
-	// Widget decoration
-	if .Should_Paint in self.bits {
-		// Draw placeholder
-		if info.placeholder != nil {
-			if len(text) == 0 {
-				paint_text(
-					ui.painter,
-					text_origin, 
-					{font = ui.style.font.label, size = ui.style.text_size.field, text = info.placeholder.?}, 
-					ui.style.color.base_text[0],
-				)
 			}
 		}
 	}

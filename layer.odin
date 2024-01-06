@@ -217,7 +217,7 @@ update_layers :: proc(ui: ^UI) {
 	for layer, i in ui.layers.list {
 		if .Stay_Alive in layer.bits {
 			layer.bits -= {.Stay_Alive}
-			if point_in_box(ui.io.mouse_point, layer.box) {
+			if point_in_box(ui.io.mouse_point, layer.clip_box) {
 				ui.layers.hover_id = layer.id
 				if mouse_pressed(ui.io, .Left) {
 					ui.layers.focus_id = layer.id
@@ -230,7 +230,6 @@ update_layers :: proc(ui: ^UI) {
 			when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
 				fmt.printf("- Layer %x\n", layer.id)
 			}
-
 			//NOTE: Should children be left to be deleted separately? (probably yes)
 			delete_key(&ui.layers.pool, layer.id)
 			if parent, ok := layer.parent.?; ok {
@@ -243,7 +242,6 @@ update_layers :: proc(ui: ^UI) {
 			}
 			destroy_layer(layer)
 			ui.layers.should_sort = true
-
 			ui.painter.next_frame = true
 		}
 	}

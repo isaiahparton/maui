@@ -1,9 +1,5 @@
 package maui
-
-Attached_Layer_Parent :: union {
-	Box,
-	^Widget,
-}
+import "core:fmt"
 
 Attached_Layer_Mode :: enum {
 	Focus,
@@ -13,7 +9,6 @@ Attached_Layer_Mode :: enum {
 Attached_Layer_Info :: struct {
 	id: Maybe(Id),
 	mode: Attached_Layer_Mode,
-	parent: Attached_Layer_Parent,
 	size: [2]f32,
 	grow: Maybe(Direction),
 	side: Maybe(Box_Side),
@@ -31,8 +26,8 @@ Attached_Layer_Result :: struct {
 }
 
 // Main attached layer functionality
-begin_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info) -> (result: Attached_Layer_Result, ok: bool) {
-	if widget, is_widget := info.parent.(^Widget); is_widget {
+begin_attached_layer :: proc(ui: ^UI, result: Generic_Widget_Result, info: Attached_Layer_Info) -> (layer: ^Layer, ok: bool) {
+	if widget, ok := result.self.?; ok {
 		ok = .Menu_Open in widget.bits
 		if .Menu_Open not_in widget.bits {
 			switch info.mode {
@@ -50,7 +45,7 @@ begin_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info) -> (result: Att
 	if ok {
 		side := info.side.? or_else .Bottom
 		// Determine layout
-		anchor := info.parent.(Box) or_else info.parent.(^Widget).box
+		anchor := result.self.?.box
 
 		placement_info: Layer_Placement_Info
 
@@ -72,20 +67,20 @@ begin_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info) -> (result: Att
 		}
 
 		// Begin the new layer
-		result.self, ok = begin_layer(ui, {
-			id = info.id.? or_else info.parent.(^Widget).id, 
+		layer, ok = begin_layer(ui, {
+			id = info.id.? or_else result.self.?.id, 
 			placement = placement_info,
 			grow = info.grow,
 			options = info.layer_options + {.Attached},
 			opacity = info.opacity,
-			owner = info.parent.(^Widget) or_else nil,
+			owner = result.self.? or_else nil,
 			shadow = info.shadow,
 		})
 
 		if ok {
 			// Paint the fill color
 			if info.fill_color != nil {
-				paint_box_fill(ui.painter, result.self.box, info.fill_color.?)
+				paint_box_fill(ui.painter, layer.box, info.fill_color.?)
 			}
 		}
 	}
@@ -94,16 +89,16 @@ begin_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info) -> (result: Att
 
 end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 	// Check if the layer was dismissed by input
-	if wdg, ok := layer.owner.?; ok {
+	if widget, ok := layer.owner.?; ok {
 		dismiss: bool
 		switch info.mode {
 			case .Focus:
-			dismiss = (.Focused not_in (wdg.state | wdg.last_state)) && (layer.state & {.Focused} == {})
+			dismiss = (.Focused not_in (widget.state | widget.last_state)) && (layer.state & {.Focused} == {})
 			case .Hover:
-			dismiss = (.Hovered not_in wdg.state) && (.Hovered not_in (layer.state | layer.last_state))
+			dismiss = (.Hovered not_in widget.state) && (.Hovered not_in (layer.state | layer.last_state))
 		}
 		if .Dismissed in layer.bits || dismiss || key_pressed(ui.io, .Escape) {
-			wdg.bits -= {.Menu_Open}
+			widget.bits -= {.Menu_Open}
 			ui.painter.next_frame = true
 			if dismiss {
 				ui.open_menus = false
@@ -120,12 +115,12 @@ end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 	end_layer(ui, layer)
 }
 
-@(deferred_in_out=_do_attached_layer)
-do_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info) -> (result: Attached_Layer_Result, ok: bool) {
-	return begin_attached_layer(ui, info)
+@(deferred_in_out=_attached_layer)
+attached_layer :: proc(ui: ^UI, result: Generic_Widget_Result, info: Attached_Layer_Info) -> (layer: ^Layer, ok: bool) {
+	return begin_attached_layer(ui, result, info)
 }
-_do_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, result: Attached_Layer_Result, ok: bool) {
+_attached_layer :: proc(ui: ^UI, _: Generic_Widget_Result, info: Attached_Layer_Info, layer: ^Layer, ok: bool) {
 	if ok {
-		end_attached_layer(ui, info, result.self)
+		end_attached_layer(ui, info, layer)
 	}
 }
