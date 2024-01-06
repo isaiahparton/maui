@@ -1,6 +1,7 @@
 package maui_widgets
 import "../"
 import "core:fmt"
+import "core:runtime"
 
 get_button_fill_and_stroke :: proc(style: ^maui.Style, hover_time: f32, type: Button_Type) -> (fill_color, stroke_color, text_color: maui.Color) {
 	switch type {
@@ -33,6 +34,26 @@ Button_Info :: struct {
 	type: Button_Type,
 	shape: Button_Shape,
 }
+Button_State :: struct {
+	hover_time: f32,
+	click_times: [dynamic]f32,
+}
+update_button_state :: proc(ui: ^maui.UI, state: ^Button_State) {
+	if state.click_times == nil {
+		return
+	}
+	for &elem, i in state.click_times {
+		elem += ui.delta_time * 2
+		if elem > 1 {
+			ordered_remove(&state.click_times, i)
+		}
+		ui.painter.next_frame = true
+	}
+}
+destroy_button_state :: proc(data: rawptr) {
+	state := (^Button_State)(data)
+	delete(state.click_times)
+}
 button :: proc(ui: ^maui.UI, info: Button_Info, loc := #caller_location) -> maui.Generic_Widget_Result {
 	using maui
 	self, result := get_widget(ui, hash(ui, loc))
@@ -40,27 +61,35 @@ button :: proc(ui: ^maui.UI, info: Button_Info, loc := #caller_location) -> maui
 	self.box = info.box.? or_else layout_next(current_layout(ui))
 	// Update the widget's state
 	update_widget(ui, self)
+	data := (^Button_State)(require_data(self, Button_State, destroy_button_state))
+	update_button_state(ui, data)
 	// Animations
 	hover_time := animate_bool(ui, &self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
-	press_time := animate_bool(ui, &self.timers[1], .Pressed in self.state, DEFAULT_WIDGET_PRESS_TIME)
 	// Check if painting is needed
 	if .Should_Paint in self.bits {
 		fill_color, stroke_color, text_color := get_button_fill_and_stroke(&ui.style, hover_time, info.type)
+		flash_color := ui.style.color.substance[0]
 		// Paint
 		switch shape in info.shape {
 			case nil:
+			for click_time in data.click_times {
+				paint_box_fill(ui.painter, expand_box(self.box, 5 * click_time), fade(flash_color, 1 - click_time))
+			}
 			paint_box_fill(ui.painter, self.box, fill_color)
 			paint_box_stroke(ui.painter, self.box, 1, stroke_color)
 
 			case Rounded_Button_Shape:
+			for click_time in data.click_times {
+				paint_rounded_box_corners_fill(ui.painter, expand_box(self.box, 5 * click_time), ui.style.rounding, Corners(shape), fade(flash_color, 1 - click_time))
+			}
 			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, Corners(shape), fill_color)
 			paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 1, Corners(shape), stroke_color)
 
 			case Cut_Button_Shape:
-			if press_time > 0 {
-				box := expand_box(self.box, press_time * 3)
+			for click_time in data.click_times {
+				box := expand_box(self.box, click_time * 3)
 				points, count := get_path_of_box_with_cut_corners(box, height(box) * 0.2, Corners(shape))
-				paint_path_fill(ui.painter, points[:count], fade(ui.style.color.substance[0], 0.3 * press_time))
+				paint_path_fill(ui.painter, points[:count], fade(flash_color, 1 - click_time))
 			}
 			{
 				points, count := get_path_of_box_with_cut_corners(self.box, height(self.box) * 0.2, Corners(shape))
@@ -75,6 +104,9 @@ button :: proc(ui: ^maui.UI, info: Button_Info, loc := #caller_location) -> maui
 			align = .Middle, 
 			baseline = .Middle,
 		}, text_color)
+	}
+	if .Clicked in self.state {
+		append(&data.click_times, 0.0)
 	}
 	// Whosoever hovereth with the mouse
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

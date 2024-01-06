@@ -105,7 +105,12 @@ Widget :: struct {
 	// Parent layer (set each frame when widget is invoked)
 	layer: ^Layer,
 	// user data
+	user_data: Maybe(Widget_User_Data),
+}
+Widget_User_Data :: struct {
+	id: typeid,
 	data: rawptr,
+	destroy_proc: proc(rawptr),
 }
 /*
 	Store widgets and manage their interaction state
@@ -125,15 +130,22 @@ Widget_Agent :: struct {
 	focus_id,
 	last_focus_id: Id,
 }
-require_data :: proc(widget: ^Widget, type: typeid) -> rawptr {
-	if widget.data == nil {
-		widget.data, _ = mem.alloc(size_of(type))
+require_data :: proc(widget: ^Widget, $T: typeid, destroy_proc: proc(rawptr) = nil) -> ^T {
+	if widget.user_data == nil {
+		widget.user_data = Widget_User_Data{
+			data = new(T),
+			id = T,
+			destroy_proc = destroy_proc,
+		}
 	}
-	return widget.data
+	return (^T)(widget.user_data.?.data)
 }
 destroy_widget :: proc(widget: ^Widget) {
-	if widget.data != nil {
-		mem.free(widget.data)
+	if user_data, ok := widget.user_data.?; ok {
+		if user_data.destroy_proc != nil {
+			user_data.destroy_proc(user_data.data)
+		}
+		widget.user_data = nil
 	}
 }
 /*

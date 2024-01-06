@@ -9,7 +9,6 @@ Attached_Layer_Mode :: enum {
 Attached_Layer_Info :: struct {
 	id: Maybe(Id),
 	mode: Attached_Layer_Mode,
-	size: [2]f32,
 	grow: Maybe(Direction),
 	side: Maybe(Box_Side),
 	align: Maybe(Alignment),
@@ -27,7 +26,7 @@ Attached_Layer_Result :: struct {
 
 // Main attached layer functionality
 begin_attached_layer :: proc(ui: ^UI, result: Generic_Widget_Result, info: Attached_Layer_Info) -> (layer: ^Layer, ok: bool) {
-	if widget, ok := result.self.?; ok {
+	if widget, k := result.self.?; k {
 		ok = .Menu_Open in widget.bits
 		if .Menu_Open not_in widget.bits {
 			switch info.mode {
@@ -108,7 +107,7 @@ end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 
 	// Paint stroke color
 	if info.stroke_color != nil {
-		paint_rounded_box_stroke(ui.painter, layer.box, ui.style.rounding, 2, info.stroke_color.?)
+		paint_box_stroke(ui.painter, layer.box, 1, info.stroke_color.?)
 	}
 
 	// End the layer

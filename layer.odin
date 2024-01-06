@@ -111,6 +111,8 @@ Layer_Info :: struct {
 	owner: Maybe(^Widget),
 	// Opacity
 	opacity: Maybe(f32),
+	// Clipping info
+	clip_sides: Maybe(Box_Sides),
 }
 // A layer's own data
 Layer :: struct {
@@ -131,6 +133,7 @@ Layer :: struct {
 	// Painting settings
 	opacity: f32,
 	// Viewport
+	clip_sides: Box_Sides,
 	clip_box,
 	// Body
 	box: Box,
@@ -374,6 +377,7 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		} else {
 			self.bits -= {.Did_Push_ID}
 		}
+		self.clip_sides = info.clip_sides.? or_else Box_Sides{.Bottom, .Top, .Left, .Right}
 		// Get box
 		switch placement in info.placement {
 			case Box: 
@@ -546,22 +550,39 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 		}
 		pop_layout(ui)
 		// Detect clipping
-		clip_box := self.box
+		new_clip_box := self.box
 		if .Clip_To_Parent in self.options {
 			if parent, ok := self.parent.?; ok {
-				if !box_in_box(clip_box, parent.box) {
+				if !box_in_box(self.box, parent.box) {
 					self.bits += {.Clipped}
-					clip_box = {
-						linalg.clamp(clip_box.low, parent.box.low, parent.box.high),
-						linalg.clamp(clip_box.high, parent.box.low, parent.box.high),
+					new_clip_box = {
+						linalg.clamp(new_clip_box.low, parent.box.low, parent.box.high),
+						linalg.clamp(new_clip_box.high, parent.box.low, parent.box.high),
 					}
-					ui.painter.meshes[ui.painter.target].clip = clip_box
 				}
 			}
 		}
-		if (clip_box != Box{{}, ui.size} && !box_in_box(clip_box, self.content_box)) || (.Force_Clip in self.options) {
+		if (new_clip_box != Box{{}, ui.size} && !box_in_box(new_clip_box, self.content_box)) || (.Force_Clip in self.options) {
 			self.bits += {.Clipped}
-			ui.painter.meshes[ui.painter.target].clip = self.clip_box
+		}
+		// Is clipping needed?
+		if .Clipped in self.bits {
+			// Set the layer's clip box here as it is what the cursor is tested against
+			self.clip_box = new_clip_box
+			if .Top not_in self.clip_sides {
+				new_clip_box.low.y = 0
+			}
+			if .Bottom not_in self.clip_sides {
+				new_clip_box.high.y = ui.size.y
+			}
+			if .Left not_in self.clip_sides {
+				new_clip_box.low.x = 0
+			}
+			if .Right not_in self.clip_sides {
+				new_clip_box.high.x = ui.size.x
+			}
+			// Set the real clipping here
+			ui.painter.meshes[ui.painter.target].clip = new_clip_box
 		}
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {

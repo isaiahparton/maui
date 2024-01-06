@@ -93,10 +93,14 @@ _main :: proc() -> bool {
 					data = &text,
 					placeholder = "Type something here",
 				}), {
-					size = {0, 150},
 					side = .Bottom,
+					grow = .Down,
+					stroke_color = ui.style.color.substance[0],
+					fill_color = ui.style.color.base[1],
 				}); ok {
-
+					button(&ui, {text = "Hello there"})
+					button(&ui, {text = "Hello there"})
+					button(&ui, {text = "Hello there"})
 				}
 				layout.placement.size = 80
 				if do_row(&ui, 4) {
@@ -114,6 +118,7 @@ _main :: proc() -> bool {
 						checkbox_values[3] = !checkbox_values[3]
 					}
 				}
+					button(&ui, {text = "Hello there"})
 			}
 
 			paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)

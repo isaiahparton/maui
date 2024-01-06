@@ -48,6 +48,7 @@ tree_node :: proc(ui: ^maui.UI, info: Tree_Node_Info, loc := #caller_location) -
 			grow = .Down,
 			id = self.id,
 			options = {.Attached, .Clip_To_Parent, .No_Scroll_Y},
+			clip_sides = Box_Sides{.Top},
 		})
 		result.layout = current_layout(ui)
 		result.expanded = true
