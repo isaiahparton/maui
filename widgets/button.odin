@@ -76,14 +76,16 @@ button :: proc(ui: ^maui.UI, info: Button_Info, loc := #caller_location) -> maui
 				paint_box_fill(ui.painter, expand_box(self.box, 5 * click_time), fade(flash_color, 1 - click_time))
 			}
 			paint_box_fill(ui.painter, self.box, fill_color)
-			paint_box_stroke(ui.painter, self.box, 1, stroke_color)
+			paint_box_stroke(ui.painter, self.box, ui.style.stroke_width, stroke_color)
 
 			case Rounded_Button_Shape:
+			rounding := height(self.box) * 0.2
 			for click_time in data.click_times {
-				paint_rounded_box_corners_fill(ui.painter, expand_box(self.box, 5 * click_time), ui.style.rounding, Corners(shape), fade(flash_color, 1 - click_time))
+				box := expand_box(self.box, 5 * click_time)
+				paint_rounded_box_corners_fill(ui.painter, box, height(box) * 0.2, Corners(shape), fade(flash_color, 1 - click_time))
 			}
-			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, Corners(shape), fill_color)
-			paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 1, Corners(shape), stroke_color)
+			paint_rounded_box_corners_fill(ui.painter, self.box, rounding, Corners(shape), fill_color)
+			paint_rounded_box_corners_stroke(ui.painter, self.box, rounding, ui.style.stroke_width, Corners(shape), stroke_color)
 
 			case Cut_Button_Shape:
 			for click_time in data.click_times {
@@ -94,7 +96,7 @@ button :: proc(ui: ^maui.UI, info: Button_Info, loc := #caller_location) -> maui
 			{
 				points, count := get_path_of_box_with_cut_corners(self.box, height(self.box) * 0.2, Corners(shape))
 				paint_path_fill(ui.painter, points[:count], fill_color)
-				paint_path_stroke(ui.painter, points[:count], true, 1, 0, stroke_color)
+				paint_path_stroke(ui.painter, points[:count], true, ui.style.stroke_width, 0, stroke_color)
 			}
 		}
 		paint_text(ui.painter, center(self.box), {

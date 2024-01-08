@@ -147,6 +147,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 				field = 21,
 			},
 			rounding = 7,
+			stroke_width = 2,
 			panel_rounding = 5,
 			tooltip_rounding = 5,
 			font = {

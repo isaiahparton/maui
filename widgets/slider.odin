@@ -37,12 +37,11 @@ slider :: proc(ui: ^maui.UI, info: Slider_Info, loc := #caller_location) -> Slid
 	// paint
 	if .Should_Paint in self.bits {
 		center := center(self.box)
-		paint_line(ui.painter, {self.box.low.x, center.y - 0.5}, {thumb_box.low.x, center.y - 0.5}, 1, ui.style.color.substance[1])
-		paint_line(ui.painter, {thumb_box.high.x, center.y - 0.5}, {self.box.high.x, center.y - 0.5}, 1, ui.style.color.substance[1])
+		paint_line(ui.painter, {self.box.low.x, center.y}, {thumb_box.low.x, center.y}, ui.style.stroke_width, ui.style.color.substance[1])
+		paint_line(ui.painter, {thumb_box.high.x, center.y}, {self.box.high.x, center.y}, ui.style.stroke_width, ui.style.color.substance[1])
 		fill_color, stroke_color, _ := get_button_fill_and_stroke(&ui.style, hover_time, .Normal)
-		points, count := get_path_of_box_with_cut_corners(thumb_box, height(thumb_box) * 0.2, {.Top_Left, .Bottom_Right})
-		paint_path_fill(ui.painter, points[:count], fill_color)
-		paint_path_stroke(ui.painter, points[:count], true, 1, 0, stroke_color)
+		paint_rounded_box_fill(ui.painter, thumb_box, ui.style.rounding, fill_color)
+		paint_rounded_box_stroke(ui.painter, thumb_box, ui.style.rounding, 2, stroke_color)
 	}
 	// Drag
 	if .Pressed in self.state {

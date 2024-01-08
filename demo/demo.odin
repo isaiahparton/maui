@@ -25,6 +25,7 @@ _main :: proc() -> bool {
 	counter: int
 	toggle_button_value: bool
 	slider_value: f32
+	input_value: f64
 	checkbox_values: [4]bool
 	// Shared structures
 	io: maui.IO
@@ -76,7 +77,7 @@ _main :: proc() -> bool {
 					slider_value = result.value
 				}
 				space(&ui, 2)
-				layout.placement.size = 30
+				layout.placement.size = 24
 				if n := tree_node(&ui, {text = "Tree"}); n.expanded {
 					if n2 := tree_node(&ui, {text = "Node"}); n2.expanded {
 						if was_clicked(toggle_button(&ui, {on = toggle_button_value, text = "toggle button"})) {
@@ -96,12 +97,14 @@ _main :: proc() -> bool {
 					side = .Bottom,
 					grow = .Down,
 					stroke_color = ui.style.color.substance[0],
-					fill_color = ui.style.color.base[1],
+					fill_color = ui.style.color.base[0],
 				}); ok {
 					button(&ui, {text = "Hello there"})
 					button(&ui, {text = "Hello there"})
 					button(&ui, {text = "Hello there"})
 				}
+				space(&ui, 2)
+				number_input(&ui, {value = input_value, placeholder = "0.00"})
 				layout.placement.size = 80
 				if do_row(&ui, 4) {
 					current_layout(&ui).placement.align = {.Middle, .Middle}
@@ -118,7 +121,7 @@ _main :: proc() -> bool {
 						checkbox_values[3] = !checkbox_values[3]
 					}
 				}
-					button(&ui, {text = "Hello there"})
+
 			}
 
 			paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)

@@ -39,14 +39,14 @@ DARK_STYLE_COLORS :: Style_Colors{
 	base_hover = {205, 180, 255, 25},
 	base_click = {0, 180, 255, 25},
 	base = {
-		{16, 16, 16, 255},
+		{5, 5, 5, 255},
 		{32, 32, 32, 255},
 	},
 	base_text = {
 		{255, 255, 255, 255},
-		{190, 90, 90, 255},
+		{76, 19, 45, 255},
 	},
-	substance_hover = {255, 255, 255, 150},
+	substance_hover = {120, 255, 90, 255},
 	substance_click = {0, 180, 255, 25},
 	substance = {
 		{235, 55, 87, 255},
@@ -114,5 +114,6 @@ Style :: struct {
 	tooltip_rounding,
 	panel_rounding,
 	rounding: f32,
+	stroke_width: f32,
 	rounded_corners: Corners,
 }

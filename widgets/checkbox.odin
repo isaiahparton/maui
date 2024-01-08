@@ -66,8 +66,11 @@ checkbox :: proc(ui: ^maui.UI, info: Check_Box_Info, loc := #caller_location) ->
 			icon_box = self.box
 		}
 		// Paint box
-		paint_box_fill(ui.painter, icon_box, ui.style.color.substance[0] if info.value else fade(ui.style.color.substance[1], 0.2 + 0.2 * hover_time))
-		paint_box_stroke(ui.painter, icon_box, 1, fade(ui.style.color.substance[0], 0.5 + 0.5 * hover_time))
+		fill_color := alpha_blend_colors(ui.style.color.substance[0], ui.style.color.substance_hover, hover_time) if info.value else fade(ui.style.color.substance[1], 0.2 + 0.2 * hover_time)
+		paint_box_fill(ui.painter, icon_box, fill_color)
+		if !info.value {
+			paint_box_stroke(ui.painter, icon_box, ui.style.stroke_width, fade(ui.style.color.substance[0], 0.5 + 0.5 * hover_time))
+		}
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value {

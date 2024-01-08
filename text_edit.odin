@@ -60,25 +60,18 @@ update_scribe :: proc(scribe: ^Scribe) {
 }
 
 // Text edit helpers
-scribe_insert_string :: proc(using self: ^Scribe, buf: ^[dynamic]u8, max_len: int, str: string) {
+scribe_insert_string :: proc(using self: ^Scribe, buf: ^[dynamic]u8, str: string) {
 	if length > 0 {
 		remove_range(buf, index, index + length)
 		length = 0
 	}
-	n := len(str)
-	if max_len > 0 {
-		n = min(n, max_len - len(buf))
-	}
-	inject_at_elem_string(buf, index, str[:n])
-	index += n
+	inject_at_elem_string(buf, index, str)
+	index += len(str)
 }
-insert_runes :: proc(using self: ^Scribe, buf: ^[dynamic]u8, max_len: int, runes: []rune) {
+insert_runes :: proc(using self: ^Scribe, buf: ^[dynamic]u8, runes: []rune) {
 	str := utf8.runes_to_string(runes)
-	scribe_insert_string(self, buf, max_len, str)
+	scribe_insert_string(self, buf, str)
 	delete(str)
-}
-scribe_backspace :: proc(using self: ^Scribe, buf: ^[dynamic]u8){
-	
 }
 get_last_line :: proc(data: []u8, index: int) -> (int, bool) {
 	f: bool
@@ -121,19 +114,12 @@ find_last_seperator :: proc(slice: []u8) -> int {
 	return 0
 }
 
-Text_Edit_Bit :: enum {
-	Multiline,
-	Numeric,
-	Integer,
-	Focus_Selects_All,
-}
-
-Text_Edit_Bits :: bit_set[Text_Edit_Bit]
-
 Text_Edit_Info :: struct {
-	bits: Text_Edit_Bits,
 	array: ^[dynamic]u8,
-	capacity: int,
+	allowed_runes,
+	forbidden_runes: string,
+	capacity: Maybe(int),
+	multiline: bool,
 }
 
 escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change: bool) {
@@ -149,40 +135,50 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 		if key_pressed(io, .V) {
 			valid := true
 			content := get_clipboard_string(io)
-			if .Multiline not_in info.bits {
+			if !info.multiline {
 				if strings.contains_rune(content, '\n') {
 					valid = false
 				}
 			}
 			if valid {
-				scribe_insert_string(scribe, info.array, info.capacity, content)
-				change = true
+				n := len(content)
+				if capacity, ok := info.capacity.?; ok {
+					n = min(n, capacity - len(info.array))
+				}
+				scribe_insert_string(scribe, info.array, content[:n])
 				scribe.anchor = scribe.index
+				change = true
 			}
 		}
 	}
 	// Normal character input
 	if io.rune_count > 0 {
-		if .Numeric in info.bits {
-			for i in 0 ..< io.rune_count {
-				glyph := int(io.runes[i])
-				if (glyph >= 48 && glyph <= 57) || glyph == 45 || (glyph == 46 && .Integer not_in info.bits) {
-					insert_runes(scribe, info.array, info.capacity, io.runes[i:i + 1])
-					change = true
-				}
+		for r in io.runes[:io.rune_count] {
+			allowed := true
+			if info.allowed_runes != "" && !strings.contains_rune(info.allowed_runes, r) {
+				allowed = false
+			} else if strings.contains_rune(info.forbidden_runes, r) {
+				allowed = false
 			}
-		} else {
-			insert_runes(scribe, info.array, info.capacity, io.runes[:io.rune_count])
-			change = true
+			if capacity, ok := info.capacity.?; ok && len(info.array) >= capacity {
+				allowed = false
+			}
+			if allowed {
+				insert_runes(scribe, info.array, {r})
+			}
 		}
 		scribe.anchor = scribe.index
 	}
-	// Enter
-	if .Multiline in info.bits && key_pressed(io, .Enter) {
-		insert_runes(scribe, info.array, info.capacity, {'\n'})
+	/*
+		Inserting new lines
+	*/
+	if info.multiline && key_pressed(io, .Enter) && !(info.capacity != nil && info.capacity.? > len(info.array)) {
+		insert_runes(scribe, info.array, {'\n'})
 		change = true
 	}
-	// Backspacing
+	/*
+		Deleting
+	*/
 	if key_pressed(io, .Backspace) {
 		if len(info.array) > 0 {
 			if scribe.length == 0 {
@@ -204,7 +200,9 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 			scribe.anchor = scribe.index
 		}
 	}
-	// Arrowkey navigation
+	/*
+		Vertical navigation
+	*/
 	if key_pressed(io, .Up) {
 		i := strings.last_index_byte(string(info.array[:scribe.vertical_anchor]), '\n')
 		offset := scribe.vertical_anchor - i
@@ -220,6 +218,9 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 			scribe.index = min(scribe.index + i + offset + 1, len(info.array))
 		}
 	}
+	/*
+		Horizontal navigation
+	*/
 	if key_pressed(io, .Left) {
 		delta := 0
 		// How far should the cursor move?
@@ -249,7 +250,6 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 		}
 		// Clamp cursor
 		scribe.index = max(0, scribe.index)
-		scribe.length = max(0, scribe.length)
 		scribe.vertical_anchor = scribe.index
 	}
 	if key_pressed(io, .Right) {
@@ -291,7 +291,6 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 			}
 		}
 		scribe.index = max(0, scribe.index)
-		scribe.length = max(0, scribe.length)
 		scribe.vertical_anchor = scribe.index
 	}
 	if change {

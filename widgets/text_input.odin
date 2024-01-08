@@ -85,14 +85,6 @@ text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location)
 	}
 	// Paint!
 	if (.Should_Paint in self.bits) {
-		fill_color := fade(ui.style.color.substance[1], 0.2 * hover_time)
-		stroke_color := ui.style.color.substance[0]
-		points, point_count := get_path_of_box_with_cut_corners(self.box, height(self.box) * 0.2, {.Top_Right})
-		paint_path_fill(ui.painter, points[:point_count], fill_color)
-		scale := width(self.box) * 0.5 * focus_time
-		center := center_x(self.box)
-		paint_box_fill(ui.painter, {{center - scale, self.box.high.y - 2}, {center + scale, self.box.high.y}}, stroke_color)
-		paint_path_stroke(ui.painter, points[:point_count], true, 1, 0, stroke_color)
 		if info.placeholder != nil {
 			if len(text) == 0 {
 				paint_text(
@@ -103,6 +95,14 @@ text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location)
 				)
 			}
 		}
+		fill_color := fade(ui.style.color.substance[1], 0.2 * hover_time)
+		stroke_color := ui.style.color.substance[0]
+		points, point_count := get_path_of_box_with_cut_corners(self.box, height(self.box) * 0.2, {.Top_Right})
+		paint_path_fill(ui.painter, points[:point_count], fill_color)
+		scale := width(self.box) * 0.5 * focus_time
+		center := center_x(self.box)
+		paint_box_fill(ui.painter, {{center - scale, self.box.high.y - 2}, {center + scale, self.box.high.y}}, stroke_color)
+		paint_path_stroke(ui.painter, points[:point_count], true, ui.style.stroke_width, 0, stroke_color)
 	}
 	// Do text scrolling or whatever
 	// Focused state
@@ -116,7 +116,7 @@ text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location)
 		}
 		result.changed = escribe_text(&ui.scribe, ui.io, {
 			array = buffer,
-			bits = Text_Edit_Bits{.Multiline} if info.multiline else {},
+			multiline = info.multiline,
 		})
 	}
 	text_result := paint_interact_text(ui, self, text_origin - state.offset, text_info, {}, ui.style.color.base_text[0])
