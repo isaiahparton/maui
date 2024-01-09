@@ -8,14 +8,21 @@ Alignment :: enum {
 	Far,
 }
 Direction :: enum {
-	Up,
 	Down,
-	Left,
+	Up,
 	Right,
+	Left,
 }
 Layout_Mode :: enum {
 	Fixed,
 	Extending,
+}
+Placement_Size :: union {
+	f32,
+	enum {
+		Automatic,
+		Fill,
+	},
 }
 Placement_Info :: struct {
 	direction: Direction,

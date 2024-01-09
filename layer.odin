@@ -603,7 +603,8 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 		// Interpolate scrolling
 		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * ui.delta_time
 		// Manifest scroll bars
-		if self.scrollbar_time.x > 0 {
+		
+		/*if self.scrollbar_time.x > 0 {
 			// Horizontal scrolling
 			box := get_box_bottom(self.inner_box, self.scrollbar_time.x * SCROLL_BAR_SIZE)
 			box.high.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
@@ -637,7 +638,7 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 				self.scroll.y = result.value
 				self.scroll_target.y = result.value
 			}
-		}
+		}*/
 		// Handle content clipping
 		if .Clipped in self.bits {
 			// Apply clipping

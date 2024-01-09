@@ -67,15 +67,18 @@ button :: proc(ui: ^maui.UI, info: Button_Info, loc := #caller_location) -> maui
 	hover_time := animate_bool(ui, &self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
 	// Check if painting is needed
 	if .Should_Paint in self.bits {
-		fill_color, stroke_color, text_color := get_button_fill_and_stroke(&ui.style, hover_time, info.type)
-		flash_color := ui.style.color.substance[0]
+		fill_color := fade(255, hover_time)
+		stroke_color: Color = fade(255, 1 - hover_time)
+		text_color := blend_colors(255, {0, 0, 0, 255}, hover_time)
+
+		flash_color: Color = {255, 10, 100, 255}
 		// Paint
 		switch shape in info.shape {
 			case nil:
+			paint_box_fill(ui.painter, self.box, fill_color)
 			for click_time in data.click_times {
 				paint_box_fill(ui.painter, expand_box(self.box, 5 * click_time), fade(flash_color, 1 - click_time))
 			}
-			paint_box_fill(ui.painter, self.box, fill_color)
 			paint_box_stroke(ui.painter, self.box, ui.style.stroke_width, stroke_color)
 
 			case Rounded_Button_Shape:
@@ -89,7 +92,7 @@ button :: proc(ui: ^maui.UI, info: Button_Info, loc := #caller_location) -> maui
 
 			case Cut_Button_Shape:
 			for click_time in data.click_times {
-				box := expand_box(self.box, click_time * 3)
+				box := expand_box(self.box, click_time * 5)
 				points, count := get_path_of_box_with_cut_corners(box, height(box) * 0.2, Corners(shape))
 				paint_path_fill(ui.painter, points[:count], fade(flash_color, 1 - click_time))
 			}

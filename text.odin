@@ -235,10 +235,13 @@ iterate_text_codepoint :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text
 iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> (ok: bool) {
 	// Update horizontal offset with last glyph
 	if it.glyph != nil {
-		it.offset.x += math.floor(it.glyph.advance)
+		it.offset.x += it.glyph.advance
 	}
 	if it.new_line {
-		it.line_size.x = 0 if it.glyph == nil else it.glyph.advance
+		it.line_size.x = 0
+	}
+	if it.glyph != nil {
+		it.line_size.x += it.glyph.advance
 	}
 	/*
 		Pre-paint
@@ -287,10 +290,6 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 			}
 		}
 	}	
-	// Increase line size
-	if !it.new_line && it.glyph != nil {
-		it.line_size.x += it.glyph.advance
-	}
 	// Update vertical offset if there's a new line or if reached end
 	if it.new_line || !ok {
 		it.offset.y += it.size.ascent - it.size.descent + it.size.line_gap
@@ -300,15 +299,12 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 
 measure_next_line :: proc(painter: ^Painter, info: Text_Info, it: Text_Iterator) -> f32 {
 	it := it
-	size: f32 
 	for iterate_text(painter, &it, info) {
 		if it.new_line {
 			break
-		} else if it.glyph != nil {
-			size += it.glyph.advance
 		}
 	}
-	return size
+	return it.line_size.x
 }
 measure_next_word :: proc(painter: ^Painter, info: Text_Info, it: Text_Iterator) -> (size: f32, end: int) {
 	it := it
@@ -629,7 +625,7 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 				if ui.scribe.length == 0 && !interact_info.read_only {
 					if ui.scribe.index == it.index {
 						// Bar cursor
-						box: Box = {{point.x, point.y}, {point.x + 1, point.y + it.size.ascent - it.size.descent}}
+						box: Box = {{point.x - ui.style.stroke_width / 2, point.y}, {point.x + ui.style.stroke_width / 2, point.y + it.size.ascent - it.size.descent}}
 						res.selection_bounds.low = linalg.min(res.selection_bounds.low, box.low)
 						res.selection_bounds.high = linalg.max(res.selection_bounds.high, box.high)
 						if clip, ok := text_info.clip.?; ok {

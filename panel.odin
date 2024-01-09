@@ -289,7 +289,7 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 				ui.painter,
 				{title_box.low.x + text_offset, baseline}, 
 				{text = info.title, font = ui.style.font.title, size = ui.style.text_size.label, align = .Left, baseline = .Middle}, 
-				color = blend_colors(ui.style.color.substance_text[1], ui.style.color.substance_text[0], self.how_collapsed),
+				color = ui.style.color.text,
 			)
 			// Moving 
 			if (.Hovered in self.root_layer.?.state) && point_in_box(ui.io.mouse_point, title_box) {

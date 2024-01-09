@@ -1,6 +1,5 @@
 package demo
 import maui "../"
-import maui_widgets "../widgets"
 
 import "core:time"
 import "core:math"
@@ -19,14 +18,20 @@ import "core:mem"
 TARGET_FRAME_RATE :: 75
 TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
 
+ALTERNATE_STYLE_COLORS :: maui.Style_Colors{
+	accent = {185, 75, 178, 255},
+	base = {211, 204, 48, 255},
+	text = {0, 0, 0, 255},
+	flash = {0, 0, 0, 255},
+	substance = {0, 0, 0, 255},
+}
+
 _main :: proc() -> bool {
 
-	text: [dynamic]u8
-	counter: int
-	toggle_button_value: bool
-	slider_value: f32
-	input_value: f64
-	checkbox_values: [4]bool
+	disabled := true
+	clicked: bool
+	checkbox_value: bool
+
 	// Shared structures
 	io: maui.IO
 	painter := maui.make_painter() or_return
@@ -40,96 +45,70 @@ _main :: proc() -> bool {
 
 	// Begin the cycle
 	for maui_glfw.cycle(TARGET_FRAME_TIME) {
-		using maui 
-		using maui_widgets
+		using maui
 
 		// Beginning of ui calls
 		maui_glfw.begin()
 
 		begin_ui(&ui)
-			if layout, ok := do_layout(&ui, {{100, 100}, {400, 500}}); ok {
-				layout.direction = .Down
-				layout.size = 30
-				// Execute a button widget and check it's clicked status
-				button(&ui, {
-					text = "click me!",
-					shape = Button_Shape(Cut_Button_Shape({.Top_Left, .Top_Right})),
-				})
-				space(&ui, 2)
-				if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-					layout.direction = .Right
-					layout.size = 100
-					button(&ui, {
-						text = "or me",
-						type = .Normal,
-						shape = Button_Shape(Cut_Button_Shape({.Bottom_Left})),
-					})
-					space(&ui, 2)
-					layout.size = width(layout.box)
-					button(&ui, {
-						text = "or maybe me?",
-						shape = Button_Shape(Cut_Button_Shape({.Bottom_Right})),
-					})
-				}
-				space(&ui, 2)
-				layout.placement.size = 20
-				if result := slider(&ui, {value = slider_value, low = 0, high = 100}); result.changed {
-					slider_value = result.value
-				}
-				space(&ui, 2)
-				layout.placement.size = 24
-				if n := tree_node(&ui, {text = "Tree"}); n.expanded {
-					if n2 := tree_node(&ui, {text = "Node"}); n2.expanded {
-						if was_clicked(toggle_button(&ui, {on = toggle_button_value, text = "toggle button"})) {
-							toggle_button_value = !toggle_button_value
-						}
-					}
-					if n3 := tree_node(&ui, {text = "Node"}); n3.expanded {
-						button(&ui, {text = "leaf"})
-					}
-				}
-				space(&ui, 2)
-				layout.placement.size = 34
-				if layer, ok := attached_layer(&ui, text_input(&ui, {
-					data = &text,
-					placeholder = "Type something here",
-				}), {
-					side = .Bottom,
-					grow = .Down,
-					stroke_color = ui.style.color.substance[0],
-					fill_color = ui.style.color.base[0],
-				}); ok {
-					button(&ui, {text = "Hello there"})
-					button(&ui, {text = "Hello there"})
-					button(&ui, {text = "Hello there"})
-				}
-				space(&ui, 2)
-				number_input(&ui, {value = input_value, placeholder = "0.00"})
-				layout.placement.size = 80
-				if do_row(&ui, 4) {
-					current_layout(&ui).placement.align = {.Middle, .Middle}
-					if was_clicked(checkbox(&ui, {value = checkbox_values[0], text = "left"})) {
-						checkbox_values[0] = !checkbox_values[0]
-					}
-					if was_clicked(checkbox(&ui, {value = checkbox_values[1], text = "right", text_side = .Right})) {
-						checkbox_values[1] = !checkbox_values[1]
-					}
-					if was_clicked(checkbox(&ui, {value = checkbox_values[2], text = "top", text_side = .Top})) {
-						checkbox_values[2] = !checkbox_values[2]
-					}
-					if was_clicked(checkbox(&ui, {value = checkbox_values[3], text = "bottom", text_side = .Bottom})) {
-						checkbox_values[3] = !checkbox_values[3]
-					}
-				}
 
-			}
+			shrink(&ui, 100)
+
+			layout := current_layout(&ui)
+
+			push_layout(&ui, cut_box_left(&layout.box, width(layout.box) / 2))
+				shrink(&ui, 100)
+				current_layout(&ui).size = 50
+
+				if was_clicked(button(&ui, {
+					text = "CLICK TO ENABLE\nTHE OTHER BUTTON" if disabled else "CLICK TO DISABLE\nTHE OTHER BUTTON",
+				})) {
+					disabled = !disabled
+				}
+				space(&ui, 10)
+				if was_clicked(button(&ui, {
+					text = "OR IF YOU PLAY\nLEAGUE OF LEGENDS" if clicked else "CLICK IF YOU LOVE\nGRILLED CHICKEN",
+					disabled = disabled,
+				})) {
+					clicked = true
+				}
+				space(&ui, 10)
+				if was_clicked(checkbox(&ui, {value = checkbox_value, text = "Boolean"})) {
+					checkbox_value = !checkbox_value
+				}
+			pop_layout(&ui)
+
+			push_layout(&ui, cut_box_left(&layout.box, width(layout.box)))
+				ui.style.color = ALTERNATE_STYLE_COLORS
+				paint_box_fill(ui.painter, current_layout(&ui).box, ui.style.color.base)
+				shrink(&ui, 100)
+				current_layout(&ui).size = 50
+
+				if was_clicked(button(&ui, {
+					text = "CLICK TO ENABLE\nTHE OTHER BUTTON" if disabled else "CLICK TO DISABLE\nTHE OTHER BUTTON",
+				})) {
+					disabled = !disabled
+				}
+				space(&ui, 10)
+				if was_clicked(button(&ui, {
+					text = "OR IF YOU PLAY\nLEAGUE OF LEGENDS" if clicked else "CLICK IF YOU LOVE\nGRILLED CHICKEN",
+					disabled = disabled,
+				})) {
+					clicked = true
+				}
+				space(&ui, 10)
+				if was_clicked(checkbox(&ui, {value = checkbox_value, text = "Boolean"})) {
+					checkbox_value = !checkbox_value
+				}
+			pop_layout(&ui)
+			ui.style.color = DARK_STYLE_COLORS
 
 			paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)
 		end_ui(&ui)
 
 		// Render if needed
 		if should_render(&painter) {
-			maui_opengl.clear(ui.style.color.base[0])
+			maui_opengl.clear(ui.style.color.base)
 			maui_opengl.render(&ui)
 			maui_glfw.end()
 		}
