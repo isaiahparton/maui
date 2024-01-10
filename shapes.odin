@@ -115,6 +115,15 @@ paint_path_stroke :: proc(painter: ^Painter, points: [][2]f32, closed: bool, lef
 	}
 }
 /*
+	Advanced box based shapes
+*/
+paint_ribbon :: proc(painter: ^Painter, box: Box, color: Color) {
+	paint_box_fill(painter, box, color)
+	s := height(box) / 2
+	paint_triangle_fill(painter, {box.low.x - s, box.low.y + s}, box.low, {box.low.x, box.high.y}, color)
+	paint_triangle_fill(painter, {box.high.x + s, box.low.y + s}, {box.high.x, box.low.y}, {box.high.x, box.high.y}, color)
+}
+/*
 	Simple boxes
 */
 paint_box_fill :: proc(painter: ^Painter, box: Box, color: Color) {

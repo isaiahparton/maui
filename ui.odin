@@ -110,21 +110,6 @@ UI :: struct {
 	clip_box: Box,
 }
 /*
-	Animation management
-*/
-animate_bool :: proc(ui: ^UI, value: ^f32, condition: bool, duration: f32, easing: ease.Ease = .Linear) -> f32 {
-	old_value := value^
-	if condition {
-		value^ = min(1, value^ + ui.delta_time * (1 / duration))
-	} else {
-		value^ = max(0, value^ - ui.delta_time * (1 / duration))
-	}
-	if value^ != old_value {
-		ui.painter.next_frame = true
-	}
-	return ease.ease(easing, value^)
-}
-/*
 	Construct a new UI given it's required plugins
 */
 make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {

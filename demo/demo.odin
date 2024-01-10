@@ -31,6 +31,7 @@ _main :: proc() -> bool {
 	disabled := true
 	clicked: bool
 	checkbox_value: bool
+	list := make([dynamic]bool, 9)
 
 	// Shared structures
 	io: maui.IO
@@ -52,56 +53,43 @@ _main :: proc() -> bool {
 
 		begin_ui(&ui)
 
-			shrink(&ui, 100)
 
 			layout := current_layout(&ui)
+			layout.size = 50
+			shrink(&ui, 100)
 
-			push_layout(&ui, cut_box_left(&layout.box, width(layout.box) / 2))
-				shrink(&ui, 100)
-				current_layout(&ui).size = 50
-
-				if was_clicked(button(&ui, {
-					text = "CLICK TO ENABLE\nTHE OTHER BUTTON" if disabled else "CLICK TO DISABLE\nTHE OTHER BUTTON",
-				})) {
-					disabled = !disabled
-				}
-				space(&ui, 10)
-				if was_clicked(button(&ui, {
-					text = "OR IF YOU PLAY\nLEAGUE OF LEGENDS" if clicked else "CLICK IF YOU LOVE\nGRILLED CHICKEN",
-					disabled = disabled,
-				})) {
-					clicked = true
-				}
-				space(&ui, 10)
-				if was_clicked(checkbox(&ui, {value = checkbox_value, text = "Boolean"})) {
-					checkbox_value = !checkbox_value
-				}
-			pop_layout(&ui)
-
-			push_layout(&ui, cut_box_left(&layout.box, width(layout.box)))
-				ui.style.color = ALTERNATE_STYLE_COLORS
-				paint_box_fill(ui.painter, current_layout(&ui).box, ui.style.color.base)
-				shrink(&ui, 100)
-				current_layout(&ui).size = 50
-
-				if was_clicked(button(&ui, {
-					text = "CLICK TO ENABLE\nTHE OTHER BUTTON" if disabled else "CLICK TO DISABLE\nTHE OTHER BUTTON",
-				})) {
-					disabled = !disabled
-				}
-				space(&ui, 10)
-				if was_clicked(button(&ui, {
-					text = "OR IF YOU PLAY\nLEAGUE OF LEGENDS" if clicked else "CLICK IF YOU LOVE\nGRILLED CHICKEN",
-					disabled = disabled,
-				})) {
-					clicked = true
-				}
-				space(&ui, 10)
-				if was_clicked(checkbox(&ui, {value = checkbox_value, text = "Boolean"})) {
-					checkbox_value = !checkbox_value
-				}
-			pop_layout(&ui)
-			ui.style.color = DARK_STYLE_COLORS
+			if was_clicked(button(&ui, {
+				text = "CLICK TO ENABLE\nTHE OTHER WIDGETS" if disabled else "CLICK TO DISABLE\nTHE OTHER WIDGETS",
+			})) {
+				disabled = !disabled
+			}
+			space(&ui, 10)
+			if was_clicked(button(&ui, {
+				text = "OR IF YOU PLAY\nLEAGUE OF LEGENDS" if clicked else "CLICK IF YOU LOVE\nGRILLED CHICKEN",
+				disabled = disabled,
+			})) {
+				clicked = true
+			}
+			space(&ui, 10)
+			if was_clicked(checkbox(&ui, {
+				value = checkbox_value, 
+				text = "Boolean", 
+				disabled = disabled,
+			})) {
+				checkbox_value = !checkbox_value
+			}
+			space(&ui, 10)
+			layout.size = 20
+			for &entry, i in list {
+				push_id(&ui, i)
+					if was_clicked(list_item(&ui, {
+						active = entry, 
+						text = {"left text", tmp_print(ui.id_stack.items[ui.id_stack.height - 1]), "middle text", "right text"},
+					})) {
+						entry = !entry
+					}
+				pop_id(&ui)
+			}
 
 			paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)
 		end_ui(&ui)

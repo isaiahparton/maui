@@ -14,6 +14,7 @@ import "core:time"
 MAX_WIDGET_TIMERS :: 3
 DEFAULT_WIDGET_HOVER_TIME :: 0.15
 DEFAULT_WIDGET_PRESS_TIME :: 0.1
+DEFAULT_WIDGET_DISABLE_TIME :: 0.2
 // General purpose bit flags
 Widget_Bit :: enum {
 	// Widget thrown away if no
@@ -103,9 +104,11 @@ animate :: proc(ui: ^UI, value, duration: f32, condition: bool) -> f32 {
 */
 Widget_Variant :: union {
 	Button_Widget_Variant,
+	Check_Box_Widget_Variant,
+	List_Item_Widget_Variant,
 }
 destroy_widget_variant :: proc(variant: ^Widget_Variant) {
-	switch &type in variant {
+	#partial switch &type in variant {
 		case Button_Widget_Variant:	destroy_button_widget_variant(&type)
 	}
 }

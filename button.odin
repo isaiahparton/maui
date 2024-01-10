@@ -25,7 +25,7 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_W
 	data := &self.variant.(Button_Widget_Variant)
 	// Update retained data
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
-	data.disable_time = animate(ui, data.disable_time, 0.25, .Disabled in self.bits)
+	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
 	for &value, i in data.flashes {
 		value += ui.delta_time * 2
 		if value > 1 {
@@ -42,9 +42,9 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_W
 		// Shapes
 		paint_box_fill(ui.painter, self.box, fill_color)
 		for value in data.flashes {
-			paint_box_fill(ui.painter, expand_box(self.box, 5 * value), fade({0, 255, 0, 255}, 1 - value))
+			paint_box_fill(ui.painter, expand_box(self.box, 5 * value), fade(ui.style.color.flash, 1 - value))
 		}
-		paint_box_stroke(ui.painter, self.box, ui.style.stroke_width - data.disable_time, stroke_color)
+		paint_box_stroke(ui.painter, self.box, ui.style.stroke_width + (1 - ui.style.stroke_width) * data.disable_time, stroke_color)
 		paint_text(ui.painter, center(self.box), {
 			text = info.text, 
 			font = ui.style.font.label, 
