@@ -214,9 +214,6 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 		id = hash(ui, rawptr(&self.id), size_of(Id)),
 		order = .Floating,
 		options = {.No_Scroll_Y},
-		shadow = Layer_Shadow_Info{
-			roundness = ui.style.panel_rounding,
-		},
 	}); ok {
 		if .Collapsed not_in self.bits {
 			box := inner_box

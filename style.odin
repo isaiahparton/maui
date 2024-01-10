@@ -4,7 +4,7 @@ package maui
 	Default style values
 */
 DARK_STYLE_COLORS :: Style_Colors{
-	accent = {185, 75, 178, 255},
+	accent = {215, 75, 178, 255},
 	base = {0, 0, 0, 255},
 	text = {255, 255, 255, 255},
 	flash = {0, 255, 0, 255},

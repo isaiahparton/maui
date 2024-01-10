@@ -27,19 +27,7 @@ Attached_Layer_Result :: struct {
 // Main attached layer functionality
 begin_attached_layer :: proc(ui: ^UI, result: Generic_Widget_Result, info: Attached_Layer_Info) -> (layer: ^Layer, ok: bool) {
 	if widget, k := result.self.?; k {
-		ok = .Menu_Open in widget.bits
-		if .Menu_Open not_in widget.bits {
-			switch info.mode {
-				case .Focus:
-				if .Focused in widget.state && .Menu_Open not_in widget.bits {
-					widget.bits += {.Menu_Open}
-				}
-				case .Hover:
-				if .Hovered in widget.state && .Menu_Open not_in widget.bits {
-					widget.bits += {.Menu_Open}
-				}
-			}
-		}
+
 	}
 	if ok {
 		side := info.side.? or_else .Bottom
@@ -73,7 +61,6 @@ begin_attached_layer :: proc(ui: ^UI, result: Generic_Widget_Result, info: Attac
 			options = info.layer_options + {.Attached},
 			opacity = info.opacity,
 			owner = result.self.? or_else nil,
-			shadow = info.shadow,
 		})
 
 		if ok {
@@ -97,7 +84,6 @@ end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 			dismiss = (.Hovered not_in widget.state) && (.Hovered not_in (layer.state | layer.last_state))
 		}
 		if .Dismissed in layer.bits || dismiss || key_pressed(ui.io, .Escape) {
-			widget.bits -= {.Menu_Open}
 			ui.painter.next_frame = true
 			if dismiss {
 				ui.open_menus = false

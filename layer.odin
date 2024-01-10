@@ -103,8 +103,6 @@ Layer_Info :: struct {
 	layout_align: [2]Alignment,
 	// Sorting order
 	order: Maybe(Layer_Order),
-	// Optional shadow
-	shadow: Maybe(Layer_Shadow_Info),
 	// Optional options
 	options: Layer_Options,
 	// bruh
@@ -147,16 +145,15 @@ Layer :: struct {
 	// Scrolling
 	scroll, 
 	scroll_target: [2]f32,
+	scrollbar_time: [2]f32,
 	// draw order
 	order: Layer_Order,
 	// list index
 	index: int,
 	// controls on this self
 	contents: map[Id]^Widget,
-	// Scroll bar interpolation
-	scrollbar_time: [2]f32,
 	// Draw command
-	meshes: [dynamic]int,
+	target: int,
 }
 Layer_Agent :: struct {
 	// Fixed memory arena
@@ -191,14 +188,6 @@ sort_layer :: proc(list: ^[dynamic]^Layer, layer: ^Layer) {
 		})
 		for child in layer.children do sort_layer(list, child)
 	}
-}
-/*
-	Get a layer's main draw target
-	TODO: Remove this
-*/
-layer_draw_target :: proc(using self: ^Layer) -> int {
-	assert(len(meshes) > 0)
-	return meshes[len(meshes) - 1]
 }
 
 destroy_layer_agent :: proc(using self: ^Layer_Agent) {
@@ -334,7 +323,6 @@ pop_layer :: proc(ui: ^UI) {
 
 destroy_layer :: proc(self: ^Layer) {
 	delete(self.contents)
-	delete(self.meshes)
 	delete(self.children)
 	self^ = {}
 }
@@ -353,8 +341,8 @@ _do_layer :: proc(ui: ^UI, _: Layer_Info, _: runtime.Source_Code_Location, self:
 	}
 }
 
-current_layer :: proc(ui: ^UI) -> ^Layer {
-	assert(ui.layers.current != nil)
+current_layer :: proc(ui: ^UI, loc := #caller_location) -> ^Layer {
+	assert(ui.layers.current != nil, "", loc)
 	return ui.layers.current
 }
 // Begins a new layer, the layer is created if it doesn't exist
@@ -422,19 +410,9 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		//IMPORTANT: Set opacity before painting anything
 		self.opacity = info.opacity.? or_else self.opacity
 		ui.painter.opacity = self.opacity
-		// Reset draw command
-		clear(&self.meshes)
-		// Paint shadow if needed
-		if shadow, ok := info.shadow.?; ok {
-			if target, ok := get_draw_target(ui.painter); ok {
-				ui.painter.target = target
-				append(&self.meshes, ui.painter.target)
-				paint_rounded_box_shadow(ui.painter, move_box(expand_box(self.box, shadow.roundness * 5), shadow.offset), shadow.roundness * 7, fade({0, 0, 0, 100}, self.opacity))
-			}
-		}
 		// Append draw target
 		ui.painter.target = get_draw_target(ui.painter) or_return
-		append(&self.meshes, ui.painter.target)
+		self.target = ui.painter.target
 		// Apply inner padding
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
 		// Hovering and stuff
@@ -661,6 +639,6 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 		layer := current_layer(ui)
 
 		ui.painter.opacity = layer.opacity
-		ui.painter.target = layer.meshes[len(layer.meshes) - 1]
+		ui.painter.target = layer.target
 	}
 }

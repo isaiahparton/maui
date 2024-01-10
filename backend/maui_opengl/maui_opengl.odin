@@ -223,25 +223,23 @@ render :: proc(ui: ^maui.UI) -> int {
 
 render_meshes :: proc(ui: ^maui.UI) {
 	for &layer in ui.layers.list {
-		for index in layer.meshes {
-			mesh := &ui.painter.meshes[index]
-			if clip, ok := mesh.clip.?; ok {
-				gl.Enable(gl.SCISSOR_TEST)
-				gl.Scissor(i32(clip.low.x), i32(ui.size.y) - i32(clip.high.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))
-			} else {
-				gl.Disable(gl.SCISSOR_TEST)
-			}
-			/*
-				Upload vertices and indices
-			*/
-			vertices := mesh.vertices[:mesh.vertices_offset]
-			gl.BufferData(gl.ARRAY_BUFFER, size_of(maui.Vertex) * len(vertices), (transmute(runtime.Raw_Slice)vertices).data, gl.STREAM_DRAW)
-			indices := mesh.indices[:mesh.indices_offset]
-			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, size_of(u16) * len(indices), (transmute(runtime.Raw_Slice)indices).data, gl.STREAM_DRAW)
-			/*
-				Draw call
-			*/
-			gl.DrawElements(gl.TRIANGLES, i32(len(indices)), gl.UNSIGNED_SHORT, nil)
+		mesh := &ui.painter.meshes[layer.target]
+		if clip, ok := mesh.clip.?; ok {
+			gl.Enable(gl.SCISSOR_TEST)
+			gl.Scissor(i32(clip.low.x), i32(ui.size.y) - i32(clip.high.y), i32(clip.high.x - clip.low.x), i32(clip.high.y - clip.low.y))
+		} else {
+			gl.Disable(gl.SCISSOR_TEST)
 		}
+		/*
+			Upload vertices and indices
+		*/
+		vertices := mesh.vertices[:mesh.vertices_offset]
+		gl.BufferData(gl.ARRAY_BUFFER, size_of(maui.Vertex) * len(vertices), (transmute(runtime.Raw_Slice)vertices).data, gl.STREAM_DRAW)
+		indices := mesh.indices[:mesh.indices_offset]
+		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, size_of(u16) * len(indices), (transmute(runtime.Raw_Slice)indices).data, gl.STREAM_DRAW)
+		/*
+			Draw call
+		*/
+		gl.DrawElements(gl.TRIANGLES, i32(len(indices)), gl.UNSIGNED_SHORT, nil)
 	}
 }

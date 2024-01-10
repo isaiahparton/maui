@@ -26,7 +26,7 @@ Placement_Size :: union {
 }
 Placement_Info :: struct {
 	direction: Direction,
-	size: f32,
+	size: [2]f32,
 	align: [2]Alignment,
 	margin: [Box_Side]f32,
 }
@@ -142,10 +142,10 @@ layout_cut_or_grow :: proc(layout: ^Layout, direction: Direction, amount: f32) -
 	return
 }
 // Get a box from a layout
-layout_next_of_size :: proc(layout: ^Layout, size: f32) -> (res: Box) {
-	res = layout_cut_or_grow(layout, layout.placement.direction, size)
-	res.low += {layout.placement.margin[.Left], layout.placement.margin[.Top]}
-	res.high -= {layout.placement.margin[.Right], layout.placement.margin[.Bottom]}
+layout_next_of_size :: proc(layout: ^Layout, size: [2]f32) -> (res: Box) {
+	res = layout_cut_or_grow(layout, layout.direction, size[1 - int(layout.direction) / 2])
+	res.low += {layout.margin[.Left], layout.margin[.Top]}
+	res.high -= {layout.margin[.Right], layout.margin[.Bottom]}
 	return
 }
 // Get the next box from a layout, according to the current placement settings
@@ -199,17 +199,17 @@ _do_growing_layout :: proc(ui: ^UI, _: Direction, ok: bool) {
 	}
 }
 
-@(deferred_in_out=_do_row)
-do_row :: proc(ui: ^UI, divisions: int, spacing: f32 = 0) -> (ok: bool) {
+@(deferred_in_out=_row)
+row :: proc(ui: ^UI, divisions: int, spacing: f32 = 0) -> (ok: bool) {
 	last_layout := current_layout(ui)
-	box := cut(ui, last_layout.placement.direction, last_layout.placement.size)
+	box := cut(ui, last_layout.direction, last_layout.size.y)
 	layout := push_layout(ui, box)
-	layout.placement.direction = .Right
-	layout.placement.size = width(layout.box) / max(f32(divisions), 1) - (spacing * f32(divisions - 1))
+	layout.direction = .Right
+	layout.size = width(layout.box) / max(f32(divisions), 1) - (spacing * f32(divisions - 1))
 	return true
 }
 @private 
-_do_row :: proc(ui: ^UI, _: int, _: f32, ok: bool) {
+_row :: proc(ui: ^UI, _: int, _: f32, ok: bool) {
 	if ok {
 		pop_layout(ui)
 	}

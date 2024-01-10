@@ -20,10 +20,10 @@ TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
 
 ALTERNATE_STYLE_COLORS :: maui.Style_Colors{
 	accent = {185, 75, 178, 255},
-	base = {211, 204, 48, 255},
-	text = {0, 0, 0, 255},
-	flash = {0, 0, 0, 255},
-	substance = {0, 0, 0, 255},
+	base = {120, 120, 140, 255},
+	text = {255, 255, 255, 255},
+	flash = {0, 255, 0, 255},
+	substance = {200, 200, 220, 255},
 }
 
 _main :: proc() -> bool {
@@ -53,9 +53,30 @@ _main :: proc() -> bool {
 
 		begin_ui(&ui)
 
+			if layout, ok := do_layout(&ui, cut(&ui, .Right, 40)); ok {
+				ui.style.color = ALTERNATE_STYLE_COLORS
+				paint_box_fill(ui.painter, layout.box, ui.style.color.base)
+				layout.size.y = 40
+				button(&ui, {
+					text = "\uF0D1",
+					font = ui.style.font.icon,
+					subtle = true,
+				})
+				button(&ui, {
+					text = "\uEC10",
+					font = ui.style.font.icon,
+					subtle = true,
+				})
+				button(&ui, {
+					text = "\uF255",
+					font = ui.style.font.icon,
+					subtle = true,
+				})
+				ui.style.color = DARK_STYLE_COLORS
+			}
 
 			layout := current_layout(&ui)
-			layout.size = 50
+			layout.size = {100, 50}
 			shrink(&ui, 100)
 
 			if was_clicked(button(&ui, {
@@ -71,6 +92,7 @@ _main :: proc() -> bool {
 				clicked = true
 			}
 			space(&ui, 10)
+			layout.size.y = 30
 			if was_clicked(checkbox(&ui, {
 				value = checkbox_value, 
 				text = "Boolean", 
@@ -79,7 +101,21 @@ _main :: proc() -> bool {
 				checkbox_value = !checkbox_value
 			}
 			space(&ui, 10)
-			layout.size = 20
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.direction = .Right
+				if result, open := menu(&ui, {text = "File"}); open {
+					button(&ui, {text = "New", subtle = true})
+					button(&ui, {text = "Open", subtle = true})
+					button(&ui, {text = "Save", subtle = true})
+				}
+				if result, open := menu(&ui, {text = "Edit"}); open {
+					button(&ui, {text = "Undo", subtle = true})
+					button(&ui, {text = "Redo", subtle = true})
+					button(&ui, {text = "Select All", subtle = true})
+				}
+			}
+			space(&ui, 100)
+			layout.size.y = 20
 			for &entry, i in list {
 				push_id(&ui, i)
 					if was_clicked(list_item(&ui, {

@@ -19,16 +19,10 @@ DEFAULT_WIDGET_DISABLE_TIME :: 0.2
 Widget_Bit :: enum {
 	// Widget thrown away if no
 	Stay_Alive,
-	// For independently toggled widgets
-	Active,
 	// If the widget is disabled
 	Disabled,
-	// For attached menus
-	Menu_Open,
 	// Should be painted this frame
 	Should_Paint,
-	// Negative number in numeric fields
-	Negative,
 }
 Widget_Bits :: bit_set[Widget_Bit;u8]
 // Behavior options
@@ -106,6 +100,7 @@ Widget_Variant :: union {
 	Button_Widget_Variant,
 	Check_Box_Widget_Variant,
 	List_Item_Widget_Variant,
+	Menu_Widget_Variant,
 }
 destroy_widget_variant :: proc(variant: ^Widget_Variant) {
 	#partial switch &type in variant {
@@ -157,7 +152,7 @@ Widget_Agent :: struct {
 */
 get_widget :: proc(ui: ^UI, info: Generic_Widget_Info, loc: runtime.Source_Code_Location) -> (^Widget, Generic_Widget_Result) {
 	id := info.id.? or_else hash(ui, loc)
-	layer := current_layer(ui)
+	layer := current_layer(ui, loc)
 	widget, ok := layer.contents[id]
 	if !ok {
 		// Allocate a new widget

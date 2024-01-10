@@ -722,97 +722,19 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 	return
 }
 
-Do_Text_Info :: struct {
-	using info: Generic_Widget_Info,
-	text: string,
-	font: Maybe(Font_Handle),
-	size: Maybe(f32),
-	align: Text_Align,
-	baseline: Text_Baseline,
-	color: Maybe(Color),
+Text_Box_Info :: struct {
+	using generic: Generic_Widget_Info,
+	content: string,
+	interactable: bool,
 }
-/*do_text :: proc(info: Do_Text_Info) {
-	box := info.box.? or_else layout_next(current_layout())
-	box = shrink_box(box, style.layout.widget_padding)
-	origin: [2]f32
-	switch info.align {
-		case .Left: origin.x = box.low.x
-		case .Middle: origin.x = (box.low.x + box.high.x) / 2
-		case .Right: origin.x = box.high.x
-	}
-	switch info.baseline {
-		case .Top: origin.y = box.low.y
-		case .Middle: origin.y = (box.low.y + box.high.y) / 2
-		case .Bottom: origin.y = box.high.y
-	}
-	paint_text(
-		origin, 
-		{
-			text = info.text, 
-			font = info.font.? or_else style.font.label, 
-			size = info.size.? or_else style.text_size.label, 
-			limit = {width(box), nil}, 
-			wrap = .Word,
-		}, 
-		{
-			align = info.align, 
-			baseline = info.baseline,
-		}, 
-		info.color.? or_else style.color.base_text[1],
-	)
-}*/
-
-Interactable_Text_Info :: struct {
-	text: string,
-	font: Maybe(Font_Handle),
-	size: Maybe(f32),
-	align: Text_Align,
-	baseline: Text_Baseline,
-	color: Maybe(Color),
+Text_Box_Result :: struct {
+	using generic: Generic_Widget_Result,
+	selection: [2]int,
 }
-do_interactable_text :: proc(ui: ^UI, info: Interactable_Text_Info, loc := #caller_location) {
-	/*if self, ok := get_widget(ui, hash(ui, loc), {.Draggable}); ok {
-		self.box = layout_next(current_layout())
-		update_widget(self)
-
-		origin: [2]f32
-		switch placement.align.x {
-			case .Far: origin.x = self.box.high.x
-			case .Middle: origin.x = (self.box.low.x + self.box.high.x) * 0.5
-			case .Near: origin.x = self.box.low.x
-		}
-		switch placement.align.y {
-			case .Far: origin.y = self.box.high.y
-			case .Middle: origin.y = (self.box.low.y + self.box.high.y) * 0.5
-			case .Near: origin.y = self.box.low.y
-		}
-
-		res := paint_interact_text(
-			&ui.painter,
-			origin, self, 
-			&Scribe, 
-			{
-				text = info.text, 
-				font = info.font.? or_else style.font.label, 
-				size = info.size.? or_else style.text_size.label, 
-				limit = {width(self.box), nil}, 
-				wrap = .Word,
-			}, 
-			{
-				align = info.align, 
-				baseline = info.baseline,
-				clip = self.box,
-			},  
-			{
-				read_only = true,
-			}, 
-			info.color.? or_else style.color.base_text[1],
-			)
-		update_widget_hover(self, res.hovered)
-
-		self.layer.content_box = update_bounding_box(self.layer.content_box, res.bounds)
-		if self.state & {.Hovered, .Pressed} != {} {
-			cursor = .Beam
-		}
-	}*/
+text_box :: proc(ui: ^UI, info: Text_Box_Info, loc := #caller_location) -> Text_Box_Result {
+	self, generic_result := get_widget(ui, info, loc)
+	result: Text_Box_Result = {
+		generic = generic_result,
+	}
+	return result
 }

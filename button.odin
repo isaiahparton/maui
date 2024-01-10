@@ -12,6 +12,8 @@ destroy_button_widget_variant :: proc(variant: ^Button_Widget_Variant) {
 Button_Info :: struct {
 	using generic: Generic_Widget_Info,
 	text: string,
+	subtle: bool,
+	font: Maybe(Font_Handle),
 }
 button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_Widget_Result {
 	// Get widget
@@ -44,10 +46,12 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_W
 		for value in data.flashes {
 			paint_box_fill(ui.painter, expand_box(self.box, 5 * value), fade(ui.style.color.flash, 1 - value))
 		}
-		paint_box_stroke(ui.painter, self.box, ui.style.stroke_width + (1 - ui.style.stroke_width) * data.disable_time, stroke_color)
+		if !info.subtle {
+			paint_box_stroke(ui.painter, self.box, ui.style.stroke_width + (1 - ui.style.stroke_width) * data.disable_time, stroke_color)
+		}
 		paint_text(ui.painter, center(self.box), {
 			text = info.text, 
-			font = ui.style.font.label, 
+			font = info.font.? or_else ui.style.font.label, 
 			size = ui.style.text_size.label, 
 			align = .Middle, 
 			baseline = .Middle,
