@@ -1,4 +1,4 @@
-package maui_widgets
+package maui
 import "../"
 // Core dependencies
 import "core:fmt"
@@ -21,38 +21,46 @@ Text_Input_State :: struct {
 	offset: [2]f32,
 }
 Text_Input_Info :: struct {
-	using generic: maui.Generic_Widget_Info,
+	using generic: Generic_Widget_Info,
 	data: Text_Input_Data,
 	title: Maybe(string),
 	placeholder: Maybe(string),
 	multiline: bool,
 }
 Text_Input_Result :: struct {
-	using generic: maui.Generic_Widget_Result,
+	using generic: Generic_Widget_Result,
 	changed,
 	submitted: bool,
 }
-text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location) -> Text_Input_Result {
-	using maui
-	self, generic_result := get_widget(ui, hash(ui, loc))
+Text_Input_Widget_Variant :: struct {
+	hover_time,
+	focus_time: f32,
+	offset: [2]f32,
+}
+text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> Text_Input_Result {
+	self, generic_result := get_widget(ui, info, loc)
 	result: Text_Input_Result = {
 		generic = generic_result,
 	}
 	// Colocate
 	self.options += {.Draggable, .Can_Key_Select}
 	self.box = info.box.? or_else layout_next(current_layout(ui))
+	// Assert variant existence
+	if self.variant == nil {
+		self.variant = Text_Input_Widget_Variant{}
+	}
+	data := &self.variant.(Text_Input_Widget_Variant)
 	// Update
 	update_widget(ui, self)
 	// Animate
-	hover_time := animate_bool(ui, &self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
-	focus_time := animate_bool(ui, &self.timers[1], .Focused in self.state, 0.15)
+	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
+	data.focus_time = animate(ui, data.focus_time, 0.15, .Focused in self.state)
 	// Text cursor
 	if .Hovered in self.state {
 		ui.cursor = .Beam
 	}
 	// Get a temporary buffer if necessary
 	buffer := info.data.(^[dynamic]u8) or_else get_scribe_buffer(&ui.scribe, self.id)
-	state := (^Text_Input_State)(require_data(self, Text_Input_State))
 	// Text edit
 	if .Focused in (self.state - self.last_state) {
 		if text, ok := info.data.(^string); ok {
@@ -91,24 +99,24 @@ text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location)
 					ui.painter,
 					text_origin, 
 					{font = ui.style.font.label, size = ui.style.text_size.field, text = info.placeholder.?, baseline = .Middle}, 
-					ui.style.color.base_text[1],
+					ui.style.color.text,
 				)
 			}
 		}
-		fill_color := fade(ui.style.color.substance[1], 0.2 * hover_time)
-		stroke_color := ui.style.color.substance[0]
+		fill_color := fade(ui.style.color.substance, 0.2 * data.hover_time)
+		stroke_color := blend_colors(ui.style.color.substance, ui.style.color.accent, data.focus_time)
 		points, point_count := get_path_of_box_with_cut_corners(self.box, height(self.box) * 0.2, {.Top_Right})
+		layer := current_layer(ui)
+		ui.painter.target = layer.targets[.Background]
 		paint_path_fill(ui.painter, points[:point_count], fill_color)
-		scale := width(self.box) * 0.5 * focus_time
-		center := center_x(self.box)
-		paint_box_fill(ui.painter, {{center - scale, self.box.high.y - 2}, {center + scale, self.box.high.y}}, stroke_color)
+		ui.painter.target = layer.targets[.Foreground]
 		paint_path_stroke(ui.painter, points[:point_count], true, ui.style.stroke_width, 0, stroke_color)
 	}
 	// Do text scrolling or whatever
 	// Focused state
 	if .Focused in (self.state - self.last_state) {
-		ui.scribe.index = len(text)
-		ui.scribe.length = 0
+		ui.scribe.selection.offset = len(text)
+		ui.scribe.selection.length = 0
 	}
 	if .Focused in self.state {
 		if key_pressed(ui.io, .Enter) || key_pressed(ui.io, .Keypad_Enter) {
@@ -119,29 +127,30 @@ text_input :: proc(ui: ^maui.UI, info: Text_Input_Info, loc := #caller_location)
 			multiline = info.multiline,
 		})
 	}
-	text_result := paint_interact_text(ui, self, text_origin - state.offset, text_info, {}, ui.style.color.base_text[0])
+	text_result := paint_interact_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text)
+	// Get the text location and cursor offsets
 	if .Focused in self.state {
 		offset_x_limit := max(width(text_result.bounds) - width(inner_box), 0)
 		if .Pressed in self.state {
 			left_over := self.box.low.x - ui.io.mouse_point.x 
 			if left_over > 0 {
-				state.offset.x -= left_over * 0.2
+				data.offset.x -= left_over * 0.2
 				ui.painter.next_frame = true
 			}
 			right_over := ui.io.mouse_point.x - self.box.high.x
 			if right_over > 0 {
-				state.offset.x += right_over * 0.2
+				data.offset.x += right_over * 0.2
 				ui.painter.next_frame = true
 			}
-			state.offset.x = clamp(state.offset.x, 0, offset_x_limit)
+			data.offset.x = clamp(data.offset.x, 0, offset_x_limit)
 		} else {
-			if ui.scribe.index < ui.scribe.last_index {
+			if ui.scribe.offset < ui.scribe.last_selection.offset {
 				if text_result.selection_bounds.low.x < inner_box.low.x {
-					state.offset.x = max(0, text_result.selection_bounds.low.x - text_result.bounds.low.x)
+					data.offset.x = max(0, text_result.selection_bounds.low.x - text_result.bounds.low.x)
 				}
-			} else if ui.scribe.index > ui.scribe.last_index || ui.scribe.length > ui.scribe.last_length {
+			} else if ui.scribe.offset > ui.scribe.last_selection.offset || ui.scribe.length > ui.scribe.last_selection.length {
 				if text_result.selection_bounds.high.x > inner_box.high.x {
-					state.offset.x = min(offset_x_limit, (text_result.selection_bounds.high.x - text_result.bounds.low.x) - width(inner_box))
+					data.offset.x = min(offset_x_limit, (text_result.selection_bounds.high.x - text_result.bounds.low.x) - width(inner_box))
 				}
 			}
 		}

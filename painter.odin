@@ -23,6 +23,8 @@ import "core:math/linalg"
 import ttf "vendor:stb/truetype"
 import img "vendor:stb/image"
 
+MAX_FONTS :: 128
+MAX_MESHES :: 256
 // Main texture size
 TEXTURE_WIDTH :: 4096
 TEXTURE_HEIGHT :: 4096
@@ -82,11 +84,6 @@ Mesh :: struct {
 	indices_offset: u16,
 }
 
-make_mesh :: proc() -> (result: Mesh, ok: bool) {
-	result, ok = Mesh{}, true
-	return
-}
-
 normalize_color :: proc(color: [4]u8) -> [4]f32 {
 	return linalg.array_cast(color, f32) / 255.0
 }
@@ -98,9 +95,6 @@ paint_vertices :: proc(mesh: ^Mesh, vertices: ..Vertex) {
 paint_indices :: proc(mesh: ^Mesh, indices: ..u16) {
 	mesh.indices_offset += u16(copy(mesh.indices[mesh.indices_offset:], indices))
 }
-
-MAX_FONTS :: 128
-MAX_MESHES :: 512
 
 Paint_Mode :: enum {
 	Discrete,

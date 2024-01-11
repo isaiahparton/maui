@@ -38,7 +38,7 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_W
 	// Paint
 	if .Should_Paint in self.bits {
 		opacity: f32 = 1.0 - data.disable_time * 0.5
-		fill_color := fade(ui.style.color.substance, data.hover_time * opacity)
+		fill_color := fade(ui.style.color.substance, (data.hover_time * (0.5 if info.subtle else 1.0)) * opacity)
 		stroke_color: Color = fade(ui.style.color.substance, (1 - data.hover_time) * opacity)
 		text_color := fade(blend_colors(ui.style.color.substance, ui.style.color.base, data.hover_time), opacity)
 		// Shapes

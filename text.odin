@@ -535,50 +535,67 @@ paint_clipped_aligned_rune :: proc(painter: ^Painter, font: Font_Handle, size: f
 	return icon_size
 }
 
-Text_Interact_Info :: struct {
-	read_only,
+Tactile_Text_Info :: struct {
+	using base: Text_Info,
 	focus_selects_all,
-	invisible: bool,
+	read_only: bool,
 }
-
-Text_Interact_Result :: struct {
+Tactile_Text_Result :: struct {
+	// If a selection or a change was made
+	changed: bool,
+	// If the text is hovered
 	hovered: bool,
+	// Text and selection bounds
 	bounds,
 	selection_bounds: Box,
-	line_above,
-	line_below: int,
+	// New selection
+	selection: Text_Selection,
 }
-
-paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info: Text_Info, interact_info: Text_Interact_Info, color: Color) -> (res: Text_Interact_Result) {
-	size := measure_text(ui.painter, text_info)
+/*
+	Paint interactable text
+*/
+paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tactile_Text_Info, color: Color) -> Tactile_Text_Result {
+	// Initial measurement
+	size := measure_text(ui.painter, info)
 	origin := origin
-	res.selection_bounds.low = size
-
+	// Prepare result
+	using result: Tactile_Text_Result = {
+		selection_bounds = {size, {}},
+		selection = ui.scribe.selection,
+	}
+	// Layer to paint on
+	layer := current_layer(ui)
 	// Apply baseline if needed
-	#partial switch text_info.baseline {
+	#partial switch info.baseline {
 		case .Middle: origin.y -= size.y / 2 
 		case .Bottom: origin.y -= size.y
 	}
+	// Hovered index
 	hover_index: int
 	// Paint the text
-	if it, ok := make_text_iterator(ui.painter, text_info); ok {
+	if it, ok := make_text_iterator(ui.painter, info); ok {
+		// If we've reached the end
 		at_end := false
 		// Determine hovered line
 		line_height := it.size.ascent - it.size.descent + it.size.line_gap
 		line_count := int(math.floor(size.y / line_height))
 		hovered_line := clamp(int((ui.io.mouse_point.y - origin.y) / line_height), 0, line_count)
 		min_dist: f32 = math.F32_MAX
-		line: int
+		line, column: int
 		// Get line offset
-		update_text_iterator_offset(ui.painter, &it, text_info)
-		res.bounds.low = origin + it.offset
-		res.bounds.high = res.bounds.low
+		update_text_iterator_offset(ui.painter, &it, info)
+		bounds.low = origin + it.offset
+		bounds.high = bounds.low
 		last_line := it.offset
+		// Horizontal bounds of the selection on the current line
+		line_bounds: [2]f32
 		// Start iteration
 		for {
-			if !iterate_text(ui.painter, &it, text_info) {
+			if !iterate_text(ui.painter, &it, info) {
 				at_end = true
 			}
+			// Increment column
+			column += 1
 			// Get hovered state
 			if it.new_line || at_end {
 				// Allows for highlighting the last run in a line
@@ -593,11 +610,26 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 				line_box: Box = {low = origin + last_line}
 				line_box.high = {line_box.low.x + it.line_size.x, origin.y + it.offset.y}
 				if point_in_box(ui.io.mouse_point, line_box) {
-					res.hovered = true
+					hovered = true
 				}
-				if !at_end || it.new_line {
+				// Draw selection box to the layer's background
+				ui.painter.target = layer.targets[.Background]
+				// Draw it if the selection is valid
+				if line_bounds[1] > line_bounds[0] {
+					box: Box = {{line_bounds[0], origin.y + last_line.y}, {line_bounds[1], origin.y + it.offset.y}}
+					if clip, ok := info.clip.?; ok {
+						box = clamp_box(box, clip)
+					}
+					paint_box_fill(ui.painter, box, ui.style.color.accent)
+				}
+				line_bounds = {math.F32_MAX, 0}
+				// Continue painting to the foreground
+				ui.painter.target = layer.targets[.Foreground]
+				//
+				if !at_end {
 					line += 1
-					update_text_iterator_offset(ui.painter, &it, text_info)
+					column = 0
+					update_text_iterator_offset(ui.painter, &it, info)
 					last_line = it.offset
 				}
 			}
@@ -609,7 +641,7 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 					min_dist = dist1
 					hover_index = it.index
 				}
-				if it.glyph != nil && (it.new_line || it.next_index >= len(text_info.text)) {
+				if it.glyph != nil && (it.new_line || it.next_index >= len(info.text)) {
 					// Right side of glyph
 					dist2 := math.abs((origin.x + it.offset.x + it.glyph.advance) - ui.io.mouse_point.x)
 					if dist2 < min_dist {
@@ -620,31 +652,15 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 			}
 			// Get the glyph point
 			point := origin + {it.offset.x, last_line.y}
-			// Paint cursor/selection
+			// Get selection info
 			if .Focused in widget.state {
-				if ui.scribe.length == 0 && !interact_info.read_only {
-					if ui.scribe.index == it.index {
-						// Bar cursor
-						box: Box = {{point.x - ui.style.stroke_width / 2, point.y}, {point.x + ui.style.stroke_width / 2, point.y + it.size.ascent - it.size.descent}}
-						res.selection_bounds.low = linalg.min(res.selection_bounds.low, box.low)
-						res.selection_bounds.high = linalg.max(res.selection_bounds.high, box.high)
-						if clip, ok := text_info.clip.?; ok {
-							box = clamp_box(box, clip)
-						}
-						paint_box_fill(ui.painter, box, ui.style.color.accent[1])
-					}
-				} else if it.glyph != nil && it.index >= ui.scribe.index && it.index < ui.scribe.index + ui.scribe.length {
-					// Selection
-					box: Box = {point, {point.x + math.floor(it.glyph.advance), point.y + it.size.ascent - it.size.descent}}
-					res.selection_bounds.low = linalg.min(res.selection_bounds.low, box.low)
-					res.selection_bounds.high = linalg.max(res.selection_bounds.high, box.high)
-					if line < line_count {
-						box.high.y += it.size.line_gap
-					}
-					if clip, ok := text_info.clip.?; ok {
-						box = clamp_box(box, clip)
-					}
-					paint_box_fill(ui.painter, box, fade(ui.style.color.accent[1], 0.5))
+				if selection.offset == it.index {
+					selection.line = line
+					selection.column = column
+				}
+				if selection.offset == it.index || selection.offset + selection.length == it.index {
+					line_bounds[0] = min(line_bounds[0], point.x)
+					line_bounds[1] = max(line_bounds[1], point.x + math.floor(it.glyph.advance))
 				}
 			}
 			// Paint the glyph
@@ -652,8 +668,8 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 				// Paint the glyph
 				dst: Box = {low = point + it.glyph.offset}
 				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
-				res.bounds.high = linalg.max(res.bounds.high, dst.high)
-				if clip, ok := text_info.clip.?; ok {
+				bounds.high = linalg.max(bounds.high, dst.high)
+				if clip, ok := info.clip.?; ok {
 					paint_clipped_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, clip, color)
 				} else {
 					paint_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, color)
@@ -666,25 +682,25 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 	}
 	// Copy
 	if .Focused in widget.state {
-		if (key_pressed(ui.io, .C) && (key_down(ui.io, .Left_Control) || key_down(ui.io, .Right_Control))) && ui.scribe.length > 0 {
-			set_clipboard_string(ui.io, text_info.text[ui.scribe.index:][:ui.scribe.length])
+		if (key_pressed(ui.io, .C) && (key_down(ui.io, .Left_Control) || key_down(ui.io, .Right_Control))) && selection.length > 0 {
+			set_clipboard_string(ui.io, info.text[selection.offset:][:selection.length])
 		}
 	}
 	// Update selection
 	if .Pressed in (widget.state - widget.last_state) {
 		if widget.click_count == 2 {
 			// Select everything
-			ui.scribe.index = strings.last_index_byte(text_info.text[:hover_index], '\n') + 1
-			ui.scribe.anchor = ui.scribe.index
-			ui.scribe.length = strings.index_byte(text_info.text[ui.scribe.anchor:], '\n')
-			if ui.scribe.length == -1 {
-				ui.scribe.length = len(text_info.text) - ui.scribe.index
+			selection.offset = strings.last_index_byte(info.text[:hover_index], '\n') + 1
+			ui.scribe.anchor = selection.offset
+			selection.length = strings.index_byte(info.text[ui.scribe.anchor:], '\n')
+			if selection.length == -1 {
+				selection.length = len(info.text) - selection.offset
 			}
 		} else {
 			// Normal select
-			ui.scribe.index = hover_index
+			selection.offset = hover_index
 			ui.scribe.anchor = hover_index
-			ui.scribe.length = 0
+			selection.length = 0
 		}
 	}
 	// Dragging
@@ -693,33 +709,33 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, text_info:
 		if widget.click_count == 1 {
 			next, last: int
 			if hover_index < ui.scribe.anchor {
-				last = hover_index if text_info.text[hover_index] == ' ' else max(0, strings.last_index_any(text_info.text[:hover_index], " \n") + 1)
-				next = strings.index_any(text_info.text[ui.scribe.anchor:], " \n")
+				last = hover_index if info.text[hover_index] == ' ' else max(0, strings.last_index_any(info.text[:hover_index], " \n") + 1)
+				next = strings.index_any(info.text[ui.scribe.anchor:], " \n")
 				if next == -1 {
-					next = len(text_info.text) - ui.scribe.anchor
+					next = len(info.text) - ui.scribe.anchor
 				}
 				next += ui.scribe.anchor
 			} else {
-				last = max(0, strings.last_index_any(text_info.text[:ui.scribe.anchor], " \n") + 1)
-				next = 0 if (hover_index > 0 && text_info.text[hover_index - 1] == ' ') else strings.index_any(text_info.text[hover_index:], " \n")
+				last = max(0, strings.last_index_any(info.text[:ui.scribe.anchor], " \n") + 1)
+				next = 0 if (hover_index > 0 && info.text[hover_index - 1] == ' ') else strings.index_any(info.text[hover_index:], " \n")
 				if next == -1 {
-					next = len(text_info.text) - hover_index
+					next = len(info.text) - hover_index
 				}
 				next += hover_index
 			}
-			ui.scribe.index = last
-			ui.scribe.length = next - last
+			selection.offset = last
+			selection.length = next - last
 		} else {
 			if hover_index < ui.scribe.anchor {
-				ui.scribe.index = hover_index
-				ui.scribe.length = ui.scribe.anchor - hover_index
+				selection.offset = hover_index
+				selection.length = ui.scribe.anchor - hover_index
 			} else {
-				ui.scribe.index = ui.scribe.anchor
-				ui.scribe.length = hover_index - ui.scribe.anchor
+				selection.offset = ui.scribe.anchor
+				selection.length = hover_index - ui.scribe.anchor
 			}
 		}
 	}
-	return
+	return result
 }
 
 Text_Box_Info :: struct {

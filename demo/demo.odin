@@ -23,7 +23,7 @@ ALTERNATE_STYLE_COLORS :: maui.Style_Colors{
 	base = {120, 120, 140, 255},
 	text = {255, 255, 255, 255},
 	flash = {0, 255, 0, 255},
-	substance = {200, 200, 220, 255},
+	substance = {220, 220, 240, 255},
 }
 
 _main :: proc() -> bool {
@@ -32,6 +32,7 @@ _main :: proc() -> bool {
 	clicked: bool
 	checkbox_value: bool
 	list := make([dynamic]bool, 9)
+	text_input_data: [dynamic]u8
 
 	// Shared structures
 	io: maui.IO
@@ -100,6 +101,12 @@ _main :: proc() -> bool {
 			})) {
 				checkbox_value = !checkbox_value
 			}
+			space(&ui, 10)
+			layout.size.y = 100
+			text_input(&ui, {
+				data = &text_input_data,
+				multiline = true,
+			})
 			space(&ui, 10)
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
 				layout.direction = .Right

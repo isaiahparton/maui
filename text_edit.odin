@@ -6,8 +6,9 @@ import "core:strings"
 import "core:unicode"
 import "core:unicode/utf8"
 
-Text_Location :: struct {
+Text_Selection :: struct {
 	offset,
+	length,
 	line, 
 	column: int,
 }
@@ -16,17 +17,11 @@ Text_Buffer :: struct {
 	buffer: [dynamic]u8,
 }
 Scribe :: struct {
-	//TODO: Introduce new approach!
-	// loc,
-	// last_loc: Text_Location,
-	anchor,
-	index,
-	length,
-	last_index,
-	last_length: int,
-
-	vertical_anchor: int,
-
+	// Editing state
+	using selection: Text_Selection,
+	last_selection: Text_Selection,
+	anchor: int,
+	// Temporary buffers
 	buffers: map[Id]Text_Buffer,
 }
 destroy_scribe :: proc(using self: ^Scribe) {
@@ -47,8 +42,6 @@ get_scribe_buffer :: proc(scribe: ^Scribe, id: Id) -> (buffer: ^[dynamic]u8) {
 }
 
 update_scribe :: proc(scribe: ^Scribe) {
-	scribe.last_index = scribe.index
-	scribe.last_length = scribe.length
 	for key, value in &scribe.buffers {
 		if value.keep_alive {
 			value.keep_alive = false
@@ -60,13 +53,13 @@ update_scribe :: proc(scribe: ^Scribe) {
 }
 
 // Text edit helpers
-scribe_insert_string :: proc(using self: ^Scribe, buf: ^[dynamic]u8, str: string) {
-	if length > 0 {
-		remove_range(buf, index, index + length)
-		length = 0
+scribe_insert_string :: proc(scribe: ^Scribe, buf: ^[dynamic]u8, str: string) {
+	if scribe.length > 0 {
+		remove_range(buf, scribe.offset, scribe.offset + scribe.length)
+		scribe.length = 0
 	}
-	inject_at_elem_string(buf, index, str)
-	index += len(str)
+	inject_at_elem_string(buf, scribe.offset, str)
+	scribe.offset += len(str)
 }
 insert_runes :: proc(using self: ^Scribe, buf: ^[dynamic]u8, runes: []rune) {
 	str := utf8.runes_to_string(runes)
@@ -127,9 +120,9 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 	if key_down(io, .Left_Control) {
 		// Select all
 		if key_pressed(io, .A) {
-			scribe.index = 0
-			scribe.anchor = 0
+			scribe.offset = 0
 			scribe.length = len(info.array)
+			scribe.anchor = 0
 		}
 		// Clipboard paste
 		if key_pressed(io, .V) {
@@ -146,7 +139,7 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 					n = min(n, capacity - len(info.array))
 				}
 				scribe_insert_string(scribe, info.array, content[:n])
-				scribe.anchor = scribe.index
+				scribe.anchor = scribe.offset
 				change = true
 			}
 		}
@@ -167,7 +160,7 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 				insert_runes(scribe, info.array, {r})
 			}
 		}
-		scribe.anchor = scribe.index
+		scribe.anchor = scribe.offset
 	}
 	/*
 		Inserting new lines
@@ -182,40 +175,22 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 	if key_pressed(io, .Backspace) {
 		if len(info.array) > 0 {
 			if scribe.length == 0 {
-				if scribe.index > 0 {
-					end := scribe.index
+				if scribe.offset > 0 {
+					end := scribe.offset
 					if key_down(io, .Left_Control) || key_down(io, .Right_Control) {
-						scribe.index = find_last_seperator(info.array[:scribe.index])
+						scribe.offset = find_last_seperator(info.array[:scribe.offset])
 					} else {
-						_, size := utf8.decode_last_rune_in_bytes(info.array[:scribe.index])
-						scribe.index -= size
+						_, size := utf8.decode_last_rune_in_bytes(info.array[:scribe.offset])
+						scribe.offset -= size
 					}
-					remove_range(info.array, scribe.index, end)
+					remove_range(info.array, scribe.offset, end)
 				}
 			} else {
-				remove_range(info.array, scribe.index, scribe.index + scribe.length)
+				remove_range(info.array, scribe.offset, scribe.offset + scribe.length)
 				scribe.length = 0
 			}
 			change = true
-			scribe.anchor = scribe.index
-		}
-	}
-	/*
-		Vertical navigation
-	*/
-	if key_pressed(io, .Up) {
-		i := strings.last_index_byte(string(info.array[:scribe.vertical_anchor]), '\n')
-		offset := scribe.vertical_anchor - i
-		if i >= 0 {
-			scribe.index = strings.last_index_byte(string(info.array[:i]), '\n') + offset
-		}
-	}
-	if key_pressed(io, .Down) {
-		i := max(strings.last_index_byte(string(info.array[:scribe.vertical_anchor]), '\n'), 0)
-		offset := scribe.vertical_anchor - i
-		i = strings.index_byte(string(info.array[scribe.vertical_anchor:]), '\n')
-		if i >= 0 {
-			scribe.index = min(scribe.index + i + offset + 1, len(info.array))
+			scribe.anchor = scribe.offset
 		}
 	}
 	/*
@@ -225,76 +200,74 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 		delta := 0
 		// How far should the cursor move?
 		if key_down(io, .Left_Control) || key_down(io, .Right_Control) {
-			delta = find_last_seperator(info.array[:scribe.index]) - scribe.index
+			delta = find_last_seperator(info.array[:scribe.offset]) - scribe.offset
 		} else{
-			_, delta = utf8.decode_last_rune_in_bytes(info.array[:scribe.index + scribe.length])
+			_, delta = utf8.decode_last_rune_in_bytes(info.array[:scribe.offset + scribe.length])
 			delta = -delta
 		}
 		// Highlight or not
 		if key_down(io, .Left_Shift) || key_down(io, .Right_Shift) {
-			if scribe.index < scribe.anchor {
-				new_index := scribe.index + delta
-				scribe.index = max(0, new_index)
-				scribe.length = scribe.anchor - scribe.index
+			if scribe.offset < scribe.anchor {
+				new_index := scribe.offset + delta
+				scribe.offset = max(0, new_index)
+				scribe.length = scribe.anchor - scribe.offset
 			} else {
-				new_index := scribe.index + scribe.length + delta
-				scribe.index = min(scribe.anchor, new_index)
-				scribe.length = max(scribe.anchor, new_index) - scribe.index
+				new_index := scribe.offset + scribe.length + delta
+				scribe.offset = min(scribe.anchor, new_index)
+				scribe.length = max(scribe.anchor, new_index) - scribe.offset
 			}
 		} else {
 			if scribe.length == 0 {
-				scribe.index += delta
+				scribe.offset += delta
 			}
 			scribe.length = 0
-			scribe.anchor = scribe.index
+			scribe.anchor = scribe.offset
 		}
 		// Clamp cursor
-		scribe.index = max(0, scribe.index)
-		scribe.vertical_anchor = scribe.index
+		scribe.offset = max(0, scribe.offset)
 	}
 	if key_pressed(io, .Right) {
 		delta := 0
 		// How far should the cursor move
 		if key_down(io, .Left_Control) || key_down(io, .Right_Control) {
-			delta = find_next_seperator(info.array[scribe.index + scribe.length:])
+			delta = find_next_seperator(info.array[scribe.offset + scribe.length:])
 		} else {
-			_, delta = utf8.decode_rune_in_bytes(info.array[scribe.index + scribe.length:])
+			_, delta = utf8.decode_rune_in_bytes(info.array[scribe.offset + scribe.length:])
 		}
 		// Highlight or not?
 		if key_down(io, .Left_Shift) || key_down(io, .Right_Shift) {
-			if scribe.index < scribe.anchor {
-				new_index := scribe.index + delta
-				scribe.index = new_index
+			if scribe.offset < scribe.anchor {
+				new_index := scribe.offset + delta
+				scribe.offset = new_index
 				scribe.length = scribe.anchor - new_index
 			} else {
-				new_index := scribe.index + scribe.length + delta
-				scribe.index = scribe.anchor
-				scribe.length = new_index - scribe.index
+				new_index := scribe.offset + scribe.length + delta
+				scribe.offset = scribe.anchor
+				scribe.length = new_index - scribe.offset
 			}
 		} else {
 			if scribe.length > 0 {
-				scribe.index += scribe.length
+				scribe.offset += scribe.length
 			} else {
-				scribe.index += delta
+				scribe.offset += delta
 			}
 			scribe.length = 0
-			scribe.anchor = scribe.index
+			scribe.anchor = scribe.offset
 		}
 		// Clamp cursor
 		if scribe.length == 0 {
-			if scribe.index > len(info.array) {
-				scribe.index = len(info.array)
+			if scribe.offset > len(info.array) {
+				scribe.offset = len(info.array)
 			}
 		} else {
-			if scribe.index + scribe.length > len(info.array) {
-				scribe.length = len(info.array) - scribe.index
+			if scribe.offset + scribe.length > len(info.array) {
+				scribe.length = len(info.array) - scribe.offset
 			}
 		}
-		scribe.index = max(0, scribe.index)
-		scribe.vertical_anchor = scribe.index
+		scribe.offset = max(0, scribe.offset)
 	}
 	if change {
-		scribe.length = min(scribe.length, len(info.array) - scribe.index)
+		scribe.length = min(scribe.length, len(info.array) - scribe.offset)
 	}
 	return
 }

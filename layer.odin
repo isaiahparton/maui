@@ -87,6 +87,10 @@ Layer_Placement :: union {
 	Box,
 	Layer_Placement_Info,
 }
+Layer_Mesh_Index :: enum {
+	Background,
+	Foreground,
+}
 Layer_Info :: struct {
 	// Explicit id assignment
 	id: Maybe(Id),
@@ -153,7 +157,7 @@ Layer :: struct {
 	// controls on this self
 	contents: map[Id]^Widget,
 	// Draw command
-	target: int,
+	targets: [Layer_Mesh_Index]int,
 }
 Layer_Agent :: struct {
 	// Fixed memory arena
@@ -411,8 +415,9 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		self.opacity = info.opacity.? or_else self.opacity
 		ui.painter.opacity = self.opacity
 		// Append draw target
+		self.targets[.Background] = get_draw_target(ui.painter) or_return
 		ui.painter.target = get_draw_target(ui.painter) or_return
-		self.target = ui.painter.target
+		self.targets[.Foreground] = ui.painter.target
 		// Apply inner padding
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
 		// Hovering and stuff
@@ -639,6 +644,6 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 		layer := current_layer(ui)
 
 		ui.painter.opacity = layer.opacity
-		ui.painter.target = layer.target
+		ui.painter.target = layer.targets[.Foreground]
 	}
 }
