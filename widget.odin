@@ -329,3 +329,21 @@ update_widget :: proc(ui: ^UI, widget: ^Widget) {
 		update_widget_state(ui, widget)
 	}
 }
+
+paint_titled_input_stroke :: proc(ui: ^UI, box: Box, title: Maybe(string), cut_amount, thickness: f32, color: Color) {
+	points: [][2]f32 = {
+		box.low,
+		{box.high.x - cut_amount, box.low.y},
+		{box.high.x, box.low.y + cut_amount},
+		box.high,
+		{box.low.x, box.high.y},
+		box.low,
+		box.low,
+	}
+	if title, ok := title.?; ok {
+		size := paint_text(ui.painter, {box.low.x + ui.style.title_margin + ui.style.title_padding, box.low.y}, {text = title, font = ui.style.font.title, size = ui.style.text_size.title, baseline = .Middle}, ui.style.color.substance)
+		points[0].x += ui.style.title_margin + ui.style.title_padding * 2 + size.x
+		points[6].x += ui.style.title_margin
+	}
+	paint_path_stroke(ui.painter, points[:5] if title == nil else points, title == nil, thickness, 0, color)
+}

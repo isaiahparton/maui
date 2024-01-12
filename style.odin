@@ -5,10 +5,10 @@ package maui
 */
 DARK_STYLE_COLORS :: Style_Colors{
 	accent = {215, 75, 178, 255},
-	base = {15, 15, 25, 255},
+	base = {35, 50, 65, 255},
 	text = {255, 255, 255, 255},
 	flash = {0, 255, 0, 255},
-	substance = {255, 255, 255, 255},
+	substance = {245, 245, 245, 255},
 }
 /*
 	Fonts used in different parts of the ui
@@ -62,5 +62,7 @@ Style :: struct {
 	panel_rounding,
 	rounding: f32,
 	stroke_width: f32,
+	title_margin: f32,
+	title_padding: f32,
 	rounded_corners: Corners,
 }

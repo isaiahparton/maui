@@ -106,19 +106,21 @@ _main :: proc() -> bool {
 			text_input(&ui, {
 				data = &text_input_data,
 				multiline = true,
+				title = "Text field",
 			})
 			space(&ui, 10)
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
 				layout.direction = .Right
 				if result, open := menu(&ui, {text = "File"}); open {
-					button(&ui, {text = "New", subtle = true})
-					button(&ui, {text = "Open", subtle = true})
-					button(&ui, {text = "Save", subtle = true})
+					button(&ui, {text = "New", subtle = true, align = .Left})
+					button(&ui, {text = "Open", subtle = true, align = .Left})
+					button(&ui, {text = "Save", subtle = true, align = .Left})
+					button(&ui, {text = "Exit", subtle = true, align = .Left})
 				}
 				if result, open := menu(&ui, {text = "Edit"}); open {
-					button(&ui, {text = "Undo", subtle = true})
-					button(&ui, {text = "Redo", subtle = true})
-					button(&ui, {text = "Select All", subtle = true})
+					button(&ui, {text = "Undo", subtle = true, align = .Left})
+					button(&ui, {text = "Redo", subtle = true, align = .Left})
+					button(&ui, {text = "Select All", subtle = true, align = .Left})
 				}
 			}
 			space(&ui, 100)

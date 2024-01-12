@@ -201,6 +201,7 @@ make_text_iterator :: proc(painter: ^Painter, info: Text_Info) -> (it: Text_Iter
 	it.font = &painter.fonts[info.font].?
 	it.size, ok = get_font_size(painter, it.font, info.size)
 	it.line_limit = info.limit.x
+	it.line_size.y = it.size.ascent - it.size.descent + it.size.line_gap
 	return
 }
 update_text_iterator_offset :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) {
@@ -234,13 +235,11 @@ iterate_text_codepoint :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text
 }
 iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> (ok: bool) {
 	// Update horizontal offset with last glyph
-	if it.glyph != nil {
-		it.offset.x += it.glyph.advance
-	}
 	if it.new_line {
 		it.line_size.x = 0
 	}
 	if it.glyph != nil {
+		it.offset.x += it.glyph.advance
 		it.line_size.x += it.glyph.advance
 	}
 	/*
@@ -554,7 +553,7 @@ Tactile_Text_Result :: struct {
 /*
 	Paint interactable text
 */
-paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tactile_Text_Info, color: Color) -> Tactile_Text_Result {
+paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tactile_Text_Info, color: Color) -> Tactile_Text_Result {
 	// Initial measurement
 	size := measure_text(ui.painter, info)
 	origin := origin
@@ -580,22 +579,26 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tact
 		line_height := it.size.ascent - it.size.descent + it.size.line_gap
 		line_count := int(math.floor(size.y / line_height))
 		hovered_line := clamp(int((ui.io.mouse_point.y - origin.y) / line_height), 0, line_count)
-		min_dist: f32 = math.F32_MAX
+		// Current line and column
 		line, column: int
+		// Keep track of smallest distance to mouse
+		min_dist: f32 = math.F32_MAX
 		// Get line offset
 		update_text_iterator_offset(ui.painter, &it, info)
-		bounds.low = origin + it.offset
-		bounds.high = bounds.low
-		last_line := it.offset
+		// Top left of this line
+		line_origin := origin + it.offset
+		last_line_origin := line_origin
 		// Horizontal bounds of the selection on the current line
-		line_bounds: [2]f32
+		selection_bounds: [2]f32 = {math.F32_MAX, 0}
+		// Set bounds
+		bounds.low = line_origin
+		bounds.high = bounds.low
 		// Start iteration
 		for {
+			// Iterate the iterator
 			if !iterate_text(ui.painter, &it, info) {
 				at_end = true
 			}
-			// Increment column
-			column += 1
 			// Get hovered state
 			if it.new_line || at_end {
 				// Allows for highlighting the last run in a line
@@ -607,30 +610,32 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tact
 					}
 				}
 				// Check if the last line was hovered
-				line_box: Box = {low = origin + last_line}
-				line_box.high = {line_box.low.x + it.line_size.x, origin.y + it.offset.y}
+				line_box: Box = {line_origin, line_origin + it.line_size}
 				if point_in_box(ui.io.mouse_point, line_box) {
 					hovered = true
 				}
-				// Draw selection box to the layer's background
-				ui.painter.target = layer.targets[.Background]
-				// Draw it if the selection is valid
-				if line_bounds[1] > line_bounds[0] {
-					box: Box = {{line_bounds[0], origin.y + last_line.y}, {line_bounds[1], origin.y + it.offset.y}}
-					if clip, ok := info.clip.?; ok {
-						box = clamp_box(box, clip)
-					}
-					paint_box_fill(ui.painter, box, ui.style.color.accent)
-				}
-				line_bounds = {math.F32_MAX, 0}
-				// Continue painting to the foreground
-				ui.painter.target = layer.targets[.Foreground]
-				//
+				// paint_box_stroke(ui.painter, line_box, 1, {255, 0, 0, 255})
+				last_line_origin = line_origin
 				if !at_end {
 					line += 1
 					column = 0
 					update_text_iterator_offset(ui.painter, &it, info)
-					last_line = it.offset
+					line_origin = origin + it.offset
+					ui.painter.target = layer.targets[.Background]
+					// Draw it if the selection is valid
+					if selection_bounds[1] >= selection_bounds[0] {
+						box: Box = {
+							{selection_bounds[0] - 1, last_line_origin.y},
+							{selection_bounds[1] + 1, last_line_origin.y + it.line_size.y},
+						}
+						if clip, ok := info.clip.?; ok {
+							box = clamp_box(box, clip)
+						}
+						paint_box_fill(ui.painter, box, ui.style.color.accent)
+						selection_bounds = {math.F32_MAX, 0}
+					}
+					// Continue painting to the foreground
+					ui.painter.target = layer.targets[.Foreground]
 				}
 			}
 			// Update hovered index
@@ -651,16 +656,18 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tact
 				}
 			}
 			// Get the glyph point
-			point := origin + {it.offset.x, last_line.y}
+			point: [2]f32 = origin + it.offset
 			// Get selection info
 			if .Focused in widget.state {
 				if selection.offset == it.index {
 					selection.line = line
 					selection.column = column
 				}
-				if selection.offset == it.index || selection.offset + selection.length == it.index {
-					line_bounds[0] = min(line_bounds[0], point.x)
-					line_bounds[1] = max(line_bounds[1], point.x + math.floor(it.glyph.advance))
+				if it.index >= selection.offset && it.index <= selection.offset + selection.length {
+					selection_bounds = {
+						min(selection_bounds[0], point.x),
+						max(selection_bounds[1], point.x),
+					}
 				}
 			}
 			// Paint the glyph
@@ -675,9 +682,27 @@ paint_interact_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tact
 					paint_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, color)
 				}
 			}
+			// Draw selection box to the layer's background
 			if at_end {
+				ui.painter.target = layer.targets[.Background]
+				// Draw it if the selection is valid
+				if selection_bounds[1] >= selection_bounds[0] {
+					box: Box = {
+						{selection_bounds[0] - 1, last_line_origin.y},
+						{selection_bounds[1] + 1, last_line_origin.y + it.line_size.y},
+					}
+					if clip, ok := info.clip.?; ok {
+						box = clamp_box(box, clip)
+					}
+					paint_box_fill(ui.painter, box, ui.style.color.accent)
+					selection_bounds = {math.F32_MAX, 0}
+				}
+				// Continue painting to the foreground
+				ui.painter.target = layer.targets[.Foreground]
 				break
 			}
+			// Increment column
+			column += 1
 		}
 	}
 	// Copy

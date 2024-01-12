@@ -103,14 +103,14 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 				)
 			}
 		}
-		fill_color := fade(ui.style.color.substance, 0.2 * data.hover_time)
+		fill_color := fade(ui.style.color.substance, 0.2 * data.hover_time * (1 - data.focus_time))
 		stroke_color := blend_colors(ui.style.color.substance, ui.style.color.accent, data.focus_time)
 		points, point_count := get_path_of_box_with_cut_corners(self.box, height(self.box) * 0.2, {.Top_Right})
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
 		paint_path_fill(ui.painter, points[:point_count], fill_color)
 		ui.painter.target = layer.targets[.Foreground]
-		paint_path_stroke(ui.painter, points[:point_count], true, ui.style.stroke_width, 0, stroke_color)
+		paint_titled_input_stroke(ui, self.box, info.title, height(self.box) * 0.2, ui.style.stroke_width, stroke_color)
 	}
 	// Do text scrolling or whatever
 	// Focused state
@@ -127,7 +127,8 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 			multiline = info.multiline,
 		})
 	}
-	text_result := paint_interact_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text)
+	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text)
+		ui.scribe.selection = text_result.selection
 	// Get the text location and cursor offsets
 	if .Focused in self.state {
 		offset_x_limit := max(width(text_result.bounds) - width(inner_box), 0)

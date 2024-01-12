@@ -119,6 +119,8 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 		painter = painter,
 		style = {
 			color = DARK_STYLE_COLORS,
+			title_margin = 10,
+			title_padding = 2,
 			layout = {
 				title_size = 24,
 				size = 24,
@@ -127,7 +129,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 			},
 			text_size = {
 				label = 21,
-				title = 16,
+				title = 18,
 				tooltip = 16,
 				field = 21,
 			},
@@ -137,7 +139,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 			tooltip_rounding = 5,
 			font = {
 				label 		= load_font(painter, "fonts/Rajdhani-Bold.ttf") or_return,
-				title 		= load_font(painter, "fonts/Orbitron-Medium.ttf") or_return,
+				title 		= load_font(painter, "fonts/Rajdhani-Bold.ttf") or_return,
 				monospace = load_font(painter, "fonts/AzeretMono-Regular.ttf") or_return,
 				icon 			= load_font(painter, "fonts/remixicon.ttf") or_return,
 			},

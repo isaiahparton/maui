@@ -14,6 +14,7 @@ Button_Info :: struct {
 	text: string,
 	subtle: bool,
 	font: Maybe(Font_Handle),
+	align: Maybe(Text_Align),
 }
 button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_Widget_Result {
 	// Get widget
@@ -49,11 +50,21 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_W
 		if !info.subtle {
 			paint_box_stroke(ui.painter, self.box, ui.style.stroke_width + (1 - ui.style.stroke_width) * data.disable_time, stroke_color)
 		}
-		paint_text(ui.painter, center(self.box), {
+		text_origin: [2]f32
+		text_align := info.align.? or_else .Middle
+		switch text_align {
+			case .Left:
+			text_origin = {self.box.low.x + ui.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
+			case .Middle:
+			text_origin = center(self.box)
+			case .Right:
+			text_origin = {self.box.high.x - ui.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
+		}
+		paint_text(ui.painter, text_origin, {
 			text = info.text, 
 			font = info.font.? or_else ui.style.font.label, 
 			size = ui.style.text_size.label, 
-			align = .Middle, 
+			align = text_align, 
 			baseline = .Middle,
 		}, text_color)
 	}
