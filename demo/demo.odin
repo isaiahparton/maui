@@ -57,8 +57,7 @@ _main :: proc() -> bool {
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
 				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
 				space(&ui, 10)
-				layout.size = 100
-				button(&ui, {text = "New", corners = ALL_CORNERS})
+				button(&ui, {fit_text = true, text = "New", corners = ALL_CORNERS})
 			}
 			space(&ui, 10)
 			layout.size.y = 30

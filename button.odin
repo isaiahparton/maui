@@ -13,10 +13,19 @@ Button_Info :: struct {
 	align: Maybe(Text_Align),
 	corners: Maybe(Corners),
 	text_size: Maybe(f32),
+	fit_text: bool,
 }
 button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_Widget_Result {
 	// Get widget
 	self, result := get_widget(ui, info.generic, loc)
+	if info.fit_text {
+		layout := current_layout(ui)
+		layout.size.x = measure_text(ui.painter, {
+			text = info.text,
+			font = info.font.? or_else ui.style.font.label, 
+			size = info.text_size.? or_else ui.style.text_size.label,
+		}).x + height(layout.box)
+	}
 	self.box = info.box.? or_else layout_next(current_layout(ui))
 	update_widget(ui, self)
 	// Assert variant existence
