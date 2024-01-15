@@ -5,6 +5,10 @@ package maui
 */
 DARK_STYLE_COLORS :: Style_Colors{
 	accent = {32, 192, 72, 255},
+	background = {
+		{15, 15, 23, 255},
+		{},
+	},
 	foreground = {
 		{41, 41, 41, 255},
 		{68, 68, 68, 255},

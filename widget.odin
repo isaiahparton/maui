@@ -55,6 +55,7 @@ Generic_Widget_Info :: struct {
 	disabled: bool,
 	id: Maybe(Id),
 	box: Maybe(Box),
+	corners: Maybe(Corners),
 	tooltip: Maybe(Tooltip_Info),
 	options: Widget_Options,
 }

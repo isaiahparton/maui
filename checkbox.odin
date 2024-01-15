@@ -56,13 +56,13 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		icon_box: Box
 		if has_text {
 			switch text_side {
-				case .Left: 	
+				case .Left:
 				icon_box = {self.box.low, SIZE}
-				case .Right: 	
+				case .Right:
 				icon_box = {{self.box.high.x - SIZE, self.box.low.y}, SIZE}
-				case .Top: 		
+				case .Top:
 				icon_box = {{center_x(self.box) - HALF_SIZE, self.box.high.y - SIZE}, SIZE}
-				case .Bottom: 	
+				case .Bottom:
 				icon_box = {{center_x(self.box) - HALF_SIZE, self.box.low.y}, SIZE}
 			}
 			icon_box.low = linalg.floor(icon_box.low)
@@ -72,10 +72,10 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		}
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
-		fill_color := fade(alpha_blend_colors(ui.style.color.substance, ui.style.color.flash, data.hover_time * 0.25) if info.value else fade(ui.style.color.substance, 0.25 * data.hover_time), opacity)
-		paint_box_fill(ui.painter, icon_box, fill_color)
+		fill_color := ui.style.color.accent if info.value else ui.style.color.background[0]
+		paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
 		if !info.value {
-			paint_box_stroke(ui.painter, icon_box, ui.style.stroke_width + (1 - ui.style.stroke_width) * data.disable_time, fade(ui.style.color.substance, opacity))
+			paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, ui.style.stroke_width + (1 - ui.style.stroke_width) * data.disable_time, fade(ui.style.color.substance, opacity))
 		}
 		center := box_center(icon_box)
 		// Paint icon

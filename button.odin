@@ -11,7 +11,6 @@ Button_Info :: struct {
 	subtle: bool,
 	font: Maybe(Font_Handle),
 	align: Maybe(Text_Align),
-	corners: Maybe(Corners),
 	text_size: Maybe(f32),
 	fit_text: bool,
 }

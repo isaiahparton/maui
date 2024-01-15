@@ -91,6 +91,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	} else {
 		text_origin.y += ui.style.layout.widget_padding
 	}
+	corners: Corners = info.corners.? or_else ALL_CORNERS
 	// Paint!
 	if (.Should_Paint in self.bits) {
 		if info.placeholder != nil {
@@ -103,14 +104,12 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 				)
 			}
 		}
-		fill_color := fade(ui.style.color.substance, 0.2 * data.hover_time * (1 - data.focus_time))
-		stroke_color := blend_colors(data.focus_time, ui.style.color.substance, ui.style.color.accent)
-		points, point_count := get_path_of_box_with_cut_corners(self.box, height(self.box) * 0.2, {.Top_Right})
+		opacity: f32 = 1.0
+		fill_color := fade(ui.style.color.background[0], opacity)
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
-		paint_path_fill(ui.painter, points[:point_count], fill_color)
+		paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, corners, fill_color)
 		ui.painter.target = layer.targets[.Foreground]
-		paint_titled_input_stroke(ui, self.box, info.title, height(self.box) * 0.2, ui.style.stroke_width, stroke_color)
 	}
 	// Do text scrolling or whatever
 	// Focused state
@@ -164,6 +163,9 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 				value^ = strings.clone_from_bytes(buffer[:])
 			}
 		}
+	}
+	if .Should_Paint in self.bits {
+		paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 2, corners, fade(ui.style.color.accent, data.focus_time))
 	}
 	// Whatever
 	if .Focused in (self.last_state - self.state) {
