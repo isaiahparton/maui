@@ -207,7 +207,7 @@ make_text_iterator :: proc(painter: ^Painter, info: Text_Info) -> (it: Text_Iter
 update_text_iterator_offset :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) {
 	it.offset.x = 0
 	#partial switch info.align {
-		case .Middle: it.offset.x -= measure_next_line(painter, info, it^) / 2
+		case .Middle: it.offset.x -= math.floor(measure_next_line(painter, info, it^) / 2)
 		case .Right: it.offset.x -= measure_next_line(painter, info, it^)
 	}
 }
@@ -434,7 +434,7 @@ paint_text :: proc(painter: ^Painter, origin: [2]f32, info: Text_Info, color: Co
 	if info.baseline != .Top {
 		size = measure_text(painter, info)
 		#partial switch info.baseline {
-			case .Middle: origin.y -= size.y / 2 
+			case .Middle: origin.y -= math.floor(size.y / 2) 
 			case .Bottom: origin.y -= size.y
 		}
 	}

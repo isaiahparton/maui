@@ -18,14 +18,6 @@ import "core:mem"
 TARGET_FRAME_RATE :: 75
 TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
 
-ALTERNATE_STYLE_COLORS :: maui.Style_Colors{
-	accent = {185, 75, 178, 255},
-	base = {120, 120, 140, 255},
-	text = {255, 255, 255, 255},
-	flash = {0, 255, 0, 255},
-	substance = {220, 220, 240, 255},
-}
-
 _main :: proc() -> bool {
 
 	disabled := true
@@ -54,43 +46,19 @@ _main :: proc() -> bool {
 
 		begin_ui(&ui)
 
-			if layout, ok := do_layout(&ui, cut(&ui, .Right, 40)); ok {
-				ui.style.color = ALTERNATE_STYLE_COLORS
-				paint_box_fill(ui.painter, layout.box, ui.style.color.base)
-				layout.size.y = 40
-				button(&ui, {
-					text = "\uF0D1",
-					font = ui.style.font.icon,
-					subtle = true,
-				})
-				button(&ui, {
-					text = "\uEC10",
-					font = ui.style.font.icon,
-					subtle = true,
-				})
-				button(&ui, {
-					text = "\uF255",
-					font = ui.style.font.icon,
-					subtle = true,
-				})
-				ui.style.color = DARK_STYLE_COLORS
-			}
-
 			layout := current_layout(&ui)
-			layout.size = {100, 50}
+			layout.size = {100, 28}
 			shrink(&ui, 100)
 
-			if was_clicked(button(&ui, {
-				text = "CLICK TO ENABLE\nTHE OTHER WIDGETS" if disabled else "CLICK TO DISABLE\nTHE OTHER WIDGETS",
-			})) {
-				disabled = !disabled
-			}
-			space(&ui, 10)
-			if was_clicked(button(&ui, {
-				text = "OR IF YOU PLAY\nLEAGUE OF LEGENDS" if clicked else "CLICK IF YOU LOVE\nGRILLED CHICKEN",
-				disabled = disabled,
-			})) {
-				clicked = true
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.direction = .Right
+				layout.size = 30
+				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019"})
+				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
+				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
+				space(&ui, 10)
+				layout.size = 100
+				button(&ui, {text = "New", corners = ALL_CORNERS})
 			}
 			space(&ui, 10)
 			layout.size.y = 30
@@ -141,7 +109,7 @@ _main :: proc() -> bool {
 
 		// Render if needed
 		if should_render(&painter) {
-			maui_opengl.clear(ui.style.color.base)
+			maui_opengl.clear(ui.style.color.foreground[0])
 			maui_opengl.render(&ui)
 			maui_glfw.end()
 		}

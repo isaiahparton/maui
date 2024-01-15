@@ -88,13 +88,13 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		if has_text {
 			switch text_side {
 				case .Left: 	
-				paint_text(ui.painter, {icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text, opacity))
+				paint_text(ui.painter, {icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
 				case .Right: 	
-				paint_text(ui.painter, {icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, align = .Right}, fade(ui.style.color.text, opacity))
+				paint_text(ui.painter, {icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, align = .Right}, fade(ui.style.color.text[0], opacity))
 				case .Top: 		
-				paint_text(ui.painter, self.box.low, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text, opacity))
+				paint_text(ui.painter, self.box.low, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
 				case .Bottom: 	
-				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text, opacity))
+				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
 			}
 		}
 	}

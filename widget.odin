@@ -104,9 +104,7 @@ Widget_Variant :: union {
 	Text_Input_Widget_Variant,
 }
 destroy_widget_variant :: proc(variant: ^Widget_Variant) {
-	#partial switch &type in variant {
-		case Button_Widget_Variant:	destroy_button_widget_variant(&type)
-	}
+	return
 }
 /*
 	Generic widget state

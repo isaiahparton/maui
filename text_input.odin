@@ -99,12 +99,12 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 					ui.painter,
 					text_origin, 
 					{font = ui.style.font.label, size = ui.style.text_size.field, text = info.placeholder.?, baseline = .Middle}, 
-					ui.style.color.text,
+					ui.style.color.text[0],
 				)
 			}
 		}
 		fill_color := fade(ui.style.color.substance, 0.2 * data.hover_time * (1 - data.focus_time))
-		stroke_color := blend_colors(ui.style.color.substance, ui.style.color.accent, data.focus_time)
+		stroke_color := blend_colors(data.focus_time, ui.style.color.substance, ui.style.color.accent)
 		points, point_count := get_path_of_box_with_cut_corners(self.box, height(self.box) * 0.2, {.Top_Right})
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
@@ -127,7 +127,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 			multiline = info.multiline,
 		})
 	}
-	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text)
+	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text[0])
 		ui.scribe.selection = text_result.selection
 	// Get the text location and cursor offsets
 	if .Focused in self.state {

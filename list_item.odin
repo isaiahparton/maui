@@ -22,13 +22,6 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 	// Update retained data
 	data.hover_time = animate(ui, data.hover_time, 0, .Hovered in self.state)
 	// data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
-	for &value, i in data.flashes {
-		value += ui.delta_time * 2
-		if value > 1 {
-			ordered_remove(&data.flashes, i)
-		}
-		ui.painter.next_frame = true
-	}
 
 	update_widget(ui, self)
 
@@ -36,12 +29,9 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 		if data.hover_time > 0 || info.active {
 			fill_color := alpha_blend_colors(ui.style.color.accent, ui.style.color.substance, data.hover_time) if info.active else fade(ui.style.color.substance, data.hover_time)
 			paint_ribbon(ui.painter, self.box, fill_color)
-			for value in data.flashes {
-				paint_ribbon(ui.painter, expand_box(self.box, 5 * value), fade(ui.style.color.flash, 1 - value))
-			}
 		}
 		if len(info.text) > 0 {
-			text_color := blend_colors(ui.style.color.text, ui.style.color.base, data.hover_time)
+			text_color := blend_colors(data.hover_time, ui.style.color.text[0], ui.style.color.base)
 			box := self.box
 			size := width(box) / f32(len(info.text))
 			for elem, i in info.text {
@@ -76,10 +66,6 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 				}
 			}
 		}
-	}
-
-	if .Clicked in self.state {
-		append(&data.flashes, f32(0))
 	}
 
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

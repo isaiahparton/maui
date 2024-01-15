@@ -5,6 +5,28 @@ import "core:math/linalg"
 
 Color :: [4]u8
 
+blend_colors :: proc(time: f32, colors: ..Color) -> Color {
+	if len(colors) > 0 {
+		if len(colors) == 1 {
+			return colors[0]
+		}
+		if time <= 0 {
+			return colors[0]
+		} else if time >= f32(len(colors) - 1) {
+			return colors[len(colors) - 1]
+		} else {
+			i := int(math.floor(time))
+			t := time - f32(i)
+			return colors[i] + {
+				u8(f32(colors[i + 1].r - colors[i].r) * t),
+				u8(f32(colors[i + 1].g - colors[i].g) * t),
+				u8(f32(colors[i + 1].b - colors[i].b) * t),
+				u8(f32(colors[i + 1].a - colors[i].a) * t),
+			}
+		}
+	}
+	return {}
+}
 // Color processing
 set_color_brightness :: proc(color: Color, value: f32) -> Color {
 	delta := clamp(i32(255.0 * value), -255, 255)
@@ -20,26 +42,11 @@ color_to_hsv :: proc(color: Color) -> [4]f32 {
 	return hsva.xyzw
 }
 color_from_hsv :: proc(hue, saturation, value: f32) -> Color {
-		rgba := linalg.vector4_hsl_to_rgb(hue, saturation, value, 1.0)
-		return {u8(rgba.r * 255.0), u8(rgba.g * 255.0), u8(rgba.b * 255.0), u8(rgba.a * 255.0)}
+	rgba := linalg.vector4_hsl_to_rgb(hue, saturation, value, 1.0)
+	return {u8(rgba.r * 255.0), u8(rgba.g * 255.0), u8(rgba.b * 255.0), u8(rgba.a * 255.0)}
 }
 fade :: proc(color: Color, alpha: f32) -> Color {
 	return {color.r, color.g, color.b, u8(f32(color.a) * alpha)}
-}
-blend_colors :: proc(bg, fg: Color, amount: f32) -> (result: Color) {
-	if amount <= 0 {
-		result = bg
-	} else if amount >= 1 {
-		result = fg
-	} else {
-		result = bg + {
-			u8((f32(fg.r) - f32(bg.r)) * amount),
-			u8((f32(fg.g) - f32(bg.g)) * amount),
-			u8((f32(fg.b) - f32(bg.b)) * amount),
-			u8((f32(fg.a) - f32(bg.a)) * amount),
-		}
-	}
-	return
 }
 alpha_blend_colors_tint :: proc(dst, src, tint: Color) -> (out: Color) {
 	out = 255

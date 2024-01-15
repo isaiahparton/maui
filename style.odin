@@ -4,9 +4,19 @@ package maui
 	Default style values
 */
 DARK_STYLE_COLORS :: Style_Colors{
-	accent = {215, 75, 178, 255},
-	base = {35, 50, 65, 255},
-	text = {255, 255, 255, 255},
+	accent = {32, 192, 72, 255},
+	foreground = {
+		{41, 41, 41, 255},
+		{68, 68, 68, 255},
+	},
+	text = {
+		{255, 255, 255, 255},
+		{195, 195, 195, 255},
+	},
+	button = {68, 68, 68, 255},
+	button_hovered = {99, 99, 99, 255},
+	button_pressed = {99, 184, 54, 255},
+	button_text = {255, 255, 255, 255},
 	flash = {0, 255, 0, 255},
 	substance = {245, 245, 245, 255},
 }
@@ -45,6 +55,12 @@ Style_Layout :: struct {
 */
 Style_Colors :: struct {
 	text,
+	background,
+	foreground: [2]Color,
+	button,
+	button_hovered,
+	button_pressed,
+	button_text,
 	substance,
 	accent,
 	base,

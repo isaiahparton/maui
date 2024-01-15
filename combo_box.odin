@@ -36,14 +36,14 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 
 	if .Should_Paint in self.bits {
 		paint_box_fill(ui.painter, self.box, fade(ui.style.color.substance, 0.25 * data.hover_time))
-		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 4}, self.box.high}, fade(ui.style.color.text, 0.5 + 0.5 * data.open_time))
+		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 4}, self.box.high}, fade(ui.style.color.text[0], 0.5 + 0.5 * data.open_time))
 		paint_text(ui.painter, center(self.box), {
 			text = info.text,
 			font = ui.style.font.label,
 			size = ui.style.text_size.label,
 			align = .Middle,
 			baseline = .Middle,
-		}, ui.style.color.text)
+		}, ui.style.color.text[0])
 	}
 
 	if .Clicked in self.state {
