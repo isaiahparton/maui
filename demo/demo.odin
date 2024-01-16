@@ -64,7 +64,6 @@ _main :: proc() -> bool {
 			if was_clicked(checkbox(&ui, {
 				value = checkbox_value, 
 				text = "Boolean", 
-				disabled = disabled,
 			})) {
 				checkbox_value = !checkbox_value
 			}
@@ -77,6 +76,7 @@ _main :: proc() -> bool {
 			})
 			space(&ui, 10)
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.size = {100, 24}
 				layout.direction = .Right
 				if result, open := menu(&ui, {text = "File"}); open {
 					button(&ui, {text = "New", subtle = true, align = .Left})

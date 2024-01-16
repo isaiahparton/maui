@@ -9,6 +9,7 @@ Button_Info :: struct {
 	using generic: Generic_Widget_Info,
 	text: string,
 	subtle: bool,
+	outlined: bool,
 	font: Maybe(Font_Handle),
 	align: Maybe(Text_Align),
 	text_size: Maybe(f32),
@@ -49,6 +50,16 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_W
 			corners, 
 			fill_color,
 			)
+		if info.outlined {
+			paint_rounded_box_corners_stroke(
+				ui.painter,
+				self.box,
+				ui.style.rounding,
+				ui.style.stroke_width,
+				corners,
+				{92, 92, 96, 255},
+				)
+		}
 		text_origin: [2]f32
 		text_align := info.align.? or_else .Middle
 		switch text_align {

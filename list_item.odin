@@ -28,7 +28,7 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 	if .Should_Paint in self.bits {
 		if data.hover_time > 0 || info.active {
 			fill_color := alpha_blend_colors(ui.style.color.accent, ui.style.color.substance, data.hover_time) if info.active else fade(ui.style.color.substance, data.hover_time)
-			paint_ribbon(ui.painter, self.box, fill_color)
+			paint_box_fill(ui.painter, self.box, fill_color)
 		}
 		if len(info.text) > 0 {
 			text_color := blend_colors(data.hover_time, ui.style.color.text[0], ui.style.color.base)

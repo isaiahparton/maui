@@ -75,7 +75,7 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		fill_color := ui.style.color.accent if info.value else ui.style.color.background[0]
 		paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
 		if !info.value {
-			paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, ui.style.stroke_width + (1 - ui.style.stroke_width) * data.disable_time, fade(ui.style.color.substance, opacity))
+			paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, ui.style.stroke_width + (1 - ui.style.stroke_width) * data.disable_time, fade({92, 92, 95, 255}, opacity))
 		}
 		center := box_center(icon_box)
 		// Paint icon

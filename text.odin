@@ -290,7 +290,7 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 		}
 	}	
 	// Update vertical offset if there's a new line or if reached end
-	if it.new_line || !ok {
+	if it.new_line {
 		it.offset.y += it.size.ascent - it.size.descent + it.size.line_gap
 	}
 	return
@@ -601,7 +601,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 			}
 			// Get hovered state
 			if it.new_line || at_end {
-				// Allows for highlighting the last run in a line
+				// Allows for highlighting the last glyph in a line
 				if hovered_line == line {
 					dist1 := math.abs((origin.x + it.offset.x) - ui.io.mouse_point.x)
 					if dist1 < min_dist {
@@ -609,33 +609,35 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 						hover_index = it.index
 					}
 				}
+				last_line_origin = line_origin
+				line_origin = origin + it.offset
+				if at_end {
+					last_line_origin = line_origin
+				}
 				// Check if the last line was hovered
 				line_box: Box = {line_origin, line_origin + it.line_size}
 				if point_in_box(ui.io.mouse_point, line_box) {
 					hovered = true
 				}
-				// paint_box_stroke(ui.painter, line_box, 1, {255, 0, 0, 255})
-				last_line_origin = line_origin
+				ui.painter.target = layer.targets[.Background]
+				// Draw it if the selection is valid
+				if selection_bounds[1] >= selection_bounds[0] {
+					box: Box = {
+						{selection_bounds[0] - 1, last_line_origin.y},
+						{selection_bounds[1] + 1, last_line_origin.y + it.line_size.y},
+					}
+					if clip, ok := info.clip.?; ok {
+						box = clamp_box(box, clip)
+					}
+					paint_box_fill(ui.painter, box, ui.style.color.accent)
+					selection_bounds = {math.F32_MAX, 0}
+				}
+				// Continue painting to the foreground
+				ui.painter.target = layer.targets[.Foreground]
 				if !at_end {
+					update_text_iterator_offset(ui.painter, &it, info)
 					line += 1
 					column = 0
-					update_text_iterator_offset(ui.painter, &it, info)
-					line_origin = origin + it.offset
-					ui.painter.target = layer.targets[.Background]
-					// Draw it if the selection is valid
-					if selection_bounds[1] >= selection_bounds[0] {
-						box: Box = {
-							{selection_bounds[0] - 1, last_line_origin.y},
-							{selection_bounds[1] + 1, last_line_origin.y + it.line_size.y},
-						}
-						if clip, ok := info.clip.?; ok {
-							box = clamp_box(box, clip)
-						}
-						paint_box_fill(ui.painter, box, ui.style.color.accent)
-						selection_bounds = {math.F32_MAX, 0}
-					}
-					// Continue painting to the foreground
-					ui.painter.target = layer.targets[.Foreground]
 				}
 			}
 			// Update hovered index
@@ -682,23 +684,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 					paint_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, color)
 				}
 			}
-			// Draw selection box to the layer's background
 			if at_end {
-				ui.painter.target = layer.targets[.Background]
-				// Draw it if the selection is valid
-				if selection_bounds[1] >= selection_bounds[0] {
-					box: Box = {
-						{selection_bounds[0] - 1, last_line_origin.y},
-						{selection_bounds[1] + 1, last_line_origin.y + it.line_size.y},
-					}
-					if clip, ok := info.clip.?; ok {
-						box = clamp_box(box, clip)
-					}
-					paint_box_fill(ui.painter, box, ui.style.color.accent)
-					selection_bounds = {math.F32_MAX, 0}
-				}
-				// Continue painting to the foreground
-				ui.painter.target = layer.targets[.Foreground]
 				break
 			}
 			// Increment column
