@@ -22,6 +22,7 @@ _main :: proc() -> bool {
 
 	disabled := true
 	clicked: bool
+	slider_value: f32
 	checkbox_value: bool
 	list := make([dynamic]bool, 9)
 	text_input_data: [dynamic]u8
@@ -66,6 +67,18 @@ _main :: proc() -> bool {
 				text = "Boolean", 
 			})) {
 				checkbox_value = !checkbox_value
+			}
+			space(&ui, 10)
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.direction = .Right
+				layout.size = 200
+				if result := slider(&ui, {
+					value = slider_value,
+					low = 0,
+					high = 100,
+				}); result.changed {
+					slider_value = result.value
+				}
 			}
 			space(&ui, 10)
 			layout.size.y = 100
