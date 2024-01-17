@@ -105,7 +105,7 @@ UI :: struct {
 	// Handles layouts
 	layouts: Layout_Agent,
 	// Used for dragging stuff
-	drag_anchor: Maybe([2]f32),
+	drag_anchor: [2]f32,
 	// Current clip box
 	clip_box: Box,
 }
@@ -137,6 +137,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 			stroke_width = 1,
 			panel_rounding = 5,
 			tooltip_rounding = 5,
+			tooltip_padding = 2,
 			font = {
 				label 		= load_font(painter, "fonts/Gabarito-Regular.ttf") or_return,
 				title 		= load_font(painter, "fonts/Gabarito-Regular.ttf") or_return,

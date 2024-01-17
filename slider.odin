@@ -22,35 +22,39 @@ slider :: proc(ui: ^UI, info: Slider_Info, loc := #caller_location) -> Slider_Re
 	self.box = info.box.? or_else layout_next(current_layout(ui))
 	// Update the widget's state
 	update_widget(ui, self)
-	// Animations
-	//hover_time := animate_bool(ui, &self.timers[0], .Hovered in self.state, DEFAULT_WIDGET_HOVER_TIME)
+	// Assert variant existence
+	if self.variant == nil {
+		self.variant = Button_Widget_Variant{}
+	}
+	data := &self.variant.(Button_Widget_Variant)
+	// Update retained data
+	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	// Some values
-	radius := height(self.box) / 2
+	radius: f32 = 8
 	range := width(self.box) - radius * 2
 	time := (info.value - info.low) / (info.high - info.low)
 	thumb_center: [2]f32 = {self.box.low.x + range * time + radius, center_y(self.box)}
-	thumb_box: Box = {
-		{self.box.low.x + range * time, self.box.low.y},
-		{self.box.low.x + range * time + radius * 2, self.box.high.y},
-	}
 	// paint
 	if .Should_Paint in self.bits {
-		paint_line(ui.painter, {self.box.low.x, thumb_center.y}, {thumb_box.low.x, thumb_center.y}, 2, {255, 255, 255, 255})
-		paint_line(ui.painter, {thumb_box.high.x, thumb_center.y}, {self.box.high.x, thumb_center.y}, 2, {255, 255, 255, 255})
-		paint_circle_fill_texture(ui.painter, thumb_center, radius, ui.style.color.button)
-		paint_ring_fill_texture(ui.painter, thumb_center, radius - 1, radius, ui.style.color.text[0])
+		paint_rounded_box_fill(ui.painter, {{self.box.low.x, thumb_center.y - 2}, {self.box.high.x, thumb_center.y + 2}}, 2, ui.style.color.background[1])
+		paint_circle_fill_texture(ui.painter, thumb_center, radius, alpha_blend_colors(ui.style.color.accent, {0, 0, 0, 255}, data.hover_time * 0.25))
+	}
+	if .Hovered in (self.state + self.last_state) {
+		tooltip_result := tooltip(ui, self.id, "tooltip lol", thumb_center + {0, -radius * 2}, {.Middle, .Far}, .Top)
+		if layer, ok := tooltip_result.layer.?; ok {
+			if .Hovered in layer.state {
+				ui.widgets.next_hover_id = self.id
+			}
+		}
 	}
 	// Drag
 	if .Pressed in self.state {
-		if .Pressed not_in self.last_state {
-			ui.widgets.drag_offset = thumb_box.low - ui.io.mouse_point
-		}
-		time := clamp(((ui.io.mouse_point + ui.widgets.drag_offset).x - self.box.low.x) / range, 0, 1)
+		time := clamp((ui.io.mouse_point.x - self.box.low.x - radius) / range, 0, 1)
 		result.changed = true
 		result.value = info.low + time * (info.high - info.low)
 	}
 	// Hover
-	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, thumb_box))
+	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	// We're done here
 	return result
 }

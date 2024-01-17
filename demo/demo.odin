@@ -47,6 +47,19 @@ _main :: proc() -> bool {
 
 		begin_ui(&ui)
 
+			if panel(&ui, {
+				title = "Panel",
+				options = {.Title},
+				placement = Panel_Placement_Info{
+					size = {300, 500},
+					origin = ui.size / 2,
+					align = {.Middle, .Middle},
+				},
+			}) {
+
+			}
+
+
 			layout := current_layout(&ui)
 			layout.size = {100, 28}
 			shrink(&ui, 100)

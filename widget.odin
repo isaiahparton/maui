@@ -136,7 +136,6 @@ Widget_Agent :: struct {
 	stack: Stack(^Widget, 8),
 	// Drag anchor
 	dragging: bool,
-	drag_offset: [2]f32,
 	last_hover_id, 
 	next_hover_id, 
 	hover_id, 
@@ -200,7 +199,7 @@ update_widgets :: proc(ui: ^UI) {
 	ui.widgets.last_focus_id = ui.widgets.focus_id
 	ui.widgets.hover_id = ui.widgets.next_hover_id
 	// Make sure dragged idgets are hovered
-	if ui.drag_anchor != nil && ui.widgets.press_id != 0 {
+	if ui.widgets.dragging && ui.widgets.press_id != 0 {
 		ui.widgets.hover_id = ui.widgets.press_id
 	}
 	// Keyboard navigation
@@ -218,7 +217,7 @@ update_widgets :: proc(ui: ^UI) {
 		ui.widgets.focus_id = ui.widgets.press_id
 	}
 	// Reset drag status
-	ui.drag_anchor = nil
+	ui.widgets.dragging = false
 	// Free unused widgets
 	for &widget, i in ui.widgets.list {
 		if .Stay_Alive in widget.bits {

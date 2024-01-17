@@ -226,7 +226,6 @@ update_layers :: proc(ui: ^UI) {
 			when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
 				fmt.printf("- Layer %x\n", layer.id)
 			}
-			//NOTE: Should children be left to be deleted separately? (probably yes)
 			delete_key(&ui.layers.pool, layer.id)
 			if parent, ok := layer.parent.?; ok {
 				for child, j in parent.children {
@@ -237,6 +236,7 @@ update_layers :: proc(ui: ^UI) {
 				}
 			}
 			destroy_layer(layer)
+			(transmute(^Maybe(Layer))layer)^ = nil
 			ui.layers.should_sort = true
 			ui.painter.next_frame = true
 		}

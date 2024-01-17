@@ -297,7 +297,7 @@ paint_rounded_box_fill :: proc(painter: ^Painter, box: Box, radius: f32, color: 
 }
 
 paint_rounded_box_stroke :: proc(painter: ^Painter, box: Box, radius, thickness: f32, color: Color) {
-	if (box.high.x <= box.low.x) || (box.high.y <= box.low.y) {
+	if thickness <= 0 || (box.high.x <= box.low.x) || (box.high.y <= box.low.y) {
 		return
 	}
 	if radius == 0 {

@@ -72,17 +72,16 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		}
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
-		fill_color := ui.style.color.accent if info.value else ui.style.color.background[0]
-		paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
-		if !info.value {
-			paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, ui.style.stroke_width + (1 - ui.style.stroke_width) * data.disable_time, fade({92, 92, 95, 255}, opacity))
-		}
+		fill_color := ui.style.color.background[0]
+		paint_quad_fill(ui.painter, {center_x(icon_box), icon_box.low.y}, {icon_box.low.x, center_y(icon_box)}, {center_x(icon_box), icon_box.high.y}, {icon_box.high.x, center_y(icon_box)}, ui.style.color.background[1])
+		//paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
+		// paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 2, fade(ui.style.color.text[0], data.hover_time))
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value {
 			scale: f32 = HALF_SIZE * 0.5
 			a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1, 1, ui.style.color.base)
+			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1, 1, ui.style.color.accent)
 		}
 		// Paint text
 		if has_text {
