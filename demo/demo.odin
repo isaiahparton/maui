@@ -22,6 +22,7 @@ _main :: proc() -> bool {
 
 	disabled := true
 	clicked: bool
+	slider_value: f32
 	checkbox_value: bool
 	list := make([dynamic]bool, 9)
 	text_input_data: [dynamic]u8
@@ -46,6 +47,19 @@ _main :: proc() -> bool {
 
 		begin_ui(&ui)
 
+			if panel(&ui, {
+				title = "Panel",
+				options = {.Title},
+				placement = Panel_Placement_Info{
+					size = {300, 500},
+					origin = ui.size / 2,
+					align = {.Middle, .Middle},
+				},
+			}) {
+
+			}
+
+
 			layout := current_layout(&ui)
 			layout.size = {100, 28}
 			shrink(&ui, 100)
@@ -64,9 +78,20 @@ _main :: proc() -> bool {
 			if was_clicked(checkbox(&ui, {
 				value = checkbox_value, 
 				text = "Boolean", 
-				disabled = disabled,
 			})) {
 				checkbox_value = !checkbox_value
+			}
+			space(&ui, 10)
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.direction = .Right
+				layout.size = 200
+				if result := slider(&ui, {
+					value = slider_value,
+					low = 0,
+					high = 100,
+				}); result.changed {
+					slider_value = result.value
+				}
 			}
 			space(&ui, 10)
 			layout.size.y = 100
@@ -77,6 +102,7 @@ _main :: proc() -> bool {
 			})
 			space(&ui, 10)
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.size = {100, 24}
 				layout.direction = .Right
 				if result, open := menu(&ui, {text = "File"}); open {
 					button(&ui, {text = "New", subtle = true, align = .Left})

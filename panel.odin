@@ -149,8 +149,8 @@ Panel_Info :: struct {
 	options: Panel_Options,
 	layer_options: Layer_Options,
 }
-@(deferred_in_out=_do_panel)
-do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) {
+@(deferred_in_out=_panel)
+panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) {
 	id := info.id.? or_else hash(ui, loc)
 	handle := get_panel(ui, id) or_return
 	push_panel(ui, handle)
@@ -240,14 +240,14 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 				// Paint overlay
 				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, fade(ui.style.color.base[1], 0.2))
 			} else {
-				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, fade(ui.style.color.base[0], 0.9))
-				//paint_rounded_box_stroke(box, ui.style.panel_rounding, 2, ui.style.color.base[1])
+				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, fade(ui.style.color.foreground[0], 0.9))
+				paint_rounded_box_stroke(ui.painter, box, ui.style.panel_rounding, 1, ui.style.color.text[1])
 			}
 		}
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			// Draw title
-			paint_rounded_box_fill(ui.painter, title_box, ui.style.panel_rounding, ui.style.color.substance[1])
+			paint_rounded_box_corners_fill(ui.painter, title_box, ui.style.panel_rounding, {.Top_Left, .Top_Right}, ui.style.color.foreground[1])
 			// Close button
 			/*
 			if .Closable in self.options {
@@ -329,7 +329,7 @@ do_panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: boo
 	return
 }
 @private
-_do_panel :: proc(ui: ^UI, _: Panel_Info, _: runtime.Source_Code_Location, ok: bool) {
+_panel :: proc(ui: ^UI, _: Panel_Info, _: runtime.Source_Code_Location, ok: bool) {
 	self := current_panel(ui)
 	pop_panel(ui)
 	// End main layer
@@ -358,7 +358,7 @@ _do_panel :: proc(ui: ^UI, _: Panel_Info, _: runtime.Source_Code_Location, ok: b
 	if .Moving in self.bits {
 		ui.cursor = .Resize
 
-		origin := ui.io.mouse_point + ui.drag_anchor.?
+		origin := ui.io.mouse_point + ui.drag_anchor
 
 		real_size := self.real_box.high - self.real_box.low
 		size := self.box.high - self.box.low
