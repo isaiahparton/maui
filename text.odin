@@ -257,7 +257,7 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 	} else {
 		// Get the space for the next word if needed
 		if (info.wrap == .Word) && (it.next_index >= it.next_word) && (it.codepoint != ' ') {
-			for i := it.next_word;; {
+			for i := it.next_word;true;/**/ {
 				c, b := utf8.decode_rune(info.text[i:])
 				if c != '\n' {
 					if g, ok := get_font_glyph(painter, it.font, it.size, it.codepoint); ok {
