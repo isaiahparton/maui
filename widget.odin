@@ -199,7 +199,7 @@ update_widgets :: proc(ui: ^UI) {
 	ui.widgets.last_focus_id = ui.widgets.focus_id
 	ui.widgets.hover_id = ui.widgets.next_hover_id
 	// Make sure dragged idgets are hovered
-	if ui.widgets.dragging && ui.widgets.press_id != 0 {
+	if ui.dragging && ui.widgets.press_id != 0 {
 		ui.widgets.hover_id = ui.widgets.press_id
 	}
 	// Keyboard navigation
@@ -217,7 +217,7 @@ update_widgets :: proc(ui: ^UI) {
 		ui.widgets.focus_id = ui.widgets.press_id
 	}
 	// Reset drag status
-	ui.widgets.dragging = false
+	ui.dragging = false
 	// Free unused widgets
 	for &widget, i in ui.widgets.list {
 		if .Stay_Alive in widget.bits {
@@ -246,7 +246,7 @@ update_widgets :: proc(ui: ^UI) {
 	Try to update a widget's hover state
 */
 update_widget_hover :: proc(ui: ^UI, widget: ^Widget, condition: bool) {
-	if !(ui.widgets.dragging && widget.id != ui.widgets.hover_id) && ui.layers.hover_id == widget.layer.id && condition {
+	if !(ui.dragging && widget.id != ui.widgets.hover_id) && ui.layers.hover_id == widget.layer.id && condition {
 		ui.widgets.next_hover_id = widget.id
 	}
 }

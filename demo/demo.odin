@@ -94,15 +94,18 @@ _main :: proc() -> bool {
 				}
 			}
 			space(&ui, 10)
-			layout.size.y = 100
-			text_input(&ui, {
-				data = &text_input_data,
-				multiline = true,
-				title = "Text field",
-			})
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 100)); ok {
+				layout.size.x = 300
+				layout.direction = .Right
+				text_input(&ui, {
+					data = &text_input_data,
+					multiline = true,
+					title = "Text field",
+				})
+			}
 			space(&ui, 10)
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-				layout.size = {100, 24}
+				layout.size = {200, 24}
 				layout.direction = .Right
 				if result, open := menu(&ui, {text = "File"}); open {
 					button(&ui, {text = "New", subtle = true, align = .Left})

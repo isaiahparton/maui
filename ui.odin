@@ -106,6 +106,7 @@ UI :: struct {
 	layouts: Layout_Agent,
 	// Used for dragging stuff
 	drag_anchor: [2]f32,
+	dragging: bool,
 	// Current clip box
 	clip_box: Box,
 }
