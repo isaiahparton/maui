@@ -15,18 +15,27 @@ Button_Info :: struct {
 	text_size: Maybe(f32),
 	fit_text: bool,
 }
-button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_Widget_Result {
+Button_Result :: struct {
+	using generic: Generic_Widget_Result,
+	min_width: f32,
+}
+button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Result {
 	// Get widget
-	self, result := get_widget(ui, info.generic, loc)
+	self, generic_result := get_widget(ui, info.generic, loc)
+	result: Button_Result = {
+		generic = generic_result,
+	}
+	layout := current_layout(ui)
+	// Get minimum width
 	if info.fit_text {
-		layout := current_layout(ui)
 		layout.size.x = measure_text(ui.painter, {
 			text = info.text,
 			font = info.font.? or_else ui.style.font.label, 
 			size = info.text_size.? or_else ui.style.text_size.label,
 		}).x + height(layout.box)
 	}
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	// Colocate the button
+	self.box = info.box.? or_else layout_next(layout)
 	update_widget(ui, self)
 	// Assert variant existence
 	if self.variant == nil {
@@ -70,13 +79,13 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Generic_W
 			case .Right:
 			text_origin = {self.box.high.x - ui.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
 		}
-		paint_text(ui.painter, text_origin, {
+		result.min_width = paint_text(ui.painter, text_origin, {
 			text = info.text, 
 			font = info.font.? or_else ui.style.font.label, 
 			size = info.text_size.? or_else ui.style.text_size.label, 
 			align = text_align, 
 			baseline = .Middle,
-		}, text_color)
+		}, text_color).x + height(layout.box)
 	}
 	// Get next hover state
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

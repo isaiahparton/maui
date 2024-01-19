@@ -235,12 +235,8 @@ iterate_text_codepoint :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text
 }
 iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> (ok: bool) {
 	// Update horizontal offset with last glyph
-	if it.new_line {
-		it.line_size.x = 0
-	}
 	if it.glyph != nil {
 		it.offset.x += it.glyph.advance
-		it.line_size.x += it.glyph.advance
 	}
 	/*
 		Pre-paint
@@ -291,7 +287,10 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 	}	
 	// Update vertical offset if there's a new line or if reached end
 	if it.new_line {
+		it.line_size.x = 0
 		it.offset.y += it.size.ascent - it.size.descent + it.size.line_gap
+	} else if it.glyph != nil {
+		it.line_size.x += it.glyph.advance
 	}
 	return
 }
@@ -462,7 +461,6 @@ paint_text :: proc(painter: ^Painter, origin: [2]f32, info: Text_Info, color: Co
 				size.y += it.line_size.y
 			}
 		}
-		size.x = max(size.x, it.line_size.x)
 		size.y += it.line_size.y
 	}
 	return size 
@@ -637,6 +635,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 			}
 			// Get the glyph point
 			point: [2]f32 = origin + it.offset
+			glyph_color := color
 			// Get selection info
 			if .Focused in widget.state {
 				if selection.offset == it.index {
@@ -648,6 +647,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 						min(line_box_bounds[0], point.x),
 						max(line_box_bounds[1], point.x),
 					}
+					glyph_color = ui.style.color.accent_text
 				}
 			}
 			// Paint the glyph
@@ -657,9 +657,9 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
 				bounds.high = linalg.max(bounds.high, dst.high)
 				if clip, ok := info.clip.?; ok {
-					paint_clipped_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, clip, color)
+					paint_clipped_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, clip, glyph_color)
 				} else {
-					paint_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, color)
+					paint_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, glyph_color)
 				}
 			}
 			// Paint this line's selection

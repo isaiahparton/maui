@@ -46,22 +46,30 @@ _main :: proc() -> bool {
 		maui_glfw.begin()
 
 		begin_ui(&ui)
-
-			if panel(&ui, {
-				title = "Panel",
-				options = {.Title},
-				placement = Panel_Placement_Info{
-					size = {300, 500},
-					origin = ui.size / 2,
-					align = {.Middle, .Middle},
-				},
-			}) {
-
-			}
-
-
 			layout := current_layout(&ui)
 			layout.size = {100, 28}
+
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 24)); ok {
+				layout.size = {100, 24}
+				layout.direction = .Right
+				if result, open := menu(&ui, {text = "File"}); open {
+					button(&ui, {text = "New", subtle = true, align = .Left})
+					button(&ui, {text = "Open", subtle = true, align = .Left})
+					button(&ui, {text = "Save", subtle = true, align = .Left})
+					button(&ui, {text = "Exit", subtle = true, align = .Left})
+				}
+				if result, open := menu(&ui, {text = "Edit"}); open {
+					button(&ui, {text = "Undo", subtle = true, align = .Left})
+					button(&ui, {text = "Redo", subtle = true, align = .Left})
+					button(&ui, {text = "Select All", subtle = true, align = .Left})
+				}
+				if result, open := menu(&ui, {text = "Tools"}); open {
+					button(&ui, {text = "Diagnostics", subtle = true, align = .Left})
+					button(&ui, {text = "Recovery", subtle = true, align = .Left})
+					button(&ui, {text = "Generation", subtle = true, align = .Left})
+				}
+			}
+
 			shrink(&ui, 100)
 
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
@@ -73,14 +81,7 @@ _main :: proc() -> bool {
 				space(&ui, 10)
 				button(&ui, {fit_text = true, text = "New", corners = ALL_CORNERS})
 			}
-			space(&ui, 10)
-			layout.size.y = 30
-			if was_clicked(checkbox(&ui, {
-				value = checkbox_value, 
-				text = "Boolean", 
-			})) {
-				checkbox_value = !checkbox_value
-			}
+			
 			space(&ui, 10)
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
 				layout.direction = .Right
@@ -100,24 +101,24 @@ _main :: proc() -> bool {
 				text_input(&ui, {
 					data = &text_input_data,
 					multiline = true,
-					title = "Text field",
+					placeholder = "type something here",
 				})
 			}
 			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-				layout.size = {200, 24}
-				layout.direction = .Right
-				if result, open := menu(&ui, {text = "File"}); open {
-					button(&ui, {text = "New", subtle = true, align = .Left})
-					button(&ui, {text = "Open", subtle = true, align = .Left})
-					button(&ui, {text = "Save", subtle = true, align = .Left})
-					button(&ui, {text = "Exit", subtle = true, align = .Left})
+			if tree_node(&ui, {text = "Tree node"}).expanded {
+				layout.size.y = 28
+				space(&ui, 10)
+				button(&ui, {text = "hidden button"})
+				space(&ui, 10)
+				button(&ui, {text = "another hidden button"})
+				space(&ui, 10)
+				if was_clicked(checkbox(&ui, {
+					value = checkbox_value, 
+					text = "Boolean", 
+				})) {
+					checkbox_value = !checkbox_value
 				}
-				if result, open := menu(&ui, {text = "Edit"}); open {
-					button(&ui, {text = "Undo", subtle = true, align = .Left})
-					button(&ui, {text = "Redo", subtle = true, align = .Left})
-					button(&ui, {text = "Select All", subtle = true, align = .Left})
-				}
+				space(&ui, 10)
 			}
 			space(&ui, 100)
 			layout.size.y = 20
@@ -132,7 +133,7 @@ _main :: proc() -> bool {
 				pop_id(&ui)
 			}
 
-			paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)
+			// paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)
 		end_ui(&ui)
 
 		// Render if needed

@@ -73,9 +73,9 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
 		fill_color := ui.style.color.background[0]
-		paint_quad_fill(ui.painter, {center_x(icon_box), icon_box.low.y}, {icon_box.low.x, center_y(icon_box)}, {center_x(icon_box), icon_box.high.y}, {icon_box.high.x, center_y(icon_box)}, ui.style.color.background[1])
-		//paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
-		// paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 2, fade(ui.style.color.text[0], data.hover_time))
+		// paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
+		paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 1, fade(ui.style.color.text[1], 0.25))
+		paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 2, fade(ui.style.color.text[0], data.hover_time))
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value {
