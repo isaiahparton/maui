@@ -83,13 +83,11 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		clip = self.box,
 	}
 	// Do text interaction
-	inner_box: Box = {{self.box.low.x + ui.style.layout.widget_padding, self.box.low.y}, {self.box.high.x - ui.style.layout.widget_padding, self.box.high.y}}
+	inner_box: Box = shrink_box(self.box, ui.style.layout.widget_padding)
 	text_origin: [2]f32 = inner_box.low
 	if !info.multiline {
 		text_origin.y += height(inner_box) / 2
 		text_info.baseline = .Middle
-	} else {
-		text_origin.y += ui.style.layout.widget_padding
 	}
 	corners: Corners = info.corners.? or_else ALL_CORNERS
 	// Paint!
@@ -99,8 +97,8 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 				paint_text(
 					ui.painter,
 					text_origin, 
-					{font = ui.style.font.label, size = ui.style.text_size.field, text = info.placeholder.?, baseline = .Middle}, 
-					ui.style.color.text[0],
+					{font = text_info.font, size = text_info.size, text = info.placeholder.?, baseline = text_info.baseline}, 
+					ui.style.color.text[1],
 				)
 			}
 		}
@@ -109,6 +107,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
 		paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, corners, fill_color)
+		paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 1, corners, ui.style.color.background_stroke)
 		ui.painter.target = layer.targets[.Foreground]
 	}
 	// Do text scrolling or whatever
@@ -127,9 +126,30 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		})
 	}
 	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text[0])
-		ui.scribe.selection = text_result.selection
+
 	// Get the text location and cursor offsets
 	if .Focused in self.state {
+		if text_result.selection.line > ui.scribe.line {
+			if text_result.selection_bounds.high.y > inner_box.high.y {
+				data.offset.y += (text_result.selection_bounds.high.y - inner_box.high.y)
+			}
+		} else if text_result.selection.line < ui.scribe.line {
+			if text_result.selection_bounds.low.y < inner_box.low.y {
+				data.offset.y -= (inner_box.low.y - text_result.selection_bounds.low.y)
+			}
+		}
+		if text_result.selection.column < ui.scribe.column {
+			if text_result.selection_bounds.low.x < inner_box.low.x {
+				data.offset.x -= (inner_box.low.x - text_result.selection_bounds.low.x)
+			}
+
+		}
+		if text_result.selection_bounds.high.x > inner_box.high.x {
+			data.offset.x += (text_result.selection_bounds.high.x - inner_box.high.x)
+		}
+		
+		
+
 		offset_x_limit := max(width(text_result.bounds) - width(inner_box), 0)
 		if .Pressed in self.state {
 			left_over := self.box.low.x - ui.io.mouse_point.x 
@@ -171,6 +191,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	if .Focused in (self.last_state - self.state) {
 		result.submitted = true
 	}
+	ui.scribe.selection = text_result.selection
 	// Update hover
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	// Only for content clipping of title (not very elegant)

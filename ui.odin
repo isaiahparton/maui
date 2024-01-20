@@ -76,8 +76,6 @@ UI :: struct {
 	then: time.Time,
 	delta_time: f32,
 	frame_duration: time.Duration,
-	// If menus are being selected
-	open_menus,
 	// If key navigation is active
 	is_key_selecting: bool,
 	// These are shared modules
@@ -106,6 +104,9 @@ UI :: struct {
 	layouts: Layout_Agent,
 	// Used for dragging stuff
 	drag_anchor: [2]f32,
+	dragging: bool,
+	keep_menus_open,
+	open_menus: bool,
 	// Current clip box
 	clip_box: Box,
 }
@@ -114,6 +115,7 @@ UI :: struct {
 */
 make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 	// Assign the result
+	default_font := load_font(painter, "fonts/Rajdhani-Regular.ttf") or_return
 	result, ok = UI{
 		io = io,
 		painter = painter,
@@ -139,8 +141,9 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 			tooltip_rounding = 5,
 			tooltip_padding = 2,
 			font = {
-				label 		= load_font(painter, "fonts/Gabarito-Regular.ttf") or_return,
-				title 		= load_font(painter, "fonts/Gabarito-Regular.ttf") or_return,
+				label 		= default_font,
+				title 		= default_font,
+				tooltip 	= default_font,
 				monospace = load_font(painter, "fonts/UbuntuMono-Regular.ttf") or_return,
 				icon 			= load_font(painter, "fonts/Font Awesome 6 Free-Solid-900.otf") or_return,
 			},
@@ -233,6 +236,13 @@ begin_ui :: proc(ui: ^UI) {
 	}
 	// Reset clip box
 	ui.clip_box = {{}, ui.size}
+	// Reset menuing state
+	if ui.keep_menus_open {
+		ui.open_menus = true
+		ui.keep_menus_open = false
+	} else {
+		ui.open_menus = false
+	}
 	// Bruh initialize painter
 	if !ui.painter.ready {
 		ui.painter.ready = true

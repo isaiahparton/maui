@@ -1,5 +1,5 @@
 package maui
-
+import "core:fmt"
 /*
 	Tooltips
 */
@@ -14,11 +14,12 @@ Tooltip_Result :: struct {
 	Deploy a tooltip layer aligned to a given side of the origin
 */
 tooltip :: proc(ui: ^UI, id: Id, text: string, origin: [2]f32, align: [2]Alignment, side: Maybe(Box_Side) = nil) -> Tooltip_Result {
-	text_size := measure_text(ui.painter, {
+	text_info: Text_Info = {
 		text = text,
-		font = ui.style.font.title,
+		font = ui.style.font.tooltip,
 		size = ui.style.text_size.tooltip,
-	})
+	}
+	text_size := measure_text(ui.painter, text_info)
 	size := text_size + ui.style.tooltip_padding * 2
 	box: Box
 	switch align.x {
@@ -59,12 +60,7 @@ tooltip :: proc(ui: ^UI, id: Id, text: string, origin: [2]f32, align: [2]Alignme
 				paint_triangle_fill(ui.painter, {layer.box.high.x, c - SIZE}, {layer.box.high.x + SIZE, c}, {layer.box.high.x, c + SIZE}, fill_color)
 			}
 		}
-		paint_text(
-			ui.painter,
-			layer.box.low + ui.style.tooltip_padding, 
-			{font = ui.style.font.title, size = ui.style.text_size.tooltip, text = text},
-			ui.style.color.accent_text,
-			)
+		paint_text(ui.painter, layer.box.low + ui.style.tooltip_padding, text_info, ui.style.color.accent_text)
 		end_layer(ui, layer)
 	}
 	return result

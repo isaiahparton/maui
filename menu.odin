@@ -31,7 +31,14 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
 
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	layout := current_layout(ui)
+	layout.size.x = measure_text(ui.painter, {
+		text = info.text,
+		font = ui.style.font.label, 
+		size = ui.style.text_size.label,
+	}).x + height(layout.box)
+
+	self.box = info.box.? or_else layout_next(layout)
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
@@ -51,6 +58,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 	}
 
 	if data.is_open {
+		ui.keep_menus_open = true
 		result.layer, result.is_open = begin_layer(ui, {
 			id = self.id,
 			placement = Layer_Placement_Info{
@@ -60,6 +68,12 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 			grow = .Down,
 			options = {.Attached},
 		})
+	} else if ui.open_menus {
+		if .Hovered in self.state {
+			ui.widgets.focus_id = self.id
+			ui.layers.focus_id = 0
+			data.is_open = true
+		}
 	}
 
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

@@ -10,6 +10,7 @@ DARK_STYLE_COLORS :: Style_Colors{
 		{45, 45, 45, 255},
 		{70, 70, 70, 255},
 	},
+	background_stroke = {80, 80, 80, 255},
 	foreground = {
 		{30, 30, 30, 255},
 		{24, 24, 24, 255},
@@ -63,6 +64,7 @@ Style_Colors :: struct {
 	text,
 	background,
 	foreground: [2]Color,
+	background_stroke,
 	button,
 	button_hovered,
 	button_pressed,

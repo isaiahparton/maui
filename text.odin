@@ -235,12 +235,8 @@ iterate_text_codepoint :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text
 }
 iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> (ok: bool) {
 	// Update horizontal offset with last glyph
-	if it.new_line {
-		it.line_size.x = 0
-	}
 	if it.glyph != nil {
 		it.offset.x += it.glyph.advance
-		it.line_size.x += it.glyph.advance
 	}
 	/*
 		Pre-paint
@@ -291,7 +287,10 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 	}	
 	// Update vertical offset if there's a new line or if reached end
 	if it.new_line {
+		it.line_size.x = 0
 		it.offset.y += it.size.ascent - it.size.descent + it.size.line_gap
+	} else if it.glyph != nil {
+		it.line_size.x += it.glyph.advance
 	}
 	return
 }
@@ -462,7 +461,6 @@ paint_text :: proc(painter: ^Painter, origin: [2]f32, info: Text_Info, color: Co
 				size.y += it.line_size.y
 			}
 		}
-		size.x = max(size.x, it.line_size.x)
 		size.y += it.line_size.y
 	}
 	return size 
@@ -559,7 +557,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 	origin := origin
 	// Prepare result
 	using result: Tactile_Text_Result = {
-		selection_bounds = {size, {}},
+		selection_bounds = {math.F32_MAX, {}},
 		selection = ui.scribe.selection,
 	}
 	// Layer to paint on
@@ -588,7 +586,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 		// Top left of this line
 		line_origin := origin + it.offset
 		// Horizontal bounds of the selection on the current line
-		selection_bounds: [2]f32 = {math.F32_MAX, 0}
+		line_box_bounds: [2]f32 = {math.F32_MAX, 0}
 		// Set bounds
 		bounds.low = line_origin
 		bounds.high = bounds.low
@@ -637,6 +635,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 			}
 			// Get the glyph point
 			point: [2]f32 = origin + it.offset
+			glyph_color := color
 			// Get selection info
 			if .Focused in widget.state {
 				if selection.offset == it.index {
@@ -644,10 +643,11 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 					selection.column = column
 				}
 				if it.index >= selection.offset && it.index <= selection.offset + selection.length {
-					selection_bounds = {
-						min(selection_bounds[0], point.x),
-						max(selection_bounds[1], point.x),
+					line_box_bounds = {
+						min(line_box_bounds[0], point.x),
+						max(line_box_bounds[1], point.x),
 					}
+					glyph_color = ui.style.color.accent_text
 				}
 			}
 			// Paint the glyph
@@ -657,25 +657,29 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 				dst.high = dst.low + (it.glyph.src.high - it.glyph.src.low)
 				bounds.high = linalg.max(bounds.high, dst.high)
 				if clip, ok := info.clip.?; ok {
-					paint_clipped_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, clip, color)
+					paint_clipped_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, clip, glyph_color)
 				} else {
-					paint_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, color)
+					paint_textured_box(ui.painter, ui.painter.texture, it.glyph.src, dst, glyph_color)
 				}
 			}
 			// Paint this line's selection
 			if it.index >= len(info.text) || info.text[it.index] == '\n' {
 				ui.painter.target = layer.targets[.Background]
 				// Draw it if the selection is valid
-				if selection_bounds[1] >= selection_bounds[0] {
+				if line_box_bounds[1] >= line_box_bounds[0] {
 					box: Box = {
-						{selection_bounds[0] - 1, line_origin.y},
-						{selection_bounds[1] + 1, line_origin.y + it.line_size.y},
+						{line_box_bounds[0] - 1, line_origin.y},
+						{line_box_bounds[1] + 1, line_origin.y + it.line_size.y},
+					}
+					selection_bounds = {
+						linalg.min(selection_bounds.low, box.low),
+						linalg.max(selection_bounds.high, box.high),
 					}
 					if clip, ok := info.clip.?; ok {
 						box = clamp_box(box, clip)
 					}
 					paint_box_fill(ui.painter, box, ui.style.color.accent)
-					selection_bounds = {math.F32_MAX, 0}
+					line_box_bounds = {math.F32_MAX, 0}
 				}
 				// Continue painting to the foreground
 				ui.painter.target = layer.targets[.Foreground]

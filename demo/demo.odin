@@ -46,62 +46,10 @@ _main :: proc() -> bool {
 		maui_glfw.begin()
 
 		begin_ui(&ui)
-
-			if panel(&ui, {
-				title = "Panel",
-				options = {.Title},
-				placement = Panel_Placement_Info{
-					size = {300, 500},
-					origin = ui.size / 2,
-					align = {.Middle, .Middle},
-				},
-			}) {
-
-			}
-
-
 			layout := current_layout(&ui)
 			layout.size = {100, 28}
-			shrink(&ui, 100)
 
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-				layout.direction = .Right
-				layout.size = 30
-				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019"})
-				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
-				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
-				space(&ui, 10)
-				button(&ui, {fit_text = true, text = "New", corners = ALL_CORNERS})
-			}
-			space(&ui, 10)
-			layout.size.y = 30
-			if was_clicked(checkbox(&ui, {
-				value = checkbox_value, 
-				text = "Boolean", 
-			})) {
-				checkbox_value = !checkbox_value
-			}
-			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-				layout.direction = .Right
-				layout.size = 200
-				if result := slider(&ui, {
-					value = slider_value,
-					low = 0,
-					high = 100,
-				}); result.changed {
-					slider_value = result.value
-				}
-			}
-			space(&ui, 10)
-			layout.size.y = 100
-			text_input(&ui, {
-				data = &text_input_data,
-				multiline = true,
-				title = "Text field",
-			})
-			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 24)); ok {
 				layout.size = {100, 24}
 				layout.direction = .Right
 				if result, open := menu(&ui, {text = "File"}); open {
@@ -115,6 +63,62 @@ _main :: proc() -> bool {
 					button(&ui, {text = "Redo", subtle = true, align = .Left})
 					button(&ui, {text = "Select All", subtle = true, align = .Left})
 				}
+				if result, open := menu(&ui, {text = "Tools"}); open {
+					button(&ui, {text = "Diagnostics", subtle = true, align = .Left})
+					button(&ui, {text = "Recovery", subtle = true, align = .Left})
+					button(&ui, {text = "Generation", subtle = true, align = .Left})
+				}
+			}
+
+			shrink(&ui, 100)
+
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.direction = .Right
+				layout.size = 30
+				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019"})
+				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
+				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
+				space(&ui, 10)
+				button(&ui, {fit_text = true, text = "New", corners = ALL_CORNERS})
+			}
+			
+			space(&ui, 10)
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.direction = .Right
+				layout.size = 200
+				if result := slider(&ui, {
+					value = slider_value,
+					low = 0,
+					high = 100,
+				}); result.changed {
+					slider_value = result.value
+				}
+			}
+			space(&ui, 10)
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 100)); ok {
+				layout.size.x = 300
+				layout.direction = .Right
+				text_input(&ui, {
+					data = &text_input_data,
+					multiline = true,
+					placeholder = "type something here",
+				})
+			}
+			space(&ui, 10)
+			if tree_node(&ui, {text = "Tree node"}).expanded {
+				layout.size.y = 28
+				space(&ui, 10)
+				button(&ui, {text = "hidden button"})
+				space(&ui, 10)
+				button(&ui, {text = "another hidden button"})
+				space(&ui, 10)
+				if was_clicked(checkbox(&ui, {
+					value = checkbox_value, 
+					text = "Boolean", 
+				})) {
+					checkbox_value = !checkbox_value
+				}
+				space(&ui, 10)
 			}
 			space(&ui, 100)
 			layout.size.y = 20
@@ -129,7 +133,7 @@ _main :: proc() -> bool {
 				pop_id(&ui)
 			}
 
-			paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)
+			// paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)
 		end_ui(&ui)
 
 		// Render if needed
