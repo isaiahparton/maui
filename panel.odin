@@ -240,14 +240,13 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 				// Paint overlay
 				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, fade(ui.style.color.base[1], 0.2))
 			} else {
-				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, fade(ui.style.color.foreground[0], 0.9))
-				paint_rounded_box_stroke(ui.painter, box, ui.style.panel_rounding, 1, ui.style.color.text[1])
+				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, ui.style.color.foreground[0])
 			}
 		}
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			// Draw title
-			paint_rounded_box_corners_fill(ui.painter, title_box, ui.style.panel_rounding, {.Top_Left, .Top_Right}, ui.style.color.foreground[1])
+			paint_rounded_box_corners_fill(ui.painter, title_box, ui.style.panel_rounding, ALL_CORNERS if .Collapsed in self.bits else {.Top_Left, .Top_Right}, ui.style.color.text[1])
 			// Close button
 			/*
 			if .Closable in self.options {
@@ -286,8 +285,8 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 				ui.painter,
 				{title_box.low.x + text_offset, baseline}, 
 				{text = info.title, font = ui.style.font.title, size = ui.style.text_size.label, align = .Left, baseline = .Middle}, 
-				color = ui.style.color.text[0],
-			)
+				color = ui.style.color.foreground[1],
+				)
 			// Moving 
 			if (.Hovered in self.root_layer.?.state) && point_in_box(ui.io.mouse_point, title_box) {
 				if (.Static not_in self.options) && (ui.widgets.hover_id == 0) && mouse_pressed(ui.io, .Left) {
@@ -313,6 +312,9 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 		layer_options += {.Force_Clip, .No_Scroll_Y}
 		ui.painter.next_frame = true
 	}
+
+	inner_box.low.x += 1
+	inner_box.high -= 1
 
 	// Push layout if necessary
 	if .Collapsed in self.bits {
@@ -352,6 +354,7 @@ _panel :: proc(ui: ^UI, _: Panel_Info, _: runtime.Source_Code_Location, ok: bool
 		// Done with main layer
 		end_layer(ui, self.content_layer.?)
 	}
+	paint_rounded_box_stroke(ui.painter, self.root_layer.?.box, ui.style.panel_rounding, 1, ui.style.color.text[1])
 	// End decor layer
 	end_layer(ui, self.root_layer.?)
 	// Handle movement

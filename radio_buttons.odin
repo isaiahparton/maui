@@ -1,23 +1,15 @@
 package maui
 import "core:math/linalg"
 
-Check_Box_Info :: struct {
+Radio_Button_Info :: struct {
 	using generic: Generic_Widget_Info,
-	value: bool,
+	state: bool,
 	text: string,
 	text_side: Maybe(Box_Side),
 }
-Check_Box_Widget_Variant :: struct {
-	hover_time,
-	disable_time: f32,
-}
-//#Info fields
-// - `state` Either a `bool`, a `^bool` or one of `{.on, .off, .unknown}`
-// - `text` If defined, the check box will display text on `text_side` of itself
-// - `text_side` The side on which text will appear (defaults to left)
-checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Generic_Widget_Result {
+radio_button :: proc(ui: ^UI, info: Radio_Button_Info, loc := #caller_location) -> Generic_Widget_Result {
 	SIZE :: 22
-	HALF_SIZE :: SIZE / 2
+	RADIUS :: SIZE / 2
 	// Check if there is text
 	has_text := len(info.text) > 0
 	// Default orientation
@@ -61,9 +53,9 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 				case .Right:
 				icon_box = {{self.box.high.x - SIZE, self.box.low.y}, SIZE}
 				case .Top:
-				icon_box = {{center_x(self.box) - HALF_SIZE, self.box.high.y - SIZE}, SIZE}
+				icon_box = {{center_x(self.box) - RADIUS, self.box.high.y - SIZE}, SIZE}
 				case .Bottom:
-				icon_box = {{center_x(self.box) - HALF_SIZE, self.box.low.y}, SIZE}
+				icon_box = {{center_x(self.box) - RADIUS, self.box.low.y}, SIZE}
 			}
 			icon_box.low = linalg.floor(icon_box.low)
 			icon_box.high += icon_box.low
@@ -74,14 +66,14 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		opacity := 1 - 0.5 * data.disable_time
 		fill_color := ui.style.color.background[0]
 		// paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
-		paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 1, fade(ui.style.color.text[1], 0.25))
-		paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 2, fade(ui.style.color.accent, data.hover_time))
+		icon_center := center(icon_box)
+		paint_ring_fill_texture(ui.painter, icon_center, RADIUS - 1, RADIUS, fade(ui.style.color.text[1], 0.25))
+		paint_ring_fill_texture(ui.painter, icon_center, RADIUS - 2, RADIUS, fade(ui.style.color.accent, data.hover_time))
 		center := box_center(icon_box)
 		// Paint icon
-		if info.value {
-			scale: f32 = HALF_SIZE * 0.5
-			a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1, 1, ui.style.color.accent)
+		if info.state {
+			scale: f32 = RADIUS * 0.5
+			paint_circle_fill_texture(ui.painter, icon_center, RADIUS - 5, ui.style.color.accent)
 		}
 		// Paint text
 		if has_text {

@@ -56,27 +56,37 @@ _main :: proc() -> bool {
 			layout := current_layout(&ui)
 			layout.size = {100, 28}
 
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 24)); ok {
-				layout.size = {100, 24}
-				layout.direction = .Right
-				if result, open := menu(&ui, {text = "File", width = 160}); open {
-					button(&ui, {text = "New", subtle = true, align = .Left})
-					button(&ui, {text = "Open", subtle = true, align = .Left})
-					button(&ui, {text = "Save", subtle = true, align = .Left})
-					button(&ui, {text = "Exit", subtle = true, align = .Left})
-				}
-				if result, open := menu(&ui, {text = "Edit", width = 160}); open {
-					button(&ui, {text = "Undo", subtle = true, align = .Left})
-					button(&ui, {text = "Redo", subtle = true, align = .Left})
-					button(&ui, {text = "Select All", subtle = true, align = .Left})
-				}
-				if result, open := menu(&ui, {text = "Tools", width = 160}); open {
-					if result, open := submenu(&ui, {text = "Diagnostics"}); open {
-						button(&ui, {text = "Memory dump", subtle = true, align = .Left})
-						button(&ui, {text = "Scan", subtle = true, align = .Left})
+			if panel(&ui, {
+				placement = Panel_Placement_Info{
+					origin = ui.size / 2,
+					align = {.Middle, .Middle},
+					size = {320, 480},
+				},
+				options = {.Title, .Collapsable, .Closable},
+				title = "window of opportunity"
+			}) {
+				if layout, ok := do_layout(&ui, cut(&ui, .Down, 24)); ok {
+					layout.size = {100, 24}
+					layout.direction = .Right
+					if result, open := menu(&ui, {text = "File", width = 160}); open {
+						button(&ui, {text = "New", subtle = true, align = .Left})
+						button(&ui, {text = "Open", subtle = true, align = .Left})
+						button(&ui, {text = "Save", subtle = true, align = .Left})
+						button(&ui, {text = "Exit", subtle = true, align = .Left})
 					}
-					button(&ui, {text = "Recovery", subtle = true, align = .Left})
-					button(&ui, {text = "Generation", subtle = true, align = .Left})
+					if result, open := menu(&ui, {text = "Edit", width = 160}); open {
+						button(&ui, {text = "Undo", subtle = true, align = .Left})
+						button(&ui, {text = "Redo", subtle = true, align = .Left})
+						button(&ui, {text = "Select All", subtle = true, align = .Left})
+					}
+					if result, open := menu(&ui, {text = "Tools", width = 160}); open {
+						if result, open := submenu(&ui, {text = "Diagnostics"}); open {
+							button(&ui, {text = "Memory dump", subtle = true, align = .Left})
+							button(&ui, {text = "Scan", subtle = true, align = .Left})
+						}
+						button(&ui, {text = "Recovery", subtle = true, align = .Left})
+						button(&ui, {text = "Generation", subtle = true, align = .Left})
+					}
 				}
 			}
 

@@ -1,4 +1,5 @@
 package maui
+import "core:math"
 import "core:runtime"
 
 Menu_Info :: struct {
@@ -77,13 +78,13 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 			}
 		}
 	}
-
+	
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 
 	if result.is_open {
 		layout := current_layout(ui)
 		layout.direction = .Down
-		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.text[1])
+		// paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.text[1])
 	}
 
 	return result, result.is_open
@@ -134,7 +135,7 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 			size = ui.style.text_size.label,
 			baseline = .Middle,
 		}, ui.style.color.text[0])
-		paint_arrow(ui.painter, self.box.high - h * 0.5, h * 0.2, 0, 1, ui.style.color.text[0])
+		paint_arrow(ui.painter, self.box.high - h * 0.5, h * 0.2, math.PI * -0.5, 1, ui.style.color.text[0])
 	}
 
 	if data.is_open {

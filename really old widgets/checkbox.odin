@@ -109,10 +109,10 @@ do_checkbox :: proc(info: Check_Box_Info, loc := #caller_location) -> (change, n
 				#partial switch real_state {
 					case .Unknown: 
 					a, b: [2]f32 = {-1, 0} * scale, {1, 0} * scale
-					paint_line(center + a, center + b, 2, ui.style.color.accent[0])
+					paint_line(center + a, center + b, 2, ui.style.color.text[0])
 					case .On: 
 					a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-					stroke_path({center + a, center + b, center + c}, false, 1, ui.style.color.accent[0])
+					stroke_path({center + a, center + b, center + c}, false, 1, ui.style.color.text[0])
 				}
 			}
 
