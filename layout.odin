@@ -41,18 +41,18 @@ Layout :: struct {
 }
 Layout_Agent :: struct {
 	stack: Stack(Layout, LAYOUT_STACK_SIZE),
-	current_layout: ^Layout,
+	current: ^Layout,
 }
 layout_agent_push :: proc(using self: ^Layout_Agent, layout: Layout) -> ^Layout {
 	layout := layout
 	layout.original_box = layout.box
 	stack_push(&stack, layout)
-	current_layout = &stack.items[stack.height - 1] if stack.height > 0 else nil
-	return current_layout
+	current = &stack.items[stack.height - 1] if stack.height > 0 else nil
+	return current
 }
 layout_agent_pop :: proc(using self: ^Layout_Agent) {
 	stack_pop(&stack)
-	current_layout = &stack.items[stack.height - 1] if stack.height > 0 else nil
+	current = &stack.items[stack.height - 1] if stack.height > 0 else nil
 }
 
 push_layout :: proc(ui: ^UI, box: Box) -> (layout: ^Layout) {
@@ -86,8 +86,8 @@ pop_growing_layout :: proc(ui: ^UI) {
 }
 // Get the current layout (asserts that there be one)
 current_layout :: proc(ui: ^UI, loc := #caller_location) -> ^Layout {
-	assert(ui.layouts.current_layout != nil, "No current layout", loc)
-	return ui.layouts.current_layout
+	assert(ui.layouts.current != nil, "No current layout", loc)
+	return ui.layouts.current
 }
 get_layout_width :: proc(layout: ^Layout) -> f32 {
 	return (layout.box.high.x - layout.box.low.x) - layout.placement.margin[.Left] - layout.placement.margin[.Right]

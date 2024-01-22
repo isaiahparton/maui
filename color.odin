@@ -18,10 +18,10 @@ blend_colors :: proc(time: f32, colors: ..Color) -> Color {
 			i := int(math.floor(time))
 			t := time - f32(i)
 			return colors[i] + {
-				u8(f32(colors[i + 1].r - colors[i].r) * t),
-				u8(f32(colors[i + 1].g - colors[i].g) * t),
-				u8(f32(colors[i + 1].b - colors[i].b) * t),
-				u8(f32(colors[i + 1].a - colors[i].a) * t),
+				u8((f32(colors[i + 1].r) - f32(colors[i].r)) * t),
+				u8((f32(colors[i + 1].g) - f32(colors[i].g)) * t),
+				u8((f32(colors[i + 1].b) - f32(colors[i].b)) * t),
+				u8((f32(colors[i + 1].a) - f32(colors[i].a)) * t),
 			}
 		}
 	}

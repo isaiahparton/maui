@@ -1,5 +1,5 @@
 # maui
-My awesome user interface
+My awesome user interface.  It's just an immediate mode UI with an OpenGL backend
 
 # principles
 - Be simple

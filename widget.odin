@@ -103,6 +103,7 @@ Widget_Variant :: union {
 	List_Item_Widget_Variant,
 	Menu_Widget_Variant,
 	Text_Input_Widget_Variant,
+	// Date_Picker_Widget_Variant,
 }
 destroy_widget_variant :: proc(variant: ^Widget_Variant) {
 	return

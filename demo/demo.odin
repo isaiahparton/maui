@@ -29,6 +29,7 @@ _main :: proc() -> bool {
 	disabled := true
 	clicked: bool
 	slider_value: f32
+	combo_box_index: int
 	checkbox_value: bool
 	list := make([dynamic]bool, 9)
 	text_input_data: [dynamic]u8
@@ -63,7 +64,7 @@ _main :: proc() -> bool {
 					size = {320, 480},
 				},
 				options = {.Title, .Collapsable, .Closable},
-				title = "window of opportunity"
+				title = "window of opportunity",
 			}) {
 				if layout, ok := do_layout(&ui, cut(&ui, .Down, 24)); ok {
 					layout.size = {100, 24}
@@ -87,6 +88,13 @@ _main :: proc() -> bool {
 						button(&ui, {text = "Recovery", subtle = true, align = .Left})
 						button(&ui, {text = "Generation", subtle = true, align = .Left})
 					}
+				}
+				space(&ui, 30)
+				if result := combo_box(&ui, {
+					items = {"woiajf", "nbpaowieo", "wpqofi"},
+					index = combo_box_index,
+				}); result.changed {
+					combo_box_index = result.index
 				}
 			}
 
