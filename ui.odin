@@ -115,7 +115,7 @@ UI :: struct {
 */
 make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 	// Assign the result
-	default_font := load_font(painter, "fonts/Rajdhani-Regular.ttf") or_return
+	default_font := load_font(painter, "fonts/Rajdhani-Medium.ttf") or_return
 	result, ok = UI{
 		io = io,
 		painter = painter,

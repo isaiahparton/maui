@@ -41,7 +41,7 @@ slider :: proc(ui: ^UI, info: Slider_Info, loc := #caller_location) -> Slider_Re
 		paint_circle_fill_texture(ui.painter, thumb_center, radius, alpha_blend_colors(ui.style.color.accent, {0, 0, 0, 255}, data.hover_time * 0.25))
 	}
 	if .Hovered in (self.state + self.last_state) {
-		tooltip_result := tooltip(ui, self.id, tmp_printf(info.format.? or_else "%v", info.value), thumb_center + {0, -radius * 2}, {.Middle, .Far}, .Top)
+		tooltip_result := tooltip(ui, self.id, tmp_printf(info.format.? or_else "%.3f", info.value), thumb_center + {0, -radius * 2}, {.Middle, .Far}, .Top)
 		if layer, ok := tooltip_result.layer.?; ok {
 			if .Hovered in layer.state {
 				ui.widgets.next_hover_id = self.id

@@ -305,15 +305,17 @@ update_widget_state :: proc(ui: ^UI, widget: ^Widget) {
 			}
 			ui.widgets.press_id = 0
 		}
+		// Update dragging state
+		if .Draggable in widget.options {
+			ui.dragging = true
+		}
 	}
 	// Focus
 	if ui.widgets.focus_id == widget.id {
 		widget.state += {.Focused}
 	}
 }
-/*
-	Simply update the state of the widget for this frame
-*/
+// Update a single widget
 update_widget :: proc(ui: ^UI, widget: ^Widget) {
 	// Prepare widget
 	if ui.painter.this_frame && get_clip(current_layer(ui).box, widget.box) != .Full {
@@ -325,6 +327,13 @@ update_widget :: proc(ui: ^UI, widget: ^Widget) {
 	// Get input
 	if .Disabled not_in widget.bits {
 		update_widget_state(ui, widget)
+	}
+}
+// Update a layer content bounds to fit the given box
+update_layer_content_bounds :: proc(layer: ^Layer, box: Box) {
+	layer.content_box = {
+		linalg.min(layer.content_box.low, box.low),
+		linalg.max(layer.content_box.high, box.high),
 	}
 }
 

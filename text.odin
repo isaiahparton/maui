@@ -647,6 +647,8 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 						min(line_box_bounds[0], point.x),
 						max(line_box_bounds[1], point.x),
 					}
+				}
+				if selection.length > 0 && it.index >= selection.offset && it.index < selection.offset + selection.length {
 					glyph_color = ui.style.color.accent_text
 				}
 			}

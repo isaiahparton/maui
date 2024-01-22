@@ -18,6 +18,12 @@ import "core:mem"
 TARGET_FRAME_RATE :: 75
 TARGET_FRAME_TIME :: 1.0 / TARGET_FRAME_RATE
 
+Option :: enum {
+	Strawberry,
+	Dragonfruit,
+	Watermelon,
+}
+
 _main :: proc() -> bool {
 
 	disabled := true
@@ -26,6 +32,7 @@ _main :: proc() -> bool {
 	checkbox_value: bool
 	list := make([dynamic]bool, 9)
 	text_input_data: [dynamic]u8
+	choice: Option
 
 	// Shared structures
 	io: maui.IO
@@ -52,19 +59,22 @@ _main :: proc() -> bool {
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 24)); ok {
 				layout.size = {100, 24}
 				layout.direction = .Right
-				if result, open := menu(&ui, {text = "File"}); open {
+				if result, open := menu(&ui, {text = "File", width = 160}); open {
 					button(&ui, {text = "New", subtle = true, align = .Left})
 					button(&ui, {text = "Open", subtle = true, align = .Left})
 					button(&ui, {text = "Save", subtle = true, align = .Left})
 					button(&ui, {text = "Exit", subtle = true, align = .Left})
 				}
-				if result, open := menu(&ui, {text = "Edit"}); open {
+				if result, open := menu(&ui, {text = "Edit", width = 160}); open {
 					button(&ui, {text = "Undo", subtle = true, align = .Left})
 					button(&ui, {text = "Redo", subtle = true, align = .Left})
 					button(&ui, {text = "Select All", subtle = true, align = .Left})
 				}
-				if result, open := menu(&ui, {text = "Tools"}); open {
-					button(&ui, {text = "Diagnostics", subtle = true, align = .Left})
+				if result, open := menu(&ui, {text = "Tools", width = 160}); open {
+					if result, open := submenu(&ui, {text = "Diagnostics"}); open {
+						button(&ui, {text = "Memory dump", subtle = true, align = .Left})
+						button(&ui, {text = "Scan", subtle = true, align = .Left})
+					}
 					button(&ui, {text = "Recovery", subtle = true, align = .Left})
 					button(&ui, {text = "Generation", subtle = true, align = .Left})
 				}
@@ -114,23 +124,19 @@ _main :: proc() -> bool {
 				space(&ui, 10)
 				if was_clicked(checkbox(&ui, {
 					value = checkbox_value, 
-					text = "Boolean", 
+					text = "Checkbox", 
 				})) {
 					checkbox_value = !checkbox_value
 				}
 				space(&ui, 10)
-			}
-			space(&ui, 100)
-			layout.size.y = 20
-			for &entry, i in list {
-				push_id(&ui, i)
-					if was_clicked(list_item(&ui, {
-						active = entry, 
-						text = {"left text", tmp_print(ui.id_stack.items[ui.id_stack.height - 1]), "middle text", "right text"},
-					})) {
-						entry = !entry
-					}
-				pop_id(&ui)
+				for member, i in Option {
+					push_id(&ui, i)
+						if was_clicked(radio_button(&ui, {state = choice == member, text = tmp_print(member)})) {
+							choice = member
+						}
+					pop_id(&ui)
+				}
+				space(&ui, 10)
 			}
 
 			// paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)

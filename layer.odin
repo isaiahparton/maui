@@ -564,9 +564,9 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 			if .Right not_in self.clip_sides {
 				new_clip_box.high.x = ui.size.x
 			}
-			// Set the real clipping here
-			ui.painter.meshes[ui.painter.target].clip = new_clip_box
 		}
+		// Set the real clipping here
+		ui.painter.meshes[ui.painter.target].clip = new_clip_box
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {
 			max(self.space.x - (self.box.high.x - self.box.low.x), 0),
