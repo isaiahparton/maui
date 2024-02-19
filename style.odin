@@ -3,29 +3,49 @@ package maui
 /*
 	Default style values
 */
-DARK_STYLE_COLORS :: Style_Colors{
-	accent = {32, 232, 122, 255},
-	accent_text = {0, 0, 0, 255},
-	background = {
-		{45, 45, 45, 255},
-		{70, 70, 70, 255},
-	},
-	background_stroke = {80, 80, 80, 255},
-	foreground = {
-		{30, 30, 30, 255},
-		{24, 24, 24, 255},
-	},
-	text = {
-		{255, 255, 255, 255},
-		{125, 125, 125, 255},
-	},
-	button = {68, 68, 68, 255},
-	button_hovered = {99, 99, 99, 255},
-	button_pressed = {99, 184, 54, 255},
-	button_text = {255, 255, 255, 255},
-	stroke = {124, 152, 165, 255},
-	flash = {0, 255, 0, 255},
-	substance = {245, 245, 245, 255},
+get_light_style_colors :: proc() -> Style_Colors {
+	return Style_Colors{
+		accent = {0, 85, 225, 255},
+		accent_text = {0, 0, 0, 255},
+		background = {
+			{195, 201, 198, 255},
+			{165, 170, 166, 255},
+		},
+		foreground = {
+			{255, 255, 255, 255},
+			{235, 235, 235, 255},
+		},
+		text = {
+			{0, 0, 0, 255},
+			{92, 92, 92, 255},
+		},
+		panel = {45, 45, 45, 255},
+		stroke = {124, 152, 165, 255},
+		flash = {0, 255, 0, 255},
+		substance = {60, 60, 60, 255},
+	}
+}
+get_dark_style_colors :: proc() -> Style_Colors {
+	return Style_Colors{
+		accent = {255, 0, 55, 255},
+		accent_text = {0, 0, 0, 255},
+		background = {
+			{25, 32, 29, 255},
+			{45, 45, 45, 255},
+		},
+		foreground = {
+			{12, 12, 12, 255},
+			{24, 24, 24, 255},
+		},
+		text = {
+			{255, 255, 255, 255},
+			{125, 125, 125, 255},
+		},
+		panel = blend_colors(0.25, {172, 245, 255, 255}, {0, 0, 0, 255}),
+		stroke = {124, 152, 165, 255},
+		flash = {0, 255, 0, 255},
+		substance = {172, 245, 255, 255},
+	}
 }
 /*
 	Fonts used in different parts of the ui
@@ -64,16 +84,12 @@ Style_Colors :: struct {
 	text,
 	background,
 	foreground: [2]Color,
-	background_stroke,
-	button,
-	button_hovered,
-	button_pressed,
-	button_text,
 	substance,
 	accent,
 	accent_text,
 	stroke,
 	base,
+	panel,
 	flash: Color,
 }
 /*
@@ -91,5 +107,6 @@ Style :: struct {
 	stroke_width: f32,
 	title_margin: f32,
 	title_padding: f32,
+	panel_background_opacity: f32,
 	rounded_corners: Corners,
 }

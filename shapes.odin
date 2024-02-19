@@ -3,6 +3,72 @@ package maui
 import "core:math"
 import "core:math/linalg"
 
+/*
+	Paint a radial gradient inside a box
+*/
+paint_box_inner_gradient :: proc(painter: ^Painter, box: Box, inner_radius: f32, segments: int, inner_color, outer_color: Color) {
+	mesh := &painter.meshes[painter.target]
+	outer_radius := max(width(box), height(box)) / math.SQRT_TWO
+	c := center(box)
+	step := math.TAU / f32(segments)
+
+	first := mesh.vertices_offset
+	angle: f32 = 0
+	for i in 0..=segments {
+		normal: [2]f32 = {math.cos(angle) * (width(box) / height(box)), math.sin(angle)}
+		inner_point := linalg.clamp(c + normal * inner_radius, box.low, box.high)
+		outer_point := linalg.clamp(c + normal * outer_radius, box.low, box.high)
+		time := linalg.length(outer_point - c) / outer_radius
+		if i == segments {
+			paint_indices(mesh, 
+				mesh.vertices_offset - 1,
+				mesh.vertices_offset - 2,
+				first,
+				first,
+				first + 1,
+				mesh.vertices_offset - 1,
+				)
+		} else if i > 0 {
+			paint_indices(mesh, 
+				mesh.vertices_offset - 1,
+				mesh.vertices_offset - 2,
+				mesh.vertices_offset,
+				mesh.vertices_offset,
+				mesh.vertices_offset + 1,
+				mesh.vertices_offset - 1,
+				)
+		}
+		paint_vertices(mesh, 
+			{point = inner_point, color = inner_color},
+			{point = outer_point, color = blend_colors(time, inner_color, outer_color)},
+			)
+		angle += step
+	}
+}
+
+paint_fancy_box_fill :: proc(painter: ^Painter, box: Box, corners: Corners, corner_style: Box_Corner_Style, corner_size: f32, color: Color) {
+	switch corner_style {
+		case .Normal:
+		paint_box_fill(painter, box, color)
+		case .Rounded:
+		paint_rounded_box_corners_fill(painter, box, corner_size, corners, color)
+		case .Cut:
+		points, point_count := get_path_of_box_with_cut_corners(box, corner_size, corners)
+		paint_path_fill(painter, points[:point_count], color)
+	}
+}
+paint_fancy_box_stroke :: proc(painter: ^Painter, box: Box, corners: Corners, corner_style: Box_Corner_Style, corner_size, thickness: f32, color: Color) {
+	switch corner_style {
+		case .Normal:
+		paint_box_stroke(painter, box, thickness, color)
+		case .Rounded:
+		paint_rounded_box_corners_stroke(painter, box, corner_size, thickness, corners, color)
+		case .Cut:
+		points, point_count := get_path_of_box_with_cut_corners(box, corner_size, corners)
+		paint_path_stroke(painter, points[:point_count], true, thickness, 0, color)
+	}
+}
+
 get_path_of_box_with_cut_corners :: proc(box: Box, amount: f32, corners: Corners) -> (points: [8][2]f32, count: int) {
 	points[count] = box.low; count += 1
 	if .Top_Left in corners {
@@ -135,13 +201,13 @@ paint_box_fill :: proc(painter: ^Painter, box: Box, color: Color) {
 paint_circle_fill_texture :: proc(painter: ^Painter, center: [2]f32, radius: f32, color: Color) {
 	if src, ok := get_atlas_ring(painter, 0, radius); ok {
 		offset := (src.high - src.low) * 0.5
-		paint_textured_box(painter, painter.texture, src, {linalg.round(center - offset), linalg.round(center + offset)}, color)
+		paint_textured_box(painter, painter.texture, src, {center - offset, center + offset}, color)
 	}
 }
 paint_ring_fill_texture :: proc(painter: ^Painter, center: [2]f32, inner, outer: f32, color: Color) {
 	if src, ok := get_atlas_ring(painter, inner, outer); ok {
 		offset := (src.high - src.low) * 0.5
-		paint_textured_box(painter, painter.texture, src, {linalg.round(center - offset), linalg.round(center + offset)}, color)
+		paint_textured_box(painter, painter.texture, src, {center - offset, center + offset}, color)
 	}
 }
 /*
@@ -225,7 +291,8 @@ paint_arrow_flip :: proc(painter: ^Painter, center: [2]f32, scale, angle, thickn
 	p0: [2]f32 = center + rotate_point({-1, -0.5 * t}, angle) * scale
 	p1: [2]f32 = center + rotate_point({0, 0.5 * t}, angle) * scale
 	p2: [2]f32 = center + rotate_point({1, -0.5 * t}, angle) * scale
-	paint_path_stroke(painter, {p0, p1, p2}, false, 0, thickness, color)
+	thickness := thickness / 2
+	paint_path_stroke(painter, {p0, p1, p2}, false, thickness, thickness, color)
 }
 paint_loader :: proc(painter: ^Painter, center: [2]f32, radius, time: f32, color: Color) {
 	start := time * math.TAU

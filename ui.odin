@@ -74,6 +74,7 @@ UI :: struct {
 	// Time
 	now,
 	then: time.Time,
+	current_time: f64,
 	delta_time: f32,
 	frame_duration: time.Duration,
 	// If key navigation is active
@@ -86,7 +87,6 @@ UI :: struct {
 	size: [2]f32,
 	last_box: Box,
 	// Settings
-	placement: Placement_Info,
 	style: Style,
 	// Mouse cursor type
 	cursor: Cursor_Type,
@@ -120,7 +120,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 		io = io,
 		painter = painter,
 		style = {
-			color = DARK_STYLE_COLORS,
+			color = get_light_style_colors(),
 			title_margin = 10,
 			title_padding = 2,
 			layout = {
@@ -140,6 +140,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 			panel_rounding = 5,
 			tooltip_rounding = 5,
 			tooltip_padding = 2,
+			panel_background_opacity = 0.85,
 			font = {
 				label 		= default_font,
 				title 		= default_font,
@@ -174,14 +175,16 @@ begin_ui :: proc(ui: ^UI) {
 	assert(ui.id_stack.height == 0, "You forgot to pop_id()")
 	// Begin frame
 	ui.now = time.now()
-	ui.delta_time = f32(time.duration_seconds(time.Duration(ui.now._nsec - ui.then._nsec)))
+	if ui.then != {} {
+		delta_time := time.duration_seconds(time.diff(ui.then, ui.now))
+		ui.current_time += delta_time
+		ui.delta_time = f32(delta_time)
+	}
 	ui.then = ui.now
 	// Reset painter
 	ui.painter.mesh_index = 0
 	ui.painter.opacity = 1
 	ui.style.rounded_corners = ALL_CORNERS
-	// Reset placement
-	ui.placement = {}
 	// Decide if painting is required this frame
 	ui.painter.this_frame = false
 	if ui.painter.next_frame {

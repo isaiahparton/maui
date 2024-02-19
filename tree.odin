@@ -34,10 +34,10 @@ tree_node :: proc(ui: ^UI, info: Tree_Node_Info, loc := #caller_location) -> Tre
 
 	my_height := height(self.box)
 	if .Should_Paint in self.bits {
-		hover_color := fade(ui.style.color.text[1], 0.5 + 0.5 * data.hover_time)
+		hover_color := fade(ui.style.color.text[1], 0.5 + 0.5 * max(data.hover_time, data.open_time))
 		baseline := center_y(self.box)
 		paint_arrow(ui.painter, self.box.high - my_height * [2]f32{0.4, 0.5}, my_height * 0.2, math.PI * 0.5 * (1 - data.open_time), 1, hover_color)
-		paint_text(ui.painter, {self.box.low.x, self.box.low.y + my_height / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, baseline = .Middle}, ui.style.color.text[0])
+		paint_text(ui.painter, {self.box.low.x, self.box.low.y + my_height / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, baseline = .Middle}, hover_color)
 		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 1}, self.box.high}, hover_color)
 	}
 

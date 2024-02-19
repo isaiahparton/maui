@@ -53,7 +53,6 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	// Update
 	update_widget(ui, self)
 	// Animate
-	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	data.focus_time = animate(ui, data.focus_time, 0.15, .Focused in self.state)
 	// Text cursor
 	if .Hovered in self.state {
@@ -106,8 +105,9 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		fill_color := fade(ui.style.color.background[0], opacity)
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
-		paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, corners, fill_color)
-		paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 1, corners, ui.style.color.background_stroke)
+		paint_box_fill(ui.painter, self.box, fade(fill_color, data.focus_time))
+		paint_box_inner_gradient(ui.painter, self.box, 30, 56, {}, fade(ui.style.color.background[0], 0.2 * (1 - data.focus_time)))
+		paint_box_stroke(ui.painter, self.box, 1, blend_colors(data.focus_time, fade(ui.style.color.substance, 0.5), ui.style.color.accent))
 		ui.painter.target = layer.targets[.Foreground]
 	}
 	// Do text scrolling or whatever
@@ -142,14 +142,11 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 			if text_result.selection_bounds.low.x < inner_box.low.x {
 				data.offset.x -= (inner_box.low.x - text_result.selection_bounds.low.x)
 			}
-
 		}
 		if text_result.selection_bounds.high.x > inner_box.high.x {
 			data.offset.x += (text_result.selection_bounds.high.x - inner_box.high.x)
 		}
 		
-		
-
 		offset_x_limit := max(width(text_result.bounds) - width(inner_box), 0)
 		if .Pressed in self.state {
 			left_over := self.box.low.x - ui.io.mouse_point.x 
@@ -183,9 +180,6 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 				value^ = strings.clone_from_bytes(buffer[:])
 			}
 		}
-	}
-	if .Should_Paint in self.bits {
-		paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 2, corners, fade(ui.style.color.accent, data.focus_time))
 	}
 	// Whatever
 	if .Focused in (self.last_state - self.state) {

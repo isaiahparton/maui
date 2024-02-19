@@ -427,6 +427,26 @@ get_font_glyph :: proc(painter: ^Painter, font: ^Font, size: ^Font_Size, codepoi
 	return
 }
 
+paint_text_box :: proc(painter: ^Painter, box: Box, info: Text_Info, color: Color) -> [2]f32 {
+	origin: [2]f32
+	switch info.align {
+		case .Left:
+		origin.x = box.low.x
+		case .Middle:
+		origin.x = (box.low.x + box.high.x) / 2
+		case .Right:
+		origin.x = box.high.x
+	}
+	switch info.baseline {
+		case .Top:
+		origin.y = box.low.y
+		case .Middle:
+		origin.y = (box.low.y + box.high.y) / 2
+		case .Bottom:
+		origin.y = box.high.y
+	}
+	return paint_text(painter, origin, info, color)
+}
 paint_text :: proc(painter: ^Painter, origin: [2]f32, info: Text_Info, color: Color) -> [2]f32 {
 	size: [2]f32 
 	origin := origin

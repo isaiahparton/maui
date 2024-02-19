@@ -9,11 +9,11 @@ Button_Info :: struct {
 	using generic: Generic_Widget_Info,
 	text: string,
 	subtle: bool,
-	outlined: bool,
 	font: Maybe(Font_Handle),
-	align: Maybe(Text_Align),
+	text_align: Maybe(Text_Align),
 	text_size: Maybe(f32),
 	fit_text: bool,
+	corner_style: Box_Corner_Style,
 }
 Button_Result :: struct {
 	using generic: Generic_Widget_Result,
@@ -45,32 +45,36 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	// Update retained data
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
+	if .Hovered in self.state {
+		ui.cursor = .Hand
+	}
 	// Paint
 	if .Should_Paint in self.bits {
 		opacity: f32 = 1.0 - data.disable_time * 0.5
-		fill_color := fade(blend_colors(data.hover_time + (1.0 if .Pressed in self.state else 0.0), ui.style.color.button, ui.style.color.button_hovered, ui.style.color.button_pressed), opacity)
-		text_color := fade(ui.style.color.button_text, opacity)
+		fill_color := fade(ui.style.color.substance, 0.1 + 0.9 * data.hover_time)
+		stroke_color := fade(ui.style.color.substance, 0.5 * (1 - data.hover_time))
+		text_color := blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.foreground[0])
 		corners: Corners = info.corners.? or_else {}
 		// Shapes
-		paint_rounded_box_corners_fill(
+		paint_fancy_box_fill(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, fill_color)
+		paint_fancy_box_stroke(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, 1, stroke_color)
+		/*paint_rounded_box_corners_fill(
 			ui.painter, 
 			self.box, 
 			ui.style.rounding, 
 			corners, 
 			fill_color,
 			)
-		if info.outlined {
-			paint_rounded_box_corners_stroke(
-				ui.painter,
-				self.box,
-				ui.style.rounding,
-				ui.style.stroke_width,
-				corners,
-				{92, 92, 96, 255},
-				)
-		}
+		paint_rounded_box_corners_stroke(
+			ui.painter, 
+			self.box, 
+			ui.style.rounding, 
+			1,
+			corners, 
+			stroke_color,
+			)*/
 		text_origin: [2]f32
-		text_align := info.align.? or_else .Middle
+		text_align := info.text_align.? or_else .Middle
 		switch text_align {
 			case .Left:
 			text_origin = {self.box.low.x + ui.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}

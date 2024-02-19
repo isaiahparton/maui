@@ -207,7 +207,6 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 
 	self.box.low = linalg.min(self.box.low, inner_box.low)
 	self.box.high = linalg.max(self.box.high, inner_box.high)
-
 	// Decoration
 	if self.root_layer, ok = begin_layer(ui, {
 		placement = root_layer_box,
@@ -219,62 +218,39 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 			box := inner_box
 			// Compensate for title bar rounding
 			box.low.y -= ui.style.panel_rounding
-			when false {
-				// Capture paint target
-				prev_target := painter.target
-				// Prepare a new mesh
-				painter.target = get_draw_target()
-				painter.meshes[painter.target].material = Gradient_Material{
-					corners = {
-						.Top_Left = ui.style.color.base[0],
-						.Bottom_Left = ui.style.color.base[1],
-						.Top_Right = ui.style.color.base[1],
-						.Bottom_Right = ui.style.color.base[0],
-					},
-				}
-				inject_at(&self.root_layer.?.meshes, 0, painter.target)
-				// Paint the shader mask
-				paint_rounded_box_mask(box, ui.style.panel_rounding, 255)
-				// Set previous paint target
-				painter.target = prev_target
-				// Paint overlay
-				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, fade(ui.style.color.base[1], 0.2))
-			} else {
-				paint_rounded_box_fill(ui.painter, box, ui.style.panel_rounding, ui.style.color.foreground[0])
-			}
+			paint_gradient_box_v(ui.painter, box, ui.style.color.foreground[0], fade(ui.style.color.foreground[0], ui.style.panel_background_opacity))
+			// paint_box_fill(ui.painter, box, fade(ui.style.color.foreground[0], ui.style.panel_background_opacity))
 		}
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			// Draw title
-			paint_rounded_box_corners_fill(ui.painter, title_box, ui.style.panel_rounding, ALL_CORNERS if .Collapsed in self.bits else {.Top_Left, .Top_Right}, ui.style.color.text[1])
+			paint_box_fill(ui.painter, title_box, ui.style.color.panel)
 			// Close button
-			/*
-			if .Closable in self.options {
-				if w, _ok := do_widget(ui, hash(ui, &self.id, size_of(Id))); _ok {
-					w.box = cut_box_right(&title_box, height(title_box))
-					update_widget(w)
-					hover_time := animate_bool(ui, &w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent[1], hover_time * 0.1))
-					paint_cross(ui.painter, box_center(w.box), 5, math.PI * 0.25, 2, blend_colors(ui.style.color.substance_text[0], ui.style.color.substance_text[1], hover_time))
-					update_widget_hover(w, point_in_box(ui.io.mouse_point, w.box))
+			push_id(ui, self.id)
+				if .Closable in self.options {
+					w, _ := get_widget(ui, {box = cut_box_right(&title_box, height(title_box))})
+					update_widget(ui, w)
+					if w.variant == nil do w.variant = Button_Widget_Variant{}
+					data := &w.variant.(Button_Widget_Variant)
+					data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in w.state)
+					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent, data.hover_time * 0.5))
+					paint_cross(ui.painter, box_center(w.box), 6, math.PI * 0.25, 2, ui.style.color.foreground[0])
+					update_widget_hover(ui, w, point_in_box(ui.io.mouse_point, w.box))
 				}
-			}
-			if .Collapsable in self.options {
-				push_id(ui, int(1))
-				if w, _ok := do_widget(ui, hash(ui, &self.id, size_of(Id))); _ok {
-					w.box = cut_box_right(&title_box, height(title_box))
-					update_widget(w)
-					hover_time := animate_bool(ui.painter, &w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent[1], hover_time * 0.1))
-					paint_arrow_flip(ui.painter, box_center(w.box), 5, 0, 1, self.how_collapsed, blend_colors(ui.style.color.substance_text[0], ui.style.color.substance_text[1], hover_time))
-					if widget_clicked(w, .Left) {
+				if .Collapsable in self.options {
+					w, res := get_widget(ui, {box = cut_box_right(&title_box, height(title_box))})
+					update_widget(ui, w)
+					if w.variant == nil do w.variant = Button_Widget_Variant{}
+					data := &w.variant.(Button_Widget_Variant)
+					data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in w.state)
+					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent, data.hover_time * 0.5))
+					paint_arrow_flip(ui.painter, box_center(w.box), 5, 0, 2, self.how_collapsed, ui.style.color.foreground[0])
+					if was_clicked(res) {
 						self.bits ~= {.Should_Collapse}
 					}
-					update_widget_hover(w, point_in_box(ui.io.mouse_point, w.box))
+					update_widget_hover(ui, w, point_in_box(ui.io.mouse_point, w.box))
 				}
-				pop_id(ui)
-			}
-			*/
+			pop_id(ui)
 			// Title bar positional decoration
 			baseline := center_y(title_box)
 			text_offset := height(title_box) * 0.25
@@ -301,21 +277,20 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 			self.bits -= {.Should_Collapse}
 		}
 	}
-
+	// Shrink the inner box before setting `min_layout_size`
+	inner_box.low.x += 1
+	inner_box.high -= 1
+	// Set `min_layout_size` on initializatoin
 	if .Initialized not_in self.bits {
 		self.min_layout_size = inner_box.high - inner_box.low
 		self.bits += {.Initialized}
-	}
-
+	}	
 	layer_options := info.layer_options + {.Attached}
+	// Force clipping while in intermediate collapsed state
 	if (self.how_collapsed > 0 && self.how_collapsed < 1) || (self.how_collapsed == 1 && .Should_Collapse not_in self.bits) {
 		layer_options += {.Force_Clip, .No_Scroll_Y}
 		ui.painter.next_frame = true
 	}
-
-	inner_box.low.x += 1
-	inner_box.high -= 1
-
 	// Push layout if necessary
 	if .Collapsed in self.bits {
 		ok = false
@@ -337,24 +312,10 @@ _panel :: proc(ui: ^UI, _: Panel_Info, _: runtime.Source_Code_Location, ok: bool
 	// End main layer
 	if .Collapsed not_in self.bits {
 		box := self.content_layer.?.box
-		// Resize handle
-		if .Resizable in self.options {
-			/*if w, ok := do_widget(ui, hash(ui, &self.id, size_of(Id)), {.Draggable}); ok {
-				w.box = {box.high - 20, box.high}
-				update_widget(w)
-				hover_time := animate_bool(ui, &w.timers[0], .Hovered in w.state, DEFAULT_WIDGET_HOVER_TIME)
-				paint_triangle_fill(ui.painter, {w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, fade(ui.style.color.substance[1], 0.1 + 0.1 * hover_time))
-				paint_triangle_stroke(ui.painter, {w.box.low.x, w.box.high.y}, w.box.high, {w.box.high.x, w.box.low.y}, 1, fade(ui.style.color.substance[1], 0.5 + 0.5 * hover_time))
-				if .Pressed in (w.state - w.last_state) {
-					self.bits += {.Resizing}
-				}
-				update_widget_hover(ui, w, point_in_box(ui.io.mouse_point, w.box))
-			}*/
-		}
 		// Done with main layer
 		end_layer(ui, self.content_layer.?)
 	}
-	paint_rounded_box_stroke(ui.painter, self.root_layer.?.box, ui.style.panel_rounding, 1, ui.style.color.text[1])
+	paint_box_stroke(ui.painter, self.root_layer.?.box, 1, ui.style.color.panel)
 	// End decor layer
 	end_layer(ui, self.root_layer.?)
 	// Handle movement

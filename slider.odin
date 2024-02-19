@@ -31,26 +31,17 @@ slider :: proc(ui: ^UI, info: Slider_Info, loc := #caller_location) -> Slider_Re
 	// Update retained data
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	// Some values
-	radius: f32 = 8
-	range := width(self.box) - radius * 2
+	range := width(self.box)
 	time := (info.value - info.low) / (info.high - info.low)
-	thumb_center: [2]f32 = {self.box.low.x + range * time + radius, center_y(self.box)}
 	// paint
 	if .Should_Paint in self.bits {
-		paint_rounded_box_fill(ui.painter, {{self.box.low.x, thumb_center.y - 2}, {self.box.high.x, thumb_center.y + 2}}, 2, ui.style.color.background[1])
-		paint_circle_fill_texture(ui.painter, thumb_center, radius, alpha_blend_colors(ui.style.color.accent, {0, 0, 0, 255}, data.hover_time * 0.25))
-	}
-	if .Hovered in (self.state + self.last_state) {
-		tooltip_result := tooltip(ui, self.id, tmp_printf(info.format.? or_else "%.3f", info.value), thumb_center + {0, -radius * 2}, {.Middle, .Far}, .Top)
-		if layer, ok := tooltip_result.layer.?; ok {
-			if .Hovered in layer.state {
-				ui.widgets.next_hover_id = self.id
-			}
-		}
+		paint_box_fill(ui.painter, self.box, ui.style.color.background[0])
+		paint_box_fill(ui.painter, {self.box.low, {self.box.low.x + time * range, self.box.high.y}}, ui.style.color.substance)
+		paint_box_stroke(ui.painter, self.box, 1, fade(ui.style.color.substance, 0.2))
 	}
 	// Drag
 	if .Pressed in self.state {
-		time := clamp((ui.io.mouse_point.x - self.box.low.x - radius) / range, 0, 1)
+		time := clamp((ui.io.mouse_point.x - self.box.low.x) / range, 0, 1)
 		result.changed = true
 		result.value = info.low + time * (info.high - info.low)
 	}

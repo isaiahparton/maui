@@ -150,7 +150,7 @@ Widget_Agent :: struct {
 	Ensure that a widget with this id exists
 	IMPORTANT: Must always return a valid ^Widget
 */
-get_widget :: proc(ui: ^UI, info: Generic_Widget_Info, loc: runtime.Source_Code_Location) -> (^Widget, Generic_Widget_Result) {
+get_widget :: proc(ui: ^UI, info: Generic_Widget_Info, loc: runtime.Source_Code_Location = #caller_location) -> (^Widget, Generic_Widget_Result) {
 	id := info.id.? or_else hash(ui, loc)
 	layer := current_layer(ui, loc)
 	widget, ok := layer.contents[id]
@@ -178,6 +178,9 @@ get_widget :: proc(ui: ^UI, info: Generic_Widget_Info, loc: runtime.Source_Code_
 		widget.bits -= {.Disabled}
 	}
 	widget.layer = layer
+	if box, ok := info.box.?; ok {
+		widget.box = box
+	}
 
 	return widget, Generic_Widget_Result{self = widget}
 }

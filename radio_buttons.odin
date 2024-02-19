@@ -65,15 +65,12 @@ radio_button :: proc(ui: ^UI, info: Radio_Button_Info, loc := #caller_location) 
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
 		fill_color := ui.style.color.background[0]
-		// paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
 		icon_center := center(icon_box)
-		paint_ring_fill_texture(ui.painter, icon_center, RADIUS - 1, RADIUS, fade(ui.style.color.text[1], 0.25))
-		paint_ring_fill_texture(ui.painter, icon_center, RADIUS - 2, RADIUS, fade(ui.style.color.accent, data.hover_time))
+		paint_ring_fill_texture(ui.painter, icon_center, RADIUS - 1, RADIUS, blend_colors(data.hover_time, fade(ui.style.color.text[1], 0.25), ui.style.color.accent))
 		center := box_center(icon_box)
 		// Paint icon
 		if info.state {
-			scale: f32 = RADIUS * 0.5
-			paint_circle_fill_texture(ui.painter, icon_center, RADIUS - 5, ui.style.color.accent)
+			paint_circle_fill_texture(ui.painter, icon_center, (RADIUS - 5), ui.style.color.accent)
 		}
 		// Paint text
 		if has_text {

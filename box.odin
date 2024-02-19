@@ -26,6 +26,12 @@ Corner :: enum {
 
 Corners :: bit_set[Corner;u8]
 
+Box_Corner_Style :: enum {
+	Normal,
+	Rounded,
+	Cut,
+}
+
 Clip :: enum {
 	None,				// completely visible
 	Partial,		// partially visible

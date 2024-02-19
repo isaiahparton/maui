@@ -34,25 +34,26 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
 
 	layout := current_layout(ui)
-	layout.size.x = measure_text(ui.painter, {
+	layout.size.x = math.floor(measure_text(ui.painter, {
 		text = info.text,
 		font = ui.style.font.label, 
 		size = ui.style.text_size.label,
-	}).x + height(layout.box)
+	}).x + height(layout.box))
 
 	self.box = info.box.? or_else layout_next(layout)
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, blend_colors(data.hover_time + (1.0 if .Pressed in self.state else 0.0), ui.style.color.button, ui.style.color.button_hovered, ui.style.color.button_pressed))
-		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 4}, self.box.high}, fade(ui.style.color.accent, data.open_time))
+		text_color := blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.foreground[0])
+		fill_color := blend_colors(data.hover_time, ui.style.color.foreground[1], ui.style.color.substance)
+		paint_box_fill(ui.painter, self.box, fill_color)
 		paint_text(ui.painter, center(self.box), {
 			text = info.text,
 			font = ui.style.font.label,
 			size = ui.style.text_size.label,
 			align = .Middle,
 			baseline = .Middle,
-		}, ui.style.color.text[0])
+		}, text_color)
 	}
 
 	if data.is_open {
@@ -60,7 +61,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 		result.layer, result.is_open = begin_layer(ui, {
 			id = self.id,
 			placement = Layer_Placement_Info{
-				origin = {self.box.low.x, self.box.high.y},
+				origin = {math.floor(self.box.low.x), self.box.high.y},
 				size = {max(width(self.box), info.width), nil},
 			},
 			grow = .Down,
@@ -84,7 +85,8 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 	if result.is_open {
 		layout := current_layout(ui)
 		layout.direction = .Down
-		// paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.text[1])
+		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground[1])
+		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
 	}
 
 	return result, result.is_open
@@ -127,15 +129,17 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, blend_colors(data.hover_time + (1.0 if .Pressed in self.state else 0.0), ui.style.color.button, ui.style.color.button_hovered, ui.style.color.button_pressed))
+		text_color := blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.foreground[0])
+		fill_color := fade(ui.style.color.substance, data.hover_time)
 		h := height(self.box)
+		paint_box_fill(ui.painter, self.box, fill_color)
 		paint_text(ui.painter, self.box.low + h * [2]f32{0.25, 0.5}, {
 			text = info.text,
 			font = ui.style.font.label,
 			size = ui.style.text_size.label,
 			baseline = .Middle,
-		}, ui.style.color.text[0])
-		paint_arrow(ui.painter, self.box.high - h * 0.5, h * 0.2, math.PI * -0.5, 1, ui.style.color.text[0])
+		}, text_color)
+		paint_arrow(ui.painter, self.box.high - h * 0.5, h * 0.2, math.PI * -0.5, 1, text_color)
 	}
 
 	if data.is_open {
@@ -157,7 +161,8 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 	if result.is_open {
 		layout := current_layout(ui)
 		layout.direction = .Down
-		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.text[1])
+		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground[1])
+		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
 	}
 
 	return result, result.is_open

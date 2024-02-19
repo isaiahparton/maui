@@ -409,6 +409,8 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 				self.box.high.y = self.box.low.y + size.y
 			}
 		}
+		self.box.low = linalg.floor(self.box.low)
+		self.box.high = linalg.floor(self.box.high)
 		// Stay alive
 		self.bits += {.Stay_Alive}
 		//IMPORTANT: Set opacity before painting anything
@@ -585,11 +587,11 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 		self.scroll_target.y = clamp(self.scroll_target.y, 0, max_scroll.y)
 		// Interpolate scrolling
 		self.scroll += (self.scroll_target - self.scroll) * SCROLL_SPEED * ui.delta_time
+		scrollbar_box := shrink_box(self.inner_box, 4)
 		// Manifest scroll bars
-		
 		if self.scrollbar_time.x > 0 {
 			// Horizontal scrolling
-			box := get_box_bottom(self.inner_box, self.scrollbar_time.x * SCROLL_BAR_SIZE)
+			box := get_box_bottom(scrollbar_box, self.scrollbar_time.x * SCROLL_BAR_SIZE)
 			box.high.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.y -= SCROLL_BAR_PADDING
 			box.low.x += SCROLL_BAR_PADDING
@@ -606,7 +608,7 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 		}
 		if self.scrollbar_time.y > 0 {
 			// Vertical scrolling
-			box := get_box_right(self.inner_box, self.scrollbar_time.y * SCROLL_BAR_SIZE)
+			box := get_box_right(scrollbar_box, self.scrollbar_time.y * SCROLL_BAR_SIZE)
 			box.high.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.x -= SCROLL_BAR_PADDING
 			box.low.y += SCROLL_BAR_PADDING

@@ -33,6 +33,7 @@ _main :: proc() -> bool {
 	checkbox_value: bool
 	list := make([dynamic]bool, 9)
 	text_input_data: [dynamic]u8
+	text_input_data2: [dynamic]u8
 	choice: Option
 
 	// Shared structures
@@ -49,7 +50,6 @@ _main :: proc() -> bool {
 	// Begin the cycle
 	for maui_glfw.cycle(TARGET_FRAME_TIME) {
 		using maui
-
 		// Beginning of ui calls
 		maui_glfw.begin()
 
@@ -70,34 +70,48 @@ _main :: proc() -> bool {
 					layout.size = {100, 24}
 					layout.direction = .Right
 					if result, open := menu(&ui, {text = "File", width = 160}); open {
-						button(&ui, {text = "New", subtle = true, align = .Left})
-						button(&ui, {text = "Open", subtle = true, align = .Left})
-						button(&ui, {text = "Save", subtle = true, align = .Left})
-						button(&ui, {text = "Exit", subtle = true, align = .Left})
+						option(&ui, {text = "New"})
+						option(&ui, {text = "Open"})
+						option(&ui, {text = "Save"})
+						option(&ui, {text = "Exit"})
 					}
 					if result, open := menu(&ui, {text = "Edit", width = 160}); open {
-						button(&ui, {text = "Undo", subtle = true, align = .Left})
-						button(&ui, {text = "Redo", subtle = true, align = .Left})
-						button(&ui, {text = "Select All", subtle = true, align = .Left})
+						option(&ui, {text = "Undo"})
+						option(&ui, {text = "Redo"})
+						option(&ui, {text = "Select All"})
+						option(&ui, {text = "Deselect"})
 					}
 					if result, open := menu(&ui, {text = "Tools", width = 160}); open {
 						if result, open := submenu(&ui, {text = "Diagnostics"}); open {
-							button(&ui, {text = "Memory dump", subtle = true, align = .Left})
-							button(&ui, {text = "Scan", subtle = true, align = .Left})
+							option(&ui, {text = "Memory dump"})
+							option(&ui, {text = "Scan"})
 						}
-						button(&ui, {text = "Recovery", subtle = true, align = .Left})
-						button(&ui, {text = "Generation", subtle = true, align = .Left})
+						option(&ui, {text = "Recovery"})
+						option(&ui, {text = "Generation"})
+						if result, open := submenu(&ui, {text = "Preferences"}); open {
+							option(&ui, {text = "Local"})
+							option(&ui, {text = "Global"})
+						}
 					}
+					paint_box_fill(ui.painter, layout.box, ui.style.color.foreground[1])
 				}
-				space(&ui, 30)
+				shrink(&ui, 30)
 				if result := combo_box(&ui, {
-					items = {"woiajf", "nbpaowieo", "wpqofi"},
+					items = {"Wolf", "Tiger", "Orca"},
 					index = combo_box_index,
 				}); result.changed {
 					combo_box_index = result.index
 				}
+				paint_box_loader(&ui, current_layout(&ui).box)
 			}
 
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.direction = .Right
+				layout.size = 200
+				tab(&ui, {text = "Dashboard"})
+				tab(&ui, {text = "Dashboard"})
+				tab(&ui, {text = "Dashboard"})
+			}
 			shrink(&ui, 100)
 
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
@@ -107,7 +121,7 @@ _main :: proc() -> bool {
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
 				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
 				space(&ui, 10)
-				button(&ui, {fit_text = true, text = "New", corners = ALL_CORNERS})
+				button(&ui, {fit_text = true, subtle = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut})
 			}
 			
 			space(&ui, 10)
@@ -133,6 +147,11 @@ _main :: proc() -> bool {
 				})
 			}
 			space(&ui, 10)
+			text_input(&ui, {
+				data = &text_input_data2,
+				placeholder = "single line text input",
+			})
+			space(&ui, 10)
 			if tree_node(&ui, {text = "Tree node"}).expanded {
 				layout.size.y = 28
 				space(&ui, 10)
@@ -157,7 +176,24 @@ _main :: proc() -> bool {
 				space(&ui, 10)
 			}
 
-			// paint_text(ui.painter, {}, {text = tmp_printf("%fms", time.duration_milliseconds(ui.frame_duration)), font = ui.style.font.title, size = 16}, 255)
+			paint_text(ui.painter, {0, ui.size.y}, {
+				text = tmp_printf("frame: %fms", time.duration_milliseconds(ui.frame_duration)), 
+				font = ui.style.font.title, 
+				size = 16,
+				baseline = .Bottom,
+			}, ui.style.color.text[0])
+			paint_text(ui.painter, {0, ui.size.y - 16}, {
+				text = tmp_printf("delta: %f", ui.delta_time), 
+				font = ui.style.font.title, 
+				size = 16,
+				baseline = .Bottom,
+			}, ui.style.color.text[0])
+			paint_text(ui.painter, {0, ui.size.y - 32}, {
+				text = tmp_printf("time: %f", ui.current_time), 
+				font = ui.style.font.title, 
+				size = 16,
+				baseline = .Bottom,
+			}, ui.style.color.text[0])
 		end_ui(&ui)
 
 		// Render if needed
