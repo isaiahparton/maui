@@ -103,11 +103,12 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		}
 		opacity: f32 = 1.0
 		fill_color := fade(ui.style.color.background[0], opacity)
+		stroke_color := blend_colors(data.focus_time, fade(ui.style.color.substance, 0.5), ui.style.color.accent)
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
 		paint_box_fill(ui.painter, self.box, fade(fill_color, data.focus_time))
-		paint_box_inner_gradient(ui.painter, self.box, 30, 56, {}, fade(ui.style.color.background[0], 0.2 * (1 - data.focus_time)))
-		paint_box_stroke(ui.painter, self.box, 1, blend_colors(data.focus_time, fade(ui.style.color.substance, 0.5), ui.style.color.accent))
+		paint_box_inner_gradient(ui.painter, self.box, 30, 56, {}, fade(stroke_color, 0.5 * (1 - data.focus_time)))
+		paint_box_stroke(ui.painter, self.box, 1, stroke_color)
 		ui.painter.target = layer.targets[.Foreground]
 	}
 	// Do text scrolling or whatever
