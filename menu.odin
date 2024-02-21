@@ -6,6 +6,7 @@ Menu_Info :: struct {
 	using generic: Generic_Widget_Info,
 	text: string,
 	width: f32,
+	fit: bool,
 }
 Menu_Result :: struct {
 	using generic: Generic_Widget_Result,
@@ -34,11 +35,13 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
 
 	layout := current_layout(ui)
-	layout.size.x = math.floor(measure_text(ui.painter, {
-		text = info.text,
-		font = ui.style.font.label, 
-		size = ui.style.text_size.label,
-	}).x + height(layout.box))
+	if info.fit {
+		layout.size.x = math.floor(measure_text(ui.painter, {
+			text = info.text,
+			font = ui.style.font.label, 
+			size = ui.style.text_size.label,
+		}).x + height(layout.box))
+	}
 
 	self.box = info.box.? or_else layout_next(layout)
 	update_widget(ui, self)

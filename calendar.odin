@@ -65,7 +65,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			// Temporary state
 			year, month, day := time.date(info.temp_value^)
 			// Fill
-			paint_box_fill(ui.painter, layer.box, ui.style.color.background[0])
+			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[0])
 			// Stuff
 			shrink(ui, 10)
 			ui.layouts.current.direction = .Down
@@ -89,7 +89,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			}
 			// Combo boxes
 			if _, ok := do_layout(ui, cut(ui, .Down, 20)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.size = 135; ui.layouts.current.align = {.Middle, .Middle}
+				ui.layouts.current.direction = .Right; ui.layouts.current.size.x = 135; ui.layouts.current.align = {.Middle, .Middle}
 				month_days := int(time.days_before[int(month)])
 				if int(month) > 0 {
 					month_days -= int(time.days_before[int(month) - 1])
@@ -178,20 +178,22 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			// Weekdays
 			if _, ok := do_layout(ui, cut(ui, .Down, 20)); ok {
 				ui.layouts.current.direction = .Right; ui.layouts.current.size = 60; ui.layouts.current.align = {.Middle, .Middle}
-				for day in ([]string)({"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}) {
+				for day in ([]string)({"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}) {
 					text_box(ui, {
 						text_info = Text_Info{
 							text = day, 
 							align = .Middle, 
 							baseline = .Middle,
+							font = ui.style.font.label,
+							size = ui.style.text_size.label,
 						},
 					})
 				}
 			}
 			WEEK_DURATION :: i64(time.Hour * 24 * 7)
-			OFFSET :: i64(time.Hour * 72)
+			OFFSET: i64 : i64(time.Hour) * -96
 			t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
-			day_time := (t._nsec / WEEK_DURATION) * WEEK_DURATION - OFFSET
+			day_time := ((t._nsec + i64(time.Hour * 48)) / WEEK_DURATION) * WEEK_DURATION + OFFSET
 			if _, ok := do_layout(ui, cut(ui, .Down, 20)); ok {
 				ui.layouts.current.direction = .Right; ui.layouts.current.size = 60
 				for i in 0..<42 {
@@ -203,7 +205,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 					}
 					_, _month, _day := time.date(transmute(time.Time)day_time)
 					push_id(ui, i)
-						if was_clicked(button(ui, {text = tmp_print(_day), color = ui.style.color.substance if (_month == month && _day == day) else (ui.style.color.accent if time.month(transmute(time.Time)day_time) != month else nil)})) {
+						if was_clicked(button(ui, {text = tmp_print(_day), color = ui.style.color.accent if (_month == month && _day == day) else ui.style.color.substance, subtle = time.month(transmute(time.Time)day_time) != month})) {
 							info.temp_value^ = transmute(time.Time)day_time
 						}
 					pop_id(ui)

@@ -52,28 +52,16 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	// Paint
 	if .Should_Paint in self.bits {
 		opacity: f32 = 1.0 - data.disable_time * 0.5
-		fill_color := fade(ui.style.color.substance, 0.1 + 0.9 * data.hover_time)
-		stroke_color := fade(ui.style.color.substance, 0.5 * (1 - data.hover_time))
+		base_color := info.color.? or_else ui.style.color.substance
+		fill_color := fade(base_color, 0.1 + 0.9 * data.hover_time)
+		stroke_color := fade(base_color, 0.5 * (1 - data.hover_time))
 		text_color := blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.foreground[0])
 		corners: Corners = info.corners.? or_else {}
 		// Shapes
 		paint_fancy_box_fill(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, fill_color)
-		paint_fancy_box_stroke(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, 1, stroke_color)
-		/*paint_rounded_box_corners_fill(
-			ui.painter, 
-			self.box, 
-			ui.style.rounding, 
-			corners, 
-			fill_color,
-			)
-		paint_rounded_box_corners_stroke(
-			ui.painter, 
-			self.box, 
-			ui.style.rounding, 
-			1,
-			corners, 
-			stroke_color,
-			)*/
+		if !info.subtle {
+			paint_fancy_box_stroke(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, 1, stroke_color)
+		}
 		text_origin: [2]f32
 		text_align := info.text_align.? or_else .Middle
 		switch text_align {
