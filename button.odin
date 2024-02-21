@@ -13,6 +13,7 @@ Button_Info :: struct {
 	text_align: Maybe(Text_Align),
 	text_size: Maybe(f32),
 	fit_text: bool,
+	color: Maybe(Color),
 	corner_style: Box_Corner_Style,
 }
 Button_Result :: struct {

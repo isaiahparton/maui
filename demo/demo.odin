@@ -35,6 +35,7 @@ _main :: proc() -> bool {
 	text_input_data: [dynamic]u8
 	text_input_data2: [dynamic]u8
 	choice: Option
+	t, tt: time.Time
 
 	// Shared structures
 	io: maui.IO
@@ -109,8 +110,8 @@ _main :: proc() -> bool {
 				layout.direction = .Right
 				layout.size = 200
 				tab(&ui, {text = "Dashboard"})
-				tab(&ui, {text = "Dashboard"})
-				tab(&ui, {text = "Dashboard"})
+				tab(&ui, {text = "Printing"})
+				tab(&ui, {text = "Records"})
 			}
 			shrink(&ui, 100)
 
@@ -151,6 +152,19 @@ _main :: proc() -> bool {
 				data = &text_input_data2,
 				placeholder = "single line text input",
 			})
+			space(&ui, 10)
+			layout.placement.size.y = 180
+			if do_frame(&ui, {}) {
+				current_layout(&ui).placement.size.y = 24
+				for i in 1..=69 {
+					push_id(&ui, i)
+						button(&ui, {text = tmp_printf("Button #%i", i)})
+					pop_id(&ui)
+				}
+			}
+			layout.placement.size.y = 24
+			space(&ui, 10)
+			date_picker(&ui, {value = &t, temp_value = &tt})
 			space(&ui, 10)
 			if tree_node(&ui, {text = "Tree node"}).expanded {
 				layout.size.y = 28

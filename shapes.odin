@@ -15,7 +15,7 @@ paint_box_inner_gradient :: proc(painter: ^Painter, box: Box, inner_radius: f32,
 	first := mesh.vertices_offset
 	angle: f32 = 0
 	for i in 0..=segments {
-		normal: [2]f32 = {math.cos(angle) * (width(box) / height(box)), math.sin(angle)}
+		normal: [2]f32 = {math.cos(angle), math.sin(angle) / (width(box) / height(box))}
 		inner_point := linalg.clamp(c + normal * inner_radius, box.low, box.high)
 		outer_point := linalg.clamp(c + normal * outer_radius, box.low, box.high)
 		time := linalg.length(outer_point - c) / outer_radius

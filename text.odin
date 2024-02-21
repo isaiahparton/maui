@@ -774,8 +774,10 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 
 Text_Box_Info :: struct {
 	using generic: Generic_Widget_Info,
-	content: string,
-	interactable: bool,
+	text_info: union {
+		Text_Info,
+		Tactile_Text_Info,
+	},
 }
 Text_Box_Result :: struct {
 	using generic: Generic_Widget_Result,
@@ -785,6 +787,23 @@ text_box :: proc(ui: ^UI, info: Text_Box_Info, loc := #caller_location) -> Text_
 	self, generic_result := get_widget(ui, info, loc)
 	result: Text_Box_Result = {
 		generic = generic_result,
+	}
+	self.box = layout_next(current_layout(ui))
+	text_info := info.text_info.(Text_Info) or_else info.text_info.(Tactile_Text_Info).base
+	origin: [2]f32
+	switch text_info.align {
+		case .Left: origin.x = self.box.low.x
+		case .Middle: origin.x = (self.box.low.x + self.box.high.x) / 2
+		case .Right: origin.x = self.box.high.x
+	}
+	switch text_info.baseline {
+		case .Top: origin.y = self.box.low.y
+		case .Middle: origin.y = (self.box.low.y + self.box.high.y) / 2
+		case .Bottom: origin.y = self.box.high.y
+	}
+	switch text_info in info.text_info {
+		case Tactile_Text_Info: paint_tactile_text(ui, self, origin, text_info, ui.style.color.text[0])
+		case Text_Info: paint_text(ui.painter, origin, text_info, ui.style.color.text[0])
 	}
 	return result
 }

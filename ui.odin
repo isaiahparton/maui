@@ -120,7 +120,7 @@ make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
 		io = io,
 		painter = painter,
 		style = {
-			color = get_dark_style_colors(),
+			color = get_light_style_colors(),
 			title_margin = 10,
 			title_padding = 2,
 			layout = {
