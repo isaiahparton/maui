@@ -1,5 +1,39 @@
 package maui
 
+make_default_style :: proc(painter: ^Painter) -> (style: Style, ok: bool) {
+	default_font := load_font(painter, "fonts/Rajdhani-Medium.ttf") or_return
+	style, ok = {
+		color = get_dark_style_colors(),
+		title_margin = 10,
+		title_padding = 2,
+		layout = {
+			title_size = 24,
+			size = 24,
+			gap_size = 5,
+			widget_padding = 7,
+		},
+		text_size = {
+			label = 18,
+			title = 18,
+			tooltip = 14,
+			field = 18,
+		},
+		rounding = 6,
+		stroke_width = 1,
+		panel_rounding = 5,
+		tooltip_rounding = 5,
+		tooltip_padding = 2,
+		panel_background_opacity = 0.85,
+		font = {
+			label 		= default_font,
+			title 		= default_font,
+			tooltip 	= default_font,
+			monospace = load_font(painter, "fonts/UbuntuMono-Regular.ttf") or_return,
+			icon 			= load_font(painter, "fonts/Font Awesome 6 Free-Solid-900.otf") or_return,
+		},
+	}, true
+	return
+}
 /*
 	Default style values
 */
@@ -31,7 +65,7 @@ get_dark_style_colors :: proc() -> Style_Colors {
 		accent_text = {0, 0, 0, 255},
 		background = {
 			{25, 32, 29, 255},
-			{45, 45, 45, 255},
+			{55, 55, 55, 255},
 		},
 		foreground = {
 			{12, 12, 12, 255},

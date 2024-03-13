@@ -24,6 +24,10 @@ Platform :: struct {
 @private
 platform: Platform
 
+get_window_handle :: proc() -> glfw.WindowHandle {
+	return platform.window
+}
+
 init :: proc(width, height: int, title: string, api: backend.Render_API, io: ^maui.IO) -> (ok: bool) {
 	glfw.Init()
 	if api == .OpenGL {
@@ -144,11 +148,11 @@ end :: proc() {
 	glfw.SwapBuffers(platform.window)
 }
 
-cycle :: proc(target_frame_time: f64) -> bool {
+cycle :: proc(seconds_per_frame: f64) -> bool {
 	now := glfw.GetTime()
 	platform.frame_time = f64(now - platform.last_time)
-	if platform.frame_time < target_frame_time {
-		time.sleep(time.Second * time.Duration(target_frame_time - platform.frame_time))
+	if platform.frame_time < seconds_per_frame {
+		time.sleep(time.Second * time.Duration(seconds_per_frame - platform.frame_time))
 	}
 	platform.last_time = platform.current_time
 	platform.current_time = now

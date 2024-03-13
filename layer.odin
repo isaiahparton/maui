@@ -576,7 +576,7 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 		}
 		// Mouse wheel input
 		if .Hovered in self.state {
-			self.scroll_target -= ui.io.mouse_scroll * SCROLL_STEP
+			self.scroll_target -= ui.io.mouse_scroll * SCROLL_STEP * {f32(int(.No_Scroll_X not_in self.options)), f32(int(.No_Scroll_Y not_in self.options))}
 		}
 		// Repaint if scrolling with wheel
 		if linalg.floor(self.scroll_target - self.scroll) != {} {

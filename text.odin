@@ -657,7 +657,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 			point: [2]f32 = origin + it.offset
 			glyph_color := color
 			// Get selection info
-			if .Focused in widget.state {
+			if .Focused in (widget.state) {
 				if selection.offset == it.index {
 					selection.line = line
 					selection.column = column
@@ -685,7 +685,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 				}
 			}
 			// Paint this line's selection
-			if it.index >= len(info.text) || info.text[it.index] == '\n' {
+			if (.Focused in widget.state) && (it.index >= len(info.text) || info.text[it.index] == '\n') {
 				ui.painter.target = layer.targets[.Background]
 				// Draw it if the selection is valid
 				if line_box_bounds[1] >= line_box_bounds[0] {
@@ -738,7 +738,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 		}
 	}
 	// Dragging
-	if .Pressed in widget.state && widget.click_count < 2 {
+	if (.Pressed in widget.state) && (widget.click_count < 2) {
 		// Selection by dragging
 		if widget.click_count == 1 {
 			next, last: int
@@ -778,6 +778,7 @@ Text_Box_Info :: struct {
 		Text_Info,
 		Tactile_Text_Info,
 	},
+	color: Maybe(Color),
 }
 Text_Box_Result :: struct {
 	using generic: Generic_Widget_Result,
@@ -801,9 +802,10 @@ text_box :: proc(ui: ^UI, info: Text_Box_Info, loc := #caller_location) -> Text_
 		case .Middle: origin.y = (self.box.low.y + self.box.high.y) / 2
 		case .Bottom: origin.y = self.box.high.y
 	}
+	color := info.color.? or_else ui.style.color.text[0]
 	switch text_info in info.text_info {
-		case Tactile_Text_Info: paint_tactile_text(ui, self, origin, text_info, ui.style.color.text[0])
-		case Text_Info: paint_text(ui.painter, origin, text_info, ui.style.color.text[0])
+		case Tactile_Text_Info: paint_tactile_text(ui, self, origin, text_info, color)
+		case Text_Info: paint_text(ui.painter, origin, text_info, color)
 	}
 	return result
 }

@@ -35,7 +35,7 @@ _main :: proc() -> bool {
 	text_input_data: [dynamic]u8
 	text_input_data2: [dynamic]u8
 	choice: Option
-	t, tt: time.Time
+	t, tt: time.Time = time.now(), {}
 
 	// Shared structures
 	io: maui.IO
@@ -46,7 +46,7 @@ _main :: proc() -> bool {
 	maui_opengl.init(&painter) or_return
 
 	// Only create the ui structure once the `painter` and `io` are initiated
-	ui := maui.make_ui(&io, &painter) or_return
+	ui := maui.make_ui(&io, &painter, maui.make_default_style(&painter) or_return) or_return
 
 	// Begin the cycle
 	for maui_glfw.cycle(TARGET_FRAME_TIME) {
@@ -122,7 +122,7 @@ _main :: proc() -> bool {
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
 				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
 				space(&ui, 10)
-				button(&ui, {fit_text = true, subtle = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut})
+				button(&ui, {fit_text = true, type = .Filled, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut})
 			}
 			
 			space(&ui, 10)
@@ -154,7 +154,7 @@ _main :: proc() -> bool {
 			})
 			space(&ui, 10)
 			layout.placement.size.y = 180
-			if do_frame(&ui, {}) {
+			if frame(&ui, {}) {
 				current_layout(&ui).placement.size.y = 24
 				for i in 1..=69 {
 					push_id(&ui, i)
@@ -164,7 +164,10 @@ _main :: proc() -> bool {
 			}
 			layout.placement.size.y = 24
 			space(&ui, 10)
-			date_picker(&ui, {value = &t, temp_value = &tt})
+			if _, ok := do_layout(&ui, cut(&ui, .Down, 24)); ok {
+				ui.layouts.current.direction = .Right; ui.layouts.current.size.x = 200
+				date_picker(&ui, {value = &t, temp_value = &tt})
+			}
 			space(&ui, 10)
 			if tree_node(&ui, {text = "Tree node"}).expanded {
 				layout.size.y = 28

@@ -38,7 +38,19 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 	year, month, day := time.date(info.value^)
 	// Paint (kinda rhymes)
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, ui.style.color.substance)
+		fill_color := fade(ui.style.color.substance, 0.1 + 0.4 * data.hover_time)
+		stroke_color := fade(ui.style.color.substance, 0.5 + 0.5 * data.hover_time)
+		points, point_count := get_path_of_box_with_cut_corners(self.box, height(self.box) / 3, {.Bottom_Right})
+		paint_path_fill(ui.painter, points[:point_count], fill_color)
+		paint_path_stroke(ui.painter, points[:point_count], true, 1, 0, stroke_color)
+		year, month, day := time.date(info.value^)
+		h := height(self.box)
+		paint_text(ui.painter, self.box.low + {h * 0.25, h * 0.5}, {
+			text = tmp_printf("%2i/%2i/%i", month, day, year),
+			font = ui.style.font.label,
+			size = ui.style.text_size.label,
+			baseline = .Middle,
+		}, ui.style.color.text[0])
 	}
 	// Activate!
 	if data.is_open {
@@ -46,13 +58,6 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 		side: Box_Side = .Bottom
 		OFFSET :: 10
 		// Find optimal side of attachment
-		if self.box.low.x < size.x + OFFSET {
-			side = .Right 
-		} else if self.box.high.x + size.x + OFFSET >= ui.size.x {
-			side = .Left
-		} else if self.box.high.y + size.y + OFFSET >= ui.size.y {
-			side = .Top
-		}
 		box := get_attached_box(self.box, side, size, OFFSET * data.open_time)
 		box.low = linalg.clamp(box.low, 0, ui.size - size)
 		box.high = box.low + size
@@ -65,7 +70,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			// Temporary state
 			year, month, day := time.date(info.temp_value^)
 			// Fill
-			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[0])
+			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[1])
 			// Stuff
 			shrink(ui, 10)
 			ui.layouts.current.direction = .Down
@@ -205,7 +210,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 					}
 					_, _month, _day := time.date(transmute(time.Time)day_time)
 					push_id(ui, i)
-						if was_clicked(button(ui, {text = tmp_print(_day), color = ui.style.color.accent if (_month == month && _day == day) else ui.style.color.substance, subtle = time.month(transmute(time.Time)day_time) != month})) {
+						if was_clicked(button(ui, {text = tmp_print(_day), color = ui.style.color.accent if (_month == month && _day == day) else ui.style.color.substance, type = .Subtle if time.month(transmute(time.Time)day_time) != month else .Filled})) {
 							info.temp_value^ = transmute(time.Time)day_time
 						}
 					pop_id(ui)
@@ -213,7 +218,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 				}
 			}
 			// Stroke
-			paint_rounded_box_stroke(ui.painter, layer.box, ui.style.rounding, 1, ui.style.color.stroke[0])
+			paint_box_stroke(ui.painter, layer.box, 1, ui.style.color.stroke)
 			// Clamp value
 			info.temp_value._nsec = max(info.temp_value._nsec, 0)
 		}

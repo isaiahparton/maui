@@ -158,6 +158,7 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 			}
 			if allowed {
 				insert_runes(scribe, info.array, {r})
+				change = true
 			}
 		}
 		scribe.anchor = scribe.offset
