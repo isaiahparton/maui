@@ -67,6 +67,15 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 			copy(buffer[:], text[:])
 		}
 	}
+	if .Focused in self.state {
+		if key_pressed(ui.io, .Enter) || key_pressed(ui.io, .Keypad_Enter) {
+			result.submitted = true
+		}
+		result.changed = escribe_text(&ui.scribe, ui.io, {
+			array = buffer,
+			multiline = info.multiline,
+		})
+	}
 	// Get data source
 	text: string
 	switch type in info.data {
@@ -125,15 +134,6 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	if .Focused in (self.state - self.last_state) {
 		ui.scribe.selection.offset = len(text)
 		ui.scribe.selection.length = 0
-	}
-	if .Focused in self.state {
-		if key_pressed(ui.io, .Enter) || key_pressed(ui.io, .Keypad_Enter) {
-			result.submitted = true
-		}
-		result.changed = escribe_text(&ui.scribe, ui.io, {
-			array = buffer,
-			multiline = info.multiline,
-		})
 	}
 	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text[0])
 

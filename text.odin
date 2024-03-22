@@ -714,7 +714,8 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 			column += 1
 		}
 	}
-	// Copy
+	
+	// These require `hover_index` to be determined
 	if .Focused in widget.state {
 		if (key_pressed(ui.io, .C) && (key_down(ui.io, .Left_Control) || key_down(ui.io, .Right_Control))) && selection.length > 0 {
 			set_clipboard_string(ui.io, info.text[selection.offset:][:selection.length])
