@@ -1,32 +1,26 @@
 package maui
 import "core:fmt"
-import "core:math"
 
-Button_Widget_Variant :: struct {
-	hover_time,
-	disable_time: f32,
-}
-Button_Type :: enum {
+Toggle_Button_Type :: enum {
 	Outlined,
 	Subtle,
 	Filled,
 }
-Button_Info :: struct {
+Toggle_Button_Info :: struct {
 	using generic: Generic_Widget_Info,
+	state: bool,
 	text: string,
 	font: Maybe(Font_Handle),
 	text_align: Maybe(Text_Align),
 	text_size: Maybe(f32),
 	fit_text: bool,
-	type: Button_Type,
 	color: Maybe(Color),
-	corner_style: Box_Corner_Style,
 }
-Button_Result :: struct {
+Toggle_Button_Result :: struct {
 	using generic: Generic_Widget_Result,
 	min_width: f32,
 }
-button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Result {
+toggle_button :: proc(ui: ^UI, info: Toggle_Button_Info, loc := #caller_location) -> Button_Result {
 	// Get widget
 	self, generic_result := get_widget(ui, info.generic, loc)
 	result: Button_Result = {
@@ -35,11 +29,11 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	layout := current_layout(ui)
 	// Get minimum width
 	if info.fit_text {
-		layout.size.x = math.floor(measure_text(ui.painter, {
+		layout.size.x = measure_text(ui.painter, {
 			text = info.text,
 			font = info.font.? or_else ui.style.font.label, 
 			size = info.text_size.? or_else ui.style.text_size.label,
-		}).x + height(layout.box))
+		}).x + height(layout.box)
 	}
 	// Colocate the button
 	self.box = info.box.? or_else layout_next(layout)
@@ -60,27 +54,12 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 		opacity: f32 = 1.0 - data.disable_time * 0.5
 		base_color := info.color.? or_else ui.style.color.substance
 		text_color: Color
-		corners: Corners = info.corners.? or_else {}
 		// Types
-		switch info.type {
-			
-			case .Filled:
-			fill_color := alpha_blend_colors(base_color, ui.style.color.foreground[0], data.hover_time * 0.4)
-			paint_fancy_box_fill(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, fill_color)
-			text_color = ui.style.color.foreground[0]
-			
-			case .Outlined:
-			fill_color := fade(base_color, 0.1 + 0.4 * data.hover_time)
-			stroke_color := fade(base_color, 0.5 + 0.5 * data.hover_time)
-			paint_fancy_box_fill(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, fill_color)
-			paint_fancy_box_stroke(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, 1, stroke_color)
-			text_color = ui.style.color.text[0]
-
-			case .Subtle:
-			fill_color := fade(base_color, 0.1 + 0.4 * data.hover_time)
-			paint_fancy_box_fill(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, fill_color)
-			text_color = ui.style.color.text[0]
-		}
+		fill_color := fade(base_color, (0.3 if info.state else 0.1) + 0.4 * data.hover_time)
+		stroke_color := fade(base_color, 0.5 + 0.5 * data.hover_time)
+		paint_box_fill(ui.painter, self.box, fill_color)
+		paint_box_stroke(ui.painter, self.box, 1, stroke_color)
+		text_color = ui.style.color.text[0]
 		// Text title
 		text_origin: [2]f32
 		text_align := info.text_align.? or_else .Middle

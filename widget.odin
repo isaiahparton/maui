@@ -283,7 +283,6 @@ update_widget_state :: proc(ui: ^UI, widget: ^Widget) {
 			}
 			widget.click_button = ui.io.last_mouse_button
 			widget.click_time = time.now()
-			ui.widgets.press_id = widget.id
 		}
 	} else {
 		if ui.widgets.press_id == widget.id {

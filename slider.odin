@@ -37,7 +37,7 @@ slider :: proc(ui: ^UI, info: Slider_Info, loc := #caller_location) -> Slider_Re
 	if .Should_Paint in self.bits {
 		paint_box_fill(ui.painter, self.box, ui.style.color.background[0])
 		paint_box_fill(ui.painter, {self.box.low, {self.box.low.x + time * range, self.box.high.y}}, ui.style.color.background[1])
-		paint_box_stroke(ui.painter, self.box, 1, fade(ui.style.color.substance, 0.2))
+		paint_box_stroke(ui.painter, self.box, 1, ui.style.color.stroke)
 		paint_text(ui.painter, center(self.box), {
 			text = tmp_printf(info.format.? or_else "%v", info.value),
 			align = .Middle,

@@ -1,45 +1,22 @@
 package maui
-import "../"
-// Core dependencies
 import "core:fmt"
-import "core:runtime"
-import "core:strconv"
 import "core:strings"
-import "core:slice"
-import "core:unicode/utf8"
-import "core:math"
-import "core:math/linalg"
+import "core:io"
+import "core:strconv"
 
-// Edit a dynamic array of bytes or a string
-// NOTE: Editing a string that was not allocated will segfault!
-Text_Input_Data :: union {
-	^[dynamic]u8,
-	^string,
-}
-Text_Input_State :: struct {
-	offset: [2]f32,
-}
-Text_Input_Info :: struct {
+Number_Input_Info :: struct {
 	using generic: Generic_Widget_Info,
-	data: Text_Input_Data,
+	value: f64,
+	format,
 	title: Maybe(string),
-	placeholder: Maybe(string),
-	multiline,
-	hidden: bool,
 }
-Text_Input_Result :: struct {
+Number_Input_Result :: struct {
 	using generic: Generic_Widget_Result,
-	changed,
-	submitted: bool,
+	new_value: Maybe(f64),
 }
-Text_Input_Widget_Variant :: struct {
-	hover_time,
-	focus_time: f32,
-	offset: [2]f32,
-}
-text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> Text_Input_Result {
+number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) -> Number_Input_Result {
 	self, generic_result := get_widget(ui, info, loc)
-	result: Text_Input_Result = {
+	result: Number_Input_Result = {
 		generic = generic_result,
 	}
 	// Colocate
@@ -59,58 +36,27 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		ui.cursor = .Beam
 	}
 	// Get a temporary buffer if necessary
-	buffer := info.data.(^[dynamic]u8) or_else get_scribe_buffer(&ui.scribe, self.id)
+	buffer := get_scribe_buffer(&ui.scribe, self.id)
 	// Text edit
 	if .Focused in (self.state - self.last_state) {
-		if text, ok := info.data.(^string); ok {
-			resize(buffer, len(text))
-			copy(buffer[:], text[:])
-		}
-	}
-	if .Focused in self.state {
-		if key_pressed(ui.io, .Enter) || key_pressed(ui.io, .Keypad_Enter) {
-			result.submitted = true
-		}
-		result.changed = escribe_text(&ui.scribe, ui.io, {
-			array = buffer,
-			multiline = info.multiline,
-		})
-	}
-	// Get data source
-	text: string
-	switch type in info.data {
-		case ^string:
-		text = type^
-		case ^[dynamic]u8:
-		text = string(type[:])
+		clear(buffer)
+		w := strings.to_writer(transmute(^strings.Builder)buffer)
+		fmt.wprintf(w, info.format.? or_else "%f", info.value)
 	}
 	text_info: Text_Info = {
-		text = text, 
+		text = string(buffer[:]), 
 		font = ui.style.font.label,
 		size = ui.style.text_size.field,
 		clip = self.box,
-		hidden = info.hidden,
+		baseline = .Middle,
 	}
 	// Do text interaction
 	inner_box: Box = shrink_box(self.box, ui.style.layout.widget_padding)
 	text_origin: [2]f32 = inner_box.low
-	if !info.multiline {
-		text_origin.y += height(inner_box) / 2
-		text_info.baseline = .Middle
-	}
+	text_origin.y += height(inner_box) / 2
 	corners: Corners = info.corners.? or_else ALL_CORNERS
 	// Paint!
 	if (.Should_Paint in self.bits) {
-		if info.placeholder != nil {
-			if len(text) == 0 {
-				paint_text(
-					ui.painter,
-					text_origin, 
-					{font = text_info.font, size = text_info.size, text = info.placeholder.?, baseline = text_info.baseline}, 
-					ui.style.color.text[1],
-				)
-			}
-		}
 		opacity: f32 = 1.0
 		stroke_color := blend_colors(data.focus_time, fade(ui.style.color.substance, 0.5), ui.style.color.accent)
 		layer := current_layer(ui)
@@ -119,21 +65,27 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 			paint_box_inner_gradient(ui.painter, self.box, 0, 56, {}, fade(stroke_color, 0.5 * (1 - data.focus_time)))
 		}
 		paint_box_stroke(ui.painter, self.box, 1, stroke_color)
-		if title, ok := info.title.?; ok {
-			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
-				text = title,
-				baseline = .Bottom,
-				font = ui.style.font.title,
-				size = ui.style.text_size.title,
-			}, ui.style.color.text[0])
-		}
 		ui.painter.target = layer.targets[.Foreground]
 	}
 	// Do text scrolling or whatever
 	// Focused state
 	if .Focused in (self.state - self.last_state) {
-		ui.scribe.selection.offset = len(text)
+		ui.scribe.selection.offset = len(text_info.text)
 		ui.scribe.selection.length = 0
+	}
+	if .Focused in self.state {
+		if key_pressed(ui.io, .Enter) || key_pressed(ui.io, .Keypad_Enter) {
+			// result.submitted = true
+		}
+		if escribe_text(&ui.scribe, ui.io, {
+			array = buffer,
+		}) {
+			self.state += {.Changed}
+			ui.painter.next_frame = true
+			if new_value, ok := strconv.parse_f64(string(buffer[:])); ok {
+				result.new_value = new_value
+			}
+		}
 	}
 	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text[0])
 
@@ -181,19 +133,10 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 				}
 			}
 		}
-		// What to do if change occoured
-		if result.changed {
-			self.state += {.Changed}
-			ui.painter.next_frame = true
-			if value, ok := info.data.(^string); ok {
-				delete(value^)
-				value^ = strings.clone_from_bytes(buffer[:])
-			}
-		}
 	}
 	// Whatever
 	if .Focused in (self.last_state - self.state) {
-		result.submitted = true
+		// result.submitted = true
 	}
 	ui.scribe.selection = text_result.selection
 	// Update hover

@@ -113,42 +113,12 @@ UI :: struct {
 /*
 	Construct a new UI given it's required plugins
 */
-make_ui :: proc(io: ^IO, painter: ^Painter) -> (result: UI, ok: bool) {
+make_ui :: proc(io: ^IO, painter: ^Painter, style: Style) -> (result: UI, ok: bool) {
 	// Assign the result
-	default_font := load_font(painter, "fonts/Rajdhani-Medium.ttf") or_return
 	result, ok = UI{
 		io = io,
 		painter = painter,
-		style = {
-			color = get_light_style_colors(),
-			title_margin = 10,
-			title_padding = 2,
-			layout = {
-				title_size = 24,
-				size = 24,
-				gap_size = 5,
-				widget_padding = 7,
-			},
-			text_size = {
-				label = 18,
-				title = 18,
-				tooltip = 14,
-				field = 18,
-			},
-			rounding = 6,
-			stroke_width = 1,
-			panel_rounding = 5,
-			tooltip_rounding = 5,
-			tooltip_padding = 2,
-			panel_background_opacity = 0.85,
-			font = {
-				label 		= default_font,
-				title 		= default_font,
-				tooltip 	= default_font,
-				monospace = load_font(painter, "fonts/UbuntuMono-Regular.ttf") or_return,
-				icon 			= load_font(painter, "fonts/Font Awesome 6 Free-Solid-900.otf") or_return,
-			},
-		},
+		style = style,
 	}, true
 	return
 }

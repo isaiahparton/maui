@@ -170,6 +170,11 @@ cut :: proc(ui: ^UI, direction: Direction, amount: f32) -> (res: Box) {
 	res = layout_cut_or_grow(layout, direction, amount)
 	return
 }
+get_centered_box_x :: proc(ui: ^UI, width: f32) -> Box {
+	box := current_layout(ui).box
+	c := center_x(box)
+	return {{c - width / 2, box.low.y}, {c + width / 2, box.high.y}}
+}
 
 /*
 	Context procedures
