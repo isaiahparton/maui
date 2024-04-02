@@ -54,7 +54,6 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 	inner_box: Box = shrink_box(self.box, ui.style.layout.widget_padding)
 	text_origin: [2]f32 = inner_box.low
 	text_origin.y += height(inner_box) / 2
-	corners: Corners = info.corners.? or_else ALL_CORNERS
 	// Paint!
 	if (.Should_Paint in self.bits) {
 		opacity: f32 = 1.0

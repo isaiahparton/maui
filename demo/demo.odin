@@ -28,6 +28,7 @@ _main :: proc() -> bool {
 
 	disabled := true
 	clicked: bool
+	toggle_switch_state: bool
 	slider_value: f32
 	combo_box_index: int
 	checkbox_value: bool
@@ -128,6 +129,28 @@ _main :: proc() -> bool {
 			space(&ui, 10)
 			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
 				layout.direction = .Right
+				layout.size = 30
+				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Outlined})
+				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Outlined})
+				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Outlined})
+				space(&ui, 10)
+				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Rounded, type = .Outlined})
+			}
+			
+			space(&ui, 10)
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.direction = .Right
+				layout.size = 30
+				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Subtle})
+				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
+				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Subtle})
+				space(&ui, 10)
+				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut, type = .Subtle})
+			}
+			
+			space(&ui, 10)
+			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
+				layout.direction = .Right
 				layout.size = 200
 				if result := slider(&ui, {
 					value = slider_value,
@@ -135,6 +158,11 @@ _main :: proc() -> bool {
 					high = 100,
 				}); result.changed {
 					slider_value = result.value
+				}
+				space(&ui, 10)
+				layout.size.x = 150
+				if was_clicked(toggle_switch(&ui, {state = toggle_switch_state})) {
+					toggle_switch_state = !toggle_switch_state
 				}
 			}
 			space(&ui, 10)
@@ -158,7 +186,7 @@ _main :: proc() -> bool {
 				current_layout(&ui).placement.size.y = 24
 				for i in 1..=69 {
 					push_id(&ui, i)
-						button(&ui, {text = tmp_printf("Button #%i", i)})
+						list_item(&ui, {text = {tmp_printf("Button #%i", i)}})
 					pop_id(&ui)
 				}
 			}

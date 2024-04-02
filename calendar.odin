@@ -54,7 +54,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 	}
 	// Activate!
 	if data.is_open {
-		size: [2]f32 = {440, 260}
+		size: [2]f32 = {370, 280}
 		side: Box_Side = .Bottom
 		OFFSET :: 10
 		// Find optimal side of attachment
@@ -68,7 +68,8 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			options = {.Attached},
 		}); ok {
 			// Temporary state
-			year, month, day := time.date(info.temp_value^)
+			new_temp_value := info.temp_value^
+			year, month, day := time.date(new_temp_value)
 			// Fill
 			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[1])
 			// Stuff
@@ -78,111 +79,150 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			if _, ok := do_layout(ui, cut(ui, .Up, 30)); ok {
 				ui.layouts.current.direction = .Left; ui.layouts.current.size = 70
 				if was_clicked(button(ui, {text = "Cancel"})) {
-					info.temp_value^ = info.value^
+					new_temp_value = info.value^
 					data.is_open = false
 				}
 				space(ui, 10)
 				if was_clicked(button(ui, {text = "Save"})) {
-					info.value^ = info.temp_value^
+					info.value^ = new_temp_value
 					data.is_open = false
 					result.changed = true
 				}
 				ui.layouts.current.direction = .Right;
 				if was_clicked(button(ui, {text = "Today"})) {
-					info.temp_value^ = time.now()
+					new_temp_value = time.now()
 				}
 			}
 			// Combo boxes
 			if _, ok := do_layout(ui, cut(ui, .Down, 20)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.size.x = 135; ui.layouts.current.align = {.Middle, .Middle}
+				ui.layouts.current.direction = .Right; ui.layouts.current.align = {.Middle, .Middle}
 				month_days := int(time.days_before[int(month)])
 				if int(month) > 0 {
 					month_days -= int(time.days_before[int(month) - 1])
 				}
-				if _, ok := menu(ui, {text = tmp_print(day)}); ok {
-					ui.layouts.current.size = 20
-					for i in 1..=month_days {
-						push_id(ui, i)
-							if was_clicked(option(ui, {text = tmp_print(i)})) {
-								day = i
-								info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-							}
-						pop_id(ui)
+				ui.layouts.current.size.x = 95
+				{	
+					result: Generic_Widget_Result
+					ok: bool
+					if result, ok = menu(ui, {
+						text = tmp_print(day),
+						height = 160,
+					}); ok {
+						ui.layouts.current.size = 20
+						for i in 1..=month_days {
+							push_id(ui, i)
+								if was_clicked(option(ui, {text = tmp_print(i)})) {
+									day = i
+									new_temp_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+								}
+							pop_id(ui)
+						}
+					}
+					if was_clicked(button(ui, {
+						text = "<", 
+						type = .Filled,
+						box = get_box_left(result.self.?.box, height(result.self.?.box)),
+					})) {
+						new_temp_value._nsec -= i64(time.Hour * 24)
+						year, month, day = time.date(new_temp_value)
+					}
+					if was_clicked(button(ui, {
+						text = ">", 
+						type = .Filled,
+						box = get_box_right(result.self.?.box, height(result.self.?.box)),
+					})) {
+						new_temp_value._nsec += i64(time.Hour * 24)
+						year, month, day = time.date(new_temp_value)
 					}
 				}
+				ui.layouts.current.size.x = 140
 				space(ui, 10)
-				if _, ok := menu(ui, {text = tmp_print(month)}); ok {
-					ui.layouts.current.size = 20
-					for member in time.Month {
-						push_id(ui, int(member))
-							if was_clicked(option(ui, {text = tmp_print(member)})) {
-								month = member
-								info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-							}
-						pop_id(ui)
+				{
+					result: Generic_Widget_Result
+					ok: bool
+					if result, ok = menu(ui, {
+						text = tmp_print(month),
+						height = 160,
+					}); ok {
+						ui.layouts.current.size = 20
+						for member in time.Month {
+							push_id(ui, int(member))
+								if was_clicked(option(ui, {text = tmp_print(member)})) {
+									month = member
+									new_temp_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+								}
+							pop_id(ui)
+						}
+					}
+					if was_clicked(button(ui, {
+						text = "<", 
+						type = .Filled,
+						box = get_box_left(result.self.?.box, height(result.self.?.box)),
+					})) {
+						month = time.Month(int(month) - 1)
+						if int(month) <= 0 {
+							month = time.Month(12)
+							year -= 1
+						}
+						new_temp_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+					}
+					if was_clicked(button(ui, {
+						text = ">", 
+						type = .Filled,
+						box = get_box_right(result.self.?.box, height(result.self.?.box)),
+					})) {
+						month = time.Month(int(month) + 1)
+						if int(month) >= 13 {
+							month = time.Month(1)
+							year += 1
+						}
+						new_temp_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
 				}
+				ui.layouts.current.size.x = 95
 				space(ui, 10)
-				if _, ok := menu(ui, {text = tmp_print(year)}); ok {
-					ui.layouts.current.size = 20
-					low := max(year - 4, 1970)
-					for i in low..=(low + 8) {
-						push_id(ui, i)
-							if was_clicked(option(ui, {text = tmp_print(i)})) {
-								year = i
-								info.temp_value^, _ = time.datetime_to_time(i, int(month), day, 0, 0, 0, 0)
-							}
-						pop_id(ui)
+				{
+					result: Generic_Widget_Result
+					ok: bool
+					if result, ok = menu(ui, {
+						text = tmp_print(year),
+						height = 160,
+					}); ok {
+						ui.layouts.current.size = 20
+						low := max(year - 4, 1970)
+						for i in low..=(low + 8) {
+							push_id(ui, i)
+								if was_clicked(option(ui, {text = tmp_print(i)})) {
+									year = i
+									new_temp_value, _ = time.datetime_to_time(i, int(month), day, 0, 0, 0, 0)
+								}
+							pop_id(ui)
+						}
 					}
-				}
-			}
-			space(ui, 10)
-			// Skip buttons
-			if _, ok := do_layout(ui, cut(ui, .Down, 20)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.size = 70
-				// Subtract one year
-				if was_clicked(button(ui, {text = "<<<"})) {
-					year -= 1
-					info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-				}
-				// Subtract one month
-				if was_clicked(button(ui, {text = "<<"})) {
-					month = time.Month(int(month) - 1)
-					if int(month) <= 0 {
-						month = time.Month(12)
+					if was_clicked(button(ui, {
+						text = "<", 
+						type = .Filled,
+						box = get_box_left(result.self.?.box, height(result.self.?.box)),
+					})) {
 						year -= 1
+						new_temp_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
-					info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-				}
-				// Subtract one day
-				if was_clicked(button(ui, {text = "<"})) {
-					info.temp_value^._nsec -= i64(time.Hour * 24)
-					year, month, day = time.date(info.temp_value^)
-				}
-				// Add one day
-				if was_clicked(button(ui, {text = ">"})) {
-					info.temp_value^._nsec += i64(time.Hour * 24)
-					year, month, day = time.date(info.temp_value^)
-				}
-				// Add one month
-				if was_clicked(button(ui, {text = ">>"})) {
-					month = time.Month(int(month) + 1)
-					if int(month) >= 13 {
-						month = time.Month(1)
+					if was_clicked(button(ui, {
+						text = ">", 
+						type = .Filled,
+						box = get_box_right(result.self.?.box, height(result.self.?.box)),
+					})) {
 						year += 1
+						new_temp_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 					}
-					info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-				}
-				// Add one year
-				if was_clicked(button(ui, {text = ">>>"})) {
-					year += 1
-					info.temp_value^, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 				}
 			}
 			space(ui, 10)
+			DAY_WIDTH :: 50
+			DAY_HEIGHT :: 26
 			// Weekdays
 			if _, ok := do_layout(ui, cut(ui, .Down, 20)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.size = 60; ui.layouts.current.align = {.Middle, .Middle}
+				ui.layouts.current.direction = .Right; ui.layouts.current.size.x = DAY_WIDTH; ui.layouts.current.align = {.Middle, .Middle}
 				for day in ([]string)({"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}) {
 					text_box(ui, {
 						text_info = Text_Info{
@@ -195,23 +235,28 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 					})
 				}
 			}
+			space(ui, 10)
 			WEEK_DURATION :: i64(time.Hour * 24 * 7)
 			OFFSET: i64 : i64(time.Hour) * -96
 			t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
 			day_time := ((t._nsec + i64(time.Hour * 48)) / WEEK_DURATION) * WEEK_DURATION + OFFSET
-			if _, ok := do_layout(ui, cut(ui, .Down, 20)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.size = 60
+			if _, ok := do_layout(ui, cut(ui, .Down, DAY_HEIGHT)); ok {
+				ui.layouts.current.direction = .Right; ui.layouts.current.size.x = DAY_WIDTH
 				for i in 0..<42 {
 					if (i > 0) && (i % 7 == 0) {
 						pop_layout(ui)
-						push_layout(ui, cut(ui, .Down, 20))
+						push_layout(ui, cut(ui, .Down, DAY_HEIGHT))
 						ui.layouts.current.direction = .Right
-						ui.layouts.current.size = 60
+						ui.layouts.current.size.x = DAY_WIDTH
 					}
 					_, _month, _day := time.date(transmute(time.Time)day_time)
 					push_id(ui, i)
-						if was_clicked(button(ui, {text = tmp_print(_day), color = ui.style.color.accent if (_month == month && _day == day) else ui.style.color.substance, type = .Subtle if time.month(transmute(time.Time)day_time) != month else .Filled})) {
-							info.temp_value^ = transmute(time.Time)day_time
+						if was_clicked(button(ui, {
+							text = tmp_print(_day), 
+							type = .Subtle if time.month(transmute(time.Time)day_time) != month else .Filled,
+							highlight = ui.style.color.accent if (_month == month && _day == day) else nil,
+						})) {
+							new_temp_value = transmute(time.Time)day_time
 						}
 					pop_id(ui)
 					day_time += i64(time.Hour * 24)
@@ -220,7 +265,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			// Stroke
 			paint_box_stroke(ui.painter, layer.box, 1, ui.style.color.stroke)
 			// Clamp value
-			info.temp_value._nsec = max(info.temp_value._nsec, 0)
+			info.temp_value._nsec = max(new_temp_value._nsec, 0)
 		}
 	}
 	// Hover

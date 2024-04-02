@@ -1,9 +1,9 @@
 package maui
 
 make_default_style :: proc(painter: ^Painter) -> (style: Style, ok: bool) {
-	default_font := load_font(painter, "fonts/Rajdhani-Medium.ttf") or_return
+	default_font := load_font(painter, "fonts/Gabarito-Regular.ttf") or_return
 	style, ok = {
-		color = get_dark_style_colors(),
+		color = get_light_style_colors(),
 		title_margin = 10,
 		title_padding = 2,
 		layout = {
@@ -42,8 +42,8 @@ get_light_style_colors :: proc() -> Style_Colors {
 		accent = {0, 85, 225, 255},
 		accent_text = {0, 0, 0, 255},
 		background = {
-			{195, 201, 198, 255},
-			{165, 170, 166, 255},
+			{210, 218, 212, 255},
+			{185, 190, 186, 255},
 		},
 		foreground = {
 			{255, 255, 255, 255},
@@ -57,6 +57,10 @@ get_light_style_colors :: proc() -> Style_Colors {
 		stroke = {124, 152, 165, 255},
 		flash = {0, 255, 0, 255},
 		substance = {60, 60, 60, 255},
+		button = {171, 160, 167, 255},
+		button_hovered = {54, 50, 63, 255},
+		label = {0, 0, 0, 255},
+		label_hovered = {255, 255, 255, 255},
 	}
 }
 get_dark_style_colors :: proc() -> Style_Colors {
@@ -118,6 +122,10 @@ Style_Colors :: struct {
 	text,
 	background,
 	foreground: [2]Color,
+	button,
+	label,
+	button_hovered,
+	label_hovered,
 	substance,
 	accent,
 	accent_text,

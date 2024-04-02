@@ -55,7 +55,7 @@ Generic_Widget_Info :: struct {
 	disabled: bool,
 	id: Maybe(Id),
 	box: Maybe(Box),
-	corners: Maybe(Corners),
+	corners: Corners,
 	tooltip: Maybe(Tooltip_Info),
 	options: Widget_Options,
 }
@@ -103,6 +103,7 @@ Widget_Variant :: union {
 	List_Item_Widget_Variant,
 	Menu_Widget_Variant,
 	Text_Input_Widget_Variant,
+	Toggle_Switch_Widget_Variant,
 	// Date_Picker_Widget_Variant,
 }
 destroy_widget_variant :: proc(variant: ^Widget_Variant) {

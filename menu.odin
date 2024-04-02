@@ -5,7 +5,9 @@ import "core:runtime"
 Menu_Info :: struct {
 	using generic: Generic_Widget_Info,
 	text: string,
+	text_align: Maybe(Text_Align),
 	width: f32,
+	height: Maybe(f32),
 	fit: bool,
 }
 Menu_Result :: struct {
@@ -47,16 +49,25 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		text_color := blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.foreground[0])
-		fill_color := blend_colors(data.hover_time, ui.style.color.foreground[1], ui.style.color.substance)
-		paint_box_fill(ui.painter, self.box, fill_color)
-		paint_text(ui.painter, center(self.box), {
+		paint_box_fill(ui.painter, self.box, fade(ui.style.color.button, 0.5 + 0.5 * data.hover_time))
+		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 1}, self.box.high}, ui.style.color.substance)
+		text_align := info.text_align.? or_else .Middle
+		text_origin: [2]f32
+		switch text_align {
+			case .Left:
+			text_origin = {self.box.low.x + 4, (self.box.low.y + self.box.high.y) / 2}
+			case .Middle:
+			text_origin = center(self.box)
+			case .Right:
+			text_origin = {self.box.high.x - 4, (self.box.low.y + self.box.high.y) / 2}
+		}
+		paint_text(ui.painter, text_origin, {
 			text = info.text,
 			font = ui.style.font.label,
 			size = ui.style.text_size.label,
-			align = .Middle,
+			align = text_align,
 			baseline = .Middle,
-		}, text_color)
+		}, ui.style.color.text[0])
 	}
 
 	if data.is_open {
@@ -64,8 +75,8 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 		result.layer, result.is_open = begin_layer(ui, {
 			id = self.id,
 			placement = Layer_Placement_Info{
-				origin = {math.floor(self.box.low.x), self.box.high.y},
-				size = {max(width(self.box), info.width), nil},
+				origin = {math.floor(self.box.low.x), self.box.high.y - 1},
+				size = {max(width(self.box), info.width), info.height},
 			},
 			grow = .Down,
 			options = {.Attached},
@@ -149,7 +160,7 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 		result.layer, result.is_open = begin_layer(ui, {
 			id = self.id,
 			placement = Layer_Placement_Info{
-				origin = {self.box.high.x, self.box.low.y},
+				origin = {self.box.high.x - 1, self.box.low.y},
 				size = {max(width(self.box), info.width), nil},
 			},
 			grow = .Down,
