@@ -25,7 +25,7 @@ Placement_Size :: union {
 	},
 }
 Placement_Info :: struct {
-	direction: Direction,
+	side: Box_Side,
 	size: [2]f32,
 	align: [2]Alignment,
 	margin: [Box_Side]f32,
@@ -80,7 +80,14 @@ pop_growing_layout :: proc(ui: ^UI) {
 		// Apply growing layout cut
 		if grow, ok := last_layout.grow.?; ok {
 			i := 1 - int(grow) / 2
-			layout_cut_or_grow(layout, grow, last_layout.box.high[i] - last_layout.box.low[i])	
+			side: Box_Side
+			switch grow {
+				case .Down: side = .Top
+				case .Left: side = .Right
+				case .Right: side = .Left
+				case .Up: side = .Bottom
+			}
+			layout_cut_or_grow(layout, side, last_layout.box.high[i] - last_layout.box.low[i])	
 		}
 	}
 }
@@ -98,14 +105,14 @@ get_layout_height :: proc(layout: ^Layout) -> f32 {
 // Add space
 space :: proc(ui: ^UI, amount: f32) {
 	layout := current_layout(ui)
-	layout_cut_or_grow(layout, layout.placement.direction, amount)
+	layout_cut_or_grow(layout, layout.placement.side, amount)
 }
 // Shrink the current layout (apply margin on all sides)
 shrink :: proc(ui: ^UI, amount: f32, loc := #caller_location) {
 	layout := current_layout(ui, loc)
 	if grow, ok := layout.grow.?; ok {
 		#partial switch grow {
-			case .Down, .Up: 
+			case .Up, .Down: 
 			layout.box.low.y += amount
 			layout.box.high.y += amount * 2
 			case .Left, .Right:
@@ -119,31 +126,31 @@ shrink :: proc(ui: ^UI, amount: f32, loc := #caller_location) {
 /*
 	Cut or grow if the layout permits
 */
-layout_cut_or_grow :: proc(layout: ^Layout, direction: Direction, amount: f32) -> (result: Box) {
+layout_cut_or_grow :: proc(layout: ^Layout, side: Box_Side, amount: f32) -> (result: Box) {
 	// Get the base box
-	if grow, ok := layout.grow.?; ok && grow == direction {
-		switch direction {
-			case .Up:	
+	if grow, ok := layout.grow.?; ok && int(grow) == int(side) {
+		switch side {
+			case .Bottom:	
 			layout.box.low.y = min(layout.box.low.y, layout.box.high.y - amount)
-			case .Down:	
+			case .Top:	
 			layout.box.high.y = max(layout.box.high.y, layout.box.low.y + amount)
-			case .Left:	
-			layout.box.low.x = min(layout.box.low.x, layout.box.high.x - amount)
 			case .Right:	
+			layout.box.low.x = min(layout.box.low.x, layout.box.high.x - amount)
+			case .Left:	
 			layout.box.high.x = max(layout.box.high.x, layout.box.low.x + amount)
 		}
 	}
-	switch direction {
-		case .Down:		result = cut_box_top(&layout.box, amount)
-		case .Up:			result = cut_box_bottom(&layout.box, amount)
-		case .Left:		result = cut_box_right(&layout.box, amount)
-		case .Right:	result = cut_box_left(&layout.box, amount)
+	switch side {
+		case .Top:			result = cut_box_top(&layout.box, amount)
+		case .Bottom:		result = cut_box_bottom(&layout.box, amount)
+		case .Right:		result = cut_box_right(&layout.box, amount)
+		case .Left:			result = cut_box_left(&layout.box, amount)
 	}
 	return
 }
 // Get a box from a layout
 layout_next_of_size :: proc(layout: ^Layout, size: [2]f32) -> (res: Box) {
-	res = layout_cut_or_grow(layout, layout.direction, size[1 - int(layout.direction) / 2])
+	res = layout_cut_or_grow(layout, layout.side, size[1 - int(layout.side) / 2])
 	res.low += {layout.margin[.Left], layout.margin[.Top]}
 	res.high -= {layout.margin[.Right], layout.margin[.Bottom]}
 	return
@@ -156,7 +163,7 @@ layout_next_child :: proc(layout: ^Layout, size: [2]f32) -> Box {
 	return child_box(layout_next(layout), size, layout.placement.align)
 }
 layout_fit :: proc(layout: ^Layout, size: [2]f32) {
-	if layout.placement.direction == .Left || layout.placement.direction == .Right {
+	if layout.placement.side == .Left || layout.placement.side == .Right {
 		layout.placement.size = size.x
 	} else {
 		layout.placement.size = size.y
@@ -165,9 +172,9 @@ layout_fit :: proc(layout: ^Layout, size: [2]f32) {
 /*
 	Cut from the current layout and return the result
 */
-cut :: proc(ui: ^UI, direction: Direction, amount: f32) -> (res: Box) {
+cut :: proc(ui: ^UI, side: Box_Side, amount: f32) -> (res: Box) {
 	layout := current_layout(ui)
-	res = layout_cut_or_grow(layout, direction, amount)
+	res = layout_cut_or_grow(layout, side, amount)
 	return
 }
 get_centered_box_x :: proc(ui: ^UI, width: f32) -> Box {
@@ -207,9 +214,9 @@ _do_growing_layout :: proc(ui: ^UI, _: Direction, ok: bool) {
 @(deferred_in_out=_row)
 row :: proc(ui: ^UI, divisions: int, spacing: f32 = 0) -> (ok: bool) {
 	last_layout := current_layout(ui)
-	box := cut(ui, last_layout.direction, last_layout.size.y)
+	box := cut(ui, last_layout.side, last_layout.size.y)
 	layout := push_layout(ui, box)
-	layout.direction = .Right
+	layout.side = .Left
 	layout.size = width(layout.box) / max(f32(divisions), 1) - (spacing * f32(divisions - 1))
 	return true
 }

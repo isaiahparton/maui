@@ -57,67 +57,22 @@ _main :: proc() -> bool {
 
 		begin_ui(&ui)
 			layout := current_layout(&ui)
-			layout.size = {100, 28}
 
-			if panel(&ui, {
-				placement = Panel_Placement_Info{
-					origin = ui.size / 2,
-					align = {.Middle, .Middle},
-					size = {320, 480},
+			cut(&ui, .Left, 100)
+			cut(&ui, .Right, 100)
+			cut(&ui, .Top, 100)
+
+			layout.size.y = 32
+			text_box(&ui, {
+				text_info = Text_Info{
+					text = "Buttons",
+					font = ui.style.font.label,
+					size = 28,
 				},
-				options = {.Title, .Collapsable, .Closable},
-				title = "window of opportunity",
-			}) {
-				if layout, ok := do_layout(&ui, cut(&ui, .Down, 24)); ok {
-					layout.size = {100, 24}
-					layout.direction = .Right
-					if result, open := menu(&ui, {text = "File", width = 160}); open {
-						option(&ui, {text = "New"})
-						option(&ui, {text = "Open"})
-						option(&ui, {text = "Save"})
-						option(&ui, {text = "Exit"})
-					}
-					if result, open := menu(&ui, {text = "Edit", width = 160}); open {
-						option(&ui, {text = "Undo"})
-						option(&ui, {text = "Redo"})
-						option(&ui, {text = "Select All"})
-						option(&ui, {text = "Deselect"})
-					}
-					if result, open := menu(&ui, {text = "Tools", width = 160}); open {
-						if result, open := submenu(&ui, {text = "Diagnostics"}); open {
-							option(&ui, {text = "Memory dump"})
-							option(&ui, {text = "Scan"})
-						}
-						option(&ui, {text = "Recovery"})
-						option(&ui, {text = "Generation"})
-						if result, open := submenu(&ui, {text = "Preferences"}); open {
-							option(&ui, {text = "Local"})
-							option(&ui, {text = "Global"})
-						}
-					}
-					paint_box_fill(ui.painter, layout.box, ui.style.color.foreground[1])
-				}
-				shrink(&ui, 30)
-				if result := combo_box(&ui, {
-					items = {"Wolf", "Tiger", "Orca"},
-					index = combo_box_index,
-				}); result.changed {
-					combo_box_index = result.index
-				}
-				paint_box_loader(&ui, current_layout(&ui).box)
-			}
-
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-				layout.direction = .Right
-				layout.size = 200
-				tab(&ui, {text = "Dashboard"})
-				tab(&ui, {text = "Printing"})
-				tab(&ui, {text = "Records"})
-			}
-			shrink(&ui, 100)
-
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-				layout.direction = .Right
+			})
+			layout.size.y = 28
+			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
+				layout.side = .Right
 				layout.size = 30
 				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019"})
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
@@ -125,10 +80,9 @@ _main :: proc() -> bool {
 				space(&ui, 10)
 				button(&ui, {fit_text = true, type = .Filled, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut})
 			}
-			
 			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-				layout.direction = .Right
+			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
+				layout.side = .Right
 				layout.size = 30
 				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Outlined})
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Outlined})
@@ -136,10 +90,9 @@ _main :: proc() -> bool {
 				space(&ui, 10)
 				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Rounded, type = .Outlined})
 			}
-			
 			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-				layout.direction = .Right
+			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
+				layout.side = .Right
 				layout.size = 30
 				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Subtle})
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
@@ -147,10 +100,18 @@ _main :: proc() -> bool {
 				space(&ui, 10)
 				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut, type = .Subtle})
 			}
-			
-			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 30)); ok {
-				layout.direction = .Right
+			space(&ui, 20)
+			layout.size.y = 32
+			text_box(&ui, {
+				text_info = Text_Info{
+					text = "Sliders",
+					font = ui.style.font.label,
+					size = 28,
+				},
+			})
+			layout.size.y = 28
+			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
+				layout.side = .Right
 				layout.size = 200
 				if result := slider(&ui, {
 					value = slider_value,
@@ -165,10 +126,19 @@ _main :: proc() -> bool {
 					toggle_switch_state = !toggle_switch_state
 				}
 			}
-			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Down, 100)); ok {
+			space(&ui, 20)
+			layout.size.y = 32
+			text_box(&ui, {
+				text_info = Text_Info{
+					text = "Text Input",
+					font = ui.style.font.label,
+					size = 28,
+				},
+			})
+			layout.size.y = 28
+			if layout, ok := do_layout(&ui, cut(&ui, .Top, 100)); ok {
 				layout.size.x = 300
-				layout.direction = .Right
+				layout.side = .Right
 				text_input(&ui, {
 					data = &text_input_data,
 					multiline = true,
@@ -192,17 +162,13 @@ _main :: proc() -> bool {
 			}
 			layout.placement.size.y = 24
 			space(&ui, 10)
-			if _, ok := do_layout(&ui, cut(&ui, .Down, 24)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.size.x = 200
+			if _, ok := do_layout(&ui, cut(&ui, .Top, 24)); ok {
+				ui.layouts.current.side = .Right; ui.layouts.current.size.x = 200
 				date_picker(&ui, {value = &t, temp_value = &tt})
 			}
 			space(&ui, 10)
 			if tree_node(&ui, {text = "Tree node"}).expanded {
 				layout.size.y = 28
-				space(&ui, 10)
-				button(&ui, {text = "hidden button"})
-				space(&ui, 10)
-				button(&ui, {text = "another hidden button"})
 				space(&ui, 10)
 				if was_clicked(checkbox(&ui, {
 					value = checkbox_value, 
@@ -218,7 +184,6 @@ _main :: proc() -> bool {
 						}
 					pop_id(&ui)
 				}
-				space(&ui, 10)
 			}
 
 			paint_text(ui.painter, {0, ui.size.y}, {

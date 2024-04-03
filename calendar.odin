@@ -74,10 +74,10 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[1])
 			// Stuff
 			shrink(ui, 10)
-			ui.layouts.current.direction = .Down
+			ui.layouts.current.side = .Top
 			// Main options
-			if _, ok := do_layout(ui, cut(ui, .Up, 30)); ok {
-				ui.layouts.current.direction = .Left; ui.layouts.current.size = 70
+			if _, ok := do_layout(ui, cut(ui, .Bottom, 30)); ok {
+				ui.layouts.current.side = .Right; ui.layouts.current.size = 70
 				if was_clicked(button(ui, {text = "Cancel"})) {
 					new_temp_value = info.value^
 					data.is_open = false
@@ -88,14 +88,14 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 					data.is_open = false
 					result.changed = true
 				}
-				ui.layouts.current.direction = .Right;
+				ui.layouts.current.side = .Left;
 				if was_clicked(button(ui, {text = "Today"})) {
 					new_temp_value = time.now()
 				}
 			}
 			// Combo boxes
-			if _, ok := do_layout(ui, cut(ui, .Down, 20)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.align = {.Middle, .Middle}
+			if _, ok := do_layout(ui, cut(ui, .Top, 20)); ok {
+				ui.layouts.current.side = .Left; ui.layouts.current.align = {.Middle, .Middle}
 				month_days := int(time.days_before[int(month)])
 				if int(month) > 0 {
 					month_days -= int(time.days_before[int(month) - 1])
@@ -221,8 +221,8 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			DAY_WIDTH :: 50
 			DAY_HEIGHT :: 26
 			// Weekdays
-			if _, ok := do_layout(ui, cut(ui, .Down, 20)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.size.x = DAY_WIDTH; ui.layouts.current.align = {.Middle, .Middle}
+			if _, ok := do_layout(ui, cut(ui, .Top, 20)); ok {
+				ui.layouts.current.side = .Left; ui.layouts.current.size.x = DAY_WIDTH; ui.layouts.current.align = {.Middle, .Middle}
 				for day in ([]string)({"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}) {
 					text_box(ui, {
 						text_info = Text_Info{
@@ -240,13 +240,13 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			OFFSET: i64 : i64(time.Hour) * -96
 			t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
 			day_time := ((t._nsec + i64(time.Hour * 48)) / WEEK_DURATION) * WEEK_DURATION + OFFSET
-			if _, ok := do_layout(ui, cut(ui, .Down, DAY_HEIGHT)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.size.x = DAY_WIDTH
+			if _, ok := do_layout(ui, cut(ui, .Top, DAY_HEIGHT)); ok {
+				ui.layouts.current.side = .Right; ui.layouts.current.size.x = DAY_WIDTH
 				for i in 0..<42 {
 					if (i > 0) && (i % 7 == 0) {
 						pop_layout(ui)
-						push_layout(ui, cut(ui, .Down, DAY_HEIGHT))
-						ui.layouts.current.direction = .Right
+						push_layout(ui, cut(ui, .Top, DAY_HEIGHT))
+						ui.layouts.current.side = .Right
 						ui.layouts.current.size.x = DAY_WIDTH
 					}
 					_, _month, _day := time.date(transmute(time.Time)day_time)

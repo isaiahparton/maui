@@ -96,6 +96,9 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 			}
 		}
 	}
+	if data.hover_time > 0 {
+		paint_box_fill(ui.painter, self.box, fade({0, 0, 0, 25}, data.hover_time))
+	}
 	//
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	// We're done here

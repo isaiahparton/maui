@@ -71,6 +71,6 @@ _tree_node :: proc(ui: ^UI, _: Tree_Node_Info, _: runtime.Source_Code_Location, 
 	if result.expanded {
 		end_layer(ui, result.layer.?)
 		//NOTE: This is a temporary workaround
-		layout_cut_or_grow(current_layout(ui), .Down, height(result.layer.?.box))
+		layout_cut_or_grow(current_layout(ui), .Top, height(result.layer.?.box))
 	}
 }
