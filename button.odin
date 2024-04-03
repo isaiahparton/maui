@@ -7,9 +7,9 @@ Button_Widget_Variant :: struct {
 	disable_time: f32,
 }
 Button_Type :: enum {
+	Filled,
 	Outlined,
 	Subtle,
-	Filled,
 }
 Button_Info :: struct {
 	using generic: Generic_Widget_Info,
@@ -19,8 +19,9 @@ Button_Info :: struct {
 	text_size: Maybe(f32),
 	fit_text: bool,
 	type: Button_Type,
-	color: Maybe(Color),
 	corner_style: Box_Corner_Style,
+	// Highlights the button with a tint and a solid bar
+	highlight: Maybe(Color),
 }
 Button_Result :: struct {
 	using generic: Generic_Widget_Result,
@@ -58,28 +59,34 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	// Paint
 	if .Should_Paint in self.bits {
 		opacity: f32 = 1.0 - data.disable_time * 0.5
-		base_color := info.color.? or_else ui.style.color.substance
 		text_color: Color
-		corners: Corners = info.corners.? or_else {}
 		// Types
 		switch info.type {
 			
 			case .Filled:
-			fill_color := alpha_blend_colors(base_color, ui.style.color.foreground[0], data.hover_time * 0.4)
-			paint_fancy_box_fill(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, fill_color)
-			text_color = ui.style.color.foreground[0]
+			fill_color := blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered)
+			paint_fancy_box_fill(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, fill_color)
+			text_color = blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered)
 			
 			case .Outlined:
-			fill_color := fade(base_color, 0.1 + 0.4 * data.hover_time)
-			stroke_color := fade(base_color, 0.5 + 0.5 * data.hover_time)
-			paint_fancy_box_fill(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, fill_color)
-			paint_fancy_box_stroke(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, 1, stroke_color)
-			text_color = ui.style.color.text[0]
+			fill_color := fade(ui.style.color.button_hovered, data.hover_time)
+			paint_fancy_box_fill(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, fill_color)
+			if data.hover_time < 1 {
+				paint_fancy_box_stroke(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, 2, ui.style.color.button_hovered)
+			}
+			text_color = blend_colors(data.hover_time, ui.style.color.button_hovered, ui.style.color.label_hovered)
 
 			case .Subtle:
-			fill_color := fade(base_color, 0.1 + 0.4 * data.hover_time)
-			paint_fancy_box_fill(ui.painter, self.box, corners, info.corner_style, ui.style.rounding, fill_color)
-			text_color = ui.style.color.text[0]
+			fill_color := fade(ui.style.color.button_hovered, data.hover_time)
+			paint_fancy_box_fill(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, fill_color)
+			text_color = blend_colors(data.hover_time, ui.style.color.button_hovered, ui.style.color.label_hovered)
+		}
+		// Highlight
+		if color, ok := info.highlight.?; ok {
+			paint_fancy_box_fill(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, fade(color, 0.3))
+			if (info.corners & Corners{.Bottom_Left, .Bottom_Right}) == {} || info.corner_style == .Normal {
+				paint_box_fill(ui.painter, get_box_bottom(self.box, 4), color)
+			}
 		}
 		// Text title
 		text_origin: [2]f32

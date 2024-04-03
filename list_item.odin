@@ -20,19 +20,22 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 	}
 	data := &self.variant.(Button_Widget_Variant)
 	// Update retained data
-	data.hover_time = animate(ui, data.hover_time, 0, .Hovered in self.state)
+	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	// data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
 
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
+		paint_box_fill(ui.painter, {self.box.low, {self.box.low.x + 5, self.box.high.y}}, ui.style.color.button)
+		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 1}, self.box.high}, ui.style.color.button)
 		if data.hover_time > 0 || info.active {
-			fill_color := alpha_blend_colors(ui.style.color.accent, ui.style.color.substance, data.hover_time) if info.active else fade(ui.style.color.substance, data.hover_time)
+			fill_color := alpha_blend_colors(ui.style.color.accent, ui.style.color.button, data.hover_time) if info.active else fade(ui.style.color.button, data.hover_time)
 			paint_box_fill(ui.painter, self.box, fill_color)
 		}
 		if len(info.text) > 0 {
-			text_color := blend_colors(data.hover_time, ui.style.color.text[0], ui.style.color.base)
+			text_color := ui.style.color.text[0]
 			box := self.box
+			cut_box_left(&box, 8)
 			size := width(box) / f32(len(info.text))
 			for elem, i in info.text {
 				text_box := cut_box_left(&box, size)

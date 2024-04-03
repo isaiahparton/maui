@@ -74,13 +74,13 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		opacity := 1 - 0.5 * data.disable_time
 		fill_color := ui.style.color.background[0]
 		// paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
-		paint_box_stroke(ui.painter, icon_box, 1, blend_colors(data.hover_time, fade(ui.style.color.text[1], 0.5), ui.style.color.accent))
+		paint_box_fill(ui.painter, icon_box, ui.style.color.background[0])
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value {
 			scale: f32 = HALF_SIZE * 0.6
 			a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1.5, 1.5, ui.style.color.accent)
+			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1.5, 1.5, ui.style.color.label)
 		}
 		// Paint text
 		if has_text {

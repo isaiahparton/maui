@@ -98,7 +98,6 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		text_origin.y += height(inner_box) / 2
 		text_info.baseline = .Middle
 	}
-	corners: Corners = info.corners.? or_else ALL_CORNERS
 	// Paint!
 	if (.Should_Paint in self.bits) {
 		if info.placeholder != nil {
