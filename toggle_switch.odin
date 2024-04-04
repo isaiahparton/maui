@@ -25,12 +25,12 @@ toggle_switch :: proc(ui: ^UI, info: Toggle_Switch_Info, loc := #caller_location
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	data.how_on = animate(ui, data.how_on, 0.15, info.state)
 
-	paint_rounded_box_fill(ui.painter, self.box, height(self.box) / 2, blend_colors(data.how_on, ui.style.color.button, ui.style.color.button_hovered))
+	paint_rounded_box_fill(ui.painter, self.box, height(self.box) / 2, ui.style.color.background[0])
 
 	s := width(self.box) / 2
 	slider_box := shrink_box(get_box_left(self.box, s), 2)
 	slider_box = move_box(slider_box, {s * (1 - data.how_on), 0})
-	paint_rounded_box_fill(ui.painter, slider_box, height(slider_box) / 2, blend_colors(data.how_on, ui.style.color.button_hovered,  ui.style.color.label_hovered))
+	paint_rounded_box_fill(ui.painter, slider_box, height(slider_box) / 2, blend_colors(data.how_on, ui.style.color.button,  ui.style.color.button_hovered))
 
 	text_baseline := center_y(self.box)
 	paint_text(ui.painter, {self.box.low.x + 6, text_baseline}, {
@@ -38,14 +38,14 @@ toggle_switch :: proc(ui: ^UI, info: Toggle_Switch_Info, loc := #caller_location
 		size = ui.style.text_size.label,
 		text = "On",
 		baseline = .Middle,
-	}, blend_colors(data.how_on, ui.style.color.label, ui.style.color.label))
+	}, blend_colors(data.how_on, ui.style.color.label, ui.style.color.label_hovered))
 	paint_text(ui.painter, {self.box.high.x - 6, text_baseline}, {
 		font = ui.style.font.label,
 		size = ui.style.text_size.label,
 		text = "Off",
 		align = .Right,
 		baseline = .Middle,
-	}, ui.style.color.label_hovered)
+	}, ui.style.color.label)
 
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 

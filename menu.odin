@@ -98,7 +98,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 
 	if result.is_open {
 		layout := current_layout(ui)
-		layout.direction = .Down
+		layout.side = .Top
 		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground[1])
 		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
 	}
@@ -174,7 +174,7 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 
 	if result.is_open {
 		layout := current_layout(ui)
-		layout.direction = .Down
+		layout.side = .Top
 		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground[1])
 		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
 	}

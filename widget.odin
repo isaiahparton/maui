@@ -220,6 +220,7 @@ update_widgets :: proc(ui: ^UI) {
 	if mouse_pressed(ui.io, .Left) {
 		ui.widgets.press_id = ui.widgets.hover_id
 		ui.widgets.focus_id = ui.widgets.press_id
+		ui.painter.next_frame = true
 	}
 	// Reset drag status
 	ui.dragging = false
