@@ -36,7 +36,7 @@ tree_node :: proc(ui: ^UI, info: Tree_Node_Info, loc := #caller_location) -> Tre
 	if .Should_Paint in self.bits {
 		hover_color := fade(ui.style.color.text[1], 0.5 + 0.5 * max(data.hover_time, data.open_time))
 		baseline := center_y(self.box)
-		paint_arrow(ui.painter, self.box.high - my_height * [2]f32{0.4, 0.5}, my_height * 0.2, math.PI * 0.5 * (1 - data.open_time), 1, hover_color)
+		paint_arrow(ui.painter, self.box.high - my_height * [2]f32{0.4, 0.5}, my_height * 0.2, math.PI * 0.5 * (1 - data.open_time), 2, hover_color)
 		paint_text(ui.painter, {self.box.low.x, self.box.low.y + my_height / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, baseline = .Middle}, hover_color)
 		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 1}, self.box.high}, hover_color)
 	}
@@ -70,6 +70,7 @@ tree_node :: proc(ui: ^UI, info: Tree_Node_Info, loc := #caller_location) -> Tre
 _tree_node :: proc(ui: ^UI, _: Tree_Node_Info, _: runtime.Source_Code_Location, result: Tree_Node_Result) {
 	if result.expanded {
 		end_layer(ui, result.layer.?)
+		update_layer_content_bounds(current_layer(ui), result.layer.?.box)
 		//NOTE: This is a temporary workaround
 		layout_cut_or_grow(current_layout(ui), .Top, height(result.layer.?.box))
 	}

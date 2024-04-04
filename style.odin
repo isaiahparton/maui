@@ -58,7 +58,7 @@ get_light_style_colors :: proc() -> Style_Colors {
 		flash = {0, 255, 0, 255},
 		substance = {60, 60, 60, 255},
 		button = {171, 160, 167, 255},
-		button_hovered = {54, 50, 63, 255},
+		button_hovered = {44, 40, 53, 255},
 		label = {0, 0, 0, 255},
 		label_hovered = {255, 255, 255, 255},
 	}

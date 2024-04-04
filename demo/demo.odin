@@ -58,8 +58,10 @@ _main :: proc() -> bool {
 		begin_ui(&ui)
 			layout := current_layout(&ui)
 
-			cut(&ui, .Left, 100)
-			cut(&ui, .Right, 100)
+			layout.grow = .Down
+
+			cut(&ui, .Left, 200)
+			cut(&ui, .Right, 200)
 			cut(&ui, .Top, 100)
 
 			layout.size.y = 32
@@ -72,7 +74,7 @@ _main :: proc() -> bool {
 			})
 			layout.size.y = 28
 			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
-				layout.side = .Right
+				layout.side = .Left
 				layout.size = 30
 				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019"})
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
@@ -82,7 +84,7 @@ _main :: proc() -> bool {
 			}
 			space(&ui, 10)
 			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
-				layout.side = .Right
+				layout.side = .Left
 				layout.size = 30
 				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Outlined})
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Outlined})
@@ -92,7 +94,7 @@ _main :: proc() -> bool {
 			}
 			space(&ui, 10)
 			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
-				layout.side = .Right
+				layout.side = .Left
 				layout.size = 30
 				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Subtle})
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
@@ -111,7 +113,7 @@ _main :: proc() -> bool {
 			})
 			layout.size.y = 28
 			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
-				layout.side = .Right
+				layout.side = .Left
 				layout.size = 200
 				if result := slider(&ui, {
 					value = slider_value,
@@ -138,7 +140,7 @@ _main :: proc() -> bool {
 			layout.size.y = 28
 			if layout, ok := do_layout(&ui, cut(&ui, .Top, 100)); ok {
 				layout.size.x = 300
-				layout.side = .Right
+				layout.side = .Left
 				text_input(&ui, {
 					data = &text_input_data,
 					multiline = true,
@@ -146,27 +148,57 @@ _main :: proc() -> bool {
 				})
 			}
 			space(&ui, 10)
-			text_input(&ui, {
-				data = &text_input_data2,
-				placeholder = "single line text input",
+			if layout, ok := do_layout(&ui, cut(&ui, .Top, 28)); ok {
+				layout.size.x = 300
+				layout.side = .Left
+				text_input(&ui, {
+					data = &text_input_data2,
+					placeholder = "single line text input",
+				})
+			}
+			space(&ui, 20)
+			layout.size.y = 32
+			text_box(&ui, {
+				text_info = Text_Info{
+					text = "List",
+					font = ui.style.font.label,
+					size = 28,
+				},
 			})
-			space(&ui, 10)
-			layout.placement.size.y = 180
+			layout.size.y = 180
 			if frame(&ui, {}) {
 				current_layout(&ui).placement.size.y = 24
 				for i in 1..=69 {
 					push_id(&ui, i)
-						list_item(&ui, {text = {tmp_printf("Button #%i", i)}})
+						list_item(&ui, {text = {tmp_printf("item #%i", i)}})
 					pop_id(&ui)
 				}
 			}
 			layout.placement.size.y = 24
-			space(&ui, 10)
+			space(&ui, 20)
+			layout.size.y = 32
+			text_box(&ui, {
+				text_info = Text_Info{
+					text = "Date & time",
+					font = ui.style.font.label,
+					size = 28,
+				},
+			})
+			layout.size.y = 28
 			if _, ok := do_layout(&ui, cut(&ui, .Top, 24)); ok {
-				ui.layouts.current.side = .Right; ui.layouts.current.size.x = 200
+				ui.layouts.current.side = .Left; ui.layouts.current.size.x = 200
 				date_picker(&ui, {value = &t, temp_value = &tt})
 			}
-			space(&ui, 10)
+			space(&ui, 20)
+			layout.size.y = 32
+			text_box(&ui, {
+				text_info = Text_Info{
+					text = "Boolean controls",
+					font = ui.style.font.label,
+					size = 28,
+				},
+			})
+			layout.size.y = 28
 			if tree_node(&ui, {text = "Tree node"}).expanded {
 				layout.size.y = 28
 				space(&ui, 10)

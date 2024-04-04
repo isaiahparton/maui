@@ -115,7 +115,10 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
 		if data.focus_time < 1 {
-			paint_box_inner_gradient(ui.painter, self.box, 0, 56, {}, fade(stroke_color, 0.5 * (1 - data.focus_time)))
+			paint_box_inner_gradient(ui.painter, self.box, 0, 56, {}, fade(ui.style.color.substance, 0.25 * (1 - data.focus_time)))
+		}
+		if data.focus_time > 0 {
+			paint_box_fill(ui.painter, self.box, fade(ui.style.color.substance, data.focus_time * 0.25))
 		}
 		paint_box_stroke(ui.painter, self.box, 1, stroke_color)
 		if title, ok := info.title.?; ok {

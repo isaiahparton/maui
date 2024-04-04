@@ -234,7 +234,7 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 					data := &w.variant.(Button_Widget_Variant)
 					data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in w.state)
 					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent, data.hover_time * 0.5))
-					paint_cross(ui.painter, box_center(w.box), 6, math.PI * 0.25, 1, ui.style.color.foreground[0])
+					paint_cross(ui.painter, box_center(w.box), 6, math.PI * 0.25, 2, ui.style.color.foreground[0])
 					update_widget_hover(ui, w, point_in_box(ui.io.mouse_point, w.box))
 				}
 				if .Collapsable in self.options {
@@ -244,7 +244,7 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 					data := &w.variant.(Button_Widget_Variant)
 					data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in w.state)
 					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent, data.hover_time * 0.5))
-					paint_arrow_flip(ui.painter, box_center(w.box), 5, 0, 1, self.how_collapsed, ui.style.color.foreground[0])
+					paint_arrow_flip(ui.painter, box_center(w.box), 5, 0, 2, self.how_collapsed, ui.style.color.foreground[0])
 					if was_clicked(res) {
 						self.bits ~= {.Should_Collapse}
 					}

@@ -129,14 +129,14 @@ shrink :: proc(ui: ^UI, amount: f32, loc := #caller_location) {
 layout_cut_or_grow :: proc(layout: ^Layout, side: Box_Side, amount: f32) -> (result: Box) {
 	// Get the base box
 	if grow, ok := layout.grow.?; ok && int(grow) == int(side) {
-		switch side {
-			case .Bottom:	
+		switch grow {
+			case .Up:	
 			layout.box.low.y = min(layout.box.low.y, layout.box.high.y - amount)
-			case .Top:	
+			case .Down:	
 			layout.box.high.y = max(layout.box.high.y, layout.box.low.y + amount)
-			case .Right:	
-			layout.box.low.x = min(layout.box.low.x, layout.box.high.x - amount)
 			case .Left:	
+			layout.box.low.x = min(layout.box.low.x, layout.box.high.x - amount)
+			case .Right:
 			layout.box.high.x = max(layout.box.high.x, layout.box.low.x + amount)
 		}
 	}
