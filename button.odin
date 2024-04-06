@@ -111,6 +111,7 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	}
 	// Get next hover state
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
+	update_layer_content_bounds(ui.layers.current, self.box)
 	// we're done here
 	return result
 }

@@ -13,83 +13,83 @@ Direction :: enum {
 	Right,
 	Left,
 }
-Layout_Mode :: enum {
-	Fixed,
-	Extending,
-}
-Placement_Size :: union {
-	f32,
-	enum {
-		Automatic,
-		Fill,
-	},
-}
-Placement_Info :: struct {
+
+Placement :: struct {
 	side: Box_Side,
-	size: [2]f32,
+	size: f32,
 	align: [2]Alignment,
 	margin: [Box_Side]f32,
 }
+Placement_Agent :: struct {
+	stack: Stack(Placement, PLACEMENT_STACK_HEIGHT),
+	current: ^Placement,
+}
+
 // A `Layout` is a context for placing widgets and other layouts
 Layout :: struct {
-	using placement: Placement_Info,
-	// Growing?
-	grow: Maybe(Direction),
-	// State
 	original_box,
 	box: Box,
+	direction: Maybe(Direction),
 }
+/*
+	Agent for handling layouts
+*/
 Layout_Agent :: struct {
 	stack: Stack(Layout, LAYOUT_STACK_SIZE),
 	current: ^Layout,
 }
-layout_agent_push :: proc(using self: ^Layout_Agent, layout: Layout) -> ^Layout {
+push_layout :: proc(ui: ^UI, layout: Layout) -> ^Layout {
 	layout := layout
 	layout.original_box = layout.box
-	stack_push(&stack, layout)
-	current = &stack.items[stack.height - 1] if stack.height > 0 else nil
-	return current
-}
-layout_agent_pop :: proc(using self: ^Layout_Agent) {
-	stack_pop(&stack)
-	current = &stack.items[stack.height - 1] if stack.height > 0 else nil
+	stack_push(&ui.layouts.stack, layout)
+	ui.layouts.current = &ui.layouts.stack.items[ui.layouts.stack.height - 1] if ui.layouts.stack.height > 0 else nil
+	return ui.layouts.current
 }
 
-push_layout :: proc(ui: ^UI, box: Box) -> (layout: ^Layout) {
-	return layout_agent_push(&ui.layouts, Layout({
+push_dividing_layout :: proc(ui: ^UI, box: Box) -> ^Layout {
+	push_placement_info(ui)
+	new_layout: Layout = {
 		box = box,
-		placement = current_layout(ui).placement if ui.layouts.stack.height > 0 else {},
-	}))
+	}
+	return push_layout(ui, new_layout)
 }
-pop_layout :: proc(ui: ^UI) {
-	layout_agent_pop(&ui.layouts)
-}
+
 /*
 	This creates a growing layout that cuts/grows the one below after use
 */
 push_growing_layout :: proc(ui: ^UI, box: Box, direction: Direction) -> ^Layout {
-	layout := push_layout(ui, box)
-	layout.grow = direction
-	return layout
+	new_layout: Layout = {
+		box = box,
+		direction = direction,
+	}
+	return push_layout(ui, new_layout)
 }
 pop_growing_layout :: proc(ui: ^UI) {
 	last_layout := current_layout(ui)
-	layout_agent_pop(&ui.layouts)
+	pop_layout(ui)
 	if ui.layouts.stack.height > 0 {
+		
+	}
+}
+pop_layout :: proc(ui: ^UI) {
+	if ui.layouts.current == nil {
+		return
+	}
+	if variant, ok := ui.layouts.current.variant.(Growing_Layout_Variant); ok {
 		layout := current_layout(ui)
 		// Apply growing layout cut
-		if grow, ok := last_layout.grow.?; ok {
-			i := 1 - int(grow) / 2
-			side: Box_Side
-			switch grow {
-				case .Down: side = .Top
-				case .Left: side = .Right
-				case .Right: side = .Left
-				case .Up: side = .Bottom
-			}
-			layout_cut_or_grow(layout, side, last_layout.box.high[i] - last_layout.box.low[i])	
+		i := 1 - int(variant.direction) / 2
+		side: Box_Side
+		switch variant.direction {
+			case .Down: side = .Top
+			case .Left: side = .Right
+			case .Right: side = .Left
+			case .Up: side = .Bottom
 		}
+		layout_cut_or_grow(layout, side, last_layout.box.high[i] - last_layout.box.low[i])
 	}
+	stack_pop(&stack)
+	current = &stack.items[stack.height - 1] if stack.height > 0 else nil
 }
 // Get the current layout (asserts that there be one)
 current_layout :: proc(ui: ^UI, loc := #caller_location) -> ^Layout {

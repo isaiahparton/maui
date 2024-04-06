@@ -30,14 +30,14 @@ Cursor_Type :: enum {
 	Disabled,
 }
 
-PRINT_DEBUG_EVENTS :: true
-GROUP_STACK_SIZE 		:: 32
-MAX_CLIP_RECTS 			:: #config(MAUI_MAX_CLIP_RECTS, 32)
-MAX_CONTROLS 				:: #config(MAUI_MAX_CONTROLS, 1024)
-LAYER_STACK_SIZE 		:: #config(MAUI_LAYER_STACK_SIZE, 32)
-WINDOW_STACK_SIZE 	:: #config(MAUI_WINDOW_STACK_SIZE, 32)
-// Size of id stack (times you can call push_id())
-ID_STACK_SIZE 			:: 32
+PRINT_DEBUG_EVENTS 					:: true
+GROUP_STACK_HEIGHT 					:: 32
+PLACEMENT_STACK_HEIGHT			:: 64
+MAX_CLIP_RECTS 							:: #config(MAUI_MAX_CLIP_RECTS, 32)
+MAX_CONTROLS 								:: #config(MAUI_MAX_CONTROLS, 1024)
+LAYER_STACK_SIZE 						:: #config(MAUI_LAYER_STACK_SIZE, 32)
+WINDOW_STACK_SIZE 					:: #config(MAUI_WINDOW_STACK_SIZE, 32)
+ID_STACK_SIZE 							:: 32
 // Repeating key press
 ALL_CORNERS: Corners = {.Top_Left, .Top_Right, .Bottom_Left, .Bottom_Right}
 
@@ -102,6 +102,9 @@ UI :: struct {
 	layers: Layer_Agent,
 	// Handles layouts
 	layouts: Layout_Agent,
+	// Placement
+	placement_stack: Stack(Placement, PLACEMENT_STACK_HEIGHT),
+	placement: Placement,
 	// Used for dragging stuff
 	drag_anchor: [2]f32,
 	dragging: bool,
@@ -168,9 +171,10 @@ begin_ui :: proc(ui: ^UI) {
 		id = 0,
 		placement = Box{{}, ui.size}, 
 		options = {.No_ID},
+		grow = .Down,
 	}) or_else panic("Could not create root layer")
 	// Begin root layout
-	push_layout(ui, {{}, ui.size})
+	push_growing_layout(ui, {{}, ui.size})
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
 	//FIXME(isaiah): Text inputs selected with 'tab' do not behave correctly

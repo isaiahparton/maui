@@ -352,8 +352,6 @@ current_layer :: proc(ui: ^UI, loc := #caller_location) -> ^Layer {
 // Begins a new layer, the layer is created if it doesn't exist
 // and is managed internally
 begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
-	agent := &ui.layers
-
 	if self, ok = get_layer(ui, info.id.? or_else panic("Must define a layer id", loc), info.options); ok {
 		// Push layer stack
 		push_layer(ui, self)
@@ -425,10 +423,10 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		// Hovering and stuff
 		self.last_state = self.state
 		self.state = {}
-		if agent.hover_id == self.id {
+		if ui.layers.hover_id == self.id {
 			self.state += {.Hovered}
 		}
-		if agent.focus_id == self.id {
+		if ui.layers.focus_id == self.id {
 			self.state += {.Focused}
 		}
 		// Update clip status

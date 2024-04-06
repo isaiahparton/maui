@@ -58,13 +58,11 @@ _main :: proc() -> bool {
 		begin_ui(&ui)
 			layout := current_layout(&ui)
 
-			layout.grow = .Down
-
 			cut(&ui, .Left, 200)
 			cut(&ui, .Right, 200)
 			cut(&ui, .Top, 100)
 
-			layout.size.y = 32
+			ui.placement.size.y = 32
 			text_box(&ui, {
 				text_info = Text_Info{
 					text = "Buttons",
@@ -232,6 +230,13 @@ _main :: proc() -> bool {
 			}, ui.style.color.text[0])
 			paint_text(ui.painter, {0, ui.size.y - 32}, {
 				text = tmp_printf("time: %f", ui.current_time), 
+				font = ui.style.font.title, 
+				size = 16,
+				baseline = .Bottom,
+			}, ui.style.color.text[0])
+
+			paint_text(ui.painter, {0, ui.size.y - 62}, {
+				text = tmp_printf("content: %v\nspace: %v", ui.root_layer.content_box, ui.root_layer.space), 
 				font = ui.style.font.title, 
 				size = 16,
 				baseline = .Bottom,

@@ -200,6 +200,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	ui.scribe.selection = text_result.selection
 	// Update hover
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
+	update_layer_content_bounds(ui.layers.current, self.box)
 	// Only for content clipping of title (not very elegant)
 	if info.title != nil {
 		self.box.low.y -= 10
