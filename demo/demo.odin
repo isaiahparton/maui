@@ -62,7 +62,7 @@ _main :: proc() -> bool {
 			cut(&ui, .Right, 200)
 			cut(&ui, .Top, 100)
 
-			ui.placement.size.y = 32
+			ui.placement.size = 32
 			text_box(&ui, {
 				text_info = Text_Info{
 					text = "Buttons",
@@ -70,38 +70,38 @@ _main :: proc() -> bool {
 					size = 28,
 				},
 			})
-			layout.size.y = 28
-			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
-				layout.side = .Left
-				layout.size = 30
+			ui.placement.size = 28
+			push_dividing_layout(&ui, cut(&ui, .Top, 30))
+				ui.placement.side = .Left
+				ui.placement.size = 30
 				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019"})
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
 				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
 				space(&ui, 10)
 				button(&ui, {fit_text = true, type = .Filled, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut})
-			}
+			pop_layout(&ui)
 			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
-				layout.side = .Left
-				layout.size = 30
+			push_dividing_layout(&ui, cut(&ui, .Top, 30))
+				ui.placement.side = .Left
+				ui.placement.size = 30
 				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Outlined})
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Outlined})
 				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Outlined})
 				space(&ui, 10)
 				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Rounded, type = .Outlined})
-			}
+			pop_layout(&ui)
 			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
-				layout.side = .Left
-				layout.size = 30
+			push_dividing_layout(&ui, cut(&ui, .Top, 30))
+				ui.placement.side = .Left
+				ui.placement.size = 30
 				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Subtle})
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
 				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Subtle})
 				space(&ui, 10)
 				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut, type = .Subtle})
-			}
+			pop_layout(&ui)
 			space(&ui, 20)
-			layout.size.y = 32
+			ui.placement.size = 32
 			text_box(&ui, {
 				text_info = Text_Info{
 					text = "Sliders",
@@ -109,10 +109,10 @@ _main :: proc() -> bool {
 					size = 28,
 				},
 			})
-			layout.size.y = 28
-			if layout, ok := do_layout(&ui, cut(&ui, .Top, 30)); ok {
-				layout.side = .Left
-				layout.size = 200
+			ui.placement.size = 28
+			push_dividing_layout(&ui, cut(&ui, .Top, 30))
+				ui.placement.side = .Left
+				ui.placement.size = 200
 				if result := slider(&ui, {
 					value = slider_value,
 					low = 0,
@@ -121,13 +121,13 @@ _main :: proc() -> bool {
 					slider_value = result.value
 				}
 				space(&ui, 10)
-				layout.size.x = 150
+				ui.placement.size = 150
 				if was_clicked(toggle_switch(&ui, {state = toggle_switch_state})) {
 					toggle_switch_state = !toggle_switch_state
 				}
-			}
+			pop_layout(&ui)
 			space(&ui, 20)
-			layout.size.y = 32
+			ui.placement.size = 32
 			text_box(&ui, {
 				text_info = Text_Info{
 					text = "Text Input",
@@ -135,27 +135,27 @@ _main :: proc() -> bool {
 					size = 28,
 				},
 			})
-			layout.size.y = 28
-			if layout, ok := do_layout(&ui, cut(&ui, .Top, 100)); ok {
-				layout.size.x = 300
-				layout.side = .Left
+			ui.placement.size = 28
+			push_dividing_layout(&ui, cut(&ui, .Top, 100))
+				ui.placement.size = 300
+				ui.placement.side = .Left
 				text_input(&ui, {
 					data = &text_input_data,
 					multiline = true,
 					placeholder = "type something here",
 				})
-			}
+			pop_layout(&ui)
 			space(&ui, 10)
-			if layout, ok := do_layout(&ui, cut(&ui, .Top, 28)); ok {
-				layout.size.x = 300
-				layout.side = .Left
+			push_dividing_layout(&ui, cut(&ui, .Top, 28))
+				ui.placement.size = 300
+				ui.placement.side = .Left
 				text_input(&ui, {
 					data = &text_input_data2,
 					placeholder = "single line text input",
 				})
-			}
+			pop_layout(&ui)
 			space(&ui, 20)
-			layout.size.y = 32
+			ui.placement.size = 32
 			text_box(&ui, {
 				text_info = Text_Info{
 					text = "List",
@@ -163,18 +163,18 @@ _main :: proc() -> bool {
 					size = 28,
 				},
 			})
-			layout.size.y = 180
+			ui.placement.size = 180
 			if frame(&ui, {}) {
-				current_layout(&ui).placement.size.y = 24
+				ui.placement.size = 24
 				for i in 1..=69 {
 					push_id(&ui, i)
 						list_item(&ui, {text = {tmp_printf("item #%i", i)}})
 					pop_id(&ui)
 				}
 			}
-			layout.placement.size.y = 24
+			ui.placement.size = 24
 			space(&ui, 20)
-			layout.size.y = 32
+			ui.placement.size = 32
 			text_box(&ui, {
 				text_info = Text_Info{
 					text = "Date & time",
@@ -182,13 +182,13 @@ _main :: proc() -> bool {
 					size = 28,
 				},
 			})
-			layout.size.y = 28
-			if _, ok := do_layout(&ui, cut(&ui, .Top, 24)); ok {
-				ui.layouts.current.side = .Left; ui.layouts.current.size.x = 200
+			ui.placement.size = 28
+			push_dividing_layout(&ui, cut(&ui, .Top, 24))
+				ui.placement.side = .Left; ui.placement.size = 200
 				date_picker(&ui, {value = &t, temp_value = &tt})
-			}
+			pop_layout(&ui)
 			space(&ui, 20)
-			layout.size.y = 32
+			ui.placement.size = 32
 			text_box(&ui, {
 				text_info = Text_Info{
 					text = "Boolean controls",
@@ -196,9 +196,9 @@ _main :: proc() -> bool {
 					size = 28,
 				},
 			})
-			layout.size.y = 28
+			ui.placement.size = 28
 			if tree_node(&ui, {text = "Tree node"}).expanded {
-				layout.size.y = 28
+				ui.placement.size = 28
 				space(&ui, 10)
 				if was_clicked(checkbox(&ui, {
 					value = checkbox_value, 

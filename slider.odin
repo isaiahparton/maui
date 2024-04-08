@@ -20,7 +20,7 @@ slider :: proc(ui: ^UI, info: Slider_Info, loc := #caller_location) -> Slider_Re
 		generic = generic_result,
 	}
 	// Place the widget
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	self.box = info.box.? or_else next_box(ui)
 	// Update the widget's state
 	update_widget(ui, self)
 	// Assert variant existence

@@ -143,6 +143,7 @@ Layer :: struct {
 	inner_box: Box,
 	// Bounding box of all painted content
 	content_box: Box,
+	grow: Maybe(Direction),
 	// Space for scrolling
 	last_space,
 	space: [2]f32,
@@ -518,7 +519,7 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 				case .Right:
 				layout.box.high.x = layout.box.low.x
 			}
-			layout.grow = direction
+			layout.direction = direction
 		}
 	}
 	return
@@ -528,7 +529,7 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 	if self != nil {
 		// Pop layout
 		layout := current_layout(ui)
-		if layout.grow != nil {
+		if layout.direction != nil {
 			self.space = layout.box.high - layout.original_box.low
 		}
 		pop_layout(ui)

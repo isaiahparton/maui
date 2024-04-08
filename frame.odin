@@ -11,7 +11,7 @@ Frame_Info :: struct {
 frame :: proc(ui: ^UI, info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	layer: ^Layer
 	layer, ok = begin_layer(ui, {
-		placement = info.box.? or_else layout_next(current_layout(ui)),
+		placement = info.box.? or_else next_box(ui),
 		scrollbar_padding = 0,
 		id = hash(ui, loc),
 		grow = .Down,

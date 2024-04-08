@@ -790,7 +790,7 @@ text_box :: proc(ui: ^UI, info: Text_Box_Info, loc := #caller_location) -> Text_
 	result: Text_Box_Result = {
 		generic = generic_result,
 	}
-	self.box = layout_next(current_layout(ui))
+	self.box = next_box(ui)
 	text_info := info.text_info.(Text_Info) or_else info.text_info.(Tactile_Text_Info).base
 	origin: [2]f32
 	switch text_info.align {

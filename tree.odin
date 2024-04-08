@@ -21,7 +21,7 @@ tree_node :: proc(ui: ^UI, info: Tree_Node_Info, loc := #caller_location) -> Tre
 		generic = generic_result,
 	}
 
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	self.box = info.box.? or_else next_box(ui)
 
 	update_widget(ui, self)
 

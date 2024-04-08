@@ -174,7 +174,7 @@ begin_ui :: proc(ui: ^UI) {
 		grow = .Down,
 	}) or_else panic("Could not create root layer")
 	// Begin root layout
-	push_growing_layout(ui, {{}, ui.size})
+	push_dividing_layout(ui, {{}, ui.size})
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
 	//FIXME(isaiah): Text inputs selected with 'tab' do not behave correctly
@@ -269,4 +269,13 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 		count += 1 + _count_layer_children(child)
 	}
 	return count
+}
+
+push_placement :: proc(ui: ^UI, placement: Placement) {
+	ui.placement_stack.items[ui.placement_stack.height - 1] = ui.placement
+	stack_push(&ui.placement_stack, placement)
+}
+pop_placement :: proc(ui: ^UI) {
+	stack_pop(&ui.placement_stack)
+	ui.placement = ui.placement_stack.items[ui.placement_stack.height - 1] if ui.placement_stack.height > 0 else {}
 }

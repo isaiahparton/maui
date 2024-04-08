@@ -13,7 +13,7 @@ Toggle_Switch_Widget_Variant :: struct {
 toggle_switch :: proc(ui: ^UI, info: Toggle_Switch_Info, loc := #caller_location) -> Generic_Widget_Result {
 	self, result := get_widget(ui, info, loc)
 	// Colocate
-	self.box = info.box.? or_else child_box(layout_next(current_layout(ui)), {90, 24}, ui.layouts.current.align)
+	self.box = info.box.? or_else child_box(next_box(ui), {90, 24}, ui.placement.align)
 	// Assert variant existence
 	if self.variant == nil {
 		self.variant = Toggle_Switch_Widget_Variant{}

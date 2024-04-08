@@ -14,15 +14,15 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 	new_value = value
 	// Temporary state
 	year, month, day := time.date(value)
-	ui.layouts.current.side = .Top
+	ui.placement.side = .Top
 	// Combo boxes
-	if _, ok := do_layout(ui, cut(ui, .Top, 20)); ok {
-		ui.layouts.current.side = .Left; ui.layouts.current.align = {.Middle, .Middle}
+	push_dividing_layout(ui, cut(ui, .Top, 20))
+		ui.placement.side = .Left; ui.placement.align = {.Middle, .Middle}
 		month_days := int(time.days_before[int(month)])
 		if int(month) > 0 {
 			month_days -= int(time.days_before[int(month) - 1])
 		}
-		ui.layouts.current.size.x = 95
+		ui.placement.size = 95
 		{	
 			result: Generic_Widget_Result
 			ok: bool
@@ -30,7 +30,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				text = tmp_print(day),
 				height = 160,
 			}); ok {
-				ui.layouts.current.size = 20
+				ui.placement.size = 20
 				for i in 1..=month_days {
 					push_id(ui, i)
 						if was_clicked(option(ui, {text = tmp_print(i)})) {
@@ -57,7 +57,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				year, month, day = time.date(new_value)
 			}
 		}
-		ui.layouts.current.size.x = 140
+		ui.placement.size = 140
 		space(ui, 10)
 		{
 			result: Generic_Widget_Result
@@ -101,7 +101,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 			}
 		}
-		ui.layouts.current.size.x = 95
+		ui.placement.size = 95
 		space(ui, 10)
 		{
 			result: Generic_Widget_Result
@@ -138,13 +138,13 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 			}
 		}
-	}
+	pop_layout(ui)
 	space(ui, 10)
 	DAY_WIDTH :: 50
 	DAY_HEIGHT :: 26
 	// Weekdays
-	if _, ok := do_layout(ui, cut(ui, .Top, 20)); ok {
-		ui.layouts.current.side = .Left; ui.layouts.current.size.x = DAY_WIDTH; ui.layouts.current.align = {.Middle, .Middle}
+	push_dividing_layout(ui, cut(ui, .Top, 20))
+		ui.placement.side = .Left; ui.placement.size = DAY_WIDTH; ui.layouts.current.align = {.Middle, .Middle}
 		for day in ([]string)({"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}) {
 			text_box(ui, {
 				text_info = Text_Info{
@@ -156,20 +156,20 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				},
 			})
 		}
-	}
+	pop_layout(ui)
 	space(ui, 10)
 	WEEK_DURATION :: i64(time.Hour * 24 * 7)
 	OFFSET: i64 : i64(time.Hour) * -96
 	t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
 	day_time := ((t._nsec + i64(time.Hour * 48)) / WEEK_DURATION) * WEEK_DURATION + OFFSET
-	if _, ok := do_layout(ui, cut(ui, .Top, DAY_HEIGHT)); ok {
-		ui.layouts.current.side = .Left; ui.layouts.current.size.x = DAY_WIDTH
+	push_dividing_layout(ui, cut(ui, .Top, DAY_HEIGHT))
+		ui.placement.side = .Left; ui.placement.size = DAY_WIDTH
 		for i in 0..<42 {
 			if (i > 0) && (i % 7 == 0) {
 				pop_layout(ui)
 				push_layout(ui, cut(ui, .Top, DAY_HEIGHT))
-				ui.layouts.current.side = .Left
-				ui.layouts.current.size.x = DAY_WIDTH
+				ui.placement.side = .Left
+				ui.placement.size = DAY_WIDTH
 			}
 			_, _month, _day := time.date(transmute(time.Time)day_time)
 			push_id(ui, i)
@@ -183,7 +183,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 			pop_id(ui)
 			day_time += i64(time.Hour * 24)
 		}
-	}
+	pop_layout(ui)
 	// Clamp value
 	new_value._nsec = max(new_value._nsec, 0)
 	return
@@ -205,7 +205,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 		generic = generic_result,
 	}
 	// Colocate
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	self.box = info.box.? or_else next_box(ui)
 	// Update
 	update_widget(ui, self)
 	// Animate
@@ -254,7 +254,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			shrink(ui, 10)
 			// Action buttons
 			if _, ok := do_layout(ui, cut(ui, .Bottom, 30)); ok {
-				ui.layouts.current.side = .Right; ui.layouts.current.size = 70
+				ui.placement.side = .Right; ui.layouts.current.size = 70
 				if was_clicked(button(ui, {text = "Cancel"})) {
 					info.temp_value^ = info.value^
 					data.is_open = false
@@ -265,7 +265,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 					data.is_open = false
 					result.changed = true
 				}
-				ui.layouts.current.side = .Left;
+				ui.placement.side = .Left;
 				if was_clicked(button(ui, {text = "Today"})) {
 					info.temp_value^ = time.now()
 				}

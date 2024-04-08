@@ -12,7 +12,7 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 
 	self, result := get_widget(ui, info, loc)
 
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	self.box = info.box.? or_else next_box(ui)
 
 	// Assert variant existence
 	if self.variant == nil {

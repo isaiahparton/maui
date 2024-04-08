@@ -16,7 +16,7 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 	result: Combo_Box_Result = {
 		generic = generic_result,
 	}
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	self.box = info.box.? or_else next_box(ui)
 	if self.variant == nil {
 		self.variant = Menu_Widget_Variant{}
 	}
