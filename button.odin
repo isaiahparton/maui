@@ -19,7 +19,6 @@ Button_Info :: struct {
 	text_size: Maybe(f32),
 	fit_text: bool,
 	type: Button_Type,
-	corner_style: Box_Corner_Style,
 	// Highlights the button with a tint and a solid bar
 	highlight: Maybe(Color),
 }
@@ -65,26 +64,26 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 			
 			case .Filled:
 			fill_color := blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered)
-			paint_fancy_box_fill(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, fill_color)
+			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fill_color)
 			text_color = blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered)
 			
 			case .Outlined:
 			fill_color := fade(ui.style.color.button_hovered, data.hover_time)
-			paint_fancy_box_fill(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, fill_color)
+			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fill_color)
 			if data.hover_time < 1 {
-				paint_fancy_box_stroke(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, 2, ui.style.color.button_hovered)
+				paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 2, info.corners, ui.style.color.button_hovered)
 			}
 			text_color = blend_colors(data.hover_time, ui.style.color.button_hovered, ui.style.color.label_hovered)
 
 			case .Subtle:
 			fill_color := fade(ui.style.color.button_hovered, data.hover_time)
-			paint_fancy_box_fill(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, fill_color)
+			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fill_color)
 			text_color = blend_colors(data.hover_time, ui.style.color.button_hovered, ui.style.color.label_hovered)
 		}
 		// Highlight
 		if color, ok := info.highlight.?; ok {
-			paint_fancy_box_fill(ui.painter, self.box, info.corners, info.corner_style, ui.style.rounding, fade(color, 0.3))
-			if (info.corners & Corners{.Bottom_Left, .Bottom_Right}) == {} || info.corner_style == .Normal {
+			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fade(color, 0.3))
+			if (info.corners & Corners{.Bottom_Left, .Bottom_Right}) == {} {
 				paint_box_fill(ui.painter, get_box_bottom(self.box, 4), color)
 			}
 		}

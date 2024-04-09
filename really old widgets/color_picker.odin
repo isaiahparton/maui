@@ -99,7 +99,7 @@ do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new
 		outer := size / 2
 		inner := outer - 15
 
-		self.box = child_box(self.box, size, placement.align)
+		self.box = align_inner(self.box, size, placement.align)
 		update_widget(self)
 		
 		center := center(self.box)
@@ -198,7 +198,7 @@ do_color_picker_2d :: proc(info: Color_Picker_Info, loc := #caller_location) -> 
 		outer := size / 2
 		inner := outer - 15
 
-		self.box = child_box(self.box, size, placement.align)
+		self.box = align_inner(self.box, size, placement.align)
 		update_widget(self)
 		
 		center := center(self.box)

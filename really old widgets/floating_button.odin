@@ -10,7 +10,7 @@ Floating_Button_Info :: struct {
 do_floating_button :: proc(info: Floating_Button_Info, loc := #caller_location) -> (clicked: bool) {
 	using maui
 	if self, ok := do_widget(hash(loc)); ok {
-		self.box = child_box(info.box.? or_else layout_next(current_layout()), {40, 40}, {.Middle, .Middle})
+		self.box = align_inner(info.box.? or_else layout_next(current_layout()), {40, 40}, {.Middle, .Middle})
 		hover_time := animate_bool(&self.timers[0], self.state >= {.Hovered}, 0.1)
 		update_widget(self)
 		// Painting

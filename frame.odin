@@ -6,6 +6,7 @@ Frame_Info :: struct {
 	layer_options: Layer_Options,
 	fill_color: Maybe(Color),
 	scrollbar_padding: Maybe(f32),
+	gradient_size: f32,
 }
 @(deferred_in_out=_frame)
 frame :: proc(ui: ^UI, info: Frame_Info, loc := #caller_location) -> (ok: bool) {
@@ -18,15 +19,19 @@ frame :: proc(ui: ^UI, info: Frame_Info, loc := #caller_location) -> (ok: bool) 
 		options = info.layer_options + {.Clip_To_Parent, .Attached, .No_Sorting},
 	})
 	if ok {
-		paint_box_inner_gradient(ui.painter, layer.box, 0, 56, {}, fade(ui.style.color.substance[1], 0.25))
+		cut(ui, .Top, info.gradient_size)
 	}
 	return
 }
 @private
-_frame :: proc(ui: ^UI, _: Frame_Info, _: runtime.Source_Code_Location, ok: bool) {
+_frame :: proc(ui: ^UI, info: Frame_Info, _: runtime.Source_Code_Location, ok: bool) {
 	if ok {
 		assert(ui.layers.current != nil)
-		paint_box_stroke(ui.painter, ui.layers.current.box, 1, ui.style.color.substance[1])
+		if info.gradient_size > 0 {
+			cut(ui, .Top, info.gradient_size)
+			paint_gradient_box_v(ui.painter, get_box_top(ui.layers.current.box, info.gradient_size), ui.style.color.foreground[0], fade(ui.style.color.foreground[0], 0))
+			paint_gradient_box_v(ui.painter, get_box_bottom(ui.layers.current.box, info.gradient_size), fade(ui.style.color.foreground[0], 0), ui.style.color.foreground[0])
+		}
 		end_layer(ui, ui.layers.current)
 	}
 }

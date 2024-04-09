@@ -21,7 +21,7 @@ scrollbar :: proc(ui: ^UI, info: Scrollbar_Info, loc := #caller_location) -> Scr
 		generic = generic_result,
 	}
 	// Colocate
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	self.box = info.box.? or_else next_box(ui)
 	// Update
 	update_widget(ui, self)
 	// Assert variant existence

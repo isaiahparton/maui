@@ -133,8 +133,10 @@ squish_box :: proc(box: Box, side: Box_Side, amount: f32) -> (result: Box) {
 	}
 	return
 }
-
-child_box :: proc(b: Box, size: [2]f32, align: [2]Alignment) -> Box {
+/*
+	Return a box of a given size aligned inside a given box
+*/
+align_inner :: proc(b: Box, size: [2]f32, align: [2]Alignment) -> Box {
 	a: Box
 	switch align.x {
 		case .Far:

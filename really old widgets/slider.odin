@@ -27,7 +27,7 @@ do_slider :: proc(info: Slider_Info($T), loc := #caller_location) -> T {
 		// Colocate
 		self.box = info.box.? or_else layout_next(current_layout())
 		size: [2]f32 = {width(self.box), SIZE} if info.orientation == .Horizontal else {SIZE, height(self.box)}
-		self.box = child_box(self.box, size, {.Near, .Middle})
+		self.box = align_inner(self.box, size, {.Near, .Middle})
 		// Update
 		update_widget(self)
 		// Animate

@@ -32,7 +32,7 @@ radio_button :: proc(ui: ^UI, info: Radio_Button_Info, loc := #caller_location) 
 	// Create
 	self, result := get_widget(ui, info.generic, loc)
 	// Colocate
-	self.box = info.box.? or_else child_box(next_box(ui), size, ui.placement.align)
+	self.box = info.box.? or_else align_inner(next_box(ui), size, ui.placement.align)
 	// Update
 	update_widget(ui, self)
 	// Assert variant existence

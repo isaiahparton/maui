@@ -78,17 +78,7 @@ _main :: proc() -> bool {
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
 				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
 				space(&ui, 10)
-				button(&ui, {fit_text = true, type = .Filled, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut})
-			pop_layout(&ui)
-			space(&ui, 10)
-			push_dividing_layout(&ui, cut(&ui, .Top, 30))
-				ui.placement.side = .Left
-				ui.placement.size = 30
-				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Outlined})
-				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Outlined})
-				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Outlined})
-				space(&ui, 10)
-				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Rounded, type = .Outlined})
+				button(&ui, {fit_text = true, type = .Filled, text = "New", corners = Corners{.Bottom_Right}})
 			pop_layout(&ui)
 			space(&ui, 10)
 			push_dividing_layout(&ui, cut(&ui, .Top, 30))
@@ -98,7 +88,7 @@ _main :: proc() -> bool {
 				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
 				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Subtle})
 				space(&ui, 10)
-				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, corner_style = .Cut, type = .Subtle})
+				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, type = .Subtle})
 			pop_layout(&ui)
 			space(&ui, 20)
 			ui.placement.size = 32
@@ -163,8 +153,8 @@ _main :: proc() -> bool {
 					size = 28,
 				},
 			})
-			ui.placement.size = 180
-			if frame(&ui, {}) {
+			ui.placement.size = 260
+			if frame(&ui, {gradient_size = 40}) {
 				ui.placement.size = 24
 				for i in 1..=69 {
 					push_id(&ui, i)
@@ -230,13 +220,6 @@ _main :: proc() -> bool {
 			}, ui.style.color.text[0])
 			paint_text(ui.painter, {0, ui.size.y - 32}, {
 				text = tmp_printf("time: %f", ui.current_time), 
-				font = ui.style.font.title, 
-				size = 16,
-				baseline = .Bottom,
-			}, ui.style.color.text[0])
-
-			paint_text(ui.painter, {0, ui.size.y - 62}, {
-				text = tmp_printf("content: %v\nspace: %v", ui.root_layer.content_box, ui.root_layer.space), 
 				font = ui.style.font.title, 
 				size = 16,
 				baseline = .Bottom,

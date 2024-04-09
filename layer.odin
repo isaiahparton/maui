@@ -506,7 +506,7 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		// Apply scroll padding
 		layout_box.high -= self.scrollbar_time * SCROLL_BAR_SIZE
 		// Push layout
-		layout := push_layout(ui, layout_box)
+		layout := push_dividing_layout(ui, layout_box)
 		// Extending layout
 		if direction, ok := info.grow.?; ok {
 			#partial switch direction {

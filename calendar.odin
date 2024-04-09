@@ -66,7 +66,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				text = tmp_print(month),
 				height = 160,
 			}); ok {
-				ui.layouts.current.size = 20
+				ui.placement.size = 20
 				for member in time.Month {
 					push_id(ui, int(member))
 						if was_clicked(option(ui, {text = tmp_print(member)})) {
@@ -110,7 +110,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				text = tmp_print(year),
 				height = 160,
 			}); ok {
-				ui.layouts.current.size = 20
+				ui.placement.size = 20
 				low := max(year - 4, 1970)
 				for i in low..=(low + 8) {
 					push_id(ui, i)
@@ -144,7 +144,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 	DAY_HEIGHT :: 26
 	// Weekdays
 	push_dividing_layout(ui, cut(ui, .Top, 20))
-		ui.placement.side = .Left; ui.placement.size = DAY_WIDTH; ui.layouts.current.align = {.Middle, .Middle}
+		ui.placement.side = .Left; ui.placement.size = DAY_WIDTH; ui.placement.align = {.Middle, .Middle}
 		for day in ([]string)({"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}) {
 			text_box(ui, {
 				text_info = Text_Info{
@@ -167,7 +167,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 		for i in 0..<42 {
 			if (i > 0) && (i % 7 == 0) {
 				pop_layout(ui)
-				push_layout(ui, cut(ui, .Top, DAY_HEIGHT))
+				push_dividing_layout(ui, cut(ui, .Top, DAY_HEIGHT))
 				ui.placement.side = .Left
 				ui.placement.size = DAY_WIDTH
 			}
@@ -187,103 +187,4 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 	// Clamp value
 	new_value._nsec = max(new_value._nsec, 0)
 	return
-}
-
-Date_Picker_Info :: struct {
-	using generic: Generic_Widget_Info,
-	value,
-	temp_value: ^time.Time,
-	title: Maybe(string),
-}
-Date_Picker_Result :: struct {
-	using generic: Generic_Widget_Result,
-	changed: bool,
-}
-date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) -> Date_Picker_Result {
-	self, generic_result := get_widget(ui, info, loc)
-	result: Date_Picker_Result = {
-		generic = generic_result,
-	}
-	// Colocate
-	self.box = info.box.? or_else next_box(ui)
-	// Update
-	update_widget(ui, self)
-	// Animate
-	if self.variant == nil {
-		self.variant = Menu_Widget_Variant{}
-	}
-	data := &self.variant.(Menu_Widget_Variant)
-	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
-	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
-	// Date 
-	year, month, day := time.date(info.value^)
-	// Paint (kinda rhymes)
-	if .Should_Paint in self.bits {
-		fill_color := fade(ui.style.color.substance, 0.1 + 0.4 * data.hover_time)
-		stroke_color := fade(ui.style.color.substance, 0.5 + 0.5 * data.hover_time)
-		points, point_count := get_path_of_box_with_cut_corners(self.box, height(self.box) / 3, {.Bottom_Right})
-		paint_path_fill(ui.painter, points[:point_count], fill_color)
-		paint_path_stroke(ui.painter, points[:point_count], true, 1, 0, stroke_color)
-		year, month, day := time.date(info.value^)
-		h := height(self.box)
-		paint_text(ui.painter, self.box.low + {h * 0.25, h * 0.5}, {
-			text = tmp_printf("%2i/%2i/%i", month, day, year),
-			font = ui.style.font.label,
-			size = ui.style.text_size.label,
-			baseline = .Middle,
-		}, ui.style.color.text[0])
-	}
-	// Activate!
-	if data.is_open {
-		size: [2]f32 = {370, 280}
-		side: Box_Side = .Bottom
-		OFFSET :: 10
-		// Find optimal side of attachment
-		box := get_attached_box(self.box, side, size, OFFSET * data.open_time)
-		box.low = linalg.clamp(box.low, 0, ui.size - size)
-		box.high = box.low + size
-		// Layer
-		if layer, ok := do_layer(ui, {
-			placement = box,
-			order = .Background,
-			options = {.Attached},
-		}); ok {
-			// Fill
-			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[1])
-			// Stuff
-			shrink(ui, 10)
-			// Action buttons
-			if _, ok := do_layout(ui, cut(ui, .Bottom, 30)); ok {
-				ui.placement.side = .Right; ui.layouts.current.size = 70
-				if was_clicked(button(ui, {text = "Cancel"})) {
-					info.temp_value^ = info.value^
-					data.is_open = false
-				}
-				space(ui, 10)
-				if was_clicked(button(ui, {text = "Save"})) {
-					info.value^ = info.temp_value^
-					data.is_open = false
-					result.changed = true
-				}
-				ui.placement.side = .Left;
-				if was_clicked(button(ui, {text = "Today"})) {
-					info.temp_value^ = time.now()
-				}
-			}
-			// Display a calendar
-			info.temp_value^ = calendar(ui, info.temp_value^)
-			// Stroke
-			paint_box_stroke(ui.painter, layer.box, 1, ui.style.color.stroke)
-		}
-	}
-	// Hover
-	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
-	// Click
-	if was_clicked(result) {
-		data.is_open = !data.is_open
-		if data.is_open {
-			info.temp_value^ = info.value^
-		}
-	}
-	return result
 }

@@ -26,7 +26,7 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 		digit_count := min(info.digits, MAX_SPIN_COUNTER_DIGITS)
 		digit_size: [2]f32 = {info.digit_width, height(parent_box)}
 
-		self.box = child_box(parent_box, {f32(digit_count) * digit_size.x, digit_size.y}, placement.align)
+		self.box = align_inner(parent_box, {f32(digit_count) * digit_size.x, digit_size.y}, placement.align)
 		update_widget(self)
 
 		if .Should_Paint in self.bits {

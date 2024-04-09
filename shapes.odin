@@ -490,8 +490,10 @@ paint_rounded_box_corners_fill :: proc(painter: ^Painter, box: Box, radius: f32,
 		if box.high.x > box.low.x + radius * 2 {
 			paint_box_fill(painter, {{box.low.x + radius, box.low.y}, {box.high.x - radius, box.high.y}}, color)
 		}
-		paint_box_fill(painter, {{box.low.x, box.low.y + radius}, {box.low.x + radius, box.high.y - radius}}, color)
-		paint_box_fill(painter, {{box.high.x - radius, box.low.y + radius}, {box.high.x, box.high.y - radius}}, color)
+		if box.high.y > box.low.y + radius * 2 {
+			paint_box_fill(painter, {{box.low.x, box.low.y + radius}, {box.low.x + radius, box.high.y - radius}}, color)
+			paint_box_fill(painter, {{box.high.x - radius, box.low.y + radius}, {box.high.x, box.high.y - radius}}, color)
+		}
 	}
 }
 

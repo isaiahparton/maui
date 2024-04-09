@@ -48,7 +48,7 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 			options = {.Attached, .No_Scroll_X, .No_Scroll_Y},
 		}); ok {
 			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[1])
-			ui.layouts.current.side = .Top; ui.layouts.current.size = option_height
+			ui.placement.side = .Top; ui.placement.size = option_height
 			push_id(ui, self.id)
 				for item, i in info.items {
 					push_id(ui, i)
@@ -79,7 +79,7 @@ Option_Info :: struct {
 }
 option :: proc(ui: ^UI, info: Option_Info, loc := #caller_location) -> Generic_Widget_Result {
 	self, result := get_widget(ui, info, loc)
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	self.box = info.box.? or_else next_box(ui)
 	update_widget(ui, self)
 	// Assert variant existence
 	if self.variant == nil {

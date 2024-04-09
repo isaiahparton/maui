@@ -29,14 +29,14 @@ toggle_button :: proc(ui: ^UI, info: Toggle_Button_Info, loc := #caller_location
 	layout := current_layout(ui)
 	// Get minimum width
 	if info.fit_text {
-		layout.size.x = measure_text(ui.painter, {
+		ui.placement.size = measure_text(ui.painter, {
 			text = info.text,
 			font = info.font.? or_else ui.style.font.label, 
 			size = info.text_size.? or_else ui.style.text_size.label,
 		}).x + height(layout.box)
 	}
 	// Colocate the button
-	self.box = info.box.? or_else layout_next(layout)
+	self.box = info.box.? or_else next_box(ui)
 	update_widget(ui, self)
 	// Assert variant existence
 	if self.variant == nil {

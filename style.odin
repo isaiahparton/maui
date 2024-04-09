@@ -59,6 +59,7 @@ get_light_style_colors :: proc() -> Style_Colors {
 		substance = {60, 60, 60, 255},
 		button = {171, 160, 167, 255},
 		button_hovered = {44, 40, 53, 255},
+		backing = {215, 215, 215, 255},
 		label = {0, 0, 0, 255},
 		label_hovered = {255, 255, 255, 255},
 	}
@@ -122,6 +123,7 @@ Style_Colors :: struct {
 	text,
 	background,
 	foreground: [2]Color,
+	backing,
 	button,
 	label,
 	button_hovered,

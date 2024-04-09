@@ -272,7 +272,9 @@ _count_layer_children :: proc(layer: ^Layer) -> int {
 }
 
 push_placement :: proc(ui: ^UI, placement: Placement) {
-	ui.placement_stack.items[ui.placement_stack.height - 1] = ui.placement
+	if ui.placement_stack.height > 0 {
+		ui.placement_stack.items[ui.placement_stack.height - 1] = ui.placement
+	}
 	stack_push(&ui.placement_stack, placement)
 }
 pop_placement :: proc(ui: ^UI) {

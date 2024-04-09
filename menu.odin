@@ -38,14 +38,14 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 
 	layout := current_layout(ui)
 	if info.fit {
-		layout.size.x = math.floor(measure_text(ui.painter, {
+		ui.placement.size = math.floor(measure_text(ui.painter, {
 			text = info.text,
 			font = ui.style.font.label, 
 			size = ui.style.text_size.label,
 		}).x + height(layout.box))
 	}
 
-	self.box = info.box.? or_else layout_next(layout)
+	self.box = info.box.? or_else next_box(ui)
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
@@ -98,7 +98,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 
 	if result.is_open {
 		layout := current_layout(ui)
-		layout.side = .Top
+		ui.placement.side = .Top
 		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground[1])
 		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
 	}
@@ -133,13 +133,13 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
 
 	layout := current_layout(ui)
-	layout.size.x = measure_text(ui.painter, {
+	ui.placement.size = measure_text(ui.painter, {
 		text = info.text,
 		font = ui.style.font.label, 
 		size = ui.style.text_size.label,
 	}).x + height(layout.box)
 
-	self.box = info.box.? or_else layout_next(layout)
+	self.box = info.box.? or_else next_box(ui)
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
@@ -174,7 +174,7 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 
 	if result.is_open {
 		layout := current_layout(ui)
-		layout.side = .Top
+		ui.placement.side = .Top
 		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground[1])
 		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
 	}

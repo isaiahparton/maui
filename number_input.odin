@@ -21,7 +21,7 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 	}
 	// Colocate
 	self.options += {.Draggable, .Can_Key_Select}
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	self.box = info.box.? or_else next_box(ui)
 	// Assert variant existence
 	if self.variant == nil {
 		self.variant = Text_Input_Widget_Variant{}

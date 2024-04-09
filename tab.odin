@@ -7,7 +7,7 @@ Tab_Info :: struct {
 }
 tab :: proc(ui: ^UI, info: Tab_Info, loc := #caller_location) -> Generic_Widget_Result {
 	self, result := get_widget(ui, info, loc)
-	self.box = info.box.? or_else layout_next(current_layout(ui))
+	self.box = info.box.? or_else next_box(ui)
 	update_widget(ui, self)
 	if self.variant == nil do self.variant = Button_Widget_Variant{}
 	data := &self.variant.(Button_Widget_Variant)

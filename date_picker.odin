@@ -1,24 +1,18 @@
 package maui
-/*import "core:time"
+import "core:time"
 import "core:math/linalg"
-
-CALENDAR_WIDTH :: 440
-CALENDAR_HEIGHT :: 250
+import "core:strings"
+import "core:strconv"
 
 Date_Picker_Info :: struct {
 	using generic: Generic_Widget_Info,
-	value: time.Time,
+	value,
+	temp_value: ^time.Time,
 	title: Maybe(string),
 }
 Date_Picker_Result :: struct {
 	using generic: Generic_Widget_Result,
-	value: time.Time,
 	changed: bool,
-}
-Date_Picker_Widget_Variant :: struct {
-	using button: Button_Widget_Variant,
-	value: time.Time,
-	is_open: bool,
 }
 date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) -> Date_Picker_Result {
 	self, generic_result := get_widget(ui, info, loc)
@@ -26,40 +20,50 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 		generic = generic_result,
 	}
 	// Colocate
-	self.box = info.box.? or_else layout_next(current_layout(ui))
-	// Update
-	update_widget(ui, self)
-	// Variant
-	if self.variant == nil {
-		self.variant = Date_Picker_Widget_Variant{}
-	}
-	data := &self.variant.(Date_Picker_Widget_Variant)
+	box := info.box.? or_else next_box(ui)
 	// Animate
-	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
-	// Date 
-	year, month, day := time.date(info.value)
-	// Paint (kinda rhymes)
-	if .Should_Paint in self.bits {
-		paint_text(ui.painter, center(self.box), {
-			text = tmp_printf("%2i/%2i/%4i", day, int(month), year), 
-			size = ui.style.text_size.label,
-			font = ui.style.font.label,
-		}, ui.style.color.text[0])
+	if self.variant == nil {
+		self.variant = Menu_Widget_Variant{}
 	}
+	data := &self.variant.(Menu_Widget_Variant)
+	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
+	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
+	// Date 
+	year, month, day := time.date(info.value^)
+	buffer := get_scribe_buffer(&ui.scribe, self.id)
+	text_input_result := text_input(ui, {
+		data = buffer, 
+		placeholder = "DD/MM/YYYY",
+		box = box,
+	})
+	if text_input_result.changed {
+		if len(buffer) > 0 {
+			values, _ := strings.split(string(buffer[:]), "/")
+			defer delete(values)
+			if len(values) == 3 {
+				new_day := int(strconv.parse_uint(values[0]) or_else 1)
+				new_month := int(clamp(strconv.parse_uint(values[1]) or_else 1, 1, 12))
+				new_year := int(max(strconv.parse_uint(values[2]) or_else 0, 1970))
+				info.value^ = time.datetime_to_time(new_year, new_month, new_day, 0, 0, 0) or_else info.value^
+				info.temp_value^ = info.value^
+			}
+		}
+	}
+	if was_clicked(button(ui, {
+		box = get_box_right(box, height(box)),
+		corners = {.Top_Right, .Bottom_Right},
+		font = ui.style.font.icon,
+		text = "\uf783",
+	})) {
+		data.is_open = true
+	}	
 	// Activate!
 	if data.is_open {
-		size: [2]f32 = {440, 260}
+		size: [2]f32 = {370, 280}
 		side: Box_Side = .Bottom
 		OFFSET :: 10
 		// Find optimal side of attachment
-		if self.box.low.x < size.x + OFFSET {
-			side = .Right 
-		} else if self.box.high.x + size.x + OFFSET >= ui.size.x {
-			side = .Left
-		} else if self.box.high.y + size.y + OFFSET >= ui.size.y {
-			side = .Top
-		}
-		box := get_attached_box(self.box, side, size, OFFSET)
+		box := get_attached_box(self.box, side, size, OFFSET * data.open_time)
 		box.low = linalg.clamp(box.low, 0, ui.size - size)
 		box.high = box.low + size
 		// Layer
@@ -68,162 +72,49 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			order = .Background,
 			options = {.Attached},
 		}); ok {
-			// Temporary state
-			year, month, day := time.date(data.value)
 			// Fill
-			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[0])
+			paint_rounded_box_fill(ui.painter, layer.box, ui.style.rounding, ui.style.color.foreground[1])
+			paint_rounded_box_corners_fill(ui.painter, get_box_bottom(layer.box, 6), ui.style.rounding, {.Bottom_Left, .Bottom_Right}, ui.style.color.accent)
+			cut(ui, .Bottom, 6)
 			// Stuff
 			shrink(ui, 10)
-			ui.layouts.current.direction = .Down
-			// Main options
-			if _, ok := do_layout(ui, cut(ui, .Down, 30)); ok {
-				ui.layouts.current.direction = .Left; ui.layouts.current.size = 70
+			// Action buttons
+			push_dividing_layout(ui, cut(ui, .Bottom, 30))
+				ui.placement.side = .Right; ui.placement.size = 70
 				if was_clicked(button(ui, {text = "Cancel"})) {
-					data.value = info.value
+					info.temp_value^ = info.value^
 					data.is_open = false
 				}
 				space(ui, 10)
 				if was_clicked(button(ui, {text = "Save"})) {
-					result.value = data.value
-					result.changed = true
+					info.value^ = info.temp_value^
 					data.is_open = false
+					result.changed = true
 				}
-				ui.layouts.current.direction = .Right;
+				ui.placement.side = .Left;
 				if was_clicked(button(ui, {text = "Today"})) {
-					data.value = time.now()
+					info.temp_value^ = time.now()
 				}
+			pop_layout(ui)
+			// Display a calendar
+			new_value := calendar(ui, info.temp_value^)
+			if info.temp_value^ != new_value {
+				info.temp_value^ = new_value
+				_year, _month, _day := time.date(new_value)
+				text := tmp_printf("%2i/%2i/%4i", _day, _month, _year)
+				clear(buffer)
+				append_string(buffer, text)
 			}
-			// Combo boxes
-			if _, ok := do_layout(ui, cut(ui, .Down, 30)); ok {
-				ui.layouts.current.direction = .Right; ui.layouts.current.size = 135; ui.layouts.current.align = {.Middle, .Middle}
-				month_days := int(time.days_before[int(month)])
-				if int(month) > 0 {
-					month_days -= int(time.days_before[int(month) - 1])
-				}
-				if menu({text = tmp_print(day), size = {0, 120}}) {
-					ui.layouts.current.size = 20
-					for i in 1..=month_days {
-						push_id(i)
-							if do_option({text = tmp_print(i)}) {
-								day = i
-								data.value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-							}
-						pop_id()
-					}
-				}
-				space(10)
-				if do_menu({text = tmp_print(month), size = {0, 120}}) {
-					ui.layouts.current.size = 20
-					for member in time.Month {
-						push_id(int(member))
-							if do_option({text = tmp_print(member)}) {
-								month = member
-								data.value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-							}
-						pop_id()
-					}
-				}
-				space(10)
-				if do_menu({text = tmp_print(year), size = {0, 120}}) {
-					ui.layouts.current.size = 20
-					low := max(year - 4, 1970)
-					for i in low..=(low + 8) {
-						push_id(i)
-							if do_option({text = tmp_print(i)}) {
-								year = i
-								data.value, _ = time.datetime_to_time(i, int(month), day, 0, 0, 0, 0)
-							}
-						pop_id()
-					}
-				}
-			}
-			space(10)
-			// Skip buttons
-			if do_layout(.Top, 20) {
-				ui.layouts.current.side = .Left; ui.layouts.current.size = 70
-				// Subtract one year
-				if button({text = "<<<", style = .Filled}) {
-					year -= 1
-					data.value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-				}
-				// Subtract one month
-				if button({text = "<<", style = .Filled}) {
-					month = time.Month(int(month) - 1)
-					if int(month) <= 0 {
-						month = time.Month(12)
-						year -= 1
-					}
-					data.value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-				}
-				// Subtract one day
-				if button({text = "<", style = .Filled}) {
-					data.value._nsec -= i64(time.Hour * 24)
-					year, month, day = time.date(data.value)
-				}
-				// Add one day
-				if button({text = ">", style = .Filled}) {
-					data.value._nsec += i64(time.Hour * 24)
-					year, month, day = time.date(data.value)
-				}
-				// Add one month
-				if button({text = ">>", style = .Filled}) {
-					month = time.Month(int(month) + 1)
-					if int(month) >= 13 {
-						month = time.Month(1)
-						year += 1
-					}
-					data.value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-				}
-				// Add one year
-				if button({text = ">>>", style = .Filled}) {
-					year += 1
-					data.value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
-				}
-			}
-			space(10)
-			// Weekdays
-			if do_layout(.Top, 20) {
-				ui.layouts.current.side = .Left; ui.layouts.current.size = 60; ui.layouts.current.align = {.Middle, .Middle}
-				for day in ([]string)({"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}) {
-					do_text({text = day, align = .Middle, baseline = .Middle})
-				}
-			}
-			WEEK_DURATION :: i64(time.Hour * 24 * 7)
-			OFFSET :: i64(time.Hour * 72)
-			t, _ := time.datetime_to_time(year, int(month), 0, 0, 0, 0, 0)
-			day_time := (t._nsec / WEEK_DURATION) * WEEK_DURATION - OFFSET
-			if do_layout(.Top, 20) {
-				ui.layouts.current.side = .Left; ui.layouts.current.size = 60
-				for i in 0..<42 {
-					if (i > 0) && (i % 7 == 0) {
-						pop_layout()
-						push_layout(cut(.Top, 20))
-						ui.layouts.current.side = .Left
-						ui.layouts.current.size = 60
-					}
-					_, _month, _day := time.date(transmute(time.Time)day_time)
-					push_id(i)
-						if button({text = tmp_print(_day), style = .Filled, color = get_color(.Accent) if (_month == month && _day == day) else (get_color(.Button_Base, 0.5) if time.month(transmute(time.Time)day_time) != month else nil)}) {
-							data.value = transmute(time.Time)day_time
-						}
-					pop_id()
-					day_time += i64(time.Hour * 24)
-				}
-			}
-			// Stroke
-			paint_rounded_box_stroke(layer.box, WINDOW_ROUNDNESS, 1, get_color(.Widget_Stroke_Focused))
-			// Clamp value
-			info.temp_value._nsec = max(info.temp_value._nsec, 0)
 		}
 	}
 	// Hover
-	update_widget_hover(self, point_in_box(input.mouse_point, self.box))
+	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	// Click
-	if widget_clicked(self, .Left) {
-		self.bits ~= {.Active}
-		if self.bits >= {.Active} {
-			data.value = info.value
+	if was_clicked(result) {
+		data.is_open = !data.is_open
+		if data.is_open {
+			info.temp_value^ = info.value^
 		}
 	}
-	return
-}*/
+	return result
+}

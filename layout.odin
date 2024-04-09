@@ -91,12 +91,6 @@ current_layout :: proc(ui: ^UI, loc := #caller_location) -> ^Layout {
 	assert(ui.layouts.current != nil, "No current layout", loc)
 	return ui.layouts.current
 }
-get_layout_width :: proc(layout: ^Layout) -> f32 {
-	return (layout.box.high.x - layout.box.low.x) - layout.placement.margin[.Left] - layout.placement.margin[.Right]
-}
-get_layout_height :: proc(layout: ^Layout) -> f32 {
-	return (layout.box.high.y - layout.box.low.y) - layout.placement.margin[.Top] - layout.placement.margin[.Bottom]
-}
 // Add space
 space :: proc(ui: ^UI, amount: f32) {
 	layout := current_layout(ui)
@@ -105,8 +99,8 @@ space :: proc(ui: ^UI, amount: f32) {
 // Shrink the current layout (apply margin on all sides)
 shrink :: proc(ui: ^UI, amount: f32, loc := #caller_location) {
 	layout := current_layout(ui, loc)
-	if grow, ok := layout.grow.?; ok {
-		#partial switch grow {
+	if direction, ok := layout.direction.?; ok {
+		#partial switch direction {
 			case .Up, .Down: 
 			layout.box.low.y += amount
 			layout.box.high.y += amount * 2
@@ -143,13 +137,6 @@ layout_cut_or_grow :: proc(layout: ^Layout, side: Box_Side, amount: f32) -> (res
 	}
 	return
 }
-layout_fit :: proc(layout: ^Layout, size: [2]f32) {
-	if layout.placement.side == .Left || layout.placement.side == .Right {
-		layout.placement.size = size.x
-	} else {
-		layout.placement.size = size.y
-	}
-}
 /*
 	Cut from the current layout and return the result
 */
@@ -173,17 +160,17 @@ do_growing_layout :: proc(ui: ^UI, direction: Direction) -> (ok: bool) {
 @private
 _do_growing_layout :: proc(ui: ^UI, _: Direction, ok: bool) {
 	if ok {
-		pop_growing_layout(ui)
+		pop_layout(ui)
 	}
 }
 
 @(deferred_in_out=_row)
 row :: proc(ui: ^UI, divisions: int, spacing: f32 = 0) -> (ok: bool) {
 	last_layout := current_layout(ui)
-	box := cut(ui, last_layout.side, last_layout.size.y)
-	layout := push_layout(ui, box)
-	layout.side = .Left
-	layout.size = width(layout.box) / max(f32(divisions), 1) - (spacing * f32(divisions - 1))
+	box := cut(ui, ui.placement.side, ui.placement.size)
+	layout := push_dividing_layout(ui, box)
+	ui.placement.side = .Left
+	ui.placement.size = width(layout.box) / max(f32(divisions), 1) - (spacing * f32(divisions - 1))
 	return true
 }
 @private 

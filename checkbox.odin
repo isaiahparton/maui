@@ -40,7 +40,7 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 	// Create
 	self, result := get_widget(ui, info.generic, loc)
 	// Colocate
-	self.box = info.box.? or_else next_box(ui)
+	self.box = info.box.? or_else align_inner(next_box(ui), size, ui.placement.align)
 	// Update
 	update_widget(ui, self)
 	// Assert variant existence
