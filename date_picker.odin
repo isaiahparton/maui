@@ -81,18 +81,18 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			// Action buttons
 			push_dividing_layout(ui, cut(ui, .Bottom, 30))
 				ui.placement.side = .Right; ui.placement.size = 70
-				if was_clicked(button(ui, {text = "Cancel"})) {
+				if was_clicked(button(ui, {text = "Cancel", corners = ALL_CORNERS})) {
 					info.temp_value^ = info.value^
 					data.is_open = false
 				}
 				space(ui, 10)
-				if was_clicked(button(ui, {text = "Save"})) {
+				if was_clicked(button(ui, {text = "Save", corners = ALL_CORNERS})) {
 					info.value^ = info.temp_value^
 					data.is_open = false
 					result.changed = true
 				}
 				ui.placement.side = .Left;
-				if was_clicked(button(ui, {text = "Today"})) {
+				if was_clicked(button(ui, {text = "Today", corners = ALL_CORNERS})) {
 					info.temp_value^ = time.now()
 				}
 			pop_layout(ui)

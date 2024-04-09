@@ -46,10 +46,9 @@ scrollbar :: proc(ui: ^UI, info: Scrollbar_Info, loc := #caller_location) -> Scr
 	knob_box.high[i] = knob_box.low[i] + knob_size
 	// Painting
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, ui.style.color.background[0])
-		paint_box_stroke(ui.painter, self.box, 1, fade(ui.style.color.substance, 0.5))
-		paint_box_fill(ui.painter, knob_box, fade(ui.style.color.substance, 0.5 + 0.5 * data.hover_time))
-		paint_box_stroke(ui.painter, knob_box, 1, fade(ui.style.color.substance, 0.5))
+		radius := (self.box.high[1 - i] - self.box.low[1 - i]) / 2
+		paint_rounded_box_fill(ui.painter, shrink_box(self.box, 2), radius, ui.style.color.background[0])
+		paint_rounded_box_fill(ui.painter, knob_box, radius, blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered))
 	}
 	// Dragging
 	if .Pressed in (self.state - self.last_state) {

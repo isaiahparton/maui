@@ -27,7 +27,6 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 
 	if .Should_Paint in self.bits {
 		paint_box_fill(ui.painter, {self.box.low, {self.box.low.x + 5, self.box.high.y}}, ui.style.color.button)
-		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 1}, self.box.high}, ui.style.color.button)
 		if data.hover_time > 0 || info.active {
 			fill_color := alpha_blend_colors(ui.style.color.accent, ui.style.color.button, data.hover_time) if info.active else fade(ui.style.color.button, data.hover_time)
 			paint_box_fill(ui.painter, self.box, fill_color)
