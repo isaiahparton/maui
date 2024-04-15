@@ -79,6 +79,10 @@ _main :: proc() -> bool {
 				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
 				space(&ui, 10)
 				button(&ui, {fit_text = true, type = .Filled, text = "New", corners = Corners{.Bottom_Right}})
+				space(&ui, 10)
+				if result := combo_box(&ui, {index = combo_box_index, items = {"one", "two", "three", "four"}}); result.changed {
+					combo_box_index = result.index
+				}
 			pop_layout(&ui)
 			space(&ui, 10)
 			push_dividing_layout(&ui, cut(&ui, .Top, 30))

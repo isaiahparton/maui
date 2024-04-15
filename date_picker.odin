@@ -74,8 +74,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 		}); ok {
 			// Fill
 			paint_rounded_box_fill(ui.painter, layer.box, ui.style.rounding, ui.style.color.foreground[1])
-			paint_rounded_box_corners_fill(ui.painter, get_box_bottom(layer.box, 6), ui.style.rounding, {.Bottom_Left, .Bottom_Right}, ui.style.color.accent)
-			cut(ui, .Bottom, 6)
+			paint_rounded_box_stroke(ui.painter, layer.box, ui.style.rounding, 1, ui.style.color.substance)
 			// Stuff
 			shrink(ui, 10)
 			// Action buttons
