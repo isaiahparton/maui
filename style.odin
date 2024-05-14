@@ -46,7 +46,7 @@ get_light_style_colors :: proc() -> Style_Colors {
 			{185, 190, 186, 255},
 		},
 		foreground = {
-			{255, 255, 255, 255},
+			{240, 240, 240, 255},
 			{235, 235, 235, 255},
 		},
 		text = {

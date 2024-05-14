@@ -174,7 +174,7 @@ begin_ui :: proc(ui: ^UI) {
 		grow = .Down,
 	}) or_else panic("Could not create root layer")
 	// Begin root layout
-	push_dividing_layout(ui, {{}, ui.size})
+	// push_growing_layout(ui, {{}, ui.size}, .Down)
 	// Tab through input fields
 	//TODO(isaiah): Add better keyboard navigation with arrow keys
 	//FIXME(isaiah): Text inputs selected with 'tab' do not behave correctly
@@ -228,7 +228,7 @@ begin_ui :: proc(ui: ^UI) {
 }
 end_ui :: proc(ui: ^UI) {
 	// End root layout
-	pop_layout(ui)
+	// pop_layout(ui)
 	// End root layer
 	end_layer(ui, ui.root_layer)
 	// Update layers
@@ -258,7 +258,6 @@ end_ui :: proc(ui: ^UI) {
 		ui.painter.should_update = false
 		update_texture(ui.painter, ui.painter.texture, ui.painter.image, 0, 0, f32(ui.painter.image.width), f32(ui.painter.image.height))
 	}
-
 	ui.io.set_cursor_type(ui.cursor)
 	ui.cursor = .Default
 }

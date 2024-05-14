@@ -100,6 +100,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	}
 	// Paint!
 	if (.Should_Paint in self.bits) {
+		// Paint the placeholder on the foreground
 		if info.placeholder != nil {
 			if len(text) == 0 {
 				paint_text(
@@ -110,19 +111,9 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 				)
 			}
 		}
+		// Paint the body on the background
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
-		/*
-		opacity: f32 = 1.0
-		stroke_color := blend_colors(data.focus_time, fade(ui.style.color.substance, 0.5), ui.style.color.accent)
-		if data.focus_time < 1 {
-			paint_box_inner_gradient(ui.painter, self.box, 0, 56, {}, fade(ui.style.color.substance, 0.25 * (1 - data.focus_time)))
-		}
-		if data.focus_time > 0 {
-			paint_box_fill(ui.painter, self.box, fade(ui.style.color.substance, data.focus_time * 0.25))
-		}
-		paint_box_stroke(ui.painter, self.box, 1, stroke_color)
-		*/
 		paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, ui.style.rounded_corners, ui.style.color.backing)
 		if title, ok := info.title.?; ok {
 			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
@@ -203,10 +194,10 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	ui.scribe.selection = text_result.selection
 	// Update hover
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
-	update_layer_content_bounds(ui.layers.current, self.box)
 	// Only for content clipping of title (not very elegant)
 	if info.title != nil {
 		self.box.low.y -= 10
 	}
+	update_layer_content_bounds(ui.layers.current, self.box)
 	return result
 }

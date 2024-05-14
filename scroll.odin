@@ -13,7 +13,6 @@ Scrollbar_Result :: struct {
 	changed: bool,
 	value: f32,
 }
-
 scrollbar :: proc(ui: ^UI, info: Scrollbar_Info, loc := #caller_location) -> Scrollbar_Result {
 	self, generic_result := get_widget(ui, info, loc)
 	self.options += {.Draggable}
@@ -46,9 +45,8 @@ scrollbar :: proc(ui: ^UI, info: Scrollbar_Info, loc := #caller_location) -> Scr
 	knob_box.high[i] = knob_box.low[i] + knob_size
 	// Painting
 	if .Should_Paint in self.bits {
-		radius := (self.box.high[1 - i] - self.box.low[1 - i]) / 2
-		paint_rounded_box_fill(ui.painter, shrink_box(self.box, 2), radius, ui.style.color.background[0])
-		paint_rounded_box_fill(ui.painter, knob_box, radius, blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered))
+		paint_box_fill(ui.painter, self.box, fade({0, 0, 0, 255}, 0.1 + data.hover_time * 0.1))
+		paint_box_fill(ui.painter, knob_box, fade({0, 0, 0, 255}, 0.1 + data.hover_time * 0.2))
 	}
 	// Dragging
 	if .Pressed in (self.state - self.last_state) {

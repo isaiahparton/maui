@@ -78,6 +78,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 				origin = {math.floor(self.box.low.x), self.box.high.y - 1},
 				size = {max(width(self.box), info.width), info.height},
 			},
+			scrollbar_padding = [2]f32{1, 1},
 			grow = .Down,
 			options = {.Attached},
 		})
@@ -100,7 +101,6 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 		layout := current_layout(ui)
 		ui.placement.side = .Top
 		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground[1])
-		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
 	}
 
 	return result, result.is_open
@@ -108,6 +108,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 @private
 _menu :: proc(ui: ^UI, _: Menu_Info, _: runtime.Source_Code_Location, result: Menu_Result, open: bool) {
 	if open {
+		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
 		widget := result.self.?
 		variant := &widget.variant.(Menu_Widget_Variant)
 		if (.Focused not_in (widget.state | widget.last_state)) && (result.layer.state & {.Focused} == {}) {

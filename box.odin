@@ -323,7 +323,7 @@ get_attached_box :: proc(box: Box, side: Box_Side, size: [2]f32, offset: f32) ->
 		
 		case .Top: 
 		middle := (box.low.x + box.high.x) / 2
-		return {{middle - size.x / 2, box.high.y + offset}, {middle + size.x / 2, box.high.y + offset + size.y}}
+		return {{middle - size.x / 2, box.low.y - offset - size.y}, {middle + size.x / 2, box.low.y - offset}}
 	}
 	return {}
 }

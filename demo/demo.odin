@@ -36,7 +36,7 @@ _main :: proc() -> bool {
 	text_input_data: [dynamic]u8
 	text_input_data2: [dynamic]u8
 	choice: Option
-	t, tt: time.Time = time.now(), {}
+	t: time.Time = time.now()
 
 	// Shared structures
 	io: maui.IO
@@ -62,138 +62,114 @@ _main :: proc() -> bool {
 			cut(&ui, .Right, 200)
 			cut(&ui, .Top, 100)
 
-			ui.placement.size = 32
-			text_box(&ui, {
-				text_info = Text_Info{
-					text = "Buttons",
-					font = ui.style.font.label,
-					size = 28,
-				},
-			})
-			ui.placement.size = 28
-			push_dividing_layout(&ui, cut(&ui, .Top, 30))
-				ui.placement.side = .Left
-				ui.placement.size = 30
-				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019"})
-				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
-				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
-				space(&ui, 10)
-				button(&ui, {fit_text = true, type = .Filled, text = "New", corners = Corners{.Bottom_Right}})
-				space(&ui, 10)
-				if result := combo_box(&ui, {index = combo_box_index, items = {"one", "two", "three", "four"}}); result.changed {
-					combo_box_index = result.index
-				}
-			pop_layout(&ui)
-			space(&ui, 10)
-			push_dividing_layout(&ui, cut(&ui, .Top, 30))
-				ui.placement.side = .Left
-				ui.placement.size = 30
-				button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Subtle})
-				button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
-				button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Subtle})
-				space(&ui, 10)
-				button(&ui, {fit_text = true, text = "New", corners = Corners{.Bottom_Right}, type = .Subtle})
-			pop_layout(&ui)
-			space(&ui, 20)
-			ui.placement.size = 32
-			text_box(&ui, {
-				text_info = Text_Info{
-					text = "Sliders",
-					font = ui.style.font.label,
-					size = 28,
-				},
-			})
-			ui.placement.size = 28
-			push_dividing_layout(&ui, cut(&ui, .Top, 30))
-				ui.placement.side = .Left
-				ui.placement.size = 200
-				if result := slider(&ui, {
-					value = slider_value,
-					low = 0,
-					high = 100,
-				}); result.changed {
-					slider_value = result.value
-				}
-				space(&ui, 10)
-				ui.placement.size = 150
-				if was_clicked(toggle_switch(&ui, {state = toggle_switch_state})) {
-					toggle_switch_state = !toggle_switch_state
-				}
-			pop_layout(&ui)
-			space(&ui, 20)
-			ui.placement.size = 32
-			text_box(&ui, {
-				text_info = Text_Info{
-					text = "Text Input",
-					font = ui.style.font.label,
-					size = 28,
-				},
-			})
-			ui.placement.size = 28
-			push_dividing_layout(&ui, cut(&ui, .Top, 100))
-				ui.placement.size = 300
-				ui.placement.side = .Left
-				text_input(&ui, {
-					data = &text_input_data,
-					multiline = true,
-					placeholder = "type something here",
-				})
-			pop_layout(&ui)
-			space(&ui, 10)
-			push_dividing_layout(&ui, cut(&ui, .Top, 28))
-				ui.placement.size = 300
-				ui.placement.side = .Left
-				text_input(&ui, {
-					data = &text_input_data2,
-					placeholder = "single line text input",
-				})
-			pop_layout(&ui)
-			space(&ui, 20)
-			ui.placement.size = 32
-			text_box(&ui, {
-				text_info = Text_Info{
-					text = "List",
-					font = ui.style.font.label,
-					size = 28,
-				},
-			})
-			ui.placement.size = 260
-			if frame(&ui, {gradient_size = 40}) {
-				ui.placement.size = 24
-				for i in 1..=69 {
-					push_id(&ui, i)
-						list_item(&ui, {text = {tmp_printf("item #%i", i)}})
-					pop_id(&ui)
-				}
-			}
-			ui.placement.size = 24
-			space(&ui, 20)
-			ui.placement.size = 32
-			text_box(&ui, {
-				text_info = Text_Info{
-					text = "Date & time",
-					font = ui.style.font.label,
-					size = 28,
-				},
-			})
-			ui.placement.size = 28
-			push_dividing_layout(&ui, cut(&ui, .Top, 24))
-				ui.placement.side = .Left; ui.placement.size = 200
-				date_picker(&ui, {value = &t, temp_value = &tt})
-			pop_layout(&ui)
-			space(&ui, 20)
-			ui.placement.size = 32
-			text_box(&ui, {
-				text_info = Text_Info{
-					text = "Boolean controls",
-					font = ui.style.font.label,
-					size = 28,
-				},
-			})
-			ui.placement.size = 28
-			if tree_node(&ui, {text = "Tree node"}).expanded {
+			ui.placement.size = 30
+			if tree_node(&ui, {text = "Buttons"}).expanded {
 				ui.placement.size = 28
+				space(&ui, 20)
+				push_dividing_layout(&ui, cut(&ui, .Top, 30))
+					ui.placement.side = .Left
+					ui.placement.size = 30
+					button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019"})
+					button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
+					button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
+					space(&ui, 10)
+					button(&ui, {fit_text = true, type = .Filled, text = "New"})
+				pop_layout(&ui)
 				space(&ui, 10)
+				push_dividing_layout(&ui, cut(&ui, .Top, 30))
+					ui.placement.side = .Left
+					ui.placement.size = 30
+					button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Outlined})
+					button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Outlined})
+					button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Outlined})
+					space(&ui, 10)
+					button(&ui, {fit_text = true, text = "New", type = .Outlined})
+				pop_layout(&ui)
+				space(&ui, 10)
+				push_dividing_layout(&ui, cut(&ui, .Top, 30))
+					ui.placement.side = .Left
+					ui.placement.size = 30
+					button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Subtle})
+					button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
+					button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Subtle})
+					space(&ui, 10)
+					button(&ui, {fit_text = true, text = "New", type = .Subtle})
+				pop_layout(&ui)
+				space(&ui, 20)
+			}
+			
+			if tree_node(&ui, {text = "Sliders"}).expanded {
+				space(&ui, 20)
+				ui.placement.size = 28
+				push_dividing_layout(&ui, cut(&ui, .Top, 30))
+					ui.placement.side = .Left
+					ui.placement.size = 200
+					if result := slider(&ui, {
+						value = slider_value,
+						low = 0,
+						high = 100,
+					}); result.changed {
+						slider_value = result.value
+					}
+					space(&ui, 10)
+					ui.placement.size = 150
+					if was_clicked(toggle_switch(&ui, {state = toggle_switch_state})) {
+						toggle_switch_state = !toggle_switch_state
+					}
+				pop_layout(&ui)
+				space(&ui, 20)
+			}
+
+			if tree_node(&ui, {text = "Text Input"}).expanded {
+				ui.placement.size = 28
+				space(&ui, 20)
+				push_dividing_layout(&ui, cut(&ui, .Top, 100))
+					ui.placement.size = 300
+					ui.placement.side = .Left
+					text_input(&ui, {
+						data = &text_input_data,
+						multiline = true,
+						placeholder = "type something here",
+					})
+				pop_layout(&ui)
+				space(&ui, 10)
+				push_dividing_layout(&ui, cut(&ui, .Top, 28))
+					ui.placement.size = 300
+					ui.placement.side = .Left
+					text_input(&ui, {
+						data = &text_input_data2,
+						placeholder = "single line text input",
+					})
+				pop_layout(&ui)
+				space(&ui, 20)
+			}
+
+			if tree_node(&ui, {text = "Lists"}).expanded {
+				ui.placement.size = 260
+				space(&ui, 20)
+				if frame(&ui, {gradient_size = 40}) {
+					ui.placement.size = 24
+					for i in 1..=69 {
+						push_id(&ui, i)
+							list_item(&ui, {text = {tmp_printf("item #%i", i)}})
+						pop_id(&ui)
+					}
+				}
+				space(&ui, 20)
+			}
+
+			if tree_node(&ui, {text = "Date & Time"}).expanded {
+				space(&ui, 20)
+				push_dividing_layout(&ui, cut(&ui, .Top, 24))
+					ui.placement.side = .Left; ui.placement.size = 200
+					t = date_picker(&ui, {value = t}).new_value.? or_else t
+				pop_layout(&ui)
+				space(&ui, 20)
+			}
+
+			if tree_node(&ui, {text = "Multiple Choice"}).expanded {
+				ui.placement.size = 30
+				space(&ui, 20)
 				if was_clicked(checkbox(&ui, {
 					value = checkbox_value, 
 					text = "Checkbox", 
@@ -208,7 +184,20 @@ _main :: proc() -> bool {
 						}
 					pop_id(&ui)
 				}
+				space(&ui, 20)
 			}
+
+			if tree_node(&ui, {text = "Single Choice"}).expanded {
+				space(&ui, 20)
+				ui.placement.size = 30
+				push_dividing_layout(&ui, cut(&ui, .Top, 24))
+					ui.placement.side = .Left; ui.placement.size = 200
+					combo_box_index = combo_box(&ui, {index = combo_box_index, items = {"one", "two", "three", "four"}}).index.? or_else combo_box_index
+				pop_layout(&ui)
+				space(&ui, 20)
+			}
+
+			cut(&ui, .Top, 100)
 
 			paint_text(ui.painter, {0, ui.size.y}, {
 				text = tmp_printf("frame: %fms", time.duration_milliseconds(ui.frame_duration)), 

@@ -8,8 +8,7 @@ Combo_Box_Info :: struct {
 }
 Combo_Box_Result :: struct {
 	using generic: Generic_Widget_Result,
-	index: int,
-	changed: bool,
+	index: Maybe(int),
 }
 combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Combo_Box_Result {
 	self, generic_result := get_widget(ui, info, loc)
@@ -37,14 +36,14 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 	}
 	if data.is_open {
 		option_height := height(self.box)
-		menu_top := self.box.low.y - f32(info.index) * option_height
 		menu_height := f32(len(info.items)) * option_height
+		menu_top := clamp(self.box.low.y - f32(info.index) * option_height, 0, ui.size.y - menu_height)
 		menu_bottom := max(menu_top + menu_height, self.box.high.y)
+
 		if layer, ok := do_layer(ui, {
 			id = self.id,
 			placement = Box{{self.box.low.x, menu_top}, {self.box.high.x, menu_bottom}},
 			space = [2]f32{0, menu_height},
-			opacity = data.open_time,
 			options = {.Attached, .No_Scroll_X, .No_Scroll_Y},
 		}); ok {
 			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[1])
@@ -54,7 +53,6 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 					push_id(ui, i)
 						if was_clicked(option(ui, {text = item, text_align = .Middle, active = i == info.index})) {
 							result.index = i
-							result.changed = true
 							data.is_open = false
 						}
 					pop_id(ui)
@@ -65,8 +63,15 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 				data.is_open = false
 			}
 		}
+	} else if .Hovered in self.state {
+		if ui.io.mouse_scroll.y != 0 {
+			new_index := info.index - int(ui.io.mouse_scroll.y)
+			if new_index >= 0 && new_index < len(info.items) {
+				result.index = new_index
+			}
+		}
 	}
-	if .Clicked in self.state {
+	if .Pressed in (self.state - self.last_state) {
 		data.is_open = true
 	}
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

@@ -567,14 +567,15 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 			}
 		}
 		// Set the real clipping here
-		ui.painter.meshes[ui.painter.target].clip = new_clip_box
+		ui.painter.meshes[self.targets[.Foreground]].clip = new_clip_box
+		ui.painter.meshes[self.targets[.Background]].clip = new_clip_box
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {
 			max(self.space.x - (self.box.high.x - self.box.low.x), 0),
 			max(self.space.y - (self.box.high.y - self.box.low.y), 0),
 		}
 		// Mouse wheel input
-		if .Hovered in self.state {
+		if ui.layers.hover_id == self.id {
 			self.scroll_target -= ui.io.mouse_scroll * SCROLL_STEP * {f32(int(.No_Scroll_X not_in self.options)), f32(int(.No_Scroll_Y not_in self.options))}
 		}
 		// Repaint if scrolling with wheel

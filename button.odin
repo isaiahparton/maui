@@ -69,10 +69,10 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 			
 			case .Outlined:
 			fill_color := fade(ui.style.color.button_hovered, data.hover_time)
-			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fill_color)
 			if data.hover_time < 1 {
-				paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 2, info.corners, ui.style.color.button_hovered)
+				paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 1, info.corners, ui.style.color.button)
 			}
+			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fill_color)
 			text_color = blend_colors(data.hover_time, ui.style.color.button_hovered, ui.style.color.label_hovered)
 
 			case .Subtle:

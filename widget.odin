@@ -104,7 +104,6 @@ Widget_Variant :: union {
 	Menu_Widget_Variant,
 	Text_Input_Widget_Variant,
 	Toggle_Switch_Widget_Variant,
-	// Date_Picker_Widget_Variant,
 }
 destroy_widget_variant :: proc(variant: ^Widget_Variant) {
 	return
@@ -138,11 +137,11 @@ Widget_Agent :: struct {
 	stack: Stack(^Widget, 8),
 	// Drag anchor
 	dragging: bool,
-	last_hover_id, 
-	next_hover_id, 
-	hover_id, 
-	last_press_id, 
-	press_id, 
+	last_hover_id,
+	next_hover_id,
+	hover_id,
+	last_press_id,
+	press_id,
 	next_focus_id,
 	focus_id,
 	last_focus_id: Id,
