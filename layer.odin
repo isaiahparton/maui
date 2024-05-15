@@ -173,6 +173,8 @@ Layer_Agent :: struct {
 	last_top_id, 
 	top_id: Id,
 	current: ^Layer,
+	// The layer on which scrolling is possible
+	scroll_id: Id,
 	// Current layer state
 	hover_id,
 	last_hover_id,
@@ -211,11 +213,17 @@ update_layers :: proc(ui: ^UI) {
 	ui.layers.last_focus_id = ui.layers.focus_id
 	ui.layers.last_hover_id = ui.layers.hover_id
 	ui.layers.hover_id = 0
+	if ui.io.mouse_point != ui.io.last_mouse_point {
+		ui.layers.scroll_id = 0
+	}
 	for layer, i in ui.layers.list {
 		if .Stay_Alive in layer.bits {
 			layer.bits -= {.Stay_Alive}
 			if point_in_box(ui.io.mouse_point, layer.clip_box) {
 				ui.layers.hover_id = layer.id
+				if ui.io.mouse_point != ui.io.last_mouse_point && layer.bits & {.Scroll_X, .Scroll_Y} != {} {
+					ui.layers.scroll_id = layer.id
+				}
 				if mouse_pressed(ui.io, .Left) {
 					ui.layers.focus_id = layer.id
 					if .No_Sorting not_in layer.options {
@@ -374,6 +382,7 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 			case Box: 
 			self.box = placement
 			self.box.high = linalg.max(self.box.high, self.box.low)
+
 			case Layer_Placement_Info: 
 			// Use space if size is not provided
 			size: [2]f32 = {
@@ -575,7 +584,7 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 			max(self.space.y - (self.box.high.y - self.box.low.y), 0),
 		}
 		// Mouse wheel input
-		if ui.layers.hover_id == self.id {
+		if ui.layers.scroll_id == self.id {
 			self.scroll_target -= ui.io.mouse_scroll * SCROLL_STEP * {f32(int(.No_Scroll_X not_in self.options)), f32(int(.No_Scroll_Y not_in self.options))}
 		}
 		// Repaint if scrolling with wheel

@@ -91,7 +91,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 				append_string(buffer, text)
 			}
 
-			if ui.widgets.focus_id != text_input_result.self.?.id && ui.widgets.focus_id != button_result.self.?.id && .Focused not_in layer.state {
+			if ui.widgets.focus_id != text_input_result.self.?.id && ui.widgets.focus_id != button_result.self.?.id && .Focused not_in (layer.last_state + layer.state) {
 				data.is_open = false
 			}
 		}

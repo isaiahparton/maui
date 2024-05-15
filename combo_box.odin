@@ -25,7 +25,7 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 	update_widget(ui, self)
 	if .Should_Paint in self.bits {
 		paint_box_fill(ui.painter, self.box, blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered))
-		paint_box_fill(ui.painter, get_box_bottom(self.box, 2), ui.style.color.substance)
+		paint_box_fill(ui.painter, get_box_bottom(self.box, 1), ui.style.color.substance)
 		paint_text(ui.painter, center(self.box), {
 			text = info.items[info.index],
 			font = ui.style.font.label,
