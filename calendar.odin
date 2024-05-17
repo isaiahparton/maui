@@ -48,6 +48,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				new_value._nsec -= i64(time.Hour * 24)
 				year, month, day = time.date(new_value)
 			}
+			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 			if was_clicked(button(ui, {
 				text = ">", 
 				type = .Filled,
@@ -56,6 +57,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				new_value._nsec += i64(time.Hour * 24)
 				year, month, day = time.date(new_value)
 			}
+			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 		}
 		ui.placement.size = 140
 		space(ui, 10)
@@ -88,6 +90,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				}
 				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 			}
+			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 			if was_clicked(button(ui, {
 				text = ">", 
 				type = .Filled,
@@ -100,6 +103,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				}
 				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 			}
+			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 		}
 		ui.placement.size = 95
 		space(ui, 10)
@@ -129,6 +133,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				year -= 1
 				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 			}
+			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 			if was_clicked(button(ui, {
 				text = ">", 
 				type = .Filled,
@@ -137,6 +142,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				year += 1
 				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
 			}
+			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 		}
 	pop_layout(ui)
 	space(ui, 10)

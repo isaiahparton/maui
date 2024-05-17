@@ -315,7 +315,9 @@ create_layer :: proc(ui: ^UI, id: Id, options: Layer_Options) -> (layer: ^Layer,
 	}
 	return
 }
-
+/*
+	Ensures that a layer exists with that ID then returns it
+*/
 get_layer :: proc(ui: ^UI, id: Id, options: Layer_Options) -> (layer: ^Layer, ok: bool) {
 	layer, ok = ui.layers.pool[id]
 	if !ok {
@@ -323,30 +325,34 @@ get_layer :: proc(ui: ^UI, id: Id, options: Layer_Options) -> (layer: ^Layer, ok
 	}
 	return
 }
-
+/*
+	Push/pop layers from the stack
+*/
 push_layer :: proc(ui: ^UI, layer: ^Layer) {
 	stack_push(&ui.layers.stack, layer)
 	ui.layers.current = ui.layers.stack.items[ui.layers.stack.height - 1] if ui.layers.stack.height > 0 else nil
 }
-
 pop_layer :: proc(ui: ^UI) {
 	stack_pop(&ui.layers.stack)
 	ui.layers.current = ui.layers.stack.items[ui.layers.stack.height - 1] if ui.layers.stack.height > 0 else nil
 }
-
+/*
+	Destroy a `Layer` struct
+*/
 destroy_layer :: proc(self: ^Layer) {
 	delete(self.contents)
 	delete(self.children)
 	self^ = {}
 }
-
+/*
+	Scope deferred layer
+*/
 @(deferred_in_out=_do_layer)
 do_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self: ^Layer, ok: bool) {
 	info := info
 	info.id = info.id.? or_else hash(ui, loc)
 	return begin_layer(ui, info)
 }
-
 @private
 _do_layer :: proc(ui: ^UI, _: Layer_Info, _: runtime.Source_Code_Location, self: ^Layer, ok: bool) {
 	if ok {

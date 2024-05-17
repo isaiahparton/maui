@@ -89,7 +89,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 		if ui.open_menus {
 			if .Hovered in self.state {
 				ui.widgets.focus_id = self.id
-				ui.layers.focus_id = 0
+				ui.layers.focus_id = self.id
 				data.is_open = true
 			}
 		}
