@@ -60,22 +60,14 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	}
 	// Get a temporary buffer if necessary
 	buffer := info.data.(^[dynamic]u8) or_else get_scribe_buffer(&ui.scribe, self.id)
-	// Text edit
+	// Prepare the buffer for editing when focused
 	if .Focused in (self.state - self.last_state) {
 		if text, ok := info.data.(^string); ok {
 			resize(buffer, len(text))
 			copy(buffer[:], text[:])
 		}
 	}
-	if .Focused in self.state {
-		if key_pressed(ui.io, .Enter) || key_pressed(ui.io, .Keypad_Enter) {
-			result.submitted = true
-		}
-		result.changed = escribe_text(&ui.scribe, ui.io, {
-			array = buffer,
-			multiline = info.multiline,
-		})
-	}
+	// Text info must be prepared for both display and editing
 	// Get data source
 	text: string
 	switch type in info.data {
@@ -97,6 +89,19 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	if !info.multiline {
 		text_origin.y += height(inner_box) / 2
 		text_info.baseline = .Middle
+	}
+	// Text editing
+	if .Focused in self.state {
+		if key_pressed(ui.io, .Enter) || key_pressed(ui.io, .Keypad_Enter) {
+			result.submitted = true
+		}
+		result.changed = escribe_text(&ui.scribe, ui.io, {
+			array = buffer,
+			multiline = info.multiline,
+			// Provide painting data for vertical navigation
+			painter = ui.painter,
+			paint_info = text_info,
+		})
 	}
 	// Paint!
 	if (.Should_Paint in self.bits) {

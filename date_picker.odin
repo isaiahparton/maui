@@ -31,6 +31,12 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 	// Date 
 	year, month, day := time.date(info.value)
 	buffer := get_scribe_buffer(&ui.scribe, self.id)
+	if len(buffer) == 0 {
+		_year, _month, _day := time.date(info.value)
+		text := tmp_printf("%2i/%2i/%4i", _day, _month, _year)
+		clear(buffer)
+		append_string(buffer, text)
+	}
 	text_input_result := text_input(ui, {
 		data = buffer, 
 		placeholder = "DD/MM/YYYY",
@@ -44,7 +50,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 				new_day := int(strconv.parse_uint(values[0]) or_else 1)
 				new_month := int(clamp(strconv.parse_uint(values[1]) or_else 1, 1, 12))
 				new_year := int(max(strconv.parse_uint(values[2]) or_else 0, 1970))
-				result.new_value = time.datetime_to_time(new_year, new_month, new_day, 0, 0, 0) or_else info.value
+				result.new_value = time.datetime_to_time(new_year, new_month, new_day + 1, 0, 0, 0) or_else info.value
 			}
 		}
 	}

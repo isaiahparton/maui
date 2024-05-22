@@ -2,6 +2,7 @@ package maui
 
 import "core:io"
 import "core:fmt"
+import "core:math"
 import "core:strings"
 import "core:unicode"
 import "core:unicode/utf8"
@@ -21,6 +22,9 @@ Scribe :: struct {
 	using selection: Text_Selection,
 	last_selection: Text_Selection,
 	anchor: int,
+	// Current horizontal offset of the cursor from the edited text's origin
+	cursor_offset: f32,
+	line_start: int,
 	// Temporary buffers
 	buffers: map[Id]Text_Buffer,
 }
@@ -113,6 +117,9 @@ Text_Edit_Info :: struct {
 	forbidden_runes: string,
 	capacity: Maybe(int),
 	multiline: bool,
+	// Graphical info for vertical navigation
+	painter: ^Painter,
+	paint_info: Text_Info,
 }
 
 escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change: bool) {
@@ -195,6 +202,83 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 		}
 	}
 	/*
+		Vertical navigation
+	*/
+	skip_offset: bool
+	if key_pressed(io, .Up) {
+		/*
+			* Get the horizontal offset of the rune at the current index from the origin
+				* Create a text iterator
+			* Move to the rune on the previous line with the closest matching offset
+		*/
+		skip_offset = true
+		if info.painter != nil && scribe.line_start > 0 {
+			if it, ok := make_text_iterator(info.painter, info.paint_info); ok {
+				// We have the offset, now find the closest match on the previous line
+				for j := max(scribe.line_start - 2, 0); j >= 0; j -= 1 {
+					if info.array[j] == '\n' || j == 0 {
+						// Account for newline rune
+						it.next_index = j if j == 0 else j + 1
+						update_text_iterator_offset(info.painter, &it, info.paint_info)
+						nearest: f32 = math.F32_MAX
+						for iterate_text(info.painter, &it, info.paint_info) {
+							distance := abs(it.offset.x - scribe.cursor_offset)
+							if distance < nearest {
+								nearest = distance
+								scribe.offset = it.index
+							} else {
+								break
+							}
+							if it.new_line {
+								break
+							}
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+	if key_pressed(io, .Down) {
+		skip_offset = true
+		new_offset := scribe.offset
+
+		if info.painter != nil {
+			if it, ok := make_text_iterator(info.painter, info.paint_info); ok {
+				// We have the offset, now find the closest match on the previous line
+				for j := scribe.line_start + 1; j < len(info.array); j += 1 {
+					if info.array[j] == '\n' {
+						// Account for newline rune
+						it.next_index = j + 1
+						update_text_iterator_offset(info.painter, &it, info.paint_info)
+						nearest: f32 = math.F32_MAX
+						for iterate_text(info.painter, &it, info.paint_info) {
+							distance := abs(it.offset.x - scribe.cursor_offset)
+							if distance < nearest {
+								nearest = distance
+								new_offset = it.index
+							} else {
+								break
+							}
+							if it.new_line {
+								break
+							}
+						}
+						if it.index >= len(info.array) {
+							scribe.offset = len(info.array)
+						}
+						break
+					}
+				}
+			}
+		}
+
+		if new_offset != scribe.offset {
+			scribe.offset = new_offset
+			scribe.anchor = new_offset
+		}
+	}
+	/*
 		Horizontal navigation
 	*/
 	if key_pressed(io, .Left) {
@@ -267,6 +351,30 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 		}
 		scribe.offset = max(0, scribe.offset)
 	}
+	if scribe.selection.offset != scribe.last_selection.offset {
+		scribe.last_selection.offset = scribe.selection.offset
+		if it, ok := make_text_iterator(info.painter, info.paint_info); ok {
+			for i := scribe.offset - 1; i >= 0; i -= 1 {
+				if info.array[i] == '\n' || i == 0 {
+					scribe.line_start = i if i == 0 else i + 1
+					if !skip_offset {
+						it.next_index = scribe.line_start
+						// Update the offset to account for alignment
+						update_text_iterator_offset(info.painter, &it, info.paint_info)
+						// Commence measurement
+						for iterate_text(info.painter, &it, info.paint_info) {
+							if it.index == scribe.offset {
+								scribe.cursor_offset = it.offset.x
+								break
+							}
+						}
+					}
+					break
+				}
+			}
+		}
+	}
+	// Clamp scribe length if a change was made
 	if change {
 		scribe.length = min(scribe.length, len(info.array) - scribe.offset)
 	}
