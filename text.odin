@@ -270,6 +270,9 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 	}
 	// Reset new line state
 	it.new_line = false
+	if it.codepoint == '\t' {
+		it.line_size.x += it.glyph.advance
+	}
 	// If the last rune was '\n' then this is a new line
 	if (it.last_codepoint == '\n') {
 		it.new_line = true
@@ -284,7 +287,7 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 				it.new_line = true
 			}
 		}
-	}	
+	}
 	// Update vertical offset if there's a new line or if reached end
 	if it.new_line {
 		it.line_size.x = 0
@@ -294,7 +297,9 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 	}
 	return
 }
-
+/*
+	Measures until the next line
+*/
 measure_next_line :: proc(painter: ^Painter, info: Text_Info, it: Text_Iterator) -> f32 {
 	it := it
 	for iterate_text(painter, &it, info) {

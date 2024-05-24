@@ -70,9 +70,9 @@ insert_runes :: proc(using self: ^Scribe, buf: ^[dynamic]u8, runes: []rune) {
 	scribe_insert_string(self, buf, str)
 	delete(str)
 }
-get_last_line :: proc(data: []u8, index: int) -> (int, bool) {
+get_last_line :: proc(data: []u8) -> (int, bool) {
 	f: bool
-	for i := index - 1; i >= 0; i -= 1 {
+	for i := len(data) - 1; i >= 0; i -= 1 {
 		if data[i] == '\n' {
 			if f {
 				return i + 1, true
@@ -83,8 +83,8 @@ get_last_line :: proc(data: []u8, index: int) -> (int, bool) {
 	}
 	return 0, f
 }
-get_next_line :: proc(data: []u8, index: int) -> (int, bool) {
-	for i := index + 1; i < len(data); i += 1 {
+get_next_line :: proc(data: []u8) -> (int, bool) {
+	for i := 0; i < len(data); i += 1 {
 		if data[i] == '\n' {
 			return i + 1, true
 		}
@@ -110,6 +110,26 @@ find_last_seperator :: proc(slice: []u8) -> int {
 	}
 	return 0
 }
+get_nearest_rune :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info, offset: f32) -> (index: int) {
+	update_text_iterator_offset(painter, it, info)
+	nearest: f32 = math.F32_MAX
+	for iterate_text(painter, it, info) {
+		distance := abs(it.offset.x - offset)
+		if distance < nearest {
+			nearest = distance
+			index = it.index
+		} else {
+			break
+		}
+		if it.new_line {
+			break
+		}
+	}
+	if it.index >= len(info.text) {
+		index = len(info.text)
+	}
+	return
+}
 
 Text_Edit_Info :: struct {
 	array: ^[dynamic]u8,
@@ -120,6 +140,47 @@ Text_Edit_Info :: struct {
 	// Graphical info for vertical navigation
 	painter: ^Painter,
 	paint_info: Text_Info,
+}
+
+move_or_highlight_to :: proc(io: ^IO, scribe: ^Scribe, offset: int) {
+	if key_down(io, .Left_Shift) || key_down(io, .Right_Shift) {
+		if offset < scribe.anchor {
+			scribe.offset = max(0, offset)
+			scribe.length = scribe.anchor - scribe.offset
+		} else {
+			scribe.offset = min(scribe.anchor, offset)
+			scribe.length = max(scribe.anchor, offset) - scribe.offset
+		}
+	} else {
+		if scribe.length == 0 {
+			scribe.offset = offset
+		}
+		scribe.anchor = scribe.offset
+		scribe.length = 0
+	}
+}
+move_or_highlight :: proc(io: ^IO, scribe: ^Scribe, delta: int) {
+	if key_down(io, .Left_Shift) || key_down(io, .Right_Shift) {
+		if scribe.offset < scribe.anchor {
+			new_index := scribe.offset + delta
+			scribe.offset = max(0, new_index)
+			scribe.length = scribe.anchor - scribe.offset
+		} else {
+			new_index := scribe.offset + scribe.length + delta
+			scribe.offset = min(scribe.anchor, new_index)
+			scribe.length = max(scribe.anchor, new_index) - scribe.offset
+		}
+	} else {
+		if scribe.length > 0 {
+			if delta > 0 {
+				scribe.offset += scribe.length
+			}
+			scribe.length = 0
+		} else {
+			scribe.offset += delta
+		}
+		scribe.anchor = scribe.offset
+	}
 }
 
 escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change: bool) {
@@ -205,77 +266,34 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 		Vertical navigation
 	*/
 	skip_offset: bool
-	if key_pressed(io, .Up) {
-		/*
-			* Get the horizontal offset of the rune at the current index from the origin
-				* Create a text iterator
-			* Move to the rune on the previous line with the closest matching offset
-		*/
-		skip_offset = true
-		if info.painter != nil && scribe.line_start > 0 {
+	if info.painter != nil {
+		// Up
+		if key_pressed(io, .Up) {
+			skip_offset = true
+			new_offset := scribe.offset
 			if it, ok := make_text_iterator(info.painter, info.paint_info); ok {
-				// We have the offset, now find the closest match on the previous line
-				for j := max(scribe.line_start - 2, 0); j >= 0; j -= 1 {
-					if info.array[j] == '\n' || j == 0 {
-						// Account for newline rune
-						it.next_index = j if j == 0 else j + 1
-						update_text_iterator_offset(info.painter, &it, info.paint_info)
-						nearest: f32 = math.F32_MAX
-						for iterate_text(info.painter, &it, info.paint_info) {
-							distance := abs(it.offset.x - scribe.cursor_offset)
-							if distance < nearest {
-								nearest = distance
-								scribe.offset = it.index
-							} else {
-								break
-							}
-							if it.new_line {
-								break
-							}
-						}
-						break
-					}
+				origin := (scribe.offset + scribe.length) if scribe.offset + scribe.length > scribe.anchor else scribe.offset
+				if delta, ok := get_last_line(info.array[:origin]); ok {
+					it.next_index = delta
+					new_offset = get_nearest_rune(info.painter, &it, info.paint_info, scribe.cursor_offset)
 				}
 			}
+			move_or_highlight_to(io, scribe, new_offset)
 		}
-	}
-	if key_pressed(io, .Down) {
-		skip_offset = true
-		new_offset := scribe.offset
-
-		if info.painter != nil {
+		// Down
+		if key_pressed(io, .Down) {
+			skip_offset = true
+			new_offset := scribe.offset
 			if it, ok := make_text_iterator(info.painter, info.paint_info); ok {
-				// We have the offset, now find the closest match on the previous line
-				for j := scribe.line_start + 1; j < len(info.array); j += 1 {
-					if info.array[j] == '\n' {
-						// Account for newline rune
-						it.next_index = j + 1
-						update_text_iterator_offset(info.painter, &it, info.paint_info)
-						nearest: f32 = math.F32_MAX
-						for iterate_text(info.painter, &it, info.paint_info) {
-							distance := abs(it.offset.x - scribe.cursor_offset)
-							if distance < nearest {
-								nearest = distance
-								new_offset = it.index
-							} else {
-								break
-							}
-							if it.new_line {
-								break
-							}
-						}
-						if it.index >= len(info.array) {
-							scribe.offset = len(info.array)
-						}
-						break
-					}
+				origin := min(scribe.offset + scribe.length, len(info.array) - 1) if scribe.offset + scribe.length > scribe.anchor else scribe.offset
+				if delta, ok := get_next_line(info.array[origin:]); ok {
+					it.next_index = origin + delta
+					new_offset = get_nearest_rune(info.painter, &it, info.paint_info, scribe.cursor_offset)
+				} else {
+					new_offset += scribe.length
 				}
 			}
-		}
-
-		if new_offset != scribe.offset {
-			scribe.offset = new_offset
-			scribe.anchor = new_offset
+			move_or_highlight_to(io, scribe, new_offset)
 		}
 	}
 	/*
@@ -290,24 +308,7 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 			_, delta = utf8.decode_last_rune_in_bytes(info.array[:scribe.offset + scribe.length])
 			delta = -delta
 		}
-		// Highlight or not
-		if key_down(io, .Left_Shift) || key_down(io, .Right_Shift) {
-			if scribe.offset < scribe.anchor {
-				new_index := scribe.offset + delta
-				scribe.offset = max(0, new_index)
-				scribe.length = scribe.anchor - scribe.offset
-			} else {
-				new_index := scribe.offset + scribe.length + delta
-				scribe.offset = min(scribe.anchor, new_index)
-				scribe.length = max(scribe.anchor, new_index) - scribe.offset
-			}
-		} else {
-			if scribe.length == 0 {
-				scribe.offset += delta
-			}
-			scribe.length = 0
-			scribe.anchor = scribe.offset
-		}
+		move_or_highlight(io, scribe, delta)
 		// Clamp cursor
 		scribe.offset = max(0, scribe.offset)
 	}
@@ -319,38 +320,18 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 		} else {
 			_, delta = utf8.decode_rune_in_bytes(info.array[scribe.offset + scribe.length:])
 		}
-		// Highlight or not?
-		if key_down(io, .Left_Shift) || key_down(io, .Right_Shift) {
-			if scribe.offset < scribe.anchor {
-				new_index := scribe.offset + delta
-				scribe.offset = new_index
-				scribe.length = scribe.anchor - new_index
-			} else {
-				new_index := scribe.offset + scribe.length + delta
-				scribe.offset = scribe.anchor
-				scribe.length = new_index - scribe.offset
-			}
-		} else {
-			if scribe.length > 0 {
-				scribe.offset += scribe.length
-			} else {
-				scribe.offset += delta
-			}
-			scribe.length = 0
-			scribe.anchor = scribe.offset
-		}
+		move_or_highlight(io, scribe, delta)
 		// Clamp cursor
 		if scribe.length == 0 {
-			if scribe.offset > len(info.array) {
-				scribe.offset = len(info.array)
-			}
+			scribe.offset = min(scribe.offset, len(info.array))
 		} else {
-			if scribe.offset + scribe.length > len(info.array) {
-				scribe.length = len(info.array) - scribe.offset
-			}
+			scribe.length = min(scribe.length, len(info.array) - scribe.offset)
 		}
 		scribe.offset = max(0, scribe.offset)
 	}
+	/*
+		Get line start and offset from origin when cursor is moved
+	*/
 	if scribe.selection.offset != scribe.last_selection.offset {
 		scribe.last_selection.offset = scribe.selection.offset
 		if it, ok := make_text_iterator(info.painter, info.paint_info); ok {

@@ -123,8 +123,8 @@ _main :: proc() -> bool {
 			if tree_node(&ui, {text = "Text Input"}).expanded {
 				ui.placement.size = 28
 				space(&ui, 20)
-				push_dividing_layout(&ui, cut(&ui, .Top, 100))
-					ui.placement.size = 300
+				push_dividing_layout(&ui, cut(&ui, .Top, 300))
+					ui.placement.size = 400
 					ui.placement.side = .Left
 					text_input(&ui, {
 						data = &text_input_data,
