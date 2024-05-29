@@ -1,6 +1,9 @@
 package maui
+
 import "core:fmt"
 import "core:math"
+
+import "vendor:nanovg"
 
 Button_Widget_Variant :: struct {
 	hover_time,
@@ -35,11 +38,11 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	layout := current_layout(ui)
 	// Get minimum width
 	if info.fit_text {
-		ui.placement.size = math.floor(measure_text(ui.painter, {
-			text = info.text,
-			font = info.font.? or_else ui.style.font.label, 
-			size = info.text_size.? or_else ui.style.text_size.label,
-		}).x + height(layout.box))
+		text_box: Box
+		nanovg.TextBounds(ui.ctx, 0, 0, info.text, transmute(^[4]f32)&text_box)
+		text_size := text_box.high - text_box.low
+
+		ui.placement.size = text_size.x + height(layout.box)
 	}
 	// Colocate the button
 	self.box = info.box.? or_else next_box(ui)
@@ -59,32 +62,48 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	if .Should_Paint in self.bits {
 		opacity: f32 = 1.0 - data.disable_time * 0.5
 		text_color: Color
+
+		nanovg.BeginPath(ui.ctx)
+		DrawBox(ui.ctx, self.box)
+
 		// Types
 		switch info.type {
-			
 			case .Filled:
-			fill_color := blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered)
-			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fill_color)
-			text_color = blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered)
-			
+			nanovg.FillColor(ui.ctx, blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered))
+			nanovg.Fill(ui.ctx)
 			case .Outlined:
-			fill_color := fade(ui.style.color.button_hovered, data.hover_time)
+			nanovg.FillColor(ui.ctx, fade(ui.style.color.button_hovered, data.hover_time))
+			nanovg.Fill(ui.ctx)
 			if data.hover_time < 1 {
-				paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 1, info.corners, ui.style.color.button)
+				nanovg.StrokeWidth(ui.ctx, 2)
+				nanovg.StrokeColor(ui.ctx, ui.style.color.button)
+				nanovg.Stroke(ui.ctx)
 			}
-			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fill_color)
-			text_color = blend_colors(data.hover_time, ui.style.color.button_hovered, ui.style.color.label_hovered)
-
 			case .Subtle:
-			fill_color := fade(ui.style.color.button_hovered, data.hover_time)
-			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fill_color)
-			text_color = blend_colors(data.hover_time, ui.style.color.button_hovered, ui.style.color.label_hovered)
+			nanovg.FillColor(ui.ctx, fade(ui.style.color.button_hovered, data.hover_time))
+			nanovg.Fill(ui.ctx)
 		}
+
+		nanovg.TextAlignHorizontal(ui.ctx, .CENTER)
+		nanovg.TextAlignVertical(ui.ctx, .MIDDLE)
+		nanovg.FontSize(ui.ctx, 20)
+		nanovg.Text(ui.ctx, self.box.high.x - self.box.low.x, self.box.high.y- self.box.low.y, info.text)
+
+		switch info.type {
+			case .Filled:
+			nanovg.FillColor(ui.ctx, blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered))
+			case .Outlined:
+			nanovg.FillColor(ui.ctx, blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered))
+			case .Subtle:
+			nanovg.FillColor(ui.ctx, blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered))
+		}
+		nanovg.Fill(ui.ctx)
+
 		// Highlight
 		if color, ok := info.highlight.?; ok {
-			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fade(color, 0.3))
+			// paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fade(color, 0.3))
 			if (info.corners & Corners{.Bottom_Left, .Bottom_Right}) == {} {
-				paint_box_fill(ui.painter, get_box_bottom(self.box, 4), color)
+				// paint_box_fill(ui.painter, get_box_bottom(self.box, 4), color)
 			}
 		}
 		// Text title
@@ -93,20 +112,12 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 		switch text_align {
 			case .Left:
 			text_origin = {self.box.low.x + ui.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
-			
 			case .Middle:
 			text_origin = center(self.box)
-			
 			case .Right:
 			text_origin = {self.box.high.x - ui.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
 		}
-		result.min_width = paint_text(ui.painter, text_origin, {
-			text = info.text, 
-			font = info.font.? or_else ui.style.font.label, 
-			size = info.text_size.? or_else ui.style.text_size.label, 
-			align = text_align, 
-			baseline = .Middle,
-		}, text_color).x + height(layout.box)
+		result.min_width = nanovg.Text(ui.ctx, text_origin.x, text_origin.y, info.text) + height(layout.box)
 	}
 	// Get next hover state
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

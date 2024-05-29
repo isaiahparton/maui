@@ -1,5 +1,5 @@
 package maui
-import "../"
+/*import "../"
 // Core dependencies
 import "core:fmt"
 import "core:runtime"
@@ -163,12 +163,12 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 			left_over := self.box.low.x - ui.io.mouse_point.x 
 			if left_over > 0 {
 				data.offset.x -= left_over * 0.2
-				ui.painter.next_frame = true
+				ui.draw_next_frame = true
 			}
 			right_over := ui.io.mouse_point.x - self.box.high.x
 			if right_over > 0 {
 				data.offset.x += right_over * 0.2
-				ui.painter.next_frame = true
+				ui.draw_next_frame = true
 			}
 			data.offset.x = clamp(data.offset.x, 0, offset_x_limit)
 		} else {
@@ -185,7 +185,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		// What to do if change occoured
 		if result.changed {
 			self.state += {.Changed}
-			ui.painter.next_frame = true
+			ui.draw_next_frame = true
 			if value, ok := info.data.(^string); ok {
 				delete(value^)
 				value^ = strings.clone_from_bytes(buffer[:])
@@ -205,4 +205,4 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	}
 	update_layer_content_bounds(ui.layers.current, self.box)
 	return result
-}
+}*/

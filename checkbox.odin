@@ -1,5 +1,6 @@
 package maui
-import "core:math/linalg"
+/*import "core:math/linalg"
+import "vendor:nanovg"
 
 Check_Box_Info :: struct {
 	using generic: Generic_Widget_Info,
@@ -25,7 +26,11 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 	// Determine total size
 	size, text_size: [2]f32
 	if has_text {
-		text_size = measure_text(ui.painter, {font = ui.style.font.label, size = ui.style.text_size.label, text = info.text})
+
+		text_box: Box
+		nanovg.TextBounds(ui.ctx, 0, 0, info.text, transmute(^[4]f32)&text_box)
+		text_size = text_box.high - text_box.low
+
 		if text_side == .Bottom || text_side == .Top {
 			size.x = max(SIZE, text_size.x)
 			size.y = SIZE + text_size.y
@@ -73,34 +78,50 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
 		fill_color := ui.style.color.background[0]
-		// paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
-		paint_box_fill(ui.painter, icon_box, ui.style.color.background[0])
+
+		nanovg.BeginPath(ui.ctx)
+		DrawBox(ui.ctx, icon_box)
+		nanovg.FillColor(ui.ctx, ui.style.color.background[0])
+		nanovg.Fill(ui.ctx)
+
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value {
 			scale: f32 = HALF_SIZE * 0.6
 			a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1.5, 1.5, ui.style.color.label)
+
+			nanovg.BeginPath(ui.ctx)
+			nanovg.MoveTo(ui.ctx, center.x + a.x, center.y + a.y)
+			nanovg.LineTo(ui.ctx, center.x + b.x, center.y + b.y)
+			nanovg.LineTo(ui.ctx, center.x + c.x, center.y + c.y)
+			nanovg.StrokeWidth(ui.ctx, 3)
+			nanovg.StrokeColor(ui.ctx, ui.style.color.substance)
+			nanovg.Stroke(ui.ctx)
 		}
 		// Paint text
 		if has_text {
+			nanovg.BeginPath(ui.ctx)
 			switch text_side {
 				case .Left: 	
-				paint_text(ui.painter, {icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
+				nanovg.Text(ui.ctx, icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2, info.text)
 				case .Right: 	
-				paint_text(ui.painter, {icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, align = .Right}, fade(ui.style.color.text[0], opacity))
+				nanovg.Text(ui.ctx, icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2, info.text)
 				case .Top: 		
-				paint_text(ui.painter, self.box.low, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
+				nanovg.Text(ui.ctx, self.box.low.x, self.box.low.y, info.text)
 				case .Bottom: 	
-				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
+				nanovg.Text(ui.ctx, self.box.low.x, self.box.high.y - text_size.y, info.text)
 			}
+			nanovg.FillColor(ui.ctx, fade(ui.style.color.text[0], opacity))
+			nanovg.Fill(ui.ctx)
 		}
 	}
 	if data.hover_time > 0 {
-		paint_box_fill(ui.painter, self.box, fade({0, 0, 0, 25}, data.hover_time))
+		nanovg.DrawBox(ui.painter, self.box)
+		nanovg.FillColor(ui.ctx, fade({0, 0, 0, 25}, data.hover_time))
+		nanovg.Fill(ui.ctx)
 	}
 	//
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	// We're done here
 	return Generic_Widget_Result{self = self},
-}
+}*/

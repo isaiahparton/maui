@@ -1,5 +1,5 @@
 package maui
-import "core:fmt"
+/*import "core:fmt"
 
 Toggle_Button_Type :: enum {
 	Outlined,
@@ -85,4 +85,4 @@ toggle_button :: proc(ui: ^UI, info: Toggle_Button_Info, loc := #caller_location
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	// we're done here
 	return result
-}
+}*/

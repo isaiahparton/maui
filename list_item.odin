@@ -1,6 +1,6 @@
 package maui
 
-List_Item_Info :: struct {
+/*List_Item_Info :: struct {
 	using generic: Generic_Widget_Info,
 	text: []string,
 	active: bool,
@@ -73,4 +73,4 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 
 	return result
-}
+}*/

@@ -3,6 +3,20 @@ package maui
 import "core:math"
 import "core:math/linalg"
 
+import "vendor:nanovg"
+
+// Box drawing commands
+DrawBox :: proc(ctx: ^nanovg.Context, box: Box) {
+	using nanovg
+	__appendCommands(ctx,
+		__cmdf(.MOVE_TO), box.low.x, box.low.y,
+		__cmdf(.LINE_TO), box.low.x, box.high.y,
+		__cmdf(.LINE_TO), box.high.x, box.high.y,
+		__cmdf(.LINE_TO), box.high.x, box.low.y,
+		__cmdf(.CLOSE),
+	)
+}
+
 Box :: struct {
 	low, high: [2]f32,
 }

@@ -15,6 +15,9 @@ import "core:math"
 import "core:math/ease"
 import "core:math/linalg"
 
+import "vendor:nanovg"
+import nanovg_gl "vendor:nanovg/gl"
+
 Cursor_Type :: enum {
 	None = -1,
 	Default,
@@ -77,11 +80,14 @@ UI :: struct {
 	current_time: f64,
 	delta_time: f32,
 	frame_duration: time.Duration,
+	// Frame draw flags
+	draw_next_frame,
+	draw_this_frame: bool,
 	// If key navigation is active
 	is_key_selecting: bool,
 	// These are shared modules
 	io: ^IO,
-	painter: ^Painter,
+	ctx: ^nanovg.Context,
 	// Uh
 	last_size,
 	size: [2]f32,
@@ -116,11 +122,11 @@ UI :: struct {
 /*
 	Construct a new UI given it's required plugins
 */
-make_ui :: proc(io: ^IO, painter: ^Painter, style: Style) -> (result: UI, ok: bool) {
+make_ui :: proc(io: ^IO, ctx: ^nanovg.Context, style: Style) -> (result: UI, ok: bool) {
 	// Assign the result
 	result, ok = UI{
 		io = io,
-		painter = painter,
+		ctx = ctx,
 		style = style,
 	}, true
 	return
@@ -135,9 +141,11 @@ destroy_ui :: proc(ui: ^UI) {
 	// Free widgets
 	destroy_widget_agent(&ui.widgets)
 	//
-	destroy_painter(ui.painter)
+	nanovg_gl.Destroy(ui.ctx)
 }
 begin_ui :: proc(ui: ^UI) {
+	// Begin drawing
+	nanovg.BeginFrame(ui.ctx, ui.size.x, ui.size.y, 1.0)
 	// Update screen size
 	// ui.painter.size = ui.io.screen_size
 	ui.size = linalg.array_cast(ui.io.size, f32)
@@ -155,14 +163,12 @@ begin_ui :: proc(ui: ^UI) {
 	}
 	ui.then = ui.now
 	// Reset painter
-	ui.painter.mesh_index = 0
-	ui.painter.opacity = 1
 	ui.style.rounded_corners = ALL_CORNERS
 	// Decide if painting is required this frame
-	ui.painter.this_frame = false
-	if ui.painter.next_frame {
-		ui.painter.this_frame = true
-		ui.painter.next_frame = false
+	ui.draw_this_frame = false
+	if ui.draw_next_frame {
+		ui.draw_this_frame = true
+		ui.draw_next_frame = false
 	}
 	// Free and delete unused text buffers
 	update_scribe(&ui.scribe)
@@ -239,10 +245,10 @@ end_ui :: proc(ui: ^UI) {
 	update_panels(ui)
 	// Decide if rendering is needed next frame
 	if (ui.io.last_mouse_point != ui.io.mouse_point) || (ui.io.last_key_set != ui.io.key_set) || (ui.io.last_mouse_bits != ui.io.mouse_bits) || (ui.io.mouse_scroll != {}) {
-		ui.painter.next_frame = true
+		ui.draw_next_frame = true
 	}
 	if ui.size != ui.last_size {
-		ui.painter.next_frame = true
+		ui.draw_next_frame = true
 		ui.last_size = ui.size
 	}
 	// Reset input bits
@@ -253,13 +259,11 @@ end_ui :: proc(ui: ^UI) {
 	ui.io.mouse_scroll = {}
 	// Update timings
 	ui.frame_duration = time.since(ui.then)
-	// Update texture
-	if ui.painter.should_update {
-		ui.painter.should_update = false
-		update_texture(ui.painter, ui.painter.texture, ui.painter.image, 0, 0, f32(ui.painter.image.width), f32(ui.painter.image.height))
-	}
 	ui.io.set_cursor_type(ui.cursor)
 	ui.cursor = .Default
+
+	// End drawing
+	nanovg.EndFrame(ui.ctx)
 }
 @private
 _count_layer_children :: proc(layer: ^Layer) -> int {

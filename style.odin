@@ -1,7 +1,9 @@
 package maui
 
-make_default_style :: proc(painter: ^Painter) -> (style: Style, ok: bool) {
-	default_font := load_font(painter, "fonts/Gabarito-Regular.ttf") or_return
+import "vendor:nanovg"
+
+make_default_style :: proc(ctx: ^nanovg.Context) -> (style: Style, ok: bool) {
+	default_font := nanovg.CreateFont(ctx, "Default", "fonts/Gabarito-Regular.ttf")
 	style, ok = {
 		color = get_light_style_colors(),
 		title_margin = 10,
@@ -28,8 +30,8 @@ make_default_style :: proc(painter: ^Painter) -> (style: Style, ok: bool) {
 			label 		= default_font,
 			title 		= default_font,
 			tooltip 	= default_font,
-			monospace = load_font(painter, "fonts/UbuntuMono-Regular.ttf") or_return,
-			icon 			= load_font(painter, "fonts/Font Awesome 6 Free-Solid-900.otf") or_return,
+			monospace = nanovg.CreateFont(ctx, "Monospace", "fonts/UbuntuMono-Regular.ttf"),
+			icon 			= nanovg.CreateFont(ctx, "Icon", "fonts/Font Awesome 6 Free-Solid-900.otf"),
 		},
 	}, true
 	return
@@ -39,51 +41,18 @@ make_default_style :: proc(painter: ^Painter) -> (style: Style, ok: bool) {
 */
 get_light_style_colors :: proc() -> Style_Colors {
 	return Style_Colors{
-		accent = {0, 85, 225, 255},
-		accent_text = {0, 0, 0, 255},
 		background = {
-			{210, 218, 212, 255},
-			{185, 190, 186, 255},
+			nanovg.ColorHex(0x04ffe0ff),
+			nanovg.ColorHex(0x0effe0ff),
 		},
-		foreground = {
-			{240, 240, 240, 255},
-			{235, 235, 235, 255},
-		},
-		text = {
-			{0, 0, 0, 255},
-			{92, 92, 92, 255},
-		},
-		panel = {45, 45, 45, 255},
-		stroke = {124, 152, 165, 255},
-		flash = {0, 255, 0, 255},
-		substance = {60, 60, 60, 255},
-		button = {171, 160, 167, 255},
-		button_hovered = {44, 40, 53, 255},
-		backing = {215, 215, 215, 255},
-		label = {0, 0, 0, 255},
-		label_hovered = {255, 255, 255, 255},
 	}
 }
 get_dark_style_colors :: proc() -> Style_Colors {
 	return Style_Colors{
-		accent = {255, 0, 55, 255},
-		accent_text = {0, 0, 0, 255},
 		background = {
-			{25, 32, 29, 255},
-			{55, 55, 55, 255},
+			nanovg.ColorHex(0xa0a0a0ff),
+			nanovg.ColorHex(0xb0b0b0ff),
 		},
-		foreground = {
-			{12, 12, 12, 255},
-			{24, 24, 24, 255},
-		},
-		text = {
-			{255, 255, 255, 255},
-			{125, 125, 125, 255},
-		},
-		panel = blend_colors(0.25, {172, 245, 255, 255}, {0, 0, 0, 255}),
-		stroke = {124, 152, 165, 255},
-		flash = {0, 255, 0, 255},
-		substance = {172, 245, 255, 255},
 	}
 }
 /*

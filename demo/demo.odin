@@ -6,11 +6,11 @@ import "core:math"
 import "core:strings"
 import "core:math/linalg"
 import "core:strconv/decimal"
-import rl "vendor:raylib"
-import "../backend/maui_glfw"
-import "../backend/maui_opengl"
 
 import "vendor:glfw"
+import gl "vendor:OpenGL"
+import "vendor:nanovg"
+import nanovg_gl "vendor:nanovg/gl"
 
 import "core:fmt"
 import "core:mem"
@@ -25,6 +25,20 @@ Option :: enum {
 }
 
 _main :: proc() -> bool {
+	// Init graphics
+	glfw.Init()
+	glfw.WindowHint(glfw.SAMPLES, 4)
+	glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, 3)
+	glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, 3)
+	glfw.WindowHint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+	window := glfw.CreateWindow(1000, 600, "window of opportunity", nil, nil)
+	// Create and assign error callback
+	err_callback :: proc(err: i32, desc: cstring) {
+		fmt.println(err, desc)
+	}
+	glfw.SetErrorCallback(glfw.ErrorProc(err_callback))
+	glfw.MakeContextCurrent(window)
+	gl.load_up_to(3, 3, glfw.gl_set_proc_address)
 
 	disabled := true
 	clicked: bool
@@ -40,21 +54,21 @@ _main :: proc() -> bool {
 
 	// Shared structures
 	io: maui.IO
-	painter := maui.make_painter() or_return
 
 	// Initialize the platform and renderer
-	maui_glfw.init(1200, 1000, "Maui", .OpenGL, &io) or_return
-	maui_opengl.init(&painter) or_return
+	ctx := nanovg_gl.Create({})
 
 	// Only create the ui structure once the `painter` and `io` are initiated
-	ui := maui.make_ui(&io, &painter, maui.make_default_style(&painter) or_return) or_return
+	ui := maui.make_ui(&io, ctx, maui.make_default_style(ctx) or_return) or_return
 
 	// Begin the cycle
-	for maui_glfw.cycle(TARGET_FRAME_TIME) {
+	for {
+		if glfw.WindowShouldClose(window) {
+			break
+		}
+
 		using maui
 		// Beginning of ui calls
-		maui_glfw.begin()
-
 		begin_ui(&ui)
 			layout := current_layout(&ui)
 
@@ -63,174 +77,21 @@ _main :: proc() -> bool {
 			cut(&ui, .Top, 100)
 
 			ui.placement.size = 30
-			if tree_node(&ui, {text = "Buttons"}).expanded {
-				ui.placement.size = 28
-				space(&ui, 20)
-				push_dividing_layout(&ui, cut(&ui, .Top, 30))
-					ui.placement.side = .Left
-					ui.placement.size = 30
-					button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019"})
-					button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
-					button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
-					space(&ui, 10)
-					button(&ui, {fit_text = true, type = .Filled, text = "New"})
-				pop_layout(&ui)
-				space(&ui, 10)
-				push_dividing_layout(&ui, cut(&ui, .Top, 30))
-					ui.placement.side = .Left
-					ui.placement.size = 30
-					button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Outlined})
-					button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Outlined})
-					button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Outlined})
-					space(&ui, 10)
-					button(&ui, {fit_text = true, text = "New", type = .Outlined})
-				pop_layout(&ui)
-				space(&ui, 10)
-				push_dividing_layout(&ui, cut(&ui, .Top, 30))
-					ui.placement.side = .Left
-					ui.placement.size = 30
-					button(&ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Subtle})
-					button(&ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
-					button(&ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Subtle})
-					space(&ui, 10)
-					button(&ui, {fit_text = true, text = "New", type = .Subtle})
-				pop_layout(&ui)
-				space(&ui, 20)
-			}
+			button(&ui, {text = "button"})
 			
-			if tree_node(&ui, {text = "Sliders"}).expanded {
-				space(&ui, 20)
-				ui.placement.size = 28
-				push_dividing_layout(&ui, cut(&ui, .Top, 30))
-					ui.placement.side = .Left
-					ui.placement.size = 200
-					if result := slider(&ui, {
-						value = slider_value,
-						low = 0,
-						high = 100,
-					}); result.changed {
-						slider_value = result.value
-					}
-					space(&ui, 10)
-					ui.placement.size = 150
-					if was_clicked(toggle_switch(&ui, {state = toggle_switch_state})) {
-						toggle_switch_state = !toggle_switch_state
-					}
-				pop_layout(&ui)
-				space(&ui, 20)
-			}
-
-			if tree_node(&ui, {text = "Text Input"}).expanded {
-				ui.placement.size = 28
-				space(&ui, 20)
-				push_dividing_layout(&ui, cut(&ui, .Top, 300))
-					ui.placement.size = 400
-					ui.placement.side = .Left
-					text_input(&ui, {
-						data = &text_input_data,
-						multiline = true,
-						placeholder = "type something here",
-					})
-				pop_layout(&ui)
-				space(&ui, 10)
-				push_dividing_layout(&ui, cut(&ui, .Top, 28))
-					ui.placement.size = 300
-					ui.placement.side = .Left
-					text_input(&ui, {
-						data = &text_input_data2,
-						placeholder = "single line text input",
-					})
-				pop_layout(&ui)
-				space(&ui, 20)
-			}
-
-			if tree_node(&ui, {text = "Lists"}).expanded {
-				ui.placement.size = 260
-				space(&ui, 20)
-				if frame(&ui, {gradient_size = 40}) {
-					ui.placement.size = 24
-					for i in 1..=69 {
-						push_id(&ui, i)
-							list_item(&ui, {text = {tmp_printf("item #%i", i)}})
-						pop_id(&ui)
-					}
-				}
-				space(&ui, 20)
-			}
-
-			if tree_node(&ui, {text = "Date & Time"}).expanded {
-				space(&ui, 20)
-				push_dividing_layout(&ui, cut(&ui, .Top, 24))
-					ui.placement.side = .Left; ui.placement.size = 200
-					t = date_picker(&ui, {value = t}).new_value.? or_else t
-				pop_layout(&ui)
-				space(&ui, 20)
-			}
-
-			if tree_node(&ui, {text = "Multiple Choice"}).expanded {
-				ui.placement.size = 30
-				space(&ui, 20)
-				if was_clicked(checkbox(&ui, {
-					value = checkbox_value, 
-					text = "Checkbox", 
-				})) {
-					checkbox_value = !checkbox_value
-				}
-				space(&ui, 10)
-				for member, i in Option {
-					push_id(&ui, i)
-						if was_clicked(radio_button(&ui, {state = choice == member, text = tmp_print(member)})) {
-							choice = member
-						}
-					pop_id(&ui)
-				}
-				space(&ui, 20)
-			}
-
-			if tree_node(&ui, {text = "Single Choice"}).expanded {
-				space(&ui, 20)
-				ui.placement.size = 30
-				push_dividing_layout(&ui, cut(&ui, .Top, 24))
-					ui.placement.side = .Left; ui.placement.size = 200
-					combo_box_index = combo_box(&ui, {index = combo_box_index, items = {"one", "two", "three", "four"}}).index.? or_else combo_box_index
-				pop_layout(&ui)
-				space(&ui, 20)
-			}
-
-			cut(&ui, .Top, 100)
-
-			paint_text(ui.painter, {0, ui.size.y}, {
-				text = tmp_printf("frame: %fms", time.duration_milliseconds(ui.frame_duration)), 
-				font = ui.style.font.title, 
-				size = 16,
-				baseline = .Bottom,
-			}, ui.style.color.text[0])
-			paint_text(ui.painter, {0, ui.size.y - 16}, {
-				text = tmp_printf("delta: %f", ui.delta_time), 
-				font = ui.style.font.title, 
-				size = 16,
-				baseline = .Bottom,
-			}, ui.style.color.text[0])
-			paint_text(ui.painter, {0, ui.size.y - 32}, {
-				text = tmp_printf("time: %f", ui.current_time), 
-				font = ui.style.font.title, 
-				size = 16,
-				baseline = .Bottom,
-			}, ui.style.color.text[0])
+			nanovg.BeginPath(ctx)
+			nanovg.FontSize(ctx, 16)
+			nanovg.FontFace(ctx, "Default")
+			nanovg.TextAlignVertical(ctx, .BOTTOM)
+			nanovg.Text(ui.ctx, 0, ui.size.y, tmp_printf("frame: %fms", time.duration_milliseconds(ui.frame_duration)))
+			nanovg.Text(ui.ctx, 0, ui.size.y - 16, tmp_printf("delta: %f", ui.delta_time))
+			nanovg.Text(ui.ctx, 0, ui.size.y - 32, tmp_printf("time: %f", ui.current_time))
+			nanovg.FillColor(ctx, nanovg.ColorHex(0x00ff00ff))
+			nanovg.Fill(ctx)
 		end_ui(&ui)
-
-		// Render if needed
-		if should_render(&painter) {
-			maui_opengl.clear(ui.style.color.foreground[0])
-			maui_opengl.render(&ui)
-			maui_glfw.end()
-		}
 	}
 
 	maui.destroy_ui(&ui)
-
-	maui_opengl.destroy()
-	maui_glfw.destroy()
 
 	return true
 }

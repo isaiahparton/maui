@@ -110,26 +110,6 @@ find_last_seperator :: proc(slice: []u8) -> int {
 	}
 	return 0
 }
-get_nearest_rune :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info, offset: f32) -> (index: int) {
-	update_text_iterator_offset(painter, it, info)
-	nearest: f32 = math.F32_MAX
-	for iterate_text(painter, it, info) {
-		distance := abs(it.offset.x - offset)
-		if distance < nearest {
-			nearest = distance
-			index = it.index
-		} else {
-			break
-		}
-		if it.new_line {
-			break
-		}
-	}
-	if it.index >= len(info.text) {
-		index = len(info.text)
-	}
-	return
-}
 
 Text_Edit_Info :: struct {
 	array: ^[dynamic]u8,
@@ -137,9 +117,6 @@ Text_Edit_Info :: struct {
 	forbidden_runes: string,
 	capacity: Maybe(int),
 	multiline: bool,
-	// Graphical info for vertical navigation
-	painter: ^Painter,
-	paint_info: Text_Info,
 }
 
 move_or_highlight_to :: proc(io: ^IO, scribe: ^Scribe, offset: int) {
@@ -266,8 +243,7 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 		Vertical navigation
 	*/
 	skip_offset: bool
-	if info.painter != nil {
-		// Up
+	/*	// Up
 		if key_pressed(io, .Up) {
 			skip_offset = true
 			new_offset := scribe.offset
@@ -294,8 +270,7 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 				}
 			}
 			move_or_highlight_to(io, scribe, new_offset)
-		}
-	}
+		}*/
 	/*
 		Horizontal navigation
 	*/

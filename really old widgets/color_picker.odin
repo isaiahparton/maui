@@ -176,7 +176,7 @@ do_color_wheel :: proc(info: Color_Picker_Info, loc := #caller_location) -> (new
 				paint_circle_fill(point_c + (point_a - point_c) * v, 4, 12, {255, 0, 255, 255})
 				paint_circle_fill(point_a + (point_b - point_a) * w, 4, 12, {255, 0, 255, 255})
 				// Paint the next frame yo
-				ctx.painter.next_frame = true
+				ctx.draw_next_frame = true
 			}
 			changed = true
 		} else {

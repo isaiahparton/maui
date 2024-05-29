@@ -29,8 +29,8 @@ _frame :: proc(ui: ^UI, info: Frame_Info, _: runtime.Source_Code_Location, ok: b
 		assert(ui.layers.current != nil)
 		if info.gradient_size > 0 {
 			cut(ui, .Top, info.gradient_size)
-			paint_gradient_box_v(ui.painter, get_box_top(ui.layers.current.box, info.gradient_size), ui.style.color.foreground[0], fade(ui.style.color.foreground[0], 0))
-			paint_gradient_box_v(ui.painter, get_box_bottom(ui.layers.current.box, info.gradient_size), fade(ui.style.color.foreground[0], 0), ui.style.color.foreground[0])
+			// paint_gradient_box_v(ui.painter, get_box_top(ui.layers.current.box, info.gradient_size), ui.style.color.foreground[0], fade(ui.style.color.foreground[0], 0))
+			// paint_gradient_box_v(ui.painter, get_box_bottom(ui.layers.current.box, info.gradient_size), fade(ui.style.color.foreground[0], 0), ui.style.color.foreground[0])
 		}
 		end_layer(ui, ui.layers.current)
 	}

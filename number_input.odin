@@ -1,5 +1,5 @@
 package maui
-import "core:fmt"
+/*import "core:fmt"
 import "core:strings"
 import "core:io"
 import "core:strconv"
@@ -59,12 +59,10 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 		opacity: f32 = 1.0
 		stroke_color := blend_colors(data.focus_time, fade(ui.style.color.substance, 0.5), ui.style.color.accent)
 		layer := current_layer(ui)
-		ui.painter.target = layer.targets[.Background]
 		if data.focus_time < 1 {
 			paint_box_inner_gradient(ui.painter, self.box, 0, 56, {}, fade(stroke_color, 0.5 * (1 - data.focus_time)))
 		}
 		paint_box_stroke(ui.painter, self.box, 1, stroke_color)
-		ui.painter.target = layer.targets[.Foreground]
 	}
 	// Do text scrolling or whatever
 	// Focused state
@@ -80,7 +78,7 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 			array = buffer,
 		}) {
 			self.state += {.Changed}
-			ui.painter.next_frame = true
+			ui.draw_next_frame = true
 			if new_value, ok := strconv.parse_f64(string(buffer[:])); ok {
 				result.new_value = new_value
 			}
@@ -113,12 +111,12 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 			left_over := self.box.low.x - ui.io.mouse_point.x 
 			if left_over > 0 {
 				data.offset.x -= left_over * 0.2
-				ui.painter.next_frame = true
+				ui.draw_next_frame = true
 			}
 			right_over := ui.io.mouse_point.x - self.box.high.x
 			if right_over > 0 {
 				data.offset.x += right_over * 0.2
-				ui.painter.next_frame = true
+				ui.draw_next_frame = true
 			}
 			data.offset.x = clamp(data.offset.x, 0, offset_x_limit)
 		} else {
@@ -145,4 +143,4 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 		self.box.low.y -= 10
 	}
 	return result
-}
+}*/

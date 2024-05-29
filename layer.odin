@@ -1,9 +1,13 @@
 package maui
+
 import "core:fmt"
 import "core:slice"
 import "core:runtime"
 import "core:math"
 import "core:math/linalg"
+
+import "vendor:nanovg"
+
 /*
 	Layers are the root of all gui
 */
@@ -157,8 +161,6 @@ Layer :: struct {
 	index: int,
 	// controls on this self
 	contents: map[Id]^Widget,
-	// Draw command
-	targets: [Layer_Mesh_Index]int,
 }
 Layer_Agent :: struct {
 	// Fixed memory arena
@@ -247,7 +249,7 @@ update_layers :: proc(ui: ^UI) {
 			destroy_layer(layer)
 			(transmute(^Maybe(Layer))layer)^ = nil
 			ui.layers.should_sort = true
-			ui.painter.next_frame = true
+			ui.draw_next_frame = true
 		}
 	}
 	// If a sorted layer was selected, then find it's root attached parent
@@ -308,7 +310,7 @@ create_layer :: proc(ui: ^UI, id: Id, options: Layer_Options) -> (layer: ^Layer,
 	}
 	// Will sort layers this frame
 	ui.layers.should_sort = true
-	ui.painter.next_frame = true
+	ui.draw_next_frame = true
 	// Debug info
 	when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
 		fmt.printf("+ Layer %x\n", id)
@@ -429,11 +431,7 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 		self.bits += {.Stay_Alive}
 		//IMPORTANT: Set opacity before painting anything
 		self.opacity = info.opacity.? or_else self.opacity
-		ui.painter.opacity = self.opacity
-		// Append draw target
-		self.targets[.Background] = get_draw_target(ui.painter) or_return
-		ui.painter.target = get_draw_target(ui.painter) or_return
-		self.targets[.Foreground] = ui.painter.target
+		nanovg.GlobalAlpha(ui.ctx, self.opacity)
 		// Apply inner padding
 		self.inner_box = shrink_box(self.box, info.scrollbar_padding.? or_else 0)
 		// Hovering and stuff
@@ -461,7 +459,7 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 			self.space.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE
 		}
 		if self.scrollbar_time.x > 0 && self.scrollbar_time.x < 1 {
-			ui.painter.next_frame = true
+			ui.draw_next_frame = true
 		}
 		// Vertical scrolling
 		if (self.space.y > height(self.box)) && (.No_Scroll_Y not_in self.options) {
@@ -475,7 +473,7 @@ begin_layer :: proc(ui: ^UI, info: Layer_Info, loc := #caller_location) -> (self
 			self.space.x -= self.scrollbar_time.y * SCROLL_BAR_SIZE
 		}
 		if self.scrollbar_time.y > 0 && self.scrollbar_time.y < 1 {
-			ui.painter.next_frame = true
+			ui.draw_next_frame = true
 		}
 		self.content_box = {self.box.high, self.box.low}
 		// Clip box
@@ -581,9 +579,10 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 				new_clip_box.high.x = ui.size.x
 			}
 		}
-		// Set the real clipping here
-		ui.painter.meshes[self.targets[.Foreground]].clip = new_clip_box
-		ui.painter.meshes[self.targets[.Background]].clip = new_clip_box
+
+		// Apply clipping
+		nanovg.Scissor(ui.ctx, self.box.low.x, self.box.low.y, self.box.high.x - self.box.low.x, self.box.high.y - self.box.low.y)
+
 		// Maximum scroll offset
 		max_scroll: [2]f32 = {
 			max(self.space.x - (self.box.high.x - self.box.low.x), 0),
@@ -595,7 +594,7 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 		}
 		// Repaint if scrolling with wheel
 		if linalg.floor(self.scroll_target - self.scroll) != {} {
-			ui.painter.next_frame = true
+			ui.draw_next_frame = true
 		}
 		// Clamp scrolling
 		self.scroll_target.x = clamp(self.scroll_target.x, 0, max_scroll.x)
@@ -620,12 +619,15 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 				self.scroll_target.x = result.value
 			}
 		}
+
 		if self.scrollbar_time.y > 0 {
+
 			// Vertical scrolling
 			box := get_box_right(self.inner_box, self.scrollbar_time.y * SCROLL_BAR_SIZE)
 			box.high.y -= self.scrollbar_time.x * SCROLL_BAR_SIZE + SCROLL_BAR_PADDING * 2
 			box.high.x -= SCROLL_BAR_PADDING
 			box.low.y += SCROLL_BAR_PADDING
+
 			if result := scrollbar(ui, {
 				box = box,
 				value = self.scroll.y, 

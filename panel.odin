@@ -6,6 +6,8 @@ import "core:math/ease"
 import "core:math/linalg"
 import "core:runtime"
 
+import "vendor:nanovg"
+
 Panel_Bit :: enum {
 	Stay_Alive,
 	Initialized,
@@ -218,13 +220,16 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 			box := inner_box
 			// Compensate for title bar rounding
 			box.low.y -= ui.style.panel_rounding
-			paint_gradient_box_v(ui.painter, box, ui.style.color.foreground[0], fade(ui.style.color.foreground[0], ui.style.panel_background_opacity))
+			// paint_gradient_box_v(ui.painter, box, ui.style.color.foreground[0], fade(ui.style.color.foreground[0], ui.style.panel_background_opacity))
 			// paint_box_fill(ui.painter, box, fade(ui.style.color.foreground[0], ui.style.panel_background_opacity))
 		}
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			// Draw title
-			paint_box_fill(ui.painter, title_box, ui.style.color.panel)
+			nanovg.BeginPath(ui.ctx)
+			DrawBox(ui.ctx, title_box)
+			nanovg.FillColor(ui.ctx, ui.style.color.panel)
+			nanovg.Fill(ui.ctx)
 			// Close button
 			push_id(ui, self.id)
 				if .Closable in self.options {
@@ -233,8 +238,8 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 					if w.variant == nil do w.variant = Button_Widget_Variant{}
 					data := &w.variant.(Button_Widget_Variant)
 					data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in w.state)
-					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent, data.hover_time * 0.5))
-					paint_cross(ui.painter, box_center(w.box), 6, math.PI * 0.25, 2, ui.style.color.foreground[0])
+					// paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent, data.hover_time * 0.5))
+					// paint_cross(ui.painter, box_center(w.box), 6, math.PI * 0.25, 2, ui.style.color.foreground[0])
 					update_widget_hover(ui, w, point_in_box(ui.io.mouse_point, w.box))
 				}
 				if .Collapsable in self.options {
@@ -243,8 +248,8 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 					if w.variant == nil do w.variant = Button_Widget_Variant{}
 					data := &w.variant.(Button_Widget_Variant)
 					data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in w.state)
-					paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent, data.hover_time * 0.5))
-					paint_arrow_flip(ui.painter, box_center(w.box), 5, 0, 2, self.how_collapsed, ui.style.color.foreground[0])
+					// paint_rounded_box_corners_fill(ui.painter, w.box, ui.style.panel_rounding, {.Top_Right, .Bottom_Right} if w.box.high.y == self.box.high.y else {}, fade(ui.style.color.accent, data.hover_time * 0.5))
+					// paint_arrow_flip(ui.painter, box_center(w.box), 5, 0, 2, self.how_collapsed, ui.style.color.foreground[0])
 					if was_clicked(res) {
 						self.bits ~= {.Should_Collapse}
 					}
@@ -257,12 +262,12 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 			can_collapse := (.Collapsable in self.options) || (.Collapsed in self.bits)
 			// Draw title
 			//TODO: Make sure the text doesn't overflow
-			paint_text(
-				ui.painter,
-				{title_box.low.x + text_offset, baseline}, 
-				{text = info.title, font = ui.style.font.title, size = ui.style.text_size.label, align = .Left, baseline = .Middle}, 
-				color = ui.style.color.foreground[1],
-				)
+			// paint_text(
+			// 	ui.painter,
+			// 	{title_box.low.x + text_offset, baseline}, 
+			// 	{text = info.title, font = ui.style.font.title, size = ui.style.text_size.label, align = .Left, baseline = .Middle}, 
+			// 	color = ui.style.color.foreground[1],
+			// 	)
 			// Moving 
 			if (.Hovered in self.root_layer.?.state) && point_in_box(ui.io.mouse_point, title_box) {
 				if (.Static not_in self.options) && (ui.widgets.hover_id == 0) && mouse_pressed(ui.io, .Left) {
@@ -289,7 +294,7 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 	// Force clipping while in intermediate collapsed state
 	if (self.how_collapsed > 0 && self.how_collapsed < 1) || (self.how_collapsed == 1 && .Should_Collapse not_in self.bits) {
 		layer_options += {.Force_Clip, .No_Scroll_Y}
-		ui.painter.next_frame = true
+		ui.draw_next_frame = true
 	}
 	// Push layout if necessary
 	if .Collapsed in self.bits {
@@ -315,7 +320,7 @@ _panel :: proc(ui: ^UI, _: Panel_Info, _: runtime.Source_Code_Location, ok: bool
 		// Done with main layer
 		end_layer(ui, self.content_layer.?)
 	}
-	paint_box_stroke(ui.painter, self.root_layer.?.box, 1, ui.style.color.panel)
+	// paint_box_stroke(ui.painter, self.root_layer.?.box, 1, ui.style.color.panel)
 	// End decor layer
 	end_layer(ui, self.root_layer.?)
 	// Handle movement

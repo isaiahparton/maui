@@ -74,7 +74,7 @@ do_spin_counter :: proc(info: Spin_Counter_Info($T), state: ^Spin_Counter_State,
 				state.offsets[i] += diff * 10 * f64(ctx.delta_time)
 				// Make sure to repaint if needed
 				if abs(diff) > 0.1 {
-					ctx.painter.next_frame = true
+					ctx.draw_next_frame = true
 				}
 			}
 		}

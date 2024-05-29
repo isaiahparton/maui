@@ -105,12 +105,12 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 				left_over := self.box.low.x - input.mouse_point.x 
 				if left_over > 0 {
 					self.offset.x -= left_over * 0.2
-					ctx.painter.next_frame = true
+					ctx.draw_next_frame = true
 				}
 				right_over := input.mouse_point.x - self.box.high.x
 				if right_over > 0 {
 					self.offset.x += right_over * 0.2
-					ctx.painter.next_frame = true
+					ctx.draw_next_frame = true
 				}
 				self.offset.x = clamp(self.offset.x, 0, offset_x_limit)
 			} else {
@@ -127,7 +127,7 @@ do_text_field :: proc(info: Text_Field_Info, loc := #caller_location) -> (res: T
 			// What to do if change occoured
 			if res.changed {
 				self.state += {.Changed}
-				ctx.painter.next_frame = true
+				ctx.draw_next_frame = true
 				if value, ok := info.data.(^string); ok {
 					delete(value^)
 					value^ = strings.clone_from_bytes(buffer[:])

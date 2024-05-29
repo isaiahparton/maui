@@ -7,7 +7,7 @@ Tooltip_Info :: struct {
 	text: string,
 	box_side: Box_Side,
 }
-Tooltip_Result :: struct {
+/*Tooltip_Result :: struct {
 	layer: Maybe(^Layer),
 }
 /*
@@ -94,4 +94,4 @@ tooltip_box ::proc(ui: ^UI, id: Id, text: string, anchor: Box, side: Box_Side, o
 		align.y = .Far
 	}
 	tooltip(ui, id, text, origin, align, side)
-}
+}*/

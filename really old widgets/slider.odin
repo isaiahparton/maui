@@ -175,7 +175,7 @@ do_box_slider :: proc(info: Box_Slider_Info($T), loc := #caller_location) -> (ne
 					if parsed_value, parse_ok := strconv.parse_int(string(buffer[:])); parse_ok {
 						new_value = T(parsed_value)
 					}
-					ctx.painter.next_frame = true
+					ctx.draw_next_frame = true
 				}
 			}
 		} else {

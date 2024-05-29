@@ -1,6 +1,6 @@
 package maui
 
-import "../"
+/*import "../"
 
 import "core:time"
 import "core:math/linalg"
@@ -193,4 +193,4 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 	// Clamp value
 	new_value._nsec = max(new_value._nsec, 0)
 	return
-}
+}*/

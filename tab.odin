@@ -1,5 +1,5 @@
 package maui
-
+/*
 Tab_Info :: struct {
 	using generic: Generic_Widget_Info,
 	text: string,
@@ -27,4 +27,4 @@ tab :: proc(ui: ^UI, info: Tab_Info, loc := #caller_location) -> Generic_Widget_
 
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	return result
-}
+}*/

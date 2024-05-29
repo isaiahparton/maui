@@ -1,5 +1,5 @@
 package maui
-import "core:math/ease"
+/*import "core:math/ease"
 
 Toggle_Switch_Info :: struct {
 	using generic: Generic_Widget_Info,
@@ -50,4 +50,4 @@ toggle_switch :: proc(ui: ^UI, info: Toggle_Switch_Info, loc := #caller_location
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 
 	return result
-}
+}*/

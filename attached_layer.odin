@@ -66,7 +66,7 @@ begin_attached_layer :: proc(ui: ^UI, result: Generic_Widget_Result, info: Attac
 		if ok {
 			// Paint the fill color
 			if info.fill_color != nil {
-				paint_box_fill(ui.painter, layer.box, info.fill_color.?)
+				// paint_box_fill(ui.painter, layer.box, info.fill_color.?)
 			}
 		}
 	}
@@ -75,7 +75,7 @@ begin_attached_layer :: proc(ui: ^UI, result: Generic_Widget_Result, info: Attac
 
 end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 	// Check if the layer was dismissed by input
-	if widget, ok := layer.owner.?; ok {
+	if widget, ok := layer.owner.?; ok { 
 		dismiss: bool
 		switch info.mode {
 			case .Focus:
@@ -84,7 +84,7 @@ end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 			dismiss = (.Hovered not_in widget.state) && (.Hovered not_in (layer.state | layer.last_state))
 		}
 		if .Dismissed in layer.bits || dismiss || key_pressed(ui.io, .Escape) {
-			ui.painter.next_frame = true
+			ui.draw_next_frame = true
 			if dismiss {
 				ui.open_menus = false
 			}
@@ -93,7 +93,7 @@ end_attached_layer :: proc(ui: ^UI, info: Attached_Layer_Info, layer: ^Layer) {
 
 	// Paint stroke color
 	if info.stroke_color != nil {
-		paint_box_stroke(ui.painter, layer.box, 1, info.stroke_color.?)
+		
 	}
 
 	// End the layer

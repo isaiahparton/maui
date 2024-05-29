@@ -85,11 +85,11 @@ animate :: proc(ui: ^UI, value, duration: f32, condition: bool) -> f32 {
 	value := value
 	if condition {
 		if value < 1 {
-			ui.painter.next_frame = true
+			ui.draw_next_frame = true
 			value = min(1, value + ui.delta_time * (1 / duration))
 		}
 	} else if value > 0 {
-		ui.painter.next_frame = true
+		ui.draw_next_frame = true
 		value = max(0, value - ui.delta_time * (1 / duration))
 	}
 	return value
@@ -99,11 +99,11 @@ animate :: proc(ui: ^UI, value, duration: f32, condition: bool) -> f32 {
 */
 Widget_Variant :: union {
 	Button_Widget_Variant,
-	Check_Box_Widget_Variant,
-	List_Item_Widget_Variant,
-	Menu_Widget_Variant,
-	Text_Input_Widget_Variant,
-	Toggle_Switch_Widget_Variant,
+	// Check_Box_Widget_Variant,
+	// List_Item_Widget_Variant,
+	// Menu_Widget_Variant,
+	// Text_Input_Widget_Variant,
+	// Toggle_Switch_Widget_Variant,
 }
 destroy_widget_variant :: proc(variant: ^Widget_Variant) {
 	return
@@ -165,7 +165,7 @@ get_widget :: proc(ui: ^UI, info: Generic_Widget_Info, loc: runtime.Source_Code_
 		// Assign the widget to the layer
 		layer.contents[id] = widget
 		// Paint the next frame
-		ui.painter.next_frame = true
+		ui.draw_next_frame = true
 		// Debug info
 		when ODIN_DEBUG && PRINT_DEBUG_EVENTS {
 			fmt.printf("+ Widget %x\n", id)
@@ -219,7 +219,7 @@ update_widgets :: proc(ui: ^UI) {
 	if mouse_pressed(ui.io, .Left) {
 		ui.widgets.press_id = ui.widgets.hover_id
 		ui.widgets.focus_id = ui.widgets.press_id
-		ui.painter.next_frame = true
+		ui.draw_next_frame = true
 	}
 	// Reset drag status
 	ui.dragging = false
@@ -243,7 +243,7 @@ update_widgets :: proc(ui: ^UI) {
 			// Remove from list
 			ordered_remove(&ui.widgets.list, i)
 			// Make sure we paint the next frame
-			ui.painter.next_frame = true
+			ui.draw_next_frame = true
 		}
 	}
 }

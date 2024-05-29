@@ -1,5 +1,5 @@
 package maui
-import "../"
+/*import "../"
 import "core:math"
 import "core:math/ease"
 import "core:runtime"
@@ -74,4 +74,4 @@ _tree_node :: proc(ui: ^UI, _: Tree_Node_Info, _: runtime.Source_Code_Location, 
 		//NOTE: This is a temporary workaround
 		layout_cut_or_grow(current_layout(ui), .Top, height(result.layer.?.box))
 	}
-}
+}*/

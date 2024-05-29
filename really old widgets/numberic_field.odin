@@ -270,12 +270,12 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				left_over := self.box.low.x - input.mouse_point.x 
 				if left_over > 0 {
 					self.offset.x -= left_over * 0.2
-					ctx.painter.next_frame = true
+					ctx.draw_next_frame = true
 				}
 				right_over := input.mouse_point.x - self.box.high.x
 				if right_over > 0 {
 					self.offset.x += right_over * 0.2
-					ctx.painter.next_frame = true
+					ctx.draw_next_frame = true
 				}
 				self.offset.x = clamp(self.offset.x, 0, offset_x_limit)
 			} else {
@@ -315,7 +315,7 @@ do_number_input :: proc(info: Number_Input_Info($T), loc := #caller_location) ->
 				bits = text_edit_bits, 
 				capacity = 18,
 			}) {
-				ctx.painter.next_frame = true
+				ctx.draw_next_frame = true
 				str := string(buffer[:])
 				switch typeid_of(T) {
 					case f64, f32, f16:  		

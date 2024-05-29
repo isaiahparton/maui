@@ -1,6 +1,8 @@
 package maui
-import "core:math"
+/*import "core:math"
 import "core:runtime"
+
+import "vendor:nanovg"
 
 Menu_Info :: struct {
 	using generic: Generic_Widget_Info,
@@ -38,19 +40,17 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 
 	layout := current_layout(ui)
 	if info.fit {
-		ui.placement.size = math.floor(measure_text(ui.painter, {
-			text = info.text,
-			font = ui.style.font.label, 
-			size = ui.style.text_size.label,
-		}).x + height(layout.box))
+		ui.placement.size = math.floor(nanovg.Text(ui.ctx, 0, 0, info.text)) + height(layout.box)
 	}
 
 	self.box = info.box.? or_else next_box(ui)
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, fade(ui.style.color.button, 0.5 + 0.5 * data.hover_time))
-		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 1}, self.box.high}, ui.style.color.substance)
+		DrawBox(ui.ctx, self.box)
+		nanovg.FillColor(ui.ctx, ui.style.color.button)
+		nanovg.Fill(ui.ctx)
+		// paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 1}, self.box.high}, ui.style.color.substance)
 		text_align := info.text_align.? or_else .Middle
 		text_origin: [2]f32
 		switch text_align {
@@ -61,13 +61,9 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 			case .Right:
 			text_origin = {self.box.high.x - 4, (self.box.low.y + self.box.high.y) / 2}
 		}
-		paint_text(ui.painter, text_origin, {
-			text = info.text,
-			font = ui.style.font.label,
-			size = ui.style.text_size.label,
-			align = text_align,
-			baseline = .Middle,
-		}, ui.style.color.text[0])
+		nanovg.Text(ui.ctx, text_origin.x, text_origin.y, info.text)
+		nanovg.FillColor(ui.ctx, ui.style.color.label)
+		nanovg.Fill(ui.ctx)
 	}
 
 	if data.is_open {
@@ -108,7 +104,10 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 @private
 _menu :: proc(ui: ^UI, _: Menu_Info, _: runtime.Source_Code_Location, result: Menu_Result, open: bool) {
 	if open {
-		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
+		DrawBox(ui.ctx, result.layer.box)
+		nanovg.StrokeColor(ui.ctx, ui.style.color.substance)
+		nanovg.Stroke(ui.ctx)
+
 		widget := result.self.?
 		variant := &widget.variant.(Menu_Widget_Variant)
 		if (.Focused not_in (widget.state | widget.last_state)) && (result.layer.state & {.Focused} == {}) {
@@ -134,27 +133,17 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
 
 	layout := current_layout(ui)
-	ui.placement.size = measure_text(ui.painter, {
-		text = info.text,
-		font = ui.style.font.label, 
-		size = ui.style.text_size.label,
-	}).x + height(layout.box)
+	ui.placement.size = nanovg.Text(ui.ctx, info.text) + height(layout.box)
 
 	self.box = info.box.? or_else next_box(ui)
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		text_color := blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.foreground[0])
-		fill_color := fade(ui.style.color.substance, data.hover_time)
 		h := height(self.box)
-		paint_box_fill(ui.painter, self.box, fill_color)
-		paint_text(ui.painter, self.box.low + h * [2]f32{0.25, 0.5}, {
-			text = info.text,
-			font = ui.style.font.label,
-			size = ui.style.text_size.label,
-			baseline = .Middle,
-		}, text_color)
-		paint_arrow(ui.painter, self.box.high - h * 0.5, h * 0.2, math.PI * -0.5, 1, text_color)
+		DrawBox(ui.ctx, self.box)
+		nanovg.FillColor(ui.ctx, fade(ui.style.color.substance, data.hover_time))
+		nanovg.Text(ui.ctx, self.box.low.x + h * [2]f32{0.25, 0.5}, info.text)
+		nanovg.FillColor(ui.ctx, blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.foreground[0]))
 	}
 
 	if data.is_open {
@@ -192,4 +181,4 @@ _submenu :: proc(ui: ^UI, _: Menu_Info, _: runtime.Source_Code_Location, result:
 		}
 		end_layer(ui, result.layer)
 	}
-}
+}*/
