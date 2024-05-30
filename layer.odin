@@ -661,7 +661,6 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 	if ui.layers.stack.height > 0 {
 		layer := current_layer(ui)
 
-		ui.painter.opacity = layer.opacity
-		ui.painter.target = layer.targets[.Foreground]
+		nanovg.GlobalAlpha(ui.ctx, layer.opacity)
 	}
 }

@@ -322,7 +322,7 @@ update_widget_state :: proc(ui: ^UI, widget: ^Widget) {
 // Update a single widget
 update_widget :: proc(ui: ^UI, widget: ^Widget) {
 	// Prepare widget
-	if ui.painter.this_frame && get_clip(current_layer(ui).box, widget.box) != .Full {
+	if ui.draw_this_frame && get_clip(current_layer(ui).box, widget.box) != .Full {
 		widget.bits += {.Should_Paint}
 	} else {
 		widget.bits -= {.Should_Paint}
@@ -352,9 +352,9 @@ paint_titled_input_stroke :: proc(ui: ^UI, box: Box, title: Maybe(string), cut_a
 		box.low,
 	}
 	if title, ok := title.?; ok {
-		size := paint_text(ui.painter, {box.low.x + ui.style.title_margin + ui.style.title_padding, box.low.y}, {text = title, font = ui.style.font.title, size = ui.style.text_size.title, baseline = .Middle}, ui.style.color.substance)
-		points[0].x += ui.style.title_margin + ui.style.title_padding * 2 + size.x
-		points[6].x += ui.style.title_margin
+		// size := paint_text(ui.painter, {box.low.x + ui.style.title_margin + ui.style.title_padding, box.low.y}, {text = title, font = ui.style.font.title, size = ui.style.text_size.title, baseline = .Middle}, ui.style.color.substance)
+		// points[0].x += ui.style.title_margin + ui.style.title_padding * 2 + size.x
+		// points[6].x += ui.style.title_margin
 	}
-	paint_path_stroke(ui.painter, points[:5] if title == nil else points, title == nil, thickness, 0, color)
+	// paint_path_stroke(ui.painter, points[:5] if title == nil else points, title == nil, thickness, 0, color)
 }

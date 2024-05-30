@@ -309,26 +309,7 @@ escribe_text :: proc(scribe: ^Scribe, io: ^IO, info: Text_Edit_Info) -> (change:
 	*/
 	if scribe.selection.offset != scribe.last_selection.offset {
 		scribe.last_selection.offset = scribe.selection.offset
-		if it, ok := make_text_iterator(info.painter, info.paint_info); ok {
-			for i := scribe.offset - 1; i >= 0; i -= 1 {
-				if info.array[i] == '\n' || i == 0 {
-					scribe.line_start = i if i == 0 else i + 1
-					if !skip_offset {
-						it.next_index = scribe.line_start
-						// Update the offset to account for alignment
-						update_text_iterator_offset(info.painter, &it, info.paint_info)
-						// Commence measurement
-						for iterate_text(info.painter, &it, info.paint_info) {
-							if it.index == scribe.offset {
-								scribe.cursor_offset = it.offset.x
-								break
-							}
-						}
-					}
-					break
-				}
-			}
-		}
+		//TODO: Measure line offset
 	}
 	// Clamp scribe length if a change was made
 	if change {

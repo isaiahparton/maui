@@ -226,11 +226,6 @@ begin_ui :: proc(ui: ^UI) {
 	} else {
 		ui.open_menus = false
 	}
-	// Bruh initialize painter
-	if !ui.painter.ready {
-		ui.painter.ready = true
-		reset_atlas(ui.painter)
-	}
 }
 end_ui :: proc(ui: ^UI) {
 	// End root layout
