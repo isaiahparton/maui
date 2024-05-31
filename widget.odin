@@ -99,9 +99,9 @@ animate :: proc(ui: ^UI, value, duration: f32, condition: bool) -> f32 {
 */
 Widget_Variant :: union {
 	Button_Widget_Variant,
-	// Check_Box_Widget_Variant,
+	Check_Box_Widget_Variant,
 	// List_Item_Widget_Variant,
-	// Menu_Widget_Variant,
+	Menu_Widget_Variant,
 	// Text_Input_Widget_Variant,
 	// Toggle_Switch_Widget_Variant,
 }
@@ -322,7 +322,7 @@ update_widget_state :: proc(ui: ^UI, widget: ^Widget) {
 // Update a single widget
 update_widget :: proc(ui: ^UI, widget: ^Widget) {
 	// Prepare widget
-	if ui.draw_this_frame && get_clip(current_layer(ui).box, widget.box) != .Full {
+	if true || ui.draw_this_frame && get_clip(current_layer(ui).box, widget.box) != .Full {
 		widget.bits += {.Should_Paint}
 	} else {
 		widget.bits -= {.Should_Paint}

@@ -104,9 +104,13 @@ shrink :: proc(ui: ^UI, amount: f32, loc := #caller_location) {
 			case .Up, .Down: 
 			layout.box.low.y += amount
 			layout.box.high.y += amount * 2
+			layout.box.low.x += amount
+			layout.box.high.x -= amount
 			case .Left, .Right:
 			layout.box.low.x += amount
 			layout.box.high.x += amount * 2
+			layout.box.low.y += amount
+			layout.box.high.y -= amount
 		}
 	} else {
 		layout.box = shrink_box(layout.box, amount)
@@ -187,6 +191,16 @@ next_box :: proc(ui: ^UI) -> (box: Box) {
 	layout := ui.layouts.current
 
 	box = layout_cut_or_grow(layout, ui.placement.side, ui.placement.size)
+	box.low += {ui.placement.margin[.Left], ui.placement.margin[.Top]}
+	box.high -= {ui.placement.margin[.Right], ui.placement.margin[.Bottom]}
+	return
+}
+
+next_box_of_size :: proc(ui: ^UI, size: [2]f32) -> (box: Box) {
+	assert(ui.layouts.current != nil)
+	layout := ui.layouts.current
+
+	box = layout_cut_or_grow(layout, ui.placement.side, size.x if int(ui.placement.side) > 1 else size.y)
 	box.low += {ui.placement.margin[.Left], ui.placement.margin[.Top]}
 	box.high -= {ui.placement.margin[.Right], ui.placement.margin[.Bottom]}
 	return

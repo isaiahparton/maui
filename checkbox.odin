@@ -1,5 +1,8 @@
 package maui
-/*import "core:math/linalg"
+
+import "core:fmt"
+import "core:math/linalg"
+
 import "vendor:nanovg"
 
 Check_Box_Info :: struct {
@@ -28,6 +31,8 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 	if has_text {
 
 		text_box: Box
+		nanovg.FontFace(ui.ctx, "Default")
+		nanovg.FontSize(ui.ctx, ui.style.text_size.label)
 		nanovg.TextBounds(ui.ctx, 0, 0, info.text, transmute(^[4]f32)&text_box)
 		text_size = text_box.high - text_box.low
 
@@ -45,7 +50,7 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 	// Create
 	self, result := get_widget(ui, info.generic, loc)
 	// Colocate
-	self.box = info.box.? or_else align_inner(next_box(ui), size, ui.placement.align)
+	self.box = info.box.? or_else align_inner(next_box_of_size(ui, size), size, ui.placement.align)
 	// Update
 	update_widget(ui, self)
 	// Assert variant existence
@@ -57,7 +62,7 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
 	// Painting
-	if .Should_Paint in self.bits {
+	if .Should_Paint in self.bits || true {
 		icon_box: Box
 		if has_text {
 			switch text_side {
@@ -79,49 +84,60 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		opacity := 1 - 0.5 * data.disable_time
 		fill_color := ui.style.color.background[0]
 
+		nanovg.FillPaint(ui.ctx, nanovg.LinearGradient(icon_box.low.x, icon_box.low.y, icon_box.low.x, icon_box.high.y, ui.style.color.background[1], ui.style.color.background[0]))
 		nanovg.BeginPath(ui.ctx)
-		DrawBox(ui.ctx, icon_box)
-		nanovg.FillColor(ui.ctx, ui.style.color.background[0])
+		nanovg.RoundedRect(ui.ctx, icon_box.low.x, icon_box.low.y, icon_box.high.x - icon_box.low.x, icon_box.high.y - icon_box.low.y, ui.style.rounding)
 		nanovg.Fill(ui.ctx)
 
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value {
-			scale: f32 = HALF_SIZE * 0.6
+			scale: f32 = HALF_SIZE * 0.5
 			a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
 
+			nanovg.StrokeWidth(ui.ctx, 3)
+			nanovg.LineCap(ui.ctx, .ROUND)
+			nanovg.LineJoin(ui.ctx, .ROUND)
+			nanovg.StrokeColor(ui.ctx, ui.style.color.substance)
 			nanovg.BeginPath(ui.ctx)
 			nanovg.MoveTo(ui.ctx, center.x + a.x, center.y + a.y)
 			nanovg.LineTo(ui.ctx, center.x + b.x, center.y + b.y)
 			nanovg.LineTo(ui.ctx, center.x + c.x, center.y + c.y)
-			nanovg.StrokeWidth(ui.ctx, 3)
-			nanovg.StrokeColor(ui.ctx, ui.style.color.substance)
 			nanovg.Stroke(ui.ctx)
 		}
 		// Paint text
 		if has_text {
+			nanovg.FillColor(ui.ctx, fade(ui.style.color.text[0], opacity))
 			nanovg.BeginPath(ui.ctx)
 			switch text_side {
 				case .Left: 	
-				nanovg.Text(ui.ctx, icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2, info.text)
+				nanovg.TextAlignHorizontal(ui.ctx, .LEFT)
+				nanovg.TextAlignVertical(ui.ctx, .MIDDLE)
+				nanovg.Text(ui.ctx, icon_box.high.x + ui.style.layout.widget_padding, center.y, info.text)
 				case .Right: 	
-				nanovg.Text(ui.ctx, icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2, info.text)
+				nanovg.TextAlignHorizontal(ui.ctx, .RIGHT)
+				nanovg.TextAlignVertical(ui.ctx, .MIDDLE)
+				nanovg.Text(ui.ctx, icon_box.low.x - ui.style.layout.widget_padding, center.y, info.text)
 				case .Top: 		
+				nanovg.TextAlignHorizontal(ui.ctx, .CENTER)
+				nanovg.TextAlignVertical(ui.ctx, .TOP)
 				nanovg.Text(ui.ctx, self.box.low.x, self.box.low.y, info.text)
 				case .Bottom: 	
-				nanovg.Text(ui.ctx, self.box.low.x, self.box.high.y - text_size.y, info.text)
+				nanovg.TextAlignHorizontal(ui.ctx, .CENTER)
+				nanovg.TextAlignVertical(ui.ctx, .BOTTOM)
+				nanovg.Text(ui.ctx, self.box.low.x, self.box.high.y, info.text)
 			}
-			nanovg.FillColor(ui.ctx, fade(ui.style.color.text[0], opacity))
 			nanovg.Fill(ui.ctx)
 		}
 	}
 	if data.hover_time > 0 {
-		nanovg.DrawBox(ui.painter, self.box)
-		nanovg.FillColor(ui.ctx, fade({0, 0, 0, 25}, data.hover_time))
+		nanovg.FillColor(ui.ctx, fade(nanovg.RGBA(0, 0, 0, 25), data.hover_time))
+		nanovg.BeginPath(ui.ctx)
+		nanovg.RoundedRect(ui.ctx, self.box.low.x, self.box.low.y, self.box.high.x - self.box.low.x, self.box.high.y - self.box.low.y, ui.style.rounding)
 		nanovg.Fill(ui.ctx)
 	}
 	//
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	// We're done here
 	return Generic_Widget_Result{self = self},
-}*/
+}

@@ -1,5 +1,8 @@
 package maui
-/*import "core:math/linalg"
+
+import "core:math/linalg"
+
+import "vendor:nanovg"
 
 Combo_Box_Info :: struct {
 	using generic: Generic_Widget_Info,
@@ -24,15 +27,22 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
 	update_widget(ui, self)
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered))
-		paint_box_fill(ui.painter, get_box_bottom(self.box, 1), ui.style.color.substance)
-		paint_text(ui.painter, center(self.box), {
-			text = info.items[info.index],
-			font = ui.style.font.label,
-			size = ui.style.text_size.label,
-			align = .Middle,
-			baseline = .Middle,
-		}, blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered))
+		nanovg.FillColor(ui.ctx, blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered))
+		nanovg.StrokeColor(ui.ctx, ui.style.color.substance)
+		nanovg.StrokeWidth(ui.ctx, 1)
+		nanovg.BeginPath(ui.ctx)
+		nanovg.RoundedRect(ui.ctx, self.box.low.x, self.box.low.y, self.box.high.x - self.box.low.x, self.box.high.y - self.box.low.y, ui.style.rounding)
+		nanovg.Stroke(ui.ctx)
+		nanovg.Fill(ui.ctx)
+
+		nanovg.FontFace(ui.ctx, "Default")
+		nanovg.FontSize(ui.ctx, ui.style.text_size.label)
+		nanovg.TextAlignHorizontal(ui.ctx, .CENTER)
+		nanovg.TextAlignVertical(ui.ctx, .MIDDLE)
+		nanovg.FillColor(ui.ctx, blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered))
+		nanovg.BeginPath(ui.ctx)
+		nanovg.Text(ui.ctx, (self.box.low.x + self.box.high.x) / 2, (self.box.low.y + self.box.high.y) / 2, info.items[info.index])
+		nanovg.Fill(ui.ctx)
 	}
 	if data.is_open {
 		option_height := height(self.box)
@@ -46,7 +56,11 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 			space = [2]f32{0, menu_height},
 			options = {.Attached, .No_Scroll_X, .No_Scroll_Y},
 		}); ok {
-			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[1])
+			nanovg.FillColor(ui.ctx, ui.style.color.foreground[1])
+			nanovg.BeginPath(ui.ctx)
+			nanovg.RoundedRect(ui.ctx, self.box.low.x, self.box.low.y, self.box.high.x - self.box.low.x, self.box.high.y - self.box.low.y, ui.style.rounding)
+			nanovg.Fill(ui.ctx)
+
 			ui.placement.side = .Top; ui.placement.size = option_height
 			push_id(ui, self.id)
 				for item, i in info.items {
@@ -58,7 +72,13 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 					pop_id(ui)
 				}
 			pop_id(ui)
-			paint_box_stroke(ui.painter, layer.box, 1, ui.style.color.substance)
+
+			nanovg.StrokeWidth(ui.ctx, 1)
+			nanovg.StrokeColor(ui.ctx, ui.style.color.substance)
+			nanovg.BeginPath(ui.ctx)
+			nanovg.RoundedRect(ui.ctx, layer.box.low.x, layer.box.low.y, layer.box.high.x - layer.box.low.x, layer.box.high.y - layer.box.low.y, ui.style.rounding)
+			nanovg.Stroke(ui.ctx)
+
 			if ((self.state & {.Focused} == {}) && (layer.state & {.Focused} == {})) {
 				data.is_open = false
 			}
@@ -99,16 +119,16 @@ option :: proc(ui: ^UI, info: Option_Info, loc := #caller_location) -> Generic_W
 		text_color := blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered)
 		fill_color := blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered)
 		padding := height(self.box) * 0.25
-		paint_box_fill(ui.painter, self.box, fill_color)
+		/*paint_box_fill(ui.painter, self.box, fill_color)
 		paint_text_box(ui.painter, {{self.box.low.x + padding, self.box.low.y}, {self.box.high.x - padding, self.box.high.y}}, {
 			text = info.text, 
 			font = ui.style.font.label, 
 			size = ui.style.text_size.label,
 			align = info.text_align,
 			baseline = .Middle,
-		}, text_color)
+		}, text_color)*/
 	}
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 
 	return result
-}*/
+}

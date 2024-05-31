@@ -7,6 +7,16 @@ import "vendor:nanovg"
 
 Color :: nanovg.Color
 
+alpha_blend_colors :: proc(bg, fg: Color) -> Color {
+	result: Color
+	inv_alpha: f32 = 1.0 - fg.a
+	result.r = (fg.a * fg.r + inv_alpha * bg.r)
+	result.g = (fg.a * fg.g + inv_alpha * bg.g)
+	result.b = (fg.a * fg.b + inv_alpha * bg.b)
+	result.a = 1
+	return result
+}
+
 blend_colors :: proc(time: f32, colors: ..Color) -> Color {
 	if len(colors) > 0 {
 		if len(colors) == 1 {

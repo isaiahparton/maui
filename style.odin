@@ -42,9 +42,23 @@ make_default_style :: proc(ctx: ^nanovg.Context) -> (style: Style, ok: bool) {
 get_light_style_colors :: proc() -> Style_Colors {
 	return Style_Colors{
 		background = {
-			nanovg.ColorHex(0x04ffe0ff),
-			nanovg.ColorHex(0x0effe0ff),
+			nanovg.RGBA(210, 218, 212, 255),
+			nanovg.RGBA(185, 190, 186, 255),
 		},
+		foreground = {
+			nanovg.RGBA(240, 240, 240, 255),
+			nanovg.RGBA(235, 235, 235, 255),
+		},
+		text = {
+			nanovg.RGBA(0, 0, 0, 255),
+			nanovg.RGBA(40, 40, 40, 255),
+		},
+		substance = nanovg.RGBA(0, 0, 0, 255),
+		button = nanovg.RGBA(171, 160, 167, 255),
+		button_hovered = nanovg.RGBA(44, 40, 53, 255),
+		backing = nanovg.RGBA(215, 215, 215, 255),
+		label = nanovg.RGBA(44, 40, 53, 255),
+		label_hovered = nanovg.RGBA(255, 255, 255, 255),
 	}
 }
 get_dark_style_colors :: proc() -> Style_Colors {

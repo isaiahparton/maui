@@ -147,7 +147,6 @@ begin_ui :: proc(ui: ^UI) {
 	// Begin drawing
 	nanovg.BeginFrame(ui.ctx, ui.size.x, ui.size.y, 1.0)
 	// Update screen size
-	// ui.painter.size = ui.io.screen_size
 	ui.size = linalg.array_cast(ui.io.size, f32)
 	// Try tell the user what went wrong if
 	// a stack overflow occours
@@ -256,7 +255,6 @@ end_ui :: proc(ui: ^UI) {
 	ui.frame_duration = time.since(ui.then)
 	ui.io.set_cursor_type(ui.cursor)
 	ui.cursor = .Default
-
 	// End drawing
 	nanovg.EndFrame(ui.ctx)
 }

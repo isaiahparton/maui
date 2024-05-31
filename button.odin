@@ -59,35 +59,28 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 		ui.cursor = .Hand
 	}
 	// Paint
-	if .Should_Paint in self.bits {
+	if .Should_Paint in self.bits || true {
 		opacity: f32 = 1.0 - data.disable_time * 0.5
 		text_color: Color
-
-		nanovg.BeginPath(ui.ctx)
-		DrawBox(ui.ctx, self.box)
 
 		// Types
 		switch info.type {
 			case .Filled:
-			nanovg.FillColor(ui.ctx, blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered))
-			nanovg.Fill(ui.ctx)
+			fill := blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered)
+			nanovg.FillPaint(ui.ctx, nanovg.LinearGradient(self.box.low.x, self.box.low.y, self.box.low.x, self.box.high.y, alpha_blend_colors(fill, nanovg.RGBA(255, 255, 255, 50)), fill))
 			case .Outlined:
 			nanovg.FillColor(ui.ctx, fade(ui.style.color.button_hovered, data.hover_time))
-			nanovg.Fill(ui.ctx)
 			if data.hover_time < 1 {
 				nanovg.StrokeWidth(ui.ctx, 2)
 				nanovg.StrokeColor(ui.ctx, ui.style.color.button)
-				nanovg.Stroke(ui.ctx)
 			}
 			case .Subtle:
 			nanovg.FillColor(ui.ctx, fade(ui.style.color.button_hovered, data.hover_time))
-			nanovg.Fill(ui.ctx)
 		}
 
-		nanovg.TextAlignHorizontal(ui.ctx, .CENTER)
-		nanovg.TextAlignVertical(ui.ctx, .MIDDLE)
-		nanovg.FontSize(ui.ctx, 20)
-		nanovg.Text(ui.ctx, self.box.high.x - self.box.low.x, self.box.high.y- self.box.low.y, info.text)
+		nanovg.BeginPath(ui.ctx)
+		nanovg.RoundedRect(ui.ctx, self.box.low.x, self.box.low.y, self.box.high.x - self.box.low.x, self.box.high.y - self.box.low.y, ui.style.rounding)
+		nanovg.Fill(ui.ctx)
 
 		switch info.type {
 			case .Filled:
@@ -97,8 +90,6 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 			case .Subtle:
 			nanovg.FillColor(ui.ctx, blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered))
 		}
-		nanovg.Fill(ui.ctx)
-
 		// Highlight
 		if color, ok := info.highlight.?; ok {
 			// paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fade(color, 0.3))
@@ -107,6 +98,10 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 			}
 		}
 		// Text title
+		nanovg.BeginPath(ui.ctx)
+		nanovg.TextAlignHorizontal(ui.ctx, .CENTER)
+		nanovg.TextAlignVertical(ui.ctx, .MIDDLE)
+		nanovg.FontSize(ui.ctx, 20)
 		text_origin: [2]f32
 		text_align := info.text_align.? or_else .Middle
 		switch text_align {
@@ -118,6 +113,7 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 			text_origin = {self.box.high.x - ui.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
 		}
 		result.min_width = nanovg.Text(ui.ctx, text_origin.x, text_origin.y, info.text) + height(layout.box)
+		nanovg.Fill(ui.ctx)
 	}
 	// Get next hover state
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

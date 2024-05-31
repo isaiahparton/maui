@@ -2,6 +2,8 @@ package maui
 
 import "core:time"
 
+import "vendor:glfw"
+
 MAX_KEYBOARD_KEYS :: 512
 // Text input que size
 MAX_INPUT_RUNES :: 32
@@ -21,6 +23,8 @@ IO :: struct {
 	rune_count: int,
 
 	size: [2]i32,
+
+	cursors: [Cursor_Type]glfw.CursorHandle,
 
 	set_cursor_type: proc(Cursor_Type),
 	set_cursor_position: proc(x, y: f32),

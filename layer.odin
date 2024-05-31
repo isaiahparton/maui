@@ -660,7 +660,7 @@ end_layer :: proc(ui: ^UI, self: ^Layer) {
 	pop_layer(ui)
 	if ui.layers.stack.height > 0 {
 		layer := current_layer(ui)
-
+		nanovg.Scissor(ui.ctx, layer.box.low.x, layer.box.low.y, layer.box.high.x - layer.box.low.x, layer.box.high.y - layer.box.low.y)
 		nanovg.GlobalAlpha(ui.ctx, layer.opacity)
 	}
 }
