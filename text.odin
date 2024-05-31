@@ -185,6 +185,12 @@ text_interactive :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Text_In
 	iter := fontstash.TextIterInit(fs, origin.x * scale, origin.y * scale, info.text)
 	prev_iter := iter
 	q: fontstash.Quad
+
+	column, line: int
+	selection_bounds: Box 
+	line_origin := origin
+	line_box_bounds: [2]f32
+
 	// Text iteration using fontstash
 	for fontstash.TextIterNext(&ui.ctx.fs, &iter, &q) {
 		c: [4 * 2]f32
@@ -231,46 +237,51 @@ text_interactive :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Text_In
 			nverts += 6
 		}
 
+		if iter.codepoint == '\n' {
+			line += 1
+			column = 0
+			line_origin = {iter.x, iter.y}
+		} else {
+			column += 1
+		}
+
 		// Get selection info
-		/*if .Focused in (widget.state) {
-			if selection.offset == it.index {
+		if .Focused in (widget.state) {
+			if selection.offset == iter.next {
 				selection.line = line
 				selection.column = column
 			}
-			if it.index >= selection.offset && it.index <= selection.offset + selection.length {
+			if iter.next >= selection.offset && iter.next <= selection.offset + selection.length {
 				line_box_bounds = {
-					min(line_box_bounds[0], iter),
-					max(line_box_bounds[1], point.x),
+					min(line_box_bounds[0], iter.x),
+					max(line_box_bounds[1], iter.nextx),
 				}
 			}
-			if selection.length > 0 && it.index >= selection.offset && it.index < selection.offset + selection.length {
-				glyph_color = ui.style.color.accent_text
+			if selection.length > 0 && iter.next >= selection.offset && iter.next < selection.offset + selection.length {
+
 			}
-		}*/
+		}
 
 		// Paint this line's selection
-		/*if (.Focused in widget.state) && (it.index >= len(info.text) || info.text[it.index] == '\n') {
+		if (.Focused in widget.state) && (iter.next >= len(info.text) || iter.text[iter.next] == '\n') {
 			if line_box_bounds[1] >= line_box_bounds[0] {
 				box: Box = {
 					{line_box_bounds[0] - 1, line_origin.y},
-					{line_box_bounds[1] + 1, line_origin.y + it.line_size.y},
+					{line_box_bounds[1] + 1, iter.nexty},
 				}
 				selection_bounds = {
 					linalg.min(selection_bounds.low, box.low),
 					linalg.max(selection_bounds.high, box.high),
 				}
-				if clip, ok := info.clip.?; ok {
-					box = clamp_box(box, clip)
-				}
 
 				nanovg.BeginPath(ui.ctx)
-				DrawBox(ctx, box)
+				DrawBox(ui.ctx, box)
 				nanovg.FillColor(ui.ctx, ui.style.color.accent)
 				nanovg.Fill(ui.ctx)
 
 				line_box_bounds = {math.F32_MAX, 0}
 			}
-		}*/
+		}
 	}
 	ui.ctx.textureDirty = true
 	__renderText(ui.ctx, verts[:nverts])

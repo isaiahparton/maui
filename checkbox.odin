@@ -62,7 +62,7 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
 	// Painting
-	if .Should_Paint in self.bits || true {
+	if .Should_Paint in self.bits {
 		icon_box: Box
 		if has_text {
 			switch text_side {
@@ -82,7 +82,6 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		}
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
-		fill_color := ui.style.color.background[0]
 
 		nanovg.FillPaint(ui.ctx, nanovg.LinearGradient(icon_box.low.x, icon_box.low.y, icon_box.low.x, icon_box.high.y, ui.style.color.background[1], ui.style.color.background[0]))
 		nanovg.BeginPath(ui.ctx)
@@ -95,9 +94,9 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 			scale: f32 = HALF_SIZE * 0.5
 			a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
 
-			nanovg.StrokeWidth(ui.ctx, 3)
-			nanovg.LineCap(ui.ctx, .ROUND)
-			nanovg.LineJoin(ui.ctx, .ROUND)
+			nanovg.StrokeWidth(ui.ctx, 2)
+			// nanovg.LineCap(ui.ctx, .ROUND)
+			// nanovg.LineJoin(ui.ctx, .ROUND)
 			nanovg.StrokeColor(ui.ctx, ui.style.color.substance)
 			nanovg.BeginPath(ui.ctx)
 			nanovg.MoveTo(ui.ctx, center.x + a.x, center.y + a.y)

@@ -122,14 +122,15 @@ UI :: struct {
 /*
 	Construct a new UI given it's required plugins
 */
-make_ui :: proc(io: ^IO, ctx: ^nanovg.Context, style: Style) -> (result: UI, ok: bool) {
+make_ui :: proc(io: ^IO, ctx: ^nanovg.Context, style: Style) -> ^UI {
+	ui := new(UI)
 	// Assign the result
-	result, ok = UI{
+	ui^ = UI{
 		io = io,
 		ctx = ctx,
 		style = style,
-	}, true
-	return
+	}
+	return ui
 }
 destroy_ui :: proc(ui: ^UI) {
 	// Free text buffers
@@ -142,6 +143,8 @@ destroy_ui :: proc(ui: ^UI) {
 	destroy_widget_agent(&ui.widgets)
 	//
 	nanovg_gl.Destroy(ui.ctx)
+	// 
+	free(ui)
 }
 begin_ui :: proc(ui: ^UI) {
 	// Begin drawing

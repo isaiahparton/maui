@@ -125,12 +125,14 @@ _main :: proc() -> bool {
 
 	t: time.Time = time.now()
 	options: [Option]bool
+	combo_box_index: int
+	data: [dynamic]u8
 
 	// Initialize the platform and renderer
 	ctx := nanovg_gl.Create({.ANTI_ALIAS})
 
 	// Only create the ui structure once the `painter` and `io` are initiated
-	ui := maui.make_ui(&io, ctx, maui.make_default_style(ctx) or_return) or_return
+	ui := maui.make_ui(&io, ctx, maui.make_default_style(ctx) or_return)
 
 	// Begin the cycle
 	for {
@@ -146,27 +148,40 @@ _main :: proc() -> bool {
 
 		using maui
 		// Beginning of ui calls
-		begin_ui(&ui)
-			shrink(&ui, 100)
+		begin_ui(ui)
+			shrink(ui, 100)
 
-			ui.placement.size = 30
-			button(&ui, {text = "button"})
-			space(&ui, 20)
-			push_dividing_layout(&ui, cut(&ui, .Top, 30))
+			ui.placement.size = 24
+
+			begin_row(ui, 100)
+				button(ui, {text = "button"})
+			end_row(ui)
+
+			space(ui, 20)
+
+			begin_row(ui)
 				ui.placement.side = .Left
 				for member, i in Option {
-					push_id(&ui, i)
-					if was_clicked(checkbox(&ui, {text = tmp_print(member), value = options[member]})) {
+					push_id(ui, i)
+					if was_clicked(checkbox(ui, {text = tmp_print(member), value = options[member]})) {
 						options[member] = !options[member]
 					}
-					pop_id(&ui)
-					space(&ui, 10)
+					pop_id(ui)
+					space(ui, 10)
 				}
-			pop_layout(&ui)
-			space(&ui, 20)
-			ui.placement.size = 30
-			combo_box(&ui, {index = 0, items = {"Wave", "Function", "Collapse"}})
-			
+			end_row(ui)
+
+			space(ui, 20)
+
+			begin_row(ui, 100)
+				if index, ok := combo_box(ui, {index = combo_box_index, items = {"Wave", "Function", "Collapse"}}).index.?; ok {
+					combo_box_index = index
+				}
+			end_row(ui)
+
+			space(ui, 20)
+			text_input(ui, {data = &data})
+
 			nanovg.FontSize(ctx, 16)
 			nanovg.FontFace(ctx, "Default")
 			nanovg.TextAlignHorizontal(ctx, .LEFT)
@@ -179,12 +194,12 @@ _main :: proc() -> bool {
 			nanovg.Text(ui.ctx, 0, ui.size.y - 32, tmp_printf("time: %f", ui.current_time))
 			nanovg.Text(ui.ctx, 0, ui.size.y - 48, tmp_printf("size: %v", ui.size))
 			nanovg.Fill(ctx)
-		end_ui(&ui)
+		end_ui(ui)
 
 		glfw.SwapBuffers(window)
 	}
 
-	maui.destroy_ui(&ui)
+	maui.destroy_ui(ui)
 
 	return true
 }

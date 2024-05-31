@@ -59,7 +59,7 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 		ui.cursor = .Hand
 	}
 	// Paint
-	if .Should_Paint in self.bits || true {
+	if .Should_Paint in self.bits {
 		opacity: f32 = 1.0 - data.disable_time * 0.5
 		text_color: Color
 
@@ -101,7 +101,7 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 		nanovg.BeginPath(ui.ctx)
 		nanovg.TextAlignHorizontal(ui.ctx, .CENTER)
 		nanovg.TextAlignVertical(ui.ctx, .MIDDLE)
-		nanovg.FontSize(ui.ctx, 20)
+		nanovg.FontSize(ui.ctx, ui.style.text_size.label)
 		text_origin: [2]f32
 		text_align := info.text_align.? or_else .Middle
 		switch text_align {

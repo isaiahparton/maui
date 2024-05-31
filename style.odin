@@ -3,7 +3,7 @@ package maui
 import "vendor:nanovg"
 
 make_default_style :: proc(ctx: ^nanovg.Context) -> (style: Style, ok: bool) {
-	default_font := nanovg.CreateFont(ctx, "Default", "fonts/Gabarito-Regular.ttf")
+	default_font := nanovg.CreateFont(ctx, "Default", "fonts/Roboto-Regular.ttf")
 	style, ok = {
 		color = get_light_style_colors(),
 		title_margin = 10,
@@ -15,10 +15,10 @@ make_default_style :: proc(ctx: ^nanovg.Context) -> (style: Style, ok: bool) {
 			widget_padding = 7,
 		},
 		text_size = {
-			label = 18,
-			title = 18,
+			label = 16,
+			title = 12,
 			tooltip = 14,
-			field = 18,
+			field = 16,
 		},
 		rounding = 6,
 		stroke_width = 1,
@@ -41,6 +41,7 @@ make_default_style :: proc(ctx: ^nanovg.Context) -> (style: Style, ok: bool) {
 */
 get_light_style_colors :: proc() -> Style_Colors {
 	return Style_Colors{
+		accent = nanovg.RGBA(25, 128, 224, 255),
 		background = {
 			nanovg.RGBA(210, 218, 212, 255),
 			nanovg.RGBA(185, 190, 186, 255),

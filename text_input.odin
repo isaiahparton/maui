@@ -1,5 +1,5 @@
 package maui
-/*import "../"
+import "../"
 // Core dependencies
 import "core:fmt"
 import "core:runtime"
@@ -9,6 +9,8 @@ import "core:slice"
 import "core:unicode/utf8"
 import "core:math"
 import "core:math/linalg"
+
+import "vendor:nanovg"
 
 // Edit a dynamic array of bytes or a string
 // NOTE: Editing a string that was not allocated will segfault!
@@ -98,37 +100,43 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		result.changed = escribe_text(&ui.scribe, ui.io, {
 			array = buffer,
 			multiline = info.multiline,
-			// Provide painting data for vertical navigation
-			painter = ui.painter,
-			paint_info = text_info,
 		})
 	}
+
+	// Text style
+	nanovg.FontFaceId(ui.ctx, ui.style.font.content)
+	nanovg.FontSize(ui.ctx, ui.style.text_size.field)
+	nanovg.TextAlignHorizontal(ui.ctx, .LEFT)
+	nanovg.TextAlignVertical(ui.ctx, .MIDDLE)
+
 	// Paint!
 	if (.Should_Paint in self.bits) {
 		// Paint the placeholder on the foreground
 		if info.placeholder != nil {
 			if len(text) == 0 {
-				paint_text(
-					ui.painter,
-					text_origin, 
-					{font = text_info.font, size = text_info.size, text = info.placeholder.?, baseline = text_info.baseline}, 
-					ui.style.color.text[1],
-				)
+				nanovg.FillColor(ui.ctx, ui.style.color.text[1])
+				nanovg.BeginPath(ui.ctx)
+				nanovg.Text(ui.ctx, text_origin.x, text_origin.y, info.placeholder.?)
+				nanovg.Fill(ui.ctx)
 			}
 		}
 		// Paint the body on the background
 		layer := current_layer(ui)
-		ui.painter.target = layer.targets[.Background]
-		paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, ui.style.rounded_corners, ui.style.color.backing)
+
+		nanovg.FillPaint(ui.ctx, nanovg.LinearGradient(self.box.low.x, self.box.low.y, self.box.low.x, self.box.high.y, ui.style.color.background[1], ui.style.color.background[0]))
+		nanovg.StrokeColor(ui.ctx, ui.style.color.substance)
+		nanovg.StrokeWidth(ui.ctx, 0.5)
+		nanovg.BeginPath(ui.ctx)
+		nanovg.RoundedRect(ui.ctx, self.box.low.x, self.box.low.y, self.box.high.x - self.box.low.x, self.box.high.y - self.box.low.y, ui.style.rounding)
+		nanovg.Fill(ui.ctx)
+		nanovg.Stroke(ui.ctx)
+
 		if title, ok := info.title.?; ok {
-			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
-				text = title,
-				baseline = .Bottom,
-				font = ui.style.font.title,
-				size = ui.style.text_size.title,
-			}, ui.style.color.text[0])
+			nanovg.FillColor(ui.ctx, ui.style.color.text[0])
+			nanovg.BeginPath(ui.ctx)
+			nanovg.Text(ui.ctx, text_origin.x, self.box.low.y - 2, title)
+			nanovg.Fill(ui.ctx)
 		}
-		ui.painter.target = layer.targets[.Foreground]
 	}
 	// Do text scrolling or whatever
 	// Focused state
@@ -136,7 +144,11 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		ui.scribe.selection.offset = len(text)
 		ui.scribe.selection.length = 0
 	}
-	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text[0])
+
+	nanovg.FillColor(ui.ctx, ui.style.color.text[0])
+	nanovg.BeginPath(ui.ctx)
+	text_result := text_interactive(ui, self, text_origin - data.offset, {text = text_info.text})
+	nanovg.Fill(ui.ctx)
 
 	// Get the text location and cursor offsets
 	if .Focused in self.state {
@@ -205,4 +217,4 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	}
 	update_layer_content_bounds(ui.layers.current, self.box)
 	return result
-}*/
+}

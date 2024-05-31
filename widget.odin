@@ -102,7 +102,7 @@ Widget_Variant :: union {
 	Check_Box_Widget_Variant,
 	// List_Item_Widget_Variant,
 	Menu_Widget_Variant,
-	// Text_Input_Widget_Variant,
+	Text_Input_Widget_Variant,
 	// Toggle_Switch_Widget_Variant,
 }
 destroy_widget_variant :: proc(variant: ^Widget_Variant) {

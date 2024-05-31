@@ -183,6 +183,28 @@ _row :: proc(ui: ^UI, _: int, _: f32, ok: bool) {
 		pop_layout(ui)
 	}
 }
+
+begin_row_default :: proc(ui: ^UI) {
+	last_layout := current_layout(ui)
+	box := cut(ui, ui.placement.side, ui.placement.size)
+	layout := push_dividing_layout(ui, box)
+	ui.placement.side = .Left
+}
+begin_row_width :: proc(ui: ^UI, width: f32) {
+	last_layout := current_layout(ui)
+	box := cut(ui, ui.placement.side, ui.placement.size)
+	layout := push_dividing_layout(ui, box)
+	ui.placement.side = .Left
+	ui.placement.size = width
+}
+begin_row :: proc {
+	begin_row_default,
+	begin_row_width,
+}
+end_row :: proc(ui: ^UI) {
+	pop_layout(ui)
+}
+
 /*
 	Generic getter of next box in the current layout based on the current placement info
 */
