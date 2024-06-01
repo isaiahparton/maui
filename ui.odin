@@ -116,14 +116,15 @@ UI :: struct {
 /*
 	Construct a new UI given it's required plugins
 */
-make_ui :: proc(io: ^IO, painter: ^Painter, style: Style) -> (result: UI, ok: bool) {
+make_ui :: proc(io: ^IO, painter: ^Painter, style: Style) -> ^UI {
+	ui := new(UI)
 	// Assign the result
-	result, ok = UI{
+	ui^ = {
 		io = io,
 		painter = painter,
 		style = style,
-	}, true
-	return
+	}
+	return ui
 }
 destroy_ui :: proc(ui: ^UI) {
 	// Free text buffers
@@ -136,6 +137,8 @@ destroy_ui :: proc(ui: ^UI) {
 	destroy_widget_agent(&ui.widgets)
 	//
 	destroy_painter(ui.painter)
+	//
+	free(ui)
 }
 begin_ui :: proc(ui: ^UI) {
 	// Update screen size

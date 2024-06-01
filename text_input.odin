@@ -119,7 +119,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		// Paint the body on the background
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
-		paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, ui.style.rounded_corners, ui.style.color.backing)
+		paint_box_fill(ui.painter, self.box, ui.style.color.backing)
 		if title, ok := info.title.?; ok {
 			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
 				text = title,

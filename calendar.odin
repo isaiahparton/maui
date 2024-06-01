@@ -82,7 +82,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				text = "<", 
 				type = .Filled,
 				box = get_box_left(result.self.?.box, height(result.self.?.box)),
-			})) {
+			})) || (ui.layers.current.state >= {.Hovered} && ui.io.mouse_scroll.y > 0) {
 				month = time.Month(int(month) - 1)
 				if int(month) <= 0 {
 					month = time.Month(12)
@@ -95,7 +95,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				text = ">", 
 				type = .Filled,
 				box = get_box_right(result.self.?.box, height(result.self.?.box)),
-			})) {
+			})) || (ui.layers.current.state >= {.Hovered} && ui.io.mouse_scroll.y < 0) {
 				month = time.Month(int(month) + 1)
 				if int(month) >= 13 {
 					month = time.Month(1)
@@ -181,8 +181,8 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 			push_id(ui, i)
 				if was_clicked(button(ui, {
 					text = tmp_print(_day), 
+					active = (_month == month && _day == day),
 					type = .Subtle if time.month(transmute(time.Time)day_time) != month else .Filled,
-					highlight = ui.style.color.accent if (_month == month && _day == day) else nil,
 				})) {
 					new_value = transmute(time.Time)day_time
 				}

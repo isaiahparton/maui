@@ -42,7 +42,7 @@ tree_node :: proc(ui: ^UI, info: Tree_Node_Info, loc := #caller_location) -> Tre
 	}
 
 	if data.open_time > 0 {
-		result.layer, _ = begin_layer(ui, {
+		layer, _ := begin_layer(ui, {
 			placement = Layer_Placement_Info{
 				origin = {self.box.low.x, self.box.high.y},
 				size = {width(self.box), nil},
@@ -54,8 +54,10 @@ tree_node :: proc(ui: ^UI, info: Tree_Node_Info, loc := #caller_location) -> Tre
 			options = {.Attached, .Clip_To_Parent, .No_Scroll_Y},
 			clip_sides = Box_Sides{.Top},
 		})
+		result.layer = layer
 		result.layout = current_layout(ui)
 		result.expanded = true
+		paint_gradient_box_v(ui.painter, {{layer.box.low.x, layer.box.low.y}, {layer.box.high.x, layer.box.low.y + 30}}, fade(ui.style.color.text[1], 0.1), fade(ui.style.color.text[1], 0))
 	}
 
 	if .Clicked in self.state {

@@ -56,10 +56,11 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 	}
 	button_result := button(ui, {
 		box = get_box_right(box, height(box)),
-		corners = {.Top_Right, .Bottom_Right},
 		font = ui.style.font.icon,
+		type = .Subtle,
 		text = "\uf783",
 	})
+	paint_box_stroke(ui.painter, ui.last_box, 1, ui.style.color.substance)
 	if was_clicked(button_result) {
 		data.is_open = true
 	}	
