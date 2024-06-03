@@ -179,6 +179,14 @@ _row :: proc(ui: ^UI, _: int, _: f32, ok: bool) {
 		pop_layout(ui)
 	}
 }
+
+begin_row :: proc(ui: ^UI, side: Box_Side, size: f32, contents_side: Box_Side) {
+	push_dividing_layout(ui, cut(ui, side, size))
+	ui.placement.side = contents_side
+}
+end_row :: proc(ui: ^UI) {
+	pop_layout(ui)
+}
 /*
 	Generic getter of next box in the current layout based on the current placement info
 */

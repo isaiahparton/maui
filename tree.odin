@@ -57,7 +57,6 @@ tree_node :: proc(ui: ^UI, info: Tree_Node_Info, loc := #caller_location) -> Tre
 		result.layer = layer
 		result.layout = current_layout(ui)
 		result.expanded = true
-		paint_gradient_box_v(ui.painter, {{layer.box.low.x, layer.box.low.y}, {layer.box.high.x, layer.box.low.y + 30}}, fade(ui.style.color.text[1], 0.1), fade(ui.style.color.text[1], 0))
 	}
 
 	if .Clicked in self.state {

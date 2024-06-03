@@ -29,7 +29,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	data.open_time = animate(ui, data.open_time, 0.2, data.is_open)
 	// Date 
-	year, month, day := time.date(info.value)
+	// year, month, day := time.date(info.value)
 	buffer := get_scribe_buffer(&ui.scribe, self.id)
 	if len(buffer) == 0 {
 		_year, _month, _day := time.date(info.value)
@@ -50,7 +50,8 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 				new_day := int(strconv.parse_uint(values[0]) or_else 1)
 				new_month := int(clamp(strconv.parse_uint(values[1]) or_else 1, 1, 12))
 				new_year := int(max(strconv.parse_uint(values[2]) or_else 0, 1970))
-				result.new_value = time.datetime_to_time(new_year, new_month, new_day + 1, 0, 0, 0) or_else info.value
+				hour, min, sec := time.clock(info.value)
+				result.new_value = time.datetime_to_time(new_year, new_month, new_day + 1, hour, min, sec) or_else info.value
 			}
 		}
 	}
@@ -60,7 +61,6 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 		type = .Subtle,
 		text = "\uf783",
 	})
-	paint_box_stroke(ui.painter, ui.last_box, 1, ui.style.color.substance)
 	if was_clicked(button_result) {
 		data.is_open = true
 	}	
@@ -69,7 +69,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 		size: [2]f32 = {370, 245}
 		side: Box_Side = .Top
 		// Find optimal side of attachment
-		n := 5 * ease.quadratic_out(data.open_time)
+		n := 7 * ease.quadratic_out(data.open_time)
 		box := get_attached_box(box, side, size, n)
 		box.low = linalg.clamp(box.low, 0, ui.size - size)
 		box.high = box.low + size
@@ -79,7 +79,7 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			order = .Background,
 			options = {.Attached},
 		}); ok {
-			cut(ui, .Bottom, 7)
+			cut(ui, .Bottom, 9)
 			// Fill
 			paint_rounded_box_fill(ui.painter, ui.layouts.current.box, ui.style.rounding, ui.style.color.foreground[1])
 			paint_rounded_box_stroke(ui.painter, ui.layouts.current.box, ui.style.rounding, 1, ui.style.color.substance)

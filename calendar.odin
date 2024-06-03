@@ -14,6 +14,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 	new_value = value
 	// Temporary state
 	year, month, day := time.date(value)
+	hour, min, sec := time.clock(value)
 	ui.placement.side = .Top
 	// Combo boxes
 	push_dividing_layout(ui, cut(ui, .Top, 20))
@@ -35,7 +36,10 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 					push_id(ui, i)
 						if was_clicked(option(ui, {text = tmp_print(i)})) {
 							day = i
-							new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+							if (year - 3) % 4 != 0 {
+								day += 1
+							}
+							new_value = time.datetime_to_time(year, int(month), day, hour, min, sec) or_else new_value
 						}
 					pop_id(ui)
 				}
@@ -73,7 +77,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 					push_id(ui, int(member))
 						if was_clicked(option(ui, {text = tmp_print(member)})) {
 							month = member
-							new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+							new_value, _ = time.datetime_to_time(year, int(month), day, hour, min, sec, 0)
 						}
 					pop_id(ui)
 				}
@@ -82,26 +86,26 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				text = "<", 
 				type = .Filled,
 				box = get_box_left(result.self.?.box, height(result.self.?.box)),
-			})) || (ui.layers.current.state >= {.Hovered} && ui.io.mouse_scroll.y > 0) {
+			})) || (ui.layers.current.id == ui.layers.hover_id && ui.io.mouse_scroll.y > 0) {
 				month = time.Month(int(month) - 1)
 				if int(month) <= 0 {
 					month = time.Month(12)
 					year -= 1
 				}
-				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+				new_value, _ = time.datetime_to_time(year, int(month), day, hour, min, sec, 0)
 			}
 			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 			if was_clicked(button(ui, {
 				text = ">", 
 				type = .Filled,
 				box = get_box_right(result.self.?.box, height(result.self.?.box)),
-			})) || (ui.layers.current.state >= {.Hovered} && ui.io.mouse_scroll.y < 0) {
+			})) || (ui.layers.current.id == ui.layers.hover_id && ui.io.mouse_scroll.y < 0) {
 				month = time.Month(int(month) + 1)
 				if int(month) >= 13 {
 					month = time.Month(1)
 					year += 1
 				}
-				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+				new_value, _ = time.datetime_to_time(year, int(month), day, hour, min, sec, 0)
 			}
 			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 		}
@@ -120,7 +124,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 					push_id(ui, i)
 						if was_clicked(option(ui, {text = tmp_print(i)})) {
 							year = i
-							new_value, _ = time.datetime_to_time(i, int(month), day, 0, 0, 0, 0)
+							new_value, _ = time.datetime_to_time(i, int(month), day, hour, min, sec, 0)
 						}
 					pop_id(ui)
 				}
@@ -131,7 +135,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				box = get_box_left(result.self.?.box, height(result.self.?.box)),
 			})) {
 				year -= 1
-				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+				new_value, _ = time.datetime_to_time(year, int(month), day, hour, min, sec, 0)
 			}
 			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 			if was_clicked(button(ui, {
@@ -140,7 +144,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				box = get_box_right(result.self.?.box, height(result.self.?.box)),
 			})) {
 				year += 1
-				new_value, _ = time.datetime_to_time(year, int(month), day, 0, 0, 0, 0)
+				new_value, _ = time.datetime_to_time(year, int(month), day, hour, min, sec, 0)
 			}
 			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 		}
