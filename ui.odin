@@ -60,9 +60,13 @@ Stack :: struct($T: typeid, $N: int) {
 	items: [N]T,
 	height: int,
 }
-stack_push :: proc(stack: ^Stack($T, $N), item: T) {
+stack_push :: proc(stack: ^Stack($T, $N), item: T) -> bool {
+	if stack.height >= N {
+		return false
+	}
 	stack.items[stack.height] = item
 	stack.height += 1
+	return true
 }
 stack_pop :: proc(stack: ^Stack($T, $N)) {
 	stack.height -= 1

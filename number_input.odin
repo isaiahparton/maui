@@ -8,7 +8,7 @@ Number_Input_Info :: struct {
 	using generic: Generic_Widget_Info,
 	value: f64,
 	format,
-	title: Maybe(string),
+	label: Maybe(string),
 }
 Number_Input_Result :: struct {
 	using generic: Generic_Widget_Result,
@@ -141,7 +141,7 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 	// Update hover
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	// Only for content clipping of title (not very elegant)
-	if info.title != nil {
+	if info.label != nil {
 		self.box.low.y -= 10
 	}
 	return result

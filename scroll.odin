@@ -37,16 +37,19 @@ scrollbar :: proc(ui: ^UI, info: Scrollbar_Info, loc := #caller_location) -> Scr
 	size := self.box.high[i] - self.box.low[i]
 	range := size - info.knob_size
 	value_range := (info.high - info.low) if info.high > info.low else 1
+	box := self.box
+	j := 1 - i
+	box.low[j] += (box.high[j] - box.low[j]) * 0.5 * (1 - data.hover_time)
 	// Part dragged by user
-	knob_box := self.box
+	knob_box := box
 	knob_size := knob_box.high[i] - knob_box.low[i]
 	knob_box.low[i] += range * clamp((info.value - info.low) / value_range, 0, 1)
 	knob_size = min(info.knob_size, knob_size)
 	knob_box.high[i] = knob_box.low[i] + knob_size
 	// Painting
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, fade({0, 0, 0, 255}, 0.1 + data.hover_time * 0.1))
-		paint_box_fill(ui.painter, knob_box, fade({0, 0, 0, 255}, 0.1 + data.hover_time * 0.2))
+		paint_box_fill(ui.painter, box, fade({75, 0, 25, 255}, 0.2 + data.hover_time * 0.1))
+		paint_box_fill(ui.painter, knob_box, fade({75, 0, 25, 255}, 0.2 + data.hover_time * 0.2))
 	}
 	// Dragging
 	if .Pressed in (self.state - self.last_state) {

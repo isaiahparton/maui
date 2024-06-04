@@ -57,8 +57,6 @@ _main :: proc() -> bool {
 		maui_glfw.begin()
 
 		begin_ui(ui)
-			layout := current_layout(ui)
-
 			cut(ui, .Left, 200)
 			cut(ui, .Right, 200)
 			cut(ui, .Top, 100)
@@ -152,6 +150,7 @@ _main :: proc() -> bool {
 						data = &text_input_data2,
 						placeholder = "single line text input",
 					})
+					button(ui, {text = "search", fit_text = true})
 				pop_layout(ui)
 				space(ui, 20)
 			}

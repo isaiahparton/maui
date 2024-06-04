@@ -38,16 +38,16 @@ Layout_Agent :: struct {
 	stack: Stack(Layout, LAYOUT_STACK_SIZE),
 	current: ^Layout,
 }
-push_layout :: proc(ui: ^UI, layout: Layout) -> ^Layout {
+push_layout :: proc(ui: ^UI, layout: Layout) -> bool {
 	push_placement(ui, ui.placement)
 	layout := layout
 	layout.original_box = layout.box
-	stack_push(&ui.layouts.stack, layout)
+	result := stack_push(&ui.layouts.stack, layout)
 	ui.layouts.current = &ui.layouts.stack.items[ui.layouts.stack.height - 1] if ui.layouts.stack.height > 0 else nil
-	return ui.layouts.current
+	return result
 }
 
-push_dividing_layout :: proc(ui: ^UI, box: Box) -> ^Layout {
+push_dividing_layout :: proc(ui: ^UI, box: Box) -> bool {
 	new_layout: Layout = {
 		box = box,
 	}
@@ -57,7 +57,7 @@ push_dividing_layout :: proc(ui: ^UI, box: Box) -> ^Layout {
 /*
 	This creates a growing layout that cuts/grows the one below after use
 */
-push_growing_layout :: proc(ui: ^UI, box: Box, direction: Direction) -> ^Layout {
+push_growing_layout :: proc(ui: ^UI, box: Box, direction: Direction) -> bool {
 	new_layout: Layout = {
 		box = box,
 		direction = direction,
@@ -168,9 +168,9 @@ _do_growing_layout :: proc(ui: ^UI, _: Direction, ok: bool) {
 row :: proc(ui: ^UI, divisions: int, spacing: f32 = 0) -> (ok: bool) {
 	last_layout := current_layout(ui)
 	box := cut(ui, ui.placement.side, ui.placement.size)
-	layout := push_dividing_layout(ui, box)
+	push_dividing_layout(ui, box)
 	ui.placement.side = .Left
-	ui.placement.size = width(layout.box) / max(f32(divisions), 1) - (spacing * f32(divisions - 1))
+	ui.placement.size = width(ui.layouts.current.box) / max(f32(divisions), 1) - (spacing * f32(divisions - 1))
 	return true
 }
 @private 
@@ -190,12 +190,30 @@ end_row :: proc(ui: ^UI) {
 /*
 	Generic getter of next box in the current layout based on the current placement info
 */
-next_box :: proc(ui: ^UI) -> (box: Box) {
+next_box :: proc(ui: ^UI, min_size: f32 = 0) -> (box: Box) {
 	assert(ui.layouts.current != nil)
 	layout := ui.layouts.current
 
-	box = layout_cut_or_grow(layout, ui.placement.side, ui.placement.size)
+	box = layout_cut_or_grow(layout, ui.placement.side, max(ui.placement.size, min_size))
 	box.low += {ui.placement.margin[.Left], ui.placement.margin[.Top]}
 	box.high -= {ui.placement.margin[.Right], ui.placement.margin[.Bottom]}
 	return
+}
+
+@(deferred_in_out=_layout)
+layout :: proc(ui: ^UI, side: Box_Side, size: f32) -> bool {
+	return push_dividing_layout(ui, cut(ui, side, size))
+}
+@private
+_layout :: proc(ui: ^UI, _: Box_Side, _: f32, ok: bool) {
+	if ok {
+		pop_layout(ui)
+	}
+}
+
+side :: proc(ui: ^UI, side: Box_Side) {
+	ui.placement.side = side
+}
+size :: proc(ui: ^UI, size: f32) {
+	ui.placement.size = size
 }

@@ -22,7 +22,7 @@ Text_Input_State :: struct {
 Text_Input_Info :: struct {
 	using generic: Generic_Widget_Info,
 	data: Text_Input_Data,
-	title: Maybe(string),
+	label: Maybe(string),
 	placeholder: Maybe(string),
 	multiline,
 	hidden: bool,
@@ -120,9 +120,9 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
 		paint_box_fill(ui.painter, self.box, ui.style.color.backing)
-		if title, ok := info.title.?; ok {
+		if label, ok := info.label.?; ok {
 			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
-				text = title,
+				text = label,
 				baseline = .Bottom,
 				font = ui.style.font.title,
 				size = ui.style.text_size.title,
@@ -200,7 +200,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	// Update hover
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 	// Only for content clipping of title (not very elegant)
-	if info.title != nil {
+	if info.label != nil {
 		self.box.low.y -= 10
 	}
 	update_layer_content_bounds(ui.layers.current, self.box)

@@ -358,3 +358,7 @@ paint_titled_input_stroke :: proc(ui: ^UI, box: Box, title: Maybe(string), cut_a
 	}
 	paint_path_stroke(ui.painter, points[:5] if title == nil else points, title == nil, thickness, 0, color)
 }
+
+divider :: proc(ui: ^UI) {
+	paint_box_fill(ui.painter, cut(ui, ui.placement.side, 1), ui.style.color.substance)
+}

@@ -74,3 +74,37 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 
 	return result
 }
+
+Card_Info :: struct {
+	using generic: Generic_Widget_Info,
+	active: bool,
+}
+begin_card :: proc(ui: ^UI, info: Card_Info, loc := #caller_location) -> Generic_Widget_Result {
+	self, result := get_widget(ui, info, loc)
+
+	self.box = info.box.? or_else next_box(ui)
+
+	// Assert variant existence
+	if self.variant == nil {
+		self.variant = Button_Widget_Variant{}
+	}
+	data := &self.variant.(Button_Widget_Variant)
+	// Update retained data
+	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
+	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
+
+	update_widget(ui, self)
+
+	if .Should_Paint in self.bits {
+		paint_box_fill(ui.painter, self.box, ui.style.color.foreground[0])
+		paint_box_stroke(ui.painter, self.box, 1, fade(ui.style.color.substance, data.hover_time))
+	}
+
+	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
+	push_dividing_layout(ui, self.box)
+
+	return result
+}
+end_card :: proc(ui: ^UI) {
+	pop_layout(ui)
+}

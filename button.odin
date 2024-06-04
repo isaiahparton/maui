@@ -34,15 +34,16 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	}
 	layout := current_layout(ui)
 	// Get minimum width
-	if info.fit_text {
-		ui.placement.size = math.floor(measure_text(ui.painter, {
+	min_size: f32
+	if ui.placement.side == .Left || ui.placement.side == .Right {
+		min_size = math.floor(measure_text(ui.painter, {
 			text = info.text,
 			font = info.font.? or_else ui.style.font.label, 
 			size = info.text_size.? or_else ui.style.text_size.label,
 		}).x + height(layout.box))
 	}
 	// Colocate the button
-	self.box = info.box.? or_else next_box(ui)
+	self.box = info.box.? or_else next_box(ui, min_size)
 	update_widget(ui, self)
 	// Assert variant existence
 	if self.variant == nil {
