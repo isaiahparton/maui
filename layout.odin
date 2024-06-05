@@ -201,11 +201,15 @@ next_box :: proc(ui: ^UI, min_size: f32 = 0) -> (box: Box) {
 }
 
 @(deferred_in_out=_layout)
-layout :: proc(ui: ^UI, side: Box_Side, size: f32) -> bool {
-	return push_dividing_layout(ui, cut(ui, side, size))
+layout :: proc(ui: ^UI, cut_side: Box_Side, cut_size: f32, new_side: Maybe(Box_Side) = nil) -> bool {
+	result := push_dividing_layout(ui, cut(ui, cut_side, cut_size))
+	if new_side, ok := new_side.?; ok {
+		side(ui, new_side)
+	}
+	return result
 }
 @private
-_layout :: proc(ui: ^UI, _: Box_Side, _: f32, ok: bool) {
+_layout :: proc(ui: ^UI, _: Box_Side, _: f32, _: Maybe(Box_Side), ok: bool) {
 	if ok {
 		pop_layout(ui)
 	}

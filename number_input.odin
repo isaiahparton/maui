@@ -37,8 +37,8 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 	}
 	// Get a temporary buffer if necessary
 	buffer := get_scribe_buffer(&ui.scribe, self.id)
-	// Text edit
-	if .Focused in (self.state - self.last_state) {
+	// printf the current value to the buffer if it's empty
+	if len(buffer) == 0 {
 		clear(buffer)
 		w := strings.to_writer(transmute(^strings.Builder)buffer)
 		fmt.wprintf(w, info.format.? or_else "%f", info.value)
@@ -56,14 +56,17 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 	text_origin.y += height(inner_box) / 2
 	// Paint!
 	if (.Should_Paint in self.bits) {
-		opacity: f32 = 1.0
-		stroke_color := blend_colors(data.focus_time, fade(ui.style.color.substance, 0.5), ui.style.color.accent)
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
-		if data.focus_time < 1 {
-			paint_box_inner_gradient(ui.painter, self.box, 0, 56, {}, fade(stroke_color, 0.5 * (1 - data.focus_time)))
+		paint_box_fill(ui.painter, self.box, ui.style.color.backing)
+		if label, ok := info.label.?; ok {
+			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
+				text = label,
+				baseline = .Bottom,
+				font = ui.style.font.title,
+				size = ui.style.text_size.title,
+			}, ui.style.color.text[0])
 		}
-		paint_box_stroke(ui.painter, self.box, 1, stroke_color)
 		ui.painter.target = layer.targets[.Foreground]
 	}
 	// Do text scrolling or whatever

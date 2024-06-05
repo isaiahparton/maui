@@ -6,7 +6,7 @@ MAX_KEYBOARD_KEYS :: 512
 // Text input que size
 MAX_INPUT_RUNES :: 32
 // Max compound clicks
-MAX_CLICK_COUNT :: 3
+MAX_CLICK_COUNT :: 4
 IO :: struct {
 	last_mouse_point, mouse_point, mouse_scroll: [2]f32,
 	mouse_bits, last_mouse_bits: Mouse_Bits,

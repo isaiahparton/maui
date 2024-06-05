@@ -91,17 +91,22 @@ begin_card :: proc(ui: ^UI, info: Card_Info, loc := #caller_location) -> Generic
 	data := &self.variant.(Button_Widget_Variant)
 	// Update retained data
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
+	data.active_time = animate(ui, data.active_time, DEFAULT_WIDGET_HOVER_TIME, info.active)
 	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
 
 	update_widget(ui, self)
 
+	box := move_box(self.box, data.active_time * -3)
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, ui.style.color.foreground[0])
-		paint_box_stroke(ui.painter, self.box, 1, fade(ui.style.color.substance, data.hover_time))
+		if data.active_time > 0 {
+			paint_box_fill(ui.painter, self.box, {0, 0, 0, 75})
+		}
+		paint_box_fill(ui.painter, box, blend_colors(data.active_time, ui.style.color.foreground[0], ui.style.color.foreground[1]))
+		paint_box_stroke(ui.painter, box, 1, fade(ui.style.color.substance, max(data.hover_time, data.active_time)))
 	}
 
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
-	push_dividing_layout(ui, self.box)
+	push_dividing_layout(ui, box)
 
 	return result
 }

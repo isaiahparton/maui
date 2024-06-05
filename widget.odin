@@ -65,7 +65,7 @@ Generic_Widget_Result :: struct {
 /*
 	If a widget was pressed and released without being unhovered
 */
-was_clicked :: proc(result: Generic_Widget_Result, button: Mouse_Button = .Left, times: int = 0) -> bool {
+was_clicked :: proc(result: Generic_Widget_Result, button: Mouse_Button = .Left, times: int = 1) -> bool {
 	widget := result.self.?
 	return .Clicked in widget.state && widget.click_button == button && widget.click_count >= times
 }
@@ -278,9 +278,9 @@ update_widget_state :: proc(ui: ^UI, widget: ^Widget) {
 				widget.click_button = ui.io.last_mouse_button
 			}
 			if widget.click_button == ui.io.last_mouse_button && time.since(widget.click_time) <= DOUBLE_CLICK_TIME {
-				widget.click_count = (widget.click_count + 1) % MAX_CLICK_COUNT
+				widget.click_count = max((widget.click_count + 1) % MAX_CLICK_COUNT, 1)
 			} else {
-				widget.click_count = 0
+				widget.click_count = 1
 			}
 			widget.click_button = ui.io.last_mouse_button
 			widget.click_time = time.now()

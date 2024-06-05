@@ -18,7 +18,6 @@ Button_Info :: struct {
 	font: Maybe(Font_Handle),
 	text_align: Maybe(Text_Align),
 	text_size: Maybe(f32),
-	fit_text: bool,
 	active: bool,
 	type: Button_Type,
 }
@@ -92,10 +91,8 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 		switch text_align {
 			case .Left:
 			text_origin = {box.low.x + ui.style.layout.widget_padding, (box.low.y + box.high.y) / 2}
-			
 			case .Middle:
 			text_origin = center(box)
-			
 			case .Right:
 			text_origin = {box.high.x - ui.style.layout.widget_padding, (box.low.y + self.box.high.y) / 2}
 		}

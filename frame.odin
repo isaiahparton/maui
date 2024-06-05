@@ -3,7 +3,7 @@ import "core:runtime"
 // Frame info
 Frame_Info :: struct {
 	using info: Generic_Widget_Info,
-	layer_options: Layer_Options,
+	layer_info: Layer_Info,
 	fill_color: Maybe(Color),
 	scrollbar_padding: Maybe(f32),
 	gradient_size: f32,
@@ -11,13 +11,12 @@ Frame_Info :: struct {
 @(deferred_in_out=_frame)
 frame :: proc(ui: ^UI, info: Frame_Info, loc := #caller_location) -> (ok: bool) {
 	layer: ^Layer
-	layer, ok = begin_layer(ui, {
-		placement = info.box.? or_else next_box(ui),
-		scrollbar_padding = 0,
-		id = hash(ui, loc),
-		grow = .Down,
-		options = info.layer_options + {.Clip_To_Parent, .Attached, .No_Sorting},
-	})
+	layer_info := info.layer_info
+	layer_info.placement = info.box.? or_else next_box(ui)
+	layer_info.id = hash(ui, loc)
+	layer_info.grow = .Down
+	layer_info.options += {.Clip_To_Parent, .Attached, .No_Sorting}
+	layer, ok = begin_layer(ui, layer_info)
 	if ok {
 		cut(ui, .Top, info.gradient_size)
 	}

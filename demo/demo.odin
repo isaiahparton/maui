@@ -72,7 +72,7 @@ _main :: proc() -> bool {
 					button(ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
 					button(ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
 					space(ui, 10)
-					button(ui, {fit_text = true, type = .Filled, text = "New"})
+					button(ui, {type = .Filled, text = "New"})
 				pop_layout(ui)
 				space(ui, 10)
 				push_dividing_layout(ui, cut(ui, .Top, 30))
@@ -82,7 +82,7 @@ _main :: proc() -> bool {
 					button(ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Outlined})
 					button(ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Outlined})
 					space(ui, 10)
-					button(ui, {fit_text = true, text = "New", type = .Outlined})
+					button(ui, {text = "New", type = .Outlined})
 				pop_layout(ui)
 				space(ui, 10)
 				push_dividing_layout(ui, cut(ui, .Top, 30))
@@ -92,14 +92,14 @@ _main :: proc() -> bool {
 					button(ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
 					button(ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Subtle})
 					space(ui, 10)
-					button(ui, {fit_text = true, text = "New", type = .Subtle})
+					button(ui, {text = "New", type = .Subtle})
 				pop_layout(ui)
 				space(ui, 20)
 				for member, i in Option {
 					push_id(ui, i)
 						push_dividing_layout(ui, cut(ui, .Top, 30))
 							ui.placement.side = .Left
-							ui.placement.size = 80
+							ui.placement.size = 100
 							if was_clicked(button(ui, {text = tmp_print(member), active = chosen_options[member]})) {
 								chosen_options[member] = !chosen_options[member]
 							}
@@ -150,7 +150,8 @@ _main :: proc() -> bool {
 						data = &text_input_data2,
 						placeholder = "single line text input",
 					})
-					button(ui, {text = "search", fit_text = true})
+					size(ui, 0)
+					button(ui, {text = "search"})
 				pop_layout(ui)
 				space(ui, 20)
 			}

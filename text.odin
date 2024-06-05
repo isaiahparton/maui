@@ -236,7 +236,7 @@ iterate_text_codepoint :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text
 iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> (ok: bool) {
 	// Update horizontal offset with last glyph
 	if it.glyph != nil {
-		it.offset.x += it.glyph.advance
+		it.offset.x += math.floor(it.glyph.advance)
 	}
 	/*
 		Pre-paint
@@ -253,7 +253,7 @@ iterate_text :: proc(painter: ^Painter, it: ^Text_Iterator, info: Text_Info) -> 
 	} else {
 		// Get the space for the next word if needed
 		if (info.wrap == .Word) && (it.next_index >= it.next_word) && (it.codepoint != ' ') {
-			for i := it.next_word;true;/**/ {
+			for i := it.next_word; true; /**/ {
 				c, b := utf8.decode_rune(info.text[i:])
 				if c != '\n' {
 					if g, ok := get_font_glyph(painter, it.font, it.size, it.codepoint); ok {
@@ -462,7 +462,7 @@ paint_text :: proc(painter: ^Painter, origin: [2]f32, info: Text_Info, color: Co
 			case .Bottom: origin.y -= size.y
 		}
 	}
-	origin = linalg.floor(origin)
+	// origin = linalg.floor(origin)
 	if it, ok := make_text_iterator(painter, info); ok {
 		update_text_iterator_offset(painter, &it, info)
 		for iterate_text(painter, &it, info) {
@@ -728,7 +728,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 	}
 	// Update selection
 	if .Pressed in (widget.state - widget.last_state) {
-		if widget.click_count == 2 {
+		if widget.click_count == 3 {
 			// Select everything
 			selection.offset = strings.last_index_byte(info.text[:hover_index], '\n') + 1
 			ui.scribe.anchor = selection.offset
@@ -744,9 +744,9 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 		}
 	}
 	// Dragging
-	if (.Pressed in widget.state) && (widget.click_count < 2) {
+	if (.Pressed in widget.state) && (widget.click_count < 3) {
 		// Selection by dragging
-		if widget.click_count == 1 {
+		if widget.click_count == 2 {
 			next, last: int
 			if hover_index < ui.scribe.anchor {
 				last = hover_index if info.text[hover_index] == ' ' else max(0, strings.last_index_any(info.text[:hover_index], " \n") + 1)
