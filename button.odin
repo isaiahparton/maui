@@ -58,32 +58,33 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	}
 	// Paint
 	if .Should_Paint in self.bits {
-		opacity: f32 = 1.0 - data.disable_time * 0.5
 		text_color: Color
 		box := move_box(self.box, -3 * data.active_time)
 		if data.active_time > 0 {
-			paint_box_fill(ui.painter, self.box, {0, 0, 0, 120})
+			paint_box_fill(ui.painter, self.box, ui.style.color.button.default)
+			paint_triangle_fill(ui.painter, {box.low.x, box.high.y}, {self.box.low.x, self.box.high.y}, {self.box.low.x, box.high.y}, ui.style.color.button.default)
+			paint_triangle_fill(ui.painter, {box.high.x, box.low.y}, {self.box.high.x, self.box.low.y}, {box.low.x, self.box.high.y}, ui.style.color.button.default)
 		}
 		// Types
 		switch info.type {
 			
 			case .Filled:
-			fill_color := alpha_blend_colors(blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered), {0, 0, 0, 255}, 0.15 * data.active_time)
+			fill_color := alpha_blend_colors(blend_colors(data.hover_time, ui.style.color.button.default, ui.style.color.button.hovered), ui.style.color.floating_button_shade, data.active_time)
 			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, fill_color)
-			text_color = blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered)
+			text_color = blend_colors(data.hover_time, ui.style.color.button_label.default, ui.style.color.button_label.hovered)
 			
 			case .Outlined:
-			fill_color := fade(ui.style.color.button_hovered, data.hover_time)
+			fill_color := fade(ui.style.color.button.hovered, data.hover_time)
 			if data.hover_time < 1 {
-				paint_rounded_box_corners_stroke(ui.painter, box, ui.style.rounding, 1, info.corners, ui.style.color.button)
+				paint_rounded_box_corners_stroke(ui.painter, box, ui.style.rounding, 1, info.corners, ui.style.color.button.default)
 			}
 			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, fill_color)
-			text_color = blend_colors(data.hover_time, ui.style.color.button_hovered, ui.style.color.label_hovered)
+			text_color = blend_colors(data.hover_time, ui.style.color.button.hovered, ui.style.color.button_label.hovered)
 
 			case .Subtle:
-			fill_color := fade(ui.style.color.button_hovered, data.hover_time)
+			fill_color := fade(ui.style.color.button.hovered, data.hover_time)
 			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, fill_color)
-			text_color = blend_colors(data.hover_time, ui.style.color.button_hovered, ui.style.color.label_hovered)
+			text_color = blend_colors(data.hover_time, ui.style.color.button.hovered, ui.style.color.button_label.hovered)
 		}
 		// Text title
 		text_origin: [2]f32

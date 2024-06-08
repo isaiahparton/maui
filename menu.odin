@@ -49,7 +49,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, fade(ui.style.color.button, 0.5 + 0.5 * data.hover_time))
+		paint_box_fill(ui.painter, self.box, fade(ui.style.color.button.default, 0.5 + 0.5 * data.hover_time))
 		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 1}, self.box.high}, ui.style.color.substance)
 		text_align := info.text_align.? or_else .Middle
 		text_origin: [2]f32

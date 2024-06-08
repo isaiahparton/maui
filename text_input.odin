@@ -38,6 +38,12 @@ Text_Input_Widget_Variant :: struct {
 	offset: [2]f32,
 }
 text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> Text_Input_Result {
+	result := begin_text_input(ui, info, loc)
+	end_text_input(ui, result)
+	return result
+}
+
+begin_text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> Text_Input_Result {
 	self, generic_result := get_widget(ui, info, loc)
 	result: Text_Input_Result = {
 		generic = generic_result,
@@ -119,7 +125,7 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 		// Paint the body on the background
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
-		paint_box_fill(ui.painter, self.box, ui.style.color.backing)
+		paint_box_fill(ui.painter, self.box, ui.style.color.background[0])
 		if label, ok := info.label.?; ok {
 			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
 				text = label,
@@ -205,4 +211,23 @@ text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> T
 	}
 	update_layer_content_bounds(ui.layers.current, self.box)
 	return result
+}
+end_text_input :: proc(ui: ^UI, result: Text_Input_Result) {
+	self := result.self.?
+	if self.state & {.Focused, .Hovered} != {} {
+		paint_box_stroke(ui.painter, self.box, 2, ui.style.color.accent)
+	}
+}
+/*
+	Text input context for contained buttons
+*/
+text_input_layout :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> Text_Input_Result {
+	result := begin_text_input(ui, info, loc)
+	push_dividing_layout(ui, result.self.?.box)
+	return result
+}
+@private
+_text_input_layout :: proc(ui: ^UI, _: Text_Input_Info, _: runtime.Source_Code_Location, result: Text_Input_Result) {
+	pop_layout(ui)
+	end_text_input(ui, result)
 }

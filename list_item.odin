@@ -2,6 +2,7 @@ package maui
 
 List_Item_Info :: struct {
 	using generic: Generic_Widget_Info,
+	index: int,
 	text: []string,
 	active: bool,
 }
@@ -26,11 +27,8 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, {self.box.low, {self.box.low.x + 5, self.box.high.y}}, ui.style.color.button)
-		if data.hover_time > 0 || info.active {
-			fill_color := alpha_blend_colors(ui.style.color.accent, ui.style.color.button, data.hover_time) if info.active else fade(ui.style.color.button, data.hover_time)
-			paint_box_fill(ui.painter, self.box, fill_color)
-		}
+		fill_color := ui.style.color.foreground[info.index % 2]
+		paint_box_fill(ui.painter, self.box, fill_color)
 		if len(info.text) > 0 {
 			text_color := ui.style.color.text[0]
 			box := self.box

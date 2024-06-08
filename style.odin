@@ -3,7 +3,7 @@ package maui
 make_default_style :: proc(painter: ^Painter) -> (style: Style, ok: bool) {
 	default_font := load_font(painter, "fonts/Gabarito-Regular.ttf") or_return
 	style, ok = {
-		color = get_light_style_colors(),
+		color = get_dark_style_colors(),
 		title_margin = 10,
 		title_padding = 2,
 		layout = {
@@ -39,7 +39,7 @@ make_default_style :: proc(painter: ^Painter) -> (style: Style, ok: bool) {
 */
 get_light_style_colors :: proc() -> Style_Colors {
 	return Style_Colors{
-		accent = {0, 85, 225, 255},
+		accent = {50, 166, 60, 255},
 		accent_text = {0, 0, 0, 255},
 		background = {
 			{210, 218, 212, 255},
@@ -57,25 +57,43 @@ get_light_style_colors :: proc() -> Style_Colors {
 		stroke = {124, 152, 165, 255},
 		flash = {0, 255, 0, 255},
 		substance = {60, 60, 60, 255},
-		button = {171, 160, 167, 255},
-		button_hovered = {44, 40, 53, 255},
-		backing = {215, 215, 215, 255},
-		label = {0, 0, 0, 255},
-		label_hovered = {255, 255, 255, 255},
+		button = {
+			default = {171, 160, 167, 255},
+			hovered = {44, 40, 53, 255},
+		},
+		button_label = {
+			default = {0, 0, 0, 255},
+			hovered = {255, 255, 255, 255},
+		},
 	}
 }
 get_dark_style_colors :: proc() -> Style_Colors {
 	return Style_Colors{
-		accent = {255, 0, 55, 255},
+		button = {
+			default = {85, 85, 89, 255},
+			hovered = {200, 200, 200, 255},
+		},
+		button_shadow = {62, 62, 64, 255},
+		floating_button_shade = {255, 255, 255, 70},
+		button_label = {
+			default = {255, 255, 255, 255},
+			hovered = {45, 45, 45, 255},
+		},
+		icon = {
+			default = {255, 255, 255, 255},
+			hovered = {230, 212, 32, 255},
+		},
+		accent = {230, 212, 32, 255},
 		accent_text = {0, 0, 0, 255},
 		background = {
-			{25, 32, 29, 255},
-			{55, 55, 55, 255},
+			{64, 67, 69, 255},
+			{72, 73, 75, 255},
 		},
 		foreground = {
-			{12, 12, 12, 255},
-			{24, 24, 24, 255},
+			{45, 46, 50, 255},
+			{55, 58, 61, 255},
 		},
+		hover_shade = {255, 255, 255, 30},
 		text = {
 			{255, 255, 255, 255},
 			{125, 125, 125, 255},
@@ -83,7 +101,7 @@ get_dark_style_colors :: proc() -> Style_Colors {
 		panel = blend_colors(0.25, {172, 245, 255, 255}, {0, 0, 0, 255}),
 		stroke = {124, 152, 165, 255},
 		flash = {0, 255, 0, 255},
-		substance = {172, 245, 255, 255},
+		substance = {200, 200, 200, 255},
 	}
 }
 /*
@@ -119,22 +137,29 @@ Style_Layout :: struct {
 /*
 	Colors
 */
+Style_Dynamic_Color :: struct {
+	default,
+	hovered: Color,
+}
 Style_Colors :: struct {
 	text,
 	background,
 	foreground: [2]Color,
-	backing,
-	button,
-	label,
-	button_hovered,
-	label_hovered,
 	substance,
 	accent,
 	accent_text,
 	stroke,
 	base,
 	panel,
+	button_shadow,
+	hover_shade,
+	floating_button_shade,
 	flash: Color,
+	// Dynamic colors
+	icon,
+	button,
+	button_label,
+	active_button: Style_Dynamic_Color,
 }
 /*
 	Unified style structure

@@ -63,7 +63,7 @@ _main :: proc() -> bool {
 
 			ui.placement.size = 30
 			if tree_node(ui, {text = "Buttons"}).expanded {
-				ui.placement.size = 28
+				size(ui, 30)
 				space(ui, 20)
 				push_dividing_layout(ui, cut(ui, .Top, 30))
 					ui.placement.side = .Left
@@ -163,7 +163,7 @@ _main :: proc() -> bool {
 					ui.placement.size = 24
 					for i in 1..=69 {
 						push_id(ui, i)
-							list_item(ui, {text = {tmp_printf("item #%i", i)}})
+							list_item(ui, {index = i, text = {tmp_printf("item #%i", i)}})
 						pop_id(ui)
 					}
 				}

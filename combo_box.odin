@@ -24,7 +24,7 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
 	update_widget(ui, self)
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered))
+		paint_box_fill(ui.painter, self.box, blend_colors(data.hover_time, ui.style.color.button.default, ui.style.color.button.hovered))
 		paint_box_fill(ui.painter, get_box_bottom(self.box, 1), ui.style.color.substance)
 		paint_text(ui.painter, center(self.box), {
 			text = info.items[info.index],
@@ -32,7 +32,7 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 			size = ui.style.text_size.label,
 			align = .Middle,
 			baseline = .Middle,
-		}, blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered))
+		}, blend_colors(data.hover_time, ui.style.color.button_label.default, ui.style.color.button_label.hovered))
 	}
 	if data.is_open {
 		option_height := height(self.box)
@@ -96,8 +96,8 @@ option :: proc(ui: ^UI, info: Option_Info, loc := #caller_location) -> Generic_W
 	data.hover_time = 1 if info.active else animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
 	if .Should_Paint in self.bits {
-		text_color := blend_colors(data.hover_time, ui.style.color.label, ui.style.color.label_hovered)
-		fill_color := blend_colors(data.hover_time, ui.style.color.button, ui.style.color.button_hovered)
+		text_color := blend_colors(data.hover_time, ui.style.color.button_label.default, ui.style.color.button_label.hovered)
+		fill_color := blend_colors(data.hover_time, ui.style.color.button.default, ui.style.color.button.hovered)
 		padding := height(self.box) * 0.25
 		paint_box_fill(ui.painter, self.box, fill_color)
 		paint_text_box(ui.painter, {{self.box.low.x + padding, self.box.low.y}, {self.box.high.x - padding, self.box.high.y}}, {

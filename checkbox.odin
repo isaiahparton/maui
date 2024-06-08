@@ -72,15 +72,13 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		}
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
-		fill_color := ui.style.color.background[0]
-		// paint_rounded_box_fill(ui.painter, icon_box, ui.style.rounding, fill_color)
 		paint_box_fill(ui.painter, icon_box, ui.style.color.background[0])
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value {
 			scale: f32 = HALF_SIZE * 0.6
 			a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1.5, 1.5, ui.style.color.label)
+			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1.5, 1.5, ui.style.color.icon.default)
 		}
 		// Paint text
 		if has_text {
@@ -97,7 +95,7 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		}
 	}
 	if data.hover_time > 0 {
-		paint_box_fill(ui.painter, self.box, fade({0, 0, 0, 25}, data.hover_time))
+		paint_box_fill(ui.painter, self.box, fade(ui.style.color.hover_shade, data.hover_time))
 	}
 	//
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
