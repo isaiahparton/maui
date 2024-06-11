@@ -24,15 +24,15 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 	data.open_time = animate(ui, data.open_time, 0.1, data.is_open)
 	update_widget(ui, self)
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, blend_colors(data.hover_time, ui.style.color.button.default, ui.style.color.button.hovered))
-		paint_box_fill(ui.painter, get_box_bottom(self.box, 1), ui.style.color.substance)
+		paint_rounded_box_fill(ui.painter, self.box, ui.style.rounding, fade(ui.style.color.substance, 0.5 * data.hover_time))
+		paint_rounded_box_stroke(ui.painter, self.box, ui.style.rounding, 1, ui.style.color.substance)
 		paint_text(ui.painter, center(self.box), {
 			text = info.items[info.index],
 			font = ui.style.font.label,
 			size = ui.style.text_size.label,
 			align = .Middle,
 			baseline = .Middle,
-		}, blend_colors(data.hover_time, ui.style.color.button_label.default, ui.style.color.button_label.hovered))
+		}, ui.style.color.content)
 	}
 	if data.is_open {
 		option_height := height(self.box)
@@ -96,17 +96,15 @@ option :: proc(ui: ^UI, info: Option_Info, loc := #caller_location) -> Generic_W
 	data.hover_time = 1 if info.active else animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
 	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
 	if .Should_Paint in self.bits {
-		text_color := blend_colors(data.hover_time, ui.style.color.button_label.default, ui.style.color.button_label.hovered)
-		fill_color := blend_colors(data.hover_time, ui.style.color.button.default, ui.style.color.button.hovered)
 		padding := height(self.box) * 0.25
-		paint_box_fill(ui.painter, self.box, fill_color)
+		paint_box_fill(ui.painter, self.box, fade(ui.style.color.substance, 0.5 * data.hover_time))
 		paint_text_box(ui.painter, {{self.box.low.x + padding, self.box.low.y}, {self.box.high.x - padding, self.box.high.y}}, {
 			text = info.text, 
 			font = ui.style.font.label, 
 			size = ui.style.text_size.label,
 			align = info.text_align,
 			baseline = .Middle,
-		}, text_color)
+		}, ui.style.color.content)
 	}
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 

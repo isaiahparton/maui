@@ -72,30 +72,30 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		}
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
-		paint_box_fill(ui.painter, icon_box, ui.style.color.foreground)
+		paint_rounded_box_stroke(ui.painter, icon_box, ui.style.rounding, 1, ui.style.color.substance)
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value {
 			scale: f32 = HALF_SIZE * 0.6
 			a, b, c: [2]f32 = {-1, -0.047} * scale, {-0.333, 0.619} * scale, {1, -0.713} * scale
-			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1.5, 1.5, ui.style.color.icon.default)
+			paint_path_stroke(ui.painter, {center + a, center + b, center + c}, false, 1.5, 1.5, ui.style.color.content)
 		}
 		// Paint text
 		if has_text {
 			switch text_side {
 				case .Left: 	
-				paint_text(ui.painter, {icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
+				paint_text(ui.painter, {icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.content, opacity))
 				case .Right: 	
-				paint_text(ui.painter, {icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, align = .Right}, fade(ui.style.color.text[0], opacity))
+				paint_text(ui.painter, {icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, align = .Right}, fade(ui.style.color.content, opacity))
 				case .Top: 		
-				paint_text(ui.painter, self.box.low, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
+				paint_text(ui.painter, self.box.low, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.content, opacity))
 				case .Bottom: 	
-				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
+				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.content, opacity))
 			}
 		}
 	}
 	if data.hover_time > 0 {
-		paint_box_fill(ui.painter, self.box, fade(ui.style.color.hover_shade, data.hover_time))
+		paint_box_fill(ui.painter, self.box, fade(ui.style.color.substance, 0.5 * data.hover_time))
 	}
 	//
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

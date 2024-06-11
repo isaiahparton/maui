@@ -72,27 +72,7 @@ _main :: proc() -> bool {
 					button(ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e"})
 					button(ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084"})
 					space(ui, 10)
-					button(ui, {type = .Filled, text = "New"})
-				pop_layout(ui)
-				space(ui, 10)
-				push_dividing_layout(ui, cut(ui, .Top, 30))
-					ui.placement.side = .Left
-					ui.placement.size = 30
-					button(ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Outlined})
-					button(ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Outlined})
-					button(ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Outlined})
-					space(ui, 10)
-					button(ui, {text = "New", type = .Outlined})
-				pop_layout(ui)
-				space(ui, 10)
-				push_dividing_layout(ui, cut(ui, .Top, 30))
-					ui.placement.side = .Left
-					ui.placement.size = 30
-					button(ui, {text_size = 16, corners = Corners{.Top_Left, .Bottom_Left}, font = ui.style.font.icon, text = "\uf019", type = .Subtle})
-					button(ui, {text_size = 16, font = ui.style.font.icon, text = "\uf02e", type = .Subtle})
-					button(ui, {text_size = 16, corners = Corners{.Top_Right, .Bottom_Right}, font = ui.style.font.icon, text = "\uf084", type = .Subtle})
-					space(ui, 10)
-					button(ui, {text = "New", type = .Subtle})
+					button(ui, {text = "New"})
 				pop_layout(ui)
 				space(ui, 20)
 				for member, i in Option {
@@ -170,14 +150,14 @@ _main :: proc() -> bool {
 				space(ui, 20)
 			}
 
-			if tree_node(ui, {text = "Date & Time"}).expanded {
+			/*if tree_node(ui, {text = "Date & Time"}).expanded {
 				space(ui, 20)
 				push_dividing_layout(ui, cut(ui, .Top, 24))
 					ui.placement.side = .Left; ui.placement.size = 200
 					t = date_picker(ui, {value = t}).new_value.? or_else t
 				pop_layout(ui)
 				space(ui, 20)
-			}
+			}*/
 
 			if tree_node(ui, {text = "Multiple Choice"}).expanded {
 				ui.placement.size = 30
@@ -218,19 +198,19 @@ _main :: proc() -> bool {
 				font = ui.style.font.title, 
 				size = 16,
 				baseline = .Bottom,
-			}, ui.style.color.text[0])
+			}, ui.style.color.content)
 			paint_text(ui.painter, {0, ui.size.y - 16}, {
 				text = tmp_printf("delta: %f", ui.delta_time), 
 				font = ui.style.font.title, 
 				size = 16,
 				baseline = .Bottom,
-			}, ui.style.color.text[0])
+			}, ui.style.color.content)
 			paint_text(ui.painter, {0, ui.size.y - 32}, {
 				text = tmp_printf("time: %f", ui.current_time), 
 				font = ui.style.font.title, 
 				size = 16,
 				baseline = .Bottom,
-			}, ui.style.color.text[0])
+			}, ui.style.color.content)
 		end_ui(ui)
 
 		// Render if needed

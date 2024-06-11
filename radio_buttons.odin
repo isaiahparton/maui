@@ -66,28 +66,28 @@ radio_button :: proc(ui: ^UI, info: Radio_Button_Info, loc := #caller_location) 
 		opacity := 1 - 0.5 * data.disable_time
 		fill_color := ui.style.color.foreground
 		icon_center := center(icon_box)
-		paint_circle_fill_texture(ui.painter, icon_center, RADIUS, ui.style.color.foreground)
+		paint_ring_fill_texture(ui.painter, icon_center, RADIUS - 1, RADIUS, ui.style.color.substance)
 		center := box_center(icon_box)
 		// Paint icon
 		if info.state {
-			paint_circle_fill_texture(ui.painter, icon_center, (RADIUS - 5), ui.style.color.icon.default)
+			paint_circle_fill_texture(ui.painter, icon_center, (RADIUS - 5), ui.style.color.content)
 		}
 		// Paint text
 		if has_text {
 			switch text_side {
 				case .Left: 	
-				paint_text(ui.painter, {icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
+				paint_text(ui.painter, {icon_box.high.x + ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.content, opacity))
 				case .Right: 	
-				paint_text(ui.painter, {icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, align = .Right}, fade(ui.style.color.text[0], opacity))
+				paint_text(ui.painter, {icon_box.low.x - ui.style.layout.widget_padding, center.y - text_size.y / 2}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label, align = .Right}, fade(ui.style.color.content, opacity))
 				case .Top: 		
-				paint_text(ui.painter, self.box.low, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
+				paint_text(ui.painter, self.box.low, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.content, opacity))
 				case .Bottom: 	
-				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.text[0], opacity))
+				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.content, opacity))
 			}
 		}
 	}
 	if data.hover_time > 0 {
-		paint_rounded_box_fill(ui.painter, self.box, height(self.box) / 2, fade(ui.style.color.hover_shade, data.hover_time))
+		paint_rounded_box_fill(ui.painter, self.box, height(self.box) / 2, fade(ui.style.color.substance, 0.5 * data.hover_time))
 	}
 	//
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

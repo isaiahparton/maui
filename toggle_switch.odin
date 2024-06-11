@@ -29,7 +29,7 @@ toggle_switch :: proc(ui: ^UI, info: Toggle_Switch_Info, loc := #caller_location
 
 	s := width(self.box) / 2
 	slider_box := shrink_box(move_box(get_box_left(self.box, s), {s * ease.circular_in_out(data.how_on), 0}), 2)
-	paint_rounded_box_fill(ui.painter, slider_box, ui.style.rounding, ui.style.color.button.default)
+	paint_rounded_box_fill(ui.painter, slider_box, ui.style.rounding, ui.style.color.substance)
 
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 

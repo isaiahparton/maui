@@ -49,8 +49,8 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, fade(ui.style.color.button.default, 0.5 + 0.5 * data.hover_time))
-		paint_box_fill(ui.painter, {{self.box.low.x, self.box.high.y - 1}, self.box.high}, ui.style.color.substance)
+		paint_rounded_box_fill(ui.painter, self.box, ui.style.rounding, fade(ui.style.color.substance, 0.5 * data.hover_time))
+		paint_rounded_box_stroke(ui.painter, self.box, ui.style.rounding, 1, ui.style.color.substance)
 		text_align := info.text_align.? or_else .Middle
 		text_origin: [2]f32
 		switch text_align {
@@ -67,7 +67,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 			size = ui.style.text_size.label,
 			align = text_align,
 			baseline = .Middle,
-		}, ui.style.color.text[0])
+		}, ui.style.color.content)
 	}
 
 	if data.is_open {

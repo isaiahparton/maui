@@ -65,7 +65,7 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 				baseline = .Bottom,
 				font = ui.style.font.title,
 				size = ui.style.text_size.title,
-			}, ui.style.color.text[0])
+			}, ui.style.color.content)
 		}
 		ui.painter.target = layer.targets[.Foreground]
 	}
@@ -89,7 +89,7 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 			}
 		}
 	}
-	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text[0])
+	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.content)
 
 	// Get the text location and cursor offsets
 	if .Focused in self.state {

@@ -224,7 +224,7 @@ panel :: proc(ui: ^UI, info: Panel_Info, loc := #caller_location) -> (ok: bool) 
 		// Draw title bar and get movement dragging
 		if .Title in self.options {
 			// Draw title
-			paint_box_fill(ui.painter, title_box, ui.style.color.panel)
+			paint_box_fill(ui.painter, title_box, ui.style.color.foreground)
 			// Close button
 			push_id(ui, self.id)
 				if .Closable in self.options {
@@ -315,7 +315,7 @@ _panel :: proc(ui: ^UI, _: Panel_Info, _: runtime.Source_Code_Location, ok: bool
 		// Done with main layer
 		end_layer(ui, self.content_layer.?)
 	}
-	paint_box_stroke(ui.painter, self.root_layer.?.box, 1, ui.style.color.panel)
+	paint_box_stroke(ui.painter, self.root_layer.?.box, 1, ui.style.color.foreground)
 	// End decor layer
 	end_layer(ui, self.root_layer.?)
 	// Handle movement

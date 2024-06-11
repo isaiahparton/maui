@@ -119,7 +119,7 @@ begin_text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location
 					ui.painter,
 					text_origin, 
 					{font = text_info.font, size = text_info.size, text = info.placeholder.?, baseline = text_info.baseline}, 
-					ui.style.color.text[1],
+					ui.style.color.content,
 				)
 			}
 		}
@@ -133,7 +133,7 @@ begin_text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location
 				baseline = .Bottom,
 				font = ui.style.font.title,
 				size = ui.style.text_size.title,
-			}, ui.style.color.text[0])
+			}, ui.style.color.content)
 		}
 		ui.painter.target = layer.targets[.Foreground]
 	}
@@ -143,7 +143,7 @@ begin_text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location
 		ui.scribe.selection.offset = len(text)
 		ui.scribe.selection.length = 0
 	}
-	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.text[0])
+	text_result := paint_tactile_text(ui, self, text_origin - data.offset, {base = text_info}, ui.style.color.content)
 
 	// Get the text location and cursor offsets
 	if .Focused in self.state {

@@ -30,7 +30,7 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 		fill_color := ui.style.color.foreground if info.index % 2 == 0 else ui.style.color.background
 		paint_box_fill(ui.painter, self.box, fill_color)
 		if len(info.text) > 0 {
-			text_color := ui.style.color.text[1]
+			text_color := ui.style.color.content
 			box := self.box
 			cut_box_left(&box, 5)
 			size := width(box) / f32(len(info.text))

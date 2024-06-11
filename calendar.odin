@@ -46,7 +46,6 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 			}
 			if was_clicked(button(ui, {
 				text = "<", 
-				type = .Filled,
 				box = get_box_left(result.self.?.box, height(result.self.?.box)),
 			})) {
 				new_value._nsec -= i64(time.Hour * 24)
@@ -55,7 +54,6 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 			if was_clicked(button(ui, {
 				text = ">", 
-				type = .Filled,
 				box = get_box_right(result.self.?.box, height(result.self.?.box)),
 			})) {
 				new_value._nsec += i64(time.Hour * 24)
@@ -84,7 +82,6 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 			}
 			if was_clicked(button(ui, {
 				text = "<", 
-				type = .Filled,
 				box = get_box_left(result.self.?.box, height(result.self.?.box)),
 			})) || (ui.layers.current.id == ui.layers.hover_id && ui.io.mouse_scroll.y > 0) {
 				month = time.Month(int(month) - 1)
@@ -97,7 +94,6 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 			if was_clicked(button(ui, {
 				text = ">", 
-				type = .Filled,
 				box = get_box_right(result.self.?.box, height(result.self.?.box)),
 			})) || (ui.layers.current.id == ui.layers.hover_id && ui.io.mouse_scroll.y < 0) {
 				month = time.Month(int(month) + 1)
@@ -131,7 +127,6 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 			}
 			if was_clicked(button(ui, {
 				text = "<", 
-				type = .Filled,
 				box = get_box_left(result.self.?.box, height(result.self.?.box)),
 			})) {
 				year -= 1
@@ -140,7 +135,6 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 			paint_box_fill(ui.painter, get_box_bottom(ui.last_box, 1), ui.style.color.substance)
 			if was_clicked(button(ui, {
 				text = ">", 
-				type = .Filled,
 				box = get_box_right(result.self.?.box, height(result.self.?.box)),
 			})) {
 				year += 1
@@ -186,7 +180,7 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 				if was_clicked(button(ui, {
 					text = tmp_print(_day), 
 					active = (_month == month && _day == day),
-					type = .Subtle if time.month(transmute(time.Time)day_time) != month else .Filled,
+					primary = time.month(transmute(time.Time)day_time) != month,
 				})) {
 					new_value = transmute(time.Time)day_time
 				}

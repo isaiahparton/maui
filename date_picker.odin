@@ -1,5 +1,5 @@
 package maui
-import "core:time"
+/*import "core:time"
 import "core:math/linalg"
 import "core:math/ease"
 import "core:strings"
@@ -55,12 +55,6 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			}
 		}
 	}
-	button_result := button(ui, {
-		box = get_box_right(box, height(box)),
-		font = ui.style.font.icon,
-		type = .Subtle,
-		text = "\uf783",
-	})
 	if was_clicked(button_result) {
 		data.is_open = true
 	}	
@@ -114,4 +108,4 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 		}
 	}
 	return result
-}
+}*/

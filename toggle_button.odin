@@ -59,7 +59,7 @@ toggle_button :: proc(ui: ^UI, info: Toggle_Button_Info, loc := #caller_location
 		stroke_color := fade(base_color, 0.5 + 0.5 * data.hover_time)
 		paint_box_fill(ui.painter, self.box, fill_color)
 		paint_box_stroke(ui.painter, self.box, 1, stroke_color)
-		text_color = ui.style.color.text[0]
+		text_color = ui.style.color.content
 		// Text title
 		text_origin: [2]f32
 		text_align := info.text_align.? or_else .Middle

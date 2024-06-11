@@ -54,44 +54,26 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	// Paint
 	if .Should_Paint in self.bits {
 		text_color: Color
-		box := move_box(self.box, -3 * data.active_time)
-		if data.active_time > 0 {
-			paint_box_fill(ui.painter, self.box, ui.style.color.accent)
-			paint_triangle_fill(ui.painter, {box.low.x, box.high.y}, {self.box.low.x, self.box.high.y}, {self.box.low.x, box.high.y}, ui.style.color.accent)
-			paint_triangle_fill(ui.painter, {box.high.x, box.low.y}, {self.box.high.x, self.box.low.y}, {box.low.x, self.box.high.y}, ui.style.color.accent)
-		}
 		// Types
-		switch info.type {
-			
-			case .Filled:
-			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, blend_colors(data.hover_time, ui.style.color.background, ui.style.color.accent))
-			if data.hover_time < 1 {
-				paint_rounded_box_corners_stroke(ui.painter, box, ui.style.rounding, 2, info.corners, ui.style.color.accent)
-			}
-			text_color = blend_colors(data.hover_time, ui.style.color.accent, ui.style.color.background)
-			
-			case .Outlined:
-			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, ui.style.color.button.default)
-			if data.hover_time < 1 {
-				paint_rounded_box_corners_stroke(ui.painter, box, ui.style.rounding, 1, info.corners, ui.style.color.accent)
-			}
-			text_color = blend_colors(data.hover_time, ui.style.color.button.hovered, ui.style.color.button_label.hovered)
+		if info.primary {
 
-			case .Subtle:
-			fill_color := fade(ui.style.color.button.hovered, data.hover_time)
-			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, fill_color)
-			text_color = blend_colors(data.hover_time, ui.style.color.button.hovered, ui.style.color.button_label.hovered)
+		} else {
+			paint_rounded_box_fill(ui.painter, self.box, ui.style.rounding, fade(ui.style.color.substance, data.hover_time))
+			if data.hover_time < 1 {
+				paint_rounded_box_stroke(ui.painter, self.box, ui.style.rounding, 1, ui.style.color.substance)
+			}
+			text_color = ui.style.color.content
 		}
 		// Text title
 		text_origin: [2]f32
 		text_align := info.text_align.? or_else .Middle
 		switch text_align {
 			case .Left:
-			text_origin = {box.low.x + ui.style.layout.widget_padding, (box.low.y + box.high.y) / 2}
+			text_origin = {self.box.low.x + ui.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
 			case .Middle:
-			text_origin = center(box)
+			text_origin = center(self.box)
 			case .Right:
-			text_origin = {box.high.x - ui.style.layout.widget_padding, (box.low.y + self.box.high.y) / 2}
+			text_origin = {self.box.high.x - ui.style.layout.widget_padding, (self.box.low.y + self.box.high.y) / 2}
 		}
 		result.min_width = paint_text(ui.painter, text_origin, {
 			text = info.text, 

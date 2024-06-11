@@ -20,7 +20,7 @@ tab :: proc(ui: ^UI, info: Tab_Info, loc := #caller_location) -> Generic_Widget_
 			size = ui.style.text_size.label,
 			align = .Middle,
 			baseline = .Middle,
-		}, ui.style.color.text[0])
+		}, ui.style.color.content)
 		text_size.x *= ((1.0 if info.active else 0.7) + 0.3 * data.hover_time)
 		paint_box_fill(ui.painter, {{origin.x - text_size.x / 2, self.box.high.y - 2}, {origin.x + text_size.x / 2, self.box.high.y}}, blend_colors(data.hover_time, fade(ui.style.color.substance, 0.5), ui.style.color.accent))
 	}

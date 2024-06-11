@@ -60,7 +60,7 @@ tooltip :: proc(ui: ^UI, id: Id, text: string, origin: [2]f32, align: [2]Alignme
 				paint_triangle_fill(ui.painter, {layer.box.high.x, c - SIZE}, {layer.box.high.x + SIZE, c}, {layer.box.high.x, c + SIZE}, fill_color)
 			}
 		}
-		paint_text(ui.painter, layer.box.low + ui.style.tooltip_padding, text_info, ui.style.color.accent_text)
+		paint_text(ui.painter, layer.box.low + ui.style.tooltip_padding, text_info, ui.style.color.content)
 		end_layer(ui, layer)
 	}
 	return result

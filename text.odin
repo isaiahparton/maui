@@ -674,7 +674,7 @@ paint_tactile_text :: proc(ui: ^UI, widget: ^Widget, origin: [2]f32, info: Tacti
 					}
 				}
 				if selection.length > 0 && it.index >= selection.offset && it.index < selection.offset + selection.length {
-					glyph_color = ui.style.color.accent_text
+					glyph_color = ui.style.color.content
 				}
 			}
 			// Paint the glyph
@@ -808,7 +808,7 @@ text_box :: proc(ui: ^UI, info: Text_Box_Info, loc := #caller_location) -> Text_
 		case .Middle: origin.y = (self.box.low.y + self.box.high.y) / 2
 		case .Bottom: origin.y = self.box.high.y
 	}
-	color := info.color.? or_else ui.style.color.text[0]
+	color := info.color.? or_else ui.style.color.content
 	switch text_info in info.text_info {
 		case Tactile_Text_Info: paint_tactile_text(ui, self, origin, text_info, color)
 		case Text_Info: paint_text(ui.painter, origin, text_info, color)
