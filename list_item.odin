@@ -27,12 +27,12 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		fill_color := ui.style.color.foreground[info.index % 2]
+		fill_color := ui.style.color.foreground if info.index % 2 == 0 else ui.style.color.background
 		paint_box_fill(ui.painter, self.box, fill_color)
 		if len(info.text) > 0 {
-			text_color := ui.style.color.text[0]
+			text_color := ui.style.color.text[1]
 			box := self.box
-			cut_box_left(&box, 8)
+			cut_box_left(&box, 5)
 			size := width(box) / f32(len(info.text))
 			for elem, i in info.text {
 				text_box := cut_box_left(&box, size)
@@ -99,7 +99,7 @@ begin_card :: proc(ui: ^UI, info: Card_Info, loc := #caller_location) -> Generic
 		if data.active_time > 0 {
 			paint_box_fill(ui.painter, self.box, {0, 0, 0, 75})
 		}
-		paint_box_fill(ui.painter, box, blend_colors(data.active_time, ui.style.color.foreground[0], ui.style.color.foreground[1]))
+		paint_box_fill(ui.painter, box, blend_colors(data.active_time, ui.style.color.background, ui.style.color.foreground))
 		paint_box_stroke(ui.painter, box, 1, fade(ui.style.color.substance, max(data.hover_time, data.active_time)))
 	}
 

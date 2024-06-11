@@ -46,7 +46,7 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 			space = [2]f32{0, menu_height},
 			options = {.Attached, .No_Scroll_X, .No_Scroll_Y},
 		}); ok {
-			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground[1])
+			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground)
 			ui.placement.side = .Top; ui.placement.size = option_height
 			push_id(ui, self.id)
 				for item, i in info.items {

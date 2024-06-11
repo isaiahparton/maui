@@ -161,7 +161,7 @@ _main :: proc() -> bool {
 				space(ui, 20)
 				if frame(ui, {gradient_size = 40}) {
 					ui.placement.size = 24
-					for i in 1..=69 {
+					for i in 1..=1000 {
 						push_id(ui, i)
 							list_item(ui, {index = i, text = {tmp_printf("item #%i", i)}})
 						pop_id(ui)
@@ -235,7 +235,7 @@ _main :: proc() -> bool {
 
 		// Render if needed
 		if should_render(&painter) {
-			maui_opengl.clear(ui.style.color.foreground[0])
+			maui_opengl.clear(ui.style.color.background)
 			maui_opengl.render(ui)
 			maui_glfw.end()
 		}

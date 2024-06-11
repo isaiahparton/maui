@@ -82,12 +82,12 @@ date_picker :: proc(ui: ^UI, info: Date_Picker_Info, loc := #caller_location) ->
 			cut(ui, .Bottom, 9)
 			stroke_color := fade(ui.style.color.substance, 1)
 			// Fill
-			paint_rounded_box_fill(ui.painter, ui.layouts.current.box, ui.style.rounding, ui.style.color.foreground[1])
+			paint_rounded_box_fill(ui.painter, ui.layouts.current.box, ui.style.rounding, ui.style.color.foreground)
 			paint_rounded_box_stroke(ui.painter, ui.layouts.current.box, ui.style.rounding, 0.5, stroke_color)
 			p: [2]f32 = {center_x(ui.layouts.current.box), ui.layouts.current.box.high.y}
-			paint_triangle_fill(ui.painter, {p.x - 10, p.y}, {p.x, p.y + n}, {p.x + 10, p.y}, ui.style.color.foreground[1])
+			paint_triangle_fill(ui.painter, {p.x - 10, p.y}, {p.x, p.y + n}, {p.x + 10, p.y}, ui.style.color.foreground)
 			paint_triangle_stroke(ui.painter, {p.x - 10, p.y}, {p.x, p.y + n}, {p.x + 10, p.y}, 0.5, stroke_color)
-			paint_box_fill(ui.painter, {{p.x - 10, p.y - 1}, {p.x + 10, p.y}}, ui.style.color.foreground[1])
+			paint_box_fill(ui.painter, {{p.x - 10, p.y - 1}, {p.x + 10, p.y}}, ui.style.color.foreground)
 			// Stuff
 			shrink(ui, 10)
 			// Display a calendar

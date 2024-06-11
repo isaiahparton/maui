@@ -39,69 +39,20 @@ make_default_style :: proc(painter: ^Painter) -> (style: Style, ok: bool) {
 */
 get_light_style_colors :: proc() -> Style_Colors {
 	return Style_Colors{
-		accent = {50, 166, 60, 255},
-		accent_text = {0, 0, 0, 255},
-		background = {
-			{210, 218, 212, 255},
-			{185, 190, 186, 255},
-		},
-		foreground = {
-			{240, 240, 240, 255},
-			{220, 220, 225, 255},
-		},
-		text = {
-			{0, 0, 0, 255},
-			{105, 105, 115, 255},
-		},
-		panel = {45, 45, 45, 255},
-		stroke = {124, 152, 165, 255},
-		flash = {0, 255, 0, 255},
-		substance = {60, 60, 60, 255},
-		button = {
-			default = {171, 160, 167, 255},
-			hovered = {44, 40, 53, 255},
-		},
-		button_label = {
-			default = {0, 0, 0, 255},
-			hovered = {255, 255, 255, 255},
-		},
+		background = {0, 0, 0, 255},
+		foreground = {25, 25, 32, 255},
+		substance = {65, 65, 75, 255},
+		accent = {59, 130, 246, 255},
+		content = {255, 255, 255, 255},
 	}
 }
 get_dark_style_colors :: proc() -> Style_Colors {
 	return Style_Colors{
-		button = {
-			default = {85, 85, 89, 255},
-			hovered = {200, 200, 200, 255},
-		},
-		button_shadow = {62, 62, 64, 255},
-		floating_button_shade = {255, 255, 255, 70},
-		button_label = {
-			default = {255, 255, 255, 255},
-			hovered = {45, 45, 45, 255},
-		},
-		icon = {
-			default = {255, 255, 255, 255},
-			hovered = {230, 212, 32, 255},
-		},
-		accent = {230, 212, 32, 255},
-		accent_text = {0, 0, 0, 255},
-		background = {
-			{64, 67, 69, 255},
-			{72, 73, 75, 255},
-		},
-		foreground = {
-			{45, 46, 50, 255},
-			{55, 58, 61, 255},
-		},
-		hover_shade = {255, 255, 255, 30},
-		text = {
-			{255, 255, 255, 255},
-			{125, 125, 125, 255},
-		},
-		panel = blend_colors(0.25, {172, 245, 255, 255}, {0, 0, 0, 255}),
-		stroke = {124, 152, 165, 255},
-		flash = {0, 255, 0, 255},
-		substance = {200, 200, 200, 255},
+		background = {0, 0, 0, 255},
+		foreground = {25, 25, 32, 255},
+		substance = {65, 65, 75, 255},
+		accent = {59, 130, 246, 255},
+		content = {255, 255, 255, 255},
 	}
 }
 /*
@@ -142,24 +93,11 @@ Style_Dynamic_Color :: struct {
 	hovered: Color,
 }
 Style_Colors :: struct {
-	text,
 	background,
-	foreground: [2]Color,
+	foreground,
 	substance,
 	accent,
-	accent_text,
-	stroke,
-	base,
-	panel,
-	button_shadow,
-	hover_shade,
-	floating_button_shade,
-	flash: Color,
-	// Dynamic colors
-	icon,
-	button,
-	button_label,
-	active_button: Style_Dynamic_Color,
+	content: Color,
 }
 /*
 	Unified style structure

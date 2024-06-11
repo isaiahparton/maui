@@ -100,7 +100,7 @@ menu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Result,
 	if result.is_open {
 		layout := current_layout(ui)
 		ui.placement.side = .Top
-		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground[1])
+		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground)
 	}
 
 	return result, result.is_open
@@ -144,7 +144,7 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		text_color := blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.foreground[0])
+		text_color := blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.background)
 		fill_color := fade(ui.style.color.substance, data.hover_time)
 		h := height(self.box)
 		paint_box_fill(ui.painter, self.box, fill_color)
@@ -176,7 +176,7 @@ submenu :: proc(ui: ^UI, info: Menu_Info, loc := #caller_location) -> (Menu_Resu
 	if result.is_open {
 		layout := current_layout(ui)
 		ui.placement.side = .Top
-		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground[1])
+		paint_box_fill(ui.painter, result.layer.box, ui.style.color.foreground)
 		paint_box_stroke(ui.painter, result.layer.box, 1, ui.style.color.substance)
 	}
 

@@ -35,7 +35,7 @@ slider :: proc(ui: ^UI, info: Slider_Info, loc := #caller_location) -> Slider_Re
 	time := (info.value - info.low) / (info.high - info.low)
 	// paint
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, self.box, ui.style.color.background[0])
+		paint_box_fill(ui.painter, self.box, ui.style.color.foreground)
 		paint_box_fill(ui.painter, {self.box.low, {self.box.low.x + time * range, self.box.high.y}}, fade(ui.style.color.accent, data.hover_time * 0.5 + 0.5))
 		paint_text(ui.painter, center(self.box), {
 			text = tmp_printf(info.format.? or_else "%v", info.value),
@@ -43,7 +43,7 @@ slider :: proc(ui: ^UI, info: Slider_Info, loc := #caller_location) -> Slider_Re
 			baseline = .Middle,
 			font = ui.style.font.label,
 			size = ui.style.text_size.label,
-		}, ui.style.color.foreground[0])
+		}, ui.style.color.background)
 	}
 	// Drag
 	if .Pressed in self.state {

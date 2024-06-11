@@ -11,12 +11,12 @@ paint_box_loader :: proc(ui: ^UI, box: Box) {
 	range := width(box) + gradient_width
 	bar_box: Box = {{box.low.x - gradient_width + range * time, box.low.y}, {0, box.high.y}}
 	bar_box.high.x = bar_box.low.x + gradient_width
-	paint_box_fill(ui.painter, box, ui.style.color.foreground[1])
+	paint_box_fill(ui.painter, box, ui.style.color.foreground)
 	
 	left_time := clamp((box.low.x - bar_box.low.x) / gradient_width, 0, 1)
 	right_time := clamp((bar_box.high.x - box.high.x) / gradient_width, 0, 1)
-	left_color := blend_colors(left_time, ui.style.color.foreground[1], ui.style.color.foreground[0])
-	right_color := blend_colors(right_time, ui.style.color.foreground[0], ui.style.color.foreground[1])
+	left_color := blend_colors(left_time, ui.style.color.foreground, ui.style.color.background)
+	right_color := blend_colors(right_time, ui.style.color.background, ui.style.color.foreground)
 	if bar_box.low.x <= box.high.x && bar_box.high.x >= box.low.x {
 		paint_quad_vertices(ui.painter, 
 			{point = {max(bar_box.low.x, box.low.x), bar_box.low.y}, color = left_color},

@@ -64,9 +64,9 @@ radio_button :: proc(ui: ^UI, info: Radio_Button_Info, loc := #caller_location) 
 		}
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
-		fill_color := ui.style.color.background[0]
+		fill_color := ui.style.color.foreground
 		icon_center := center(icon_box)
-		paint_circle_fill_texture(ui.painter, icon_center, RADIUS, ui.style.color.background[0])
+		paint_circle_fill_texture(ui.painter, icon_center, RADIUS, ui.style.color.foreground)
 		center := box_center(icon_box)
 		// Paint icon
 		if info.state {

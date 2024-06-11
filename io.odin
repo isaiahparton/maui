@@ -202,3 +202,15 @@ set_mouse_bit :: proc(io: ^IO, button: Mouse_Button, value: bool) {
 		io.mouse_bits -= {button}
 	}
 }
+
+Interaction :: struct {
+	
+}
+
+Click_Interaction :: struct {
+	time: time.Time,
+	button: Mouse_Button,
+}
+Hover_Interaction :: struct {
+	time: time.Time,
+}

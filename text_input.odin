@@ -59,6 +59,7 @@ begin_text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location
 	// Update
 	update_widget(ui, self)
 	// Animate
+	data.hover_time = animate(ui, data.hover_time, 0.1, .Hovered in self.state)
 	data.focus_time = animate(ui, data.focus_time, 0.15, .Focused in self.state)
 	// Text cursor
 	if .Hovered in self.state {
@@ -125,7 +126,7 @@ begin_text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location
 		// Paint the body on the background
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
-		paint_box_fill(ui.painter, self.box, ui.style.color.background[0])
+		paint_box_fill(ui.painter, self.box, ui.style.color.foreground)
 		if label, ok := info.label.?; ok {
 			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
 				text = label,
@@ -214,8 +215,9 @@ begin_text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location
 }
 end_text_input :: proc(ui: ^UI, result: Text_Input_Result) {
 	self := result.self.?
-	if self.state & {.Focused, .Hovered} != {} {
-		paint_box_stroke(ui.painter, self.box, 2, ui.style.color.accent)
+	data := self.variant.(Text_Input_Widget_Variant)
+	if data.hover_time > 0 || data.focus_time > 0 {
+		paint_box_stroke(ui.painter, self.box, 2, fade(ui.style.color.accent, max(data.hover_time, data.focus_time)))
 	}
 }
 /*

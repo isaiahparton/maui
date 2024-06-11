@@ -72,7 +72,7 @@ checkbox :: proc(ui: ^UI, info: Check_Box_Info, loc := #caller_location) -> Gene
 		}
 		// Paint box
 		opacity := 1 - 0.5 * data.disable_time
-		paint_box_fill(ui.painter, icon_box, ui.style.color.background[0])
+		paint_box_fill(ui.painter, icon_box, ui.style.color.foreground)
 		center := box_center(icon_box)
 		// Paint icon
 		if info.value {

@@ -58,7 +58,7 @@ number_input :: proc(ui: ^UI, info: Number_Input_Info, loc := #caller_location) 
 	if (.Should_Paint in self.bits) {
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
-		paint_box_fill(ui.painter, self.box, ui.style.color.background[0])
+		paint_box_fill(ui.painter, self.box, ui.style.color.foreground)
 		if label, ok := info.label.?; ok {
 			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
 				text = label,

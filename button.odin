@@ -7,11 +7,6 @@ Button_Widget_Variant :: struct {
 	active_time,
 	disable_time: f32,
 }
-Button_Type :: enum {
-	Filled,
-	Outlined,
-	Subtle,
-}
 Button_Info :: struct {
 	using generic: Generic_Widget_Info,
 	text: string,
@@ -19,7 +14,7 @@ Button_Info :: struct {
 	text_align: Maybe(Text_Align),
 	text_size: Maybe(f32),
 	active: bool,
-	type: Button_Type,
+	primary: bool,
 }
 Button_Result :: struct {
 	using generic: Generic_Widget_Result,
@@ -61,24 +56,25 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 		text_color: Color
 		box := move_box(self.box, -3 * data.active_time)
 		if data.active_time > 0 {
-			paint_box_fill(ui.painter, self.box, ui.style.color.button.default)
-			paint_triangle_fill(ui.painter, {box.low.x, box.high.y}, {self.box.low.x, self.box.high.y}, {self.box.low.x, box.high.y}, ui.style.color.button.default)
-			paint_triangle_fill(ui.painter, {box.high.x, box.low.y}, {self.box.high.x, self.box.low.y}, {box.low.x, self.box.high.y}, ui.style.color.button.default)
+			paint_box_fill(ui.painter, self.box, ui.style.color.accent)
+			paint_triangle_fill(ui.painter, {box.low.x, box.high.y}, {self.box.low.x, self.box.high.y}, {self.box.low.x, box.high.y}, ui.style.color.accent)
+			paint_triangle_fill(ui.painter, {box.high.x, box.low.y}, {self.box.high.x, self.box.low.y}, {box.low.x, self.box.high.y}, ui.style.color.accent)
 		}
 		// Types
 		switch info.type {
 			
 			case .Filled:
-			fill_color := alpha_blend_colors(blend_colors(data.hover_time, ui.style.color.button.default, ui.style.color.button.hovered), ui.style.color.floating_button_shade, data.active_time)
-			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, fill_color)
-			text_color = blend_colors(data.hover_time, ui.style.color.button_label.default, ui.style.color.button_label.hovered)
+			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, blend_colors(data.hover_time, ui.style.color.background, ui.style.color.accent))
+			if data.hover_time < 1 {
+				paint_rounded_box_corners_stroke(ui.painter, box, ui.style.rounding, 2, info.corners, ui.style.color.accent)
+			}
+			text_color = blend_colors(data.hover_time, ui.style.color.accent, ui.style.color.background)
 			
 			case .Outlined:
-			fill_color := fade(ui.style.color.button.hovered, data.hover_time)
+			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, ui.style.color.button.default)
 			if data.hover_time < 1 {
-				paint_rounded_box_corners_stroke(ui.painter, box, ui.style.rounding, 1, info.corners, ui.style.color.button.default)
+				paint_rounded_box_corners_stroke(ui.painter, box, ui.style.rounding, 1, info.corners, ui.style.color.accent)
 			}
-			paint_rounded_box_corners_fill(ui.painter, box, ui.style.rounding, info.corners, fill_color)
 			text_color = blend_colors(data.hover_time, ui.style.color.button.hovered, ui.style.color.button_label.hovered)
 
 			case .Subtle:
