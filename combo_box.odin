@@ -36,8 +36,8 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 	}
 	if data.is_open {
 		option_height := height(self.box)
-		menu_height := f32(len(info.items)) * option_height
-		menu_top := clamp(self.box.low.y - f32(info.index) * option_height, 0, ui.size.y - menu_height)
+		menu_height := f32(len(info.items)) * option_height + 8
+		menu_top := clamp(self.box.high.y + 4, 0, ui.size.y - menu_height)
 		menu_bottom := max(menu_top + menu_height, self.box.high.y)
 
 		if layer, ok := do_layer(ui, {
@@ -46,19 +46,20 @@ combo_box :: proc(ui: ^UI, info: Combo_Box_Info, loc := #caller_location) -> Com
 			space = [2]f32{0, menu_height},
 			options = {.Attached, .No_Scroll_X, .No_Scroll_Y},
 		}); ok {
-			paint_box_fill(ui.painter, layer.box, ui.style.color.foreground)
+			paint_rounded_box_fill(ui.painter, layer.box, ui.style.rounding, ui.style.color.background)
 			ui.placement.side = .Top; ui.placement.size = option_height
+			shrink(ui, 4)
 			push_id(ui, self.id)
 				for item, i in info.items {
 					push_id(ui, i)
-						if was_clicked(option(ui, {text = item, text_align = .Middle, active = i == info.index})) {
+						if was_clicked(option(ui, {text = item, text_align = .Middle})) {
 							result.index = i
 							data.is_open = false
 						}
 					pop_id(ui)
 				}
 			pop_id(ui)
-			paint_box_stroke(ui.painter, layer.box, 1, ui.style.color.substance)
+			paint_rounded_box_stroke(ui.painter, layer.box, ui.style.rounding, 1, ui.style.color.substance)
 			if ((self.state & {.Focused} == {}) && (layer.state & {.Focused} == {})) {
 				data.is_open = false
 			}
@@ -97,7 +98,7 @@ option :: proc(ui: ^UI, info: Option_Info, loc := #caller_location) -> Generic_W
 	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
 	if .Should_Paint in self.bits {
 		padding := height(self.box) * 0.25
-		paint_box_fill(ui.painter, self.box, fade(ui.style.color.substance, 0.5 * data.hover_time))
+		paint_rounded_box_fill(ui.painter, self.box, ui.style.rounding, fade(ui.style.color.substance, 0.5 * data.hover_time))
 		paint_text_box(ui.painter, {{self.box.low.x + padding, self.box.low.y}, {self.box.high.x - padding, self.box.high.y}}, {
 			text = info.text, 
 			font = ui.style.font.label, 

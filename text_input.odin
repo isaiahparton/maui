@@ -119,21 +119,21 @@ begin_text_input :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location
 					ui.painter,
 					text_origin, 
 					{font = text_info.font, size = text_info.size, text = info.placeholder.?, baseline = text_info.baseline}, 
-					ui.style.color.content,
+					fade(ui.style.color.content, 0.5),
 				)
 			}
 		}
 		// Paint the body on the background
 		layer := current_layer(ui)
 		ui.painter.target = layer.targets[.Background]
-		paint_box_fill(ui.painter, self.box, ui.style.color.foreground)
+		paint_box_stroke(ui.painter, self.box, 1, ui.style.color.substance)
 		if label, ok := info.label.?; ok {
 			paint_text(ui.painter, {text_origin.x, self.box.low.y - 2}, {
 				text = label,
 				baseline = .Bottom,
 				font = ui.style.font.title,
 				size = ui.style.text_size.title,
-			}, ui.style.color.content)
+			}, fade(ui.style.color.content, 0.5))
 		}
 		ui.painter.target = layer.targets[.Foreground]
 	}
@@ -217,19 +217,22 @@ end_text_input :: proc(ui: ^UI, result: Text_Input_Result) {
 	self := result.self.?
 	data := self.variant.(Text_Input_Widget_Variant)
 	if data.hover_time > 0 || data.focus_time > 0 {
-		paint_box_stroke(ui.painter, self.box, 2, fade(ui.style.color.accent, max(data.hover_time, data.focus_time)))
+		paint_box_stroke(ui.painter, expand_box(self.box, 1), 2, fade(ui.style.color.accent, max(data.hover_time, data.focus_time)))
 	}
 }
 /*
 	Text input context for contained buttons
 */
-text_input_layout :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> Text_Input_Result {
+@(deferred_in_out=_text_input_layout)
+text_input_layout :: proc(ui: ^UI, info: Text_Input_Info, loc := #caller_location) -> (Text_Input_Result, bool) {
 	result := begin_text_input(ui, info, loc)
 	push_dividing_layout(ui, result.self.?.box)
-	return result
+	return result, true
 }
 @private
-_text_input_layout :: proc(ui: ^UI, _: Text_Input_Info, _: runtime.Source_Code_Location, result: Text_Input_Result) {
-	pop_layout(ui)
-	end_text_input(ui, result)
+_text_input_layout :: proc(ui: ^UI, _: Text_Input_Info, _: runtime.Source_Code_Location, result: Text_Input_Result, ok: bool) {
+	if ok {
+		pop_layout(ui)
+		end_text_input(ui, result)
+	}
 }

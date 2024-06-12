@@ -18,7 +18,7 @@ make_default_style :: proc(painter: ^Painter) -> (style: Style, ok: bool) {
 			tooltip = 14,
 			field = 18,
 		},
-		rounding = 6,
+		rounding = 7,
 		stroke_width = 1,
 		panel_rounding = 5,
 		tooltip_rounding = 5,

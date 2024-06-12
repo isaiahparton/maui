@@ -179,7 +179,6 @@ calendar :: proc(ui: ^UI, value: time.Time, loc := #caller_location) -> (new_val
 			push_id(ui, i)
 				if was_clicked(button(ui, {
 					text = tmp_print(_day), 
-					active = (_month == month && _day == day),
 					primary = time.month(transmute(time.Time)day_time) != month,
 				})) {
 					new_value = transmute(time.Time)day_time

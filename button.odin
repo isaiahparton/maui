@@ -4,7 +4,6 @@ import "core:math"
 
 Button_Widget_Variant :: struct {
 	hover_time,
-	active_time,
 	disable_time: f32,
 }
 Button_Info :: struct {
@@ -13,8 +12,8 @@ Button_Info :: struct {
 	font: Maybe(Font_Handle),
 	text_align: Maybe(Text_Align),
 	text_size: Maybe(f32),
-	active: bool,
 	primary: bool,
+	square: bool,
 }
 Button_Result :: struct {
 	using generic: Generic_Widget_Result,
@@ -46,7 +45,6 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 	data := &self.variant.(Button_Widget_Variant)
 	// Update retained data
 	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
-	data.active_time = animate(ui, data.active_time, DEFAULT_WIDGET_HOVER_TIME, info.active)
 	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
 	if .Hovered in self.state {
 		ui.cursor = .Hand
@@ -56,11 +54,12 @@ button :: proc(ui: ^UI, info: Button_Info, loc := #caller_location) -> Button_Re
 		text_color: Color
 		// Types
 		if info.primary {
-
+			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, blend_colors(data.hover_time, ui.style.color.substance, ui.style.color.accent))
+			text_color = ui.style.color.content
 		} else {
-			paint_rounded_box_fill(ui.painter, self.box, ui.style.rounding, fade(ui.style.color.substance, data.hover_time))
+			paint_rounded_box_corners_fill(ui.painter, self.box, ui.style.rounding, info.corners, fade(ui.style.color.substance, data.hover_time))
 			if data.hover_time < 1 {
-				paint_rounded_box_stroke(ui.painter, self.box, ui.style.rounding, 1, ui.style.color.substance)
+				paint_rounded_box_corners_stroke(ui.painter, self.box, ui.style.rounding, 1, info.corners, ui.style.color.substance)
 			}
 			text_color = ui.style.color.content
 		}

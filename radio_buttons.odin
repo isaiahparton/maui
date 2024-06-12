@@ -68,9 +68,12 @@ radio_button :: proc(ui: ^UI, info: Radio_Button_Info, loc := #caller_location) 
 		icon_center := center(icon_box)
 		paint_ring_fill_texture(ui.painter, icon_center, RADIUS - 1, RADIUS, ui.style.color.substance)
 		center := box_center(icon_box)
+		if data.hover_time > 0 {
+			paint_rounded_box_fill(ui.painter, self.box, height(self.box) / 2, fade(ui.style.color.substance, 0.5 * data.hover_time))
+		}
 		// Paint icon
 		if info.state {
-			paint_circle_fill_texture(ui.painter, icon_center, (RADIUS - 5), ui.style.color.content)
+			paint_circle_fill_texture(ui.painter, icon_center, (RADIUS - 6), ui.style.color.content)
 		}
 		// Paint text
 		if has_text {
@@ -85,9 +88,6 @@ radio_button :: proc(ui: ^UI, info: Radio_Button_Info, loc := #caller_location) 
 				paint_text(ui.painter, {self.box.low.x, self.box.high.y - text_size.y}, {text = info.text, font = ui.style.font.label, size = ui.style.text_size.label}, fade(ui.style.color.content, opacity))
 			}
 		}
-	}
-	if data.hover_time > 0 {
-		paint_rounded_box_fill(ui.painter, self.box, height(self.box) / 2, fade(ui.style.color.substance, 0.5 * data.hover_time))
 	}
 	//
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))

@@ -27,8 +27,10 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 	update_widget(ui, self)
 
 	if .Should_Paint in self.bits {
-		fill_color := ui.style.color.foreground if info.index % 2 == 0 else ui.style.color.background
-		paint_box_fill(ui.painter, self.box, fill_color)
+		if info.index > 0 {
+			paint_box_fill(ui.painter, {self.box.low, {self.box.high.x, self.box.low.y + 1}}, ui.style.color.substance)
+		}
+		paint_box_fill(ui.painter, self.box, fade(ui.style.color.substance, 0.5 * data.hover_time))
 		if len(info.text) > 0 {
 			text_color := ui.style.color.content
 			box := self.box
@@ -71,43 +73,4 @@ list_item :: proc(ui: ^UI, info: List_Item_Info, loc := #caller_location) -> Gen
 	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
 
 	return result
-}
-
-Card_Info :: struct {
-	using generic: Generic_Widget_Info,
-	active: bool,
-}
-begin_card :: proc(ui: ^UI, info: Card_Info, loc := #caller_location) -> Generic_Widget_Result {
-	self, result := get_widget(ui, info, loc)
-
-	self.box = info.box.? or_else next_box(ui)
-
-	// Assert variant existence
-	if self.variant == nil {
-		self.variant = Button_Widget_Variant{}
-	}
-	data := &self.variant.(Button_Widget_Variant)
-	// Update retained data
-	data.hover_time = animate(ui, data.hover_time, DEFAULT_WIDGET_HOVER_TIME, .Hovered in self.state)
-	data.active_time = animate(ui, data.active_time, DEFAULT_WIDGET_HOVER_TIME, info.active)
-	data.disable_time = animate(ui, data.disable_time, DEFAULT_WIDGET_DISABLE_TIME, .Disabled in self.bits)
-
-	update_widget(ui, self)
-
-	box := move_box(self.box, data.active_time * -3)
-	if .Should_Paint in self.bits {
-		if data.active_time > 0 {
-			paint_box_fill(ui.painter, self.box, {0, 0, 0, 75})
-		}
-		paint_box_fill(ui.painter, box, blend_colors(data.active_time, ui.style.color.background, ui.style.color.foreground))
-		paint_box_stroke(ui.painter, box, 1, fade(ui.style.color.substance, max(data.hover_time, data.active_time)))
-	}
-
-	update_widget_hover(ui, self, point_in_box(ui.io.mouse_point, self.box))
-	push_dividing_layout(ui, box)
-
-	return result
-}
-end_card :: proc(ui: ^UI) {
-	pop_layout(ui)
 }

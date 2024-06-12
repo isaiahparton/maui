@@ -1,4 +1,5 @@
 package maui
+import "core:math"
 // Scroll bars for scrolling bars
 Scrollbar_Info :: struct {
 	using generic: Generic_Widget_Info,
@@ -38,18 +39,17 @@ scrollbar :: proc(ui: ^UI, info: Scrollbar_Info, loc := #caller_location) -> Scr
 	range := size - info.knob_size
 	value_range := (info.high - info.low) if info.high > info.low else 1
 	box := self.box
-	j := 1 - i
-	box.low[j] += (box.high[j] - box.low[j]) * 0.5 * (1 - data.hover_time)
 	// Part dragged by user
 	knob_box := box
 	knob_size := knob_box.high[i] - knob_box.low[i]
 	knob_box.low[i] += range * clamp((info.value - info.low) / value_range, 0, 1)
 	knob_size = min(info.knob_size, knob_size)
 	knob_box.high[i] = knob_box.low[i] + knob_size
+	knob_box = shrink_box(knob_box, 2)
 	// Painting
 	if .Should_Paint in self.bits {
-		paint_box_fill(ui.painter, box, fade({75, 0, 25, 255}, 0.2 + data.hover_time * 0.1))
-		paint_box_fill(ui.painter, knob_box, fade({75, 0, 25, 255}, 0.2 + data.hover_time * 0.2))
+		paint_rounded_box_stroke(ui.painter, self.box, math.floor(width(self.box) / 2), 1, ui.style.color.substance)
+		paint_rounded_box_fill(ui.painter, knob_box, math.floor(width(knob_box) / 2), ui.style.color.substance)
 	}
 	// Dragging
 	if .Pressed in (self.state - self.last_state) {
